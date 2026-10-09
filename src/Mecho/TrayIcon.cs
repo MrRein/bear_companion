@@ -37,6 +37,12 @@ public sealed class TrayIcon : IDisposable
         var quiet = menu.Items.Add("");
         quiet.Click += (_, _) => _pet.SetQuiet(!_pet.IsQuiet);
         menu.Items.Add(new Forms.ToolStripSeparator());
+        var update = menu.Items.Add("");
+        update.Click += (_, _) =>
+        {
+            if (_pet.Updater.IsAvailable) _ = _pet.InstallUpdate();
+            else _ = _pet.CheckForUpdates(manual: true);
+        };
         var reload = menu.Items.Add("Презареди рисунките");
         reload.Click += (_, _) => _pet.ReloadArt();
         var autostart = new Forms.ToolStripMenuItem("Пускай се с Windows");
@@ -63,12 +69,16 @@ public sealed class TrayIcon : IDisposable
             sleep.Enabled = _pet.CanSleep;
             quiet.Text = _pet.IsQuiet ? "Може да говориш" : "Тихо за 1 час";
             autostart.Checked = _save.StartWithWindows;
+            update.Text = _pet.Updater.IsAvailable
+                ? $"Обнови до версия {_pet.Updater.LatestVersion}"
+                : $"Провери за обновление (сега: {Updater.CurrentVersion})";
+            update.Enabled = !_pet.Updater.IsBusy;
         };
 
         _icon = new Forms.NotifyIcon
         {
             Icon = LoadIcon(),
-            Text = "Мечо",
+            Text = $"Мечо, версия {Updater.CurrentVersion}",
             ContextMenuStrip = menu,
             Visible = true,
         };

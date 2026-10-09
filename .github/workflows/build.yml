@@ -1,5 +1,6 @@
 # Всяко качване сглобява Mecho.exe (с папката assets) в Mecho.zip.
-# От клон main се пуска и нова версия (Release).
+# От основния клон се пуска и нова версия (Release) vN, където N е номерът на
+# сглобяването. Мечокът сам проверява за нея и може да се обнови.
 name: Build
 
 on:
@@ -32,7 +33,7 @@ jobs:
           name: Mecho
           path: publish/Mecho
       - name: Release
-        if: github.ref == 'refs/heads/main'
+        if: github.ref_name == github.event.repository.default_branch
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -53,6 +54,7 @@ public sealed class PetWindow : Window
     private readonly TextBlock _bubbleText;
     private readonly DispatcherTimer _timer;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private readonly Updater _updater = new();
     private SpriteLibrary _lib;
     private Prop _couchProp;
 
@@ -81,6 +83,8 @@ public sealed class PetWindow : Window
     private double _lastTime;
     private double _lastSave;
     private double _bubbleUntil;
+    private double _nextUpdateCheck;
+    private int _announcedVersion;
 
     // Мишка
     private bool _pressed;
@@ -93,6 +97,7 @@ public sealed class PetWindow : Window
     public bool IsQuiet => DateTime.Now < _save.QuietUntil;
     public bool StaysPut => _save.StayPut;
     public bool CanSleep => IsAsleep || !OnCouchMission;
+    public Updater Updater => _updater;
 
     /// <summary>Зает с дивана: не прави нищо друго, докато не седне или не го прибере.</summary>
     private bool OnCouchMission => _couchPhase != CouchPhase.None || _couchVisible || _save.StayPut || _afterBusy == "couch";
@@ -182,6 +187,7 @@ public sealed class PetWindow : Window
     {
         _lastTime = Now;
         _nextChatter = Now + 120 + _rng.Next(180);
+        _nextUpdateCheck = Now + 60;
         if (_save.StayPut)
         {
             // Пак си е на дивана, където го оставихме.
@@ -235,6 +241,12 @@ public sealed class PetWindow : Window
         if (_bubble.Visibility == Visibility.Visible && now > _bubbleUntil) HideBubble();
         UpdateFrame();
         UpdateLayoutAndWindow();
+
+        if (now > _nextUpdateCheck)
+        {
+            _nextUpdateCheck = now + 6 * 3600;
+            _ = CheckForUpdates(manual: false);
+        }
 
         if (now - _lastSave > 60)
         {
@@ -604,6 +616,42 @@ public sealed class PetWindow : Window
         _save.Save();
     }
 
+    // ───────────────────────── Обновления ─────────────────────────
+
+    /// <summary>
+    /// Проверява за нова версия. Сам (на 6 часа) казва само когато има нова;
+    /// при ръчна проверка казва и „нямам нова“ или „не успях“.
+    /// </summary>
+    public async Task CheckForUpdates(bool manual)
+    {
+        if (manual) Say("Проверявам за нова версия…", 10);
+        var result = await _updater.CheckAsync();
+        switch (result)
+        {
+            case Updater.Result.Available when manual || _announcedVersion != _updater.LatestVersion:
+                _announcedVersion = _updater.LatestVersion;
+                Say($"Има нова версия ({_updater.LatestVersion})! Десен бутон върху мен → „Обнови“.", 8);
+                break;
+            case Updater.Result.UpToDate when manual:
+                Say($"Имам най-новата версия ({Updater.CurrentVersion}). Ура!");
+                break;
+            case Updater.Result.Failed when manual:
+                Say("Не успях да проверя. Има ли интернет?");
+                break;
+        }
+    }
+
+    public async Task InstallUpdate()
+    {
+        if (!_updater.IsAvailable || _updater.IsBusy) return;
+        Say("Обновявам се… ей сега се връщам!", 30);
+        Persist();
+        if (await _updater.DownloadAndStartInstallAsync())
+            Application.Current.Shutdown();
+        else
+            Say("Не успях да се обновя. Ще пробвам пак по-късно.");
+    }
+
     // ───────────────────────── Мишка ─────────────────────────
 
     private Point MouseScreen(MouseEventArgs e)
@@ -718,6 +766,12 @@ public sealed class PetWindow : Window
         sleep.Click += (_, _) => { if (IsAsleep) WakeUp(); else GoToSleep(); };
         var quiet = new MenuItem();
         quiet.Click += (_, _) => SetQuiet(!IsQuiet);
+        var update = new MenuItem();
+        update.Click += (_, _) =>
+        {
+            if (_updater.IsAvailable) _ = InstallUpdate();
+            else _ = CheckForUpdates(manual: true);
+        };
         var hide = new MenuItem { Header = "🙈 Скрий (иконката е до часовника)" };
         hide.Click += (_, _) => Hide();
 
@@ -727,6 +781,7 @@ public sealed class PetWindow : Window
         menu.Items.Add(sleep);
         menu.Items.Add(quiet);
         menu.Items.Add(new Separator());
+        menu.Items.Add(update);
         menu.Items.Add(hide);
 
         menu.Opened += (_, _) =>
@@ -737,6 +792,10 @@ public sealed class PetWindow : Window
             dice.IsEnabled = !IsAsleep;
             hello.IsEnabled = !IsAsleep;
             sleep.IsEnabled = CanSleep;
+            update.Header = _updater.IsAvailable
+                ? $"⬆️ Обнови до версия {_updater.LatestVersion}"
+                : $"🔄 Провери за обновление (сега: {Updater.CurrentVersion})";
+            update.IsEnabled = !_updater.IsBusy;
         };
         return menu;
     }
