@@ -20,11 +20,6 @@ public sealed partial class PetWindow
             Say("Ззз… ще ям, като стана.", 3);
             return;
         }
-        if (_save.Fullness >= 95)
-        {
-            Say(Lines.Pick(Lines.Full, _save.OwnerName), 3);
-            return;
-        }
         if (_food.Count + food.Count > MaxFoodOnScreen)
         {
             Say("Първо ми донеси другата храна!", 4);
@@ -47,8 +42,10 @@ public sealed partial class PetWindow
             w.Show();
         }
         Say(food.Count > 1
-            ? $"Разпилях {food.Name.ToLowerInvariant()} из екрана! Донеси ми ги {food.Icon}"
+            ? $"Разпилях {food.Name.ToLowerInvariant()} из екрана! Донеси ми ги всичките {food.Icon}"
             : $"{food.Icon} {food.Name}! Донеси ги тук, моля!", 5);
+        _nextFoodReminder = Now + 15;
+        if (_state is BearState.Walk or BearState.Chase or BearState.Busy) SetIdle();
     }
 
     /// <summary>Тут пусна храна. Ако е върху мечока, той я изяжда; иначе пада на земята.</summary>
@@ -63,19 +60,45 @@ public sealed partial class PetWindow
             Say("Ззз… после…", 2);
             return;
         }
-        if (_save.Fullness >= 98)
-        {
-            Say(Lines.Pick(Lines.Full, _save.OwnerName), 3);
-            return;
-        }
 
+        // Изяжда всичко, което му донесеш, дори да е сит.
         _save.Fullness = Math.Min(100, _save.Fullness + food.Fullness);
-        var lines = food.Food.Lines;
-        Say(lines[_rng.Next(lines.Length)], 3);
-        if (CanAnimateFreely) Play("eat");
         food.Close();
+        _food.Remove(food);
+        if (_food.Count == 0)
+        {
+            Say(Lines.Pick(Lines.AllFoodEaten, _save.OwnerName), 4);
+            if (CanAnimateFreely) Play("dance", length: 3);
+        }
+        else
+        {
+            var lines = food.Food.Lines;
+            Say($"{lines[_rng.Next(lines.Length)]} Още {_food.Count}!", 3);
+            if (CanAnimateFreely) Play("eat");
+        }
         NotifyCare();
         Persist();
+    }
+
+    /// <summary>Има храна из екрана, която още не му е донесена.</summary>
+    private bool WaitingForFood => _food.Count > 0;
+
+    private double _nextFoodReminder;
+
+    /// <summary>Стои, гледа храната и напомня да му я донесеш.</summary>
+    private void WaitForFood(double now)
+    {
+        if (now < _nextFoodReminder)
+        {
+            if (_anim != "idle") SetIdle();
+            return;
+        }
+        _nextFoodReminder = now + 12 + _rng.Next(10);
+        var nearest = _food.OrderBy(f => Math.Abs(f.Left + f.Width / 2 - _x)).First();
+        _facingLeft = nearest.Left + nearest.Width / 2 < _x;
+        var line = Lines.WantFood[_rng.Next(Lines.WantFood.Length)];
+        Say(string.Format(line, _save.OwnerName, _food.Count, nearest.Food.Icon), 4);
+        Play(_rng.Next(2) == 0 ? "sad" : "idle", length: 2);
     }
 
     /// <summary>Пуснатата храна пада до земята на своя екран.</summary>

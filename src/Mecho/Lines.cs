@@ -132,6 +132,15 @@ public static class Lines
 
     public static readonly string[] NoteAdded = { "Записах я в тефтера!", "Бележката е на сигурно.", "Готово, записано!" };
 
+    // {0} е Тут, {1} е колко храна остава, {2} е иконката ѝ.
+    public static readonly string[] WantFood =
+    {
+        "{0}, донеси ми ги! Останаха {1} {2}", "Ей там има още {1} {2}! Моля те!", "Не мога да мисля за друго, докато ги има {2}",
+        "*гледа храната с големи очи* {2}", "Още {1}! Ще ги изям всичките, обещавам.",
+    };
+
+    public static readonly string[] AllFoodEaten = { "Мерси! Сит съм и щастлив!", "Всичките! Ти си най-добрата, {0}!", "Ням! Сега мога да работя пак." };
+
     public static string Greeting(string owner)
     {
         int h = DateTime.Now.Hour;

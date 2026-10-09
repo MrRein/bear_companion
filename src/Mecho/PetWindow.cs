@@ -29,7 +29,7 @@ public enum BearState
 /// </summary>
 public sealed partial class PetWindow : Window
 {
-    private const double BubbleZone = 140;     // място за балончето от двете страни на мечока
+    private const double BubbleZone = 140;     // половината от най-широкото балонче
     private const double WalkSpeed = 45;       // DIP в секунда
     private const double Gravity = 2200;       // DIP/s²
     private const double AwayToSleep = 5 * 60; // секунди без мишка и клавиатура
@@ -153,10 +153,10 @@ public sealed partial class PetWindow : Window
         ApplySpriteSize();
         ClampX();
         WindowStartupLocation = WindowStartupLocation.Manual;
-        Left = _x - BubbleZone;
-        Top = _y - 220;
-        Width = BubbleZone * 2;
-        Height = 220;
+        Left = _x - WindowW / 2;
+        Top = _y + 4 - WindowH;
+        Width = WindowW;
+        Height = WindowH;
 
         SourceInitialized += (_, _) =>
         {
@@ -263,7 +263,7 @@ public sealed partial class PetWindow : Window
             return;
         }
 
-        if (!IsQuiet && !InFocus && now > _nextChatter)
+        if (!IsQuiet && !InFocus && !WaitingForFood && now > _nextChatter)
         {
             _nextChatter = now + 240 + _rng.Next(240);
             Say(Lines.Pick(Lines.Chatter, _save.OwnerName), 6);
@@ -275,6 +275,13 @@ public sealed partial class PetWindow : Window
         if (MenuIsOpen || ChatIsOpen)
         {
             SetIdle();
+            return;
+        }
+
+        // Чака си храната: докато не му я донесеш, не иска да прави нищо друго.
+        if (WaitingForFood)
+        {
+            WaitForFood(now);
             return;
         }
 
@@ -773,39 +780,42 @@ public sealed partial class PetWindow : Window
         _sprite.RenderTransform = _facingLeft ? new ScaleTransform(-1, 1) : Transform.Identity;
     }
 
-    /// <summary>
-    /// Нарежда мечока, дивана и балончето в екранни координати и разтяга
-    /// прозореца точно около тях.
-    /// </summary>
+    // Прозорецът на мечока е с постоянен размер и върви точно с мечока. Ако се
+    // разтягаше и следеше пеперудата или балончето, Windows понякога местеше или
+    // оразмеряваше прозореца кадър по-рано от рисунката: мечокът трепереше, а
+    // балончето се отрязваше.
+    private const double WindowW = 600;
+    private const double WindowH = 340;
+    private Rect _window;
+
+    /// <summary>Нарежда мечока, дивана, табелката, балончето и пеперудата в прозореца.</summary>
     private void UpdateLayoutAndWindow()
     {
         var area = Area;
-        bool sitting = _couchVisible;
+        double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
 
-        var bear = new Rect(_x - SpriteWidth / 2, _y - SpriteHeight - (sitting ? SeatHeight : 0), SpriteWidth, SpriteHeight);
-        var bounds = new Rect(_x - BubbleZone, bear.Top - 4, BubbleZone * 2, bear.Bottom - bear.Top + 4);
+        // Котвата (стъпалата на мечока) е на цял физически пиксел: така мечокът
+        // е винаги на едно и също място в прозореца и не трепти от закръгляне.
+        double ax = Math.Round(_x * dpi), ay = Math.Round(_y * dpi);
+        double wpx = Math.Round(WindowW * dpi / 2) * 2, hpx = Math.Round(WindowH * dpi);
+        double xs = ax / dpi, ys = ay / dpi;
+        _window = new Rect((ax - wpx / 2) / dpi, (ay + 4 - hpx) / dpi, wpx / dpi, hpx / dpi);
+
+        bool sitting = _couchVisible;
+        var bear = new Rect(xs - SpriteWidth / 2, ys - SpriteHeight - (sitting ? SeatHeight : 0), SpriteWidth, SpriteHeight);
+        _bearRect = bear;
 
         Rect couch = Rect.Empty;
         _couch.Visibility = _couchVisible ? Visibility.Visible : Visibility.Collapsed;
-        if (_couchVisible)
-        {
-            couch = new Rect(_x - CouchWidth / 2, _y - _couch.Height, CouchWidth, _couch.Height);
-            bounds.Union(couch);
-        }
+        if (_couchVisible) couch = new Rect(xs - CouchWidth / 2, ys - _couch.Height, CouchWidth, _couch.Height);
 
-        _bearRect = bear;
         double above = bear.Top - 4;
-
-        Rect butterfly = ButterflyRect;
-        if (!butterfly.IsEmpty) bounds.Union(butterfly);
-
         Rect tag = Rect.Empty;
         if (_timerTag.Visibility == Visibility.Visible)
         {
             _timerTag.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             var ts = _timerTag.DesiredSize;
-            tag = new Rect(_x - ts.Width / 2, above - ts.Height, ts.Width, ts.Height);
-            bounds.Union(tag);
+            tag = new Rect(xs - ts.Width / 2, above - ts.Height, ts.Width, ts.Height);
             above = tag.Top - 3;
         }
 
@@ -814,37 +824,34 @@ public sealed partial class PetWindow : Window
         {
             _bubble.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             var size = _bubble.DesiredSize;
-            // Балончето не излиза извън екрана, дори когато мечокът е до ръба.
-            double left = Math.Clamp(_x - size.Width / 2, area.Left + 4, Math.Max(area.Left + 4, area.Right - 4 - size.Width));
+            // Балончето стои и в екрана, и в прозореца.
+            double minX = Math.Max(area.Left, _window.Left) + 4;
+            double maxX = Math.Min(area.Right, _window.Right) - 4 - size.Width;
+            double minY = Math.Max(area.Top, _window.Top) + 4;
+            double left = Math.Clamp(xs - size.Width / 2, minX, Math.Max(minX, maxX));
             double top = above - size.Height;
-            if (top < area.Top + 4)
+            if (top < minY)
             {
                 // Горе няма място (вдигнат е до горния ръб): балончето отива встрани от мечока.
-                left = bear.Right + 6 + size.Width <= area.Right - 4 ? bear.Right + 6 : bear.Left - 6 - size.Width;
-                left = Math.Clamp(left, area.Left + 4, Math.Max(area.Left + 4, area.Right - 4 - size.Width));
-                top = Math.Clamp(bear.Top, area.Top + 4, Math.Max(area.Top + 4, area.Bottom - 4 - size.Height));
+                left = bear.Right + 6 <= maxX ? bear.Right + 6 : bear.Left - 6 - size.Width;
+                left = Math.Clamp(left, minX, Math.Max(minX, maxX));
+                top = Math.Max(minY, bear.Top);
             }
             bubble = new Rect(left, top, size.Width, size.Height);
-            bounds.Union(bubble);
         }
 
-        // Прозорецът е подравнен към физическите пиксели, за да не се размазва рисунката.
-        double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
-        double winLeft = Math.Floor(bounds.Left * dpi) / dpi;
-        double winTop = Math.Floor(bounds.Top * dpi) / dpi;
-        double winW = Math.Ceiling((bounds.Right - winLeft) * dpi) / dpi;
-        double winH = Math.Ceiling((bounds.Bottom - winTop) * dpi) / dpi;
+        Rect butterfly = ButterflyRect;
 
-        Place(_sprite, bear, winLeft, winTop, dpi);
-        if (_couchVisible) Place(_couch, couch, winLeft, winTop, dpi);
-        if (!bubble.IsEmpty) Place(_bubble, bubble, winLeft, winTop, dpi);
-        if (!tag.IsEmpty) Place(_timerTag, tag, winLeft, winTop, dpi);
-        if (!butterfly.IsEmpty) Place(_butterfly, butterfly, winLeft, winTop, dpi);
+        Place(_sprite, bear, _window.Left, _window.Top, dpi);
+        if (_couchVisible) Place(_couch, couch, _window.Left, _window.Top, dpi);
+        if (!bubble.IsEmpty) Place(_bubble, bubble, _window.Left, _window.Top, dpi);
+        if (!tag.IsEmpty) Place(_timerTag, tag, _window.Left, _window.Top, dpi);
+        if (!butterfly.IsEmpty) Place(_butterfly, butterfly, _window.Left, _window.Top, dpi);
 
-        if (Math.Abs(Left - winLeft) > 0.01) Left = winLeft;
-        if (Math.Abs(Top - winTop) > 0.01) Top = winTop;
-        if (Math.Abs(Width - winW) > 0.01) Width = winW;
-        if (Math.Abs(Height - winH) > 0.01) Height = winH;
+        if (Math.Abs(Width - _window.Width) > 0.01) Width = _window.Width;
+        if (Math.Abs(Height - _window.Height) > 0.01) Height = _window.Height;
+        if (Math.Abs(Left - _window.Left) > 0.001) Left = _window.Left;
+        if (Math.Abs(Top - _window.Top) > 0.001) Top = _window.Top;
     }
 
     private static void Place(UIElement element, Rect screen, double winLeft, double winTop, double dpi)

@@ -129,7 +129,7 @@ public sealed partial class PetWindow
         _chaseLength = 10 + _rng.NextDouble() * 8;
         // Долита отстрани.
         int side = _rng.Next(2) == 0 ? -1 : 1;
-        _bfX = Math.Clamp(_x + side * 260, area.Left + 20, area.Right - 20);
+        _bfX = Math.Clamp(_x + side * (WindowW / 2 - 50), area.Left + 20, area.Right - 20);
         _bfY = area.Bottom - 180;
         _bfTargetX = _x;
         _bfVx = 0;
@@ -194,16 +194,18 @@ public sealed partial class PetWindow
         {
             _bfX += _bfVx * dt;
             _bfY += _bfVy * dt;
-            if (_bfY < area.Top - 40) _bfActive = false;
+            if (_bfY < Math.Max(area.Top, _window.Top) + 6) _bfActive = false;
         }
         else
         {
             // Пърха насам-натам около мечока, на нивото на главата му.
+            // Стои в прозореца на мечока (около него), за да не го разтяга.
+            double reach = WindowW / 2 - 40;
             if (_rng.NextDouble() < dt / 1.4)
-                _bfTargetX = Math.Clamp(_x + (_rng.NextDouble() - 0.5) * 500, area.Left + 30, area.Right - 30);
+                _bfTargetX = Math.Clamp(_x + (_rng.NextDouble() - 0.5) * 2 * reach, area.Left + 30, area.Right - 30);
             _bfVx += Math.Sign(_bfTargetX - _bfX) * 220 * dt;
             _bfVx = Math.Clamp(_bfVx * (1 - 0.8 * dt), -140, 140);
-            _bfX += _bfVx * dt;
+            _bfX = Math.Clamp(_bfX + _bfVx * dt, _x - reach, _x + reach);
             _bfY = area.Bottom - 150 + Math.Sin(_bfTime * 2.3) * 45 + Math.Sin(_bfTime * 7) * 6;
         }
 
