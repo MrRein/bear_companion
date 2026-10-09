@@ -108,6 +108,30 @@
     "food_potatoes": {
       "file": "food_potatoes.png",
       "seat": 0
+    },
+    "shop_easel": {
+      "file": "shop_easel.png",
+      "seat": 0
+    },
+    "shop_computer": {
+      "file": "shop_computer.png",
+      "seat": 0
+    },
+    "shop_yoga_mat": {
+      "file": "shop_yoga_mat.png",
+      "seat": 0
+    },
+    "shop_plant": {
+      "file": "shop_plant.png",
+      "seat": 0
+    },
+    "shop_radio": {
+      "file": "shop_radio.png",
+      "seat": 0
+    },
+    "shop_board_game": {
+      "file": "shop_board_game.png",
+      "seat": 0
     }
   }
 }

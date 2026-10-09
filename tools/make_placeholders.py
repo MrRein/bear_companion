@@ -696,6 +696,16 @@ def main():
     with open(os.path.join(OUT, "anim.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
+    # Иконки за магазина от предметите за почивка: смалени до 16 x 16.
+    for shop, src in [("shop_easel", "easel"), ("shop_computer", "computer"), ("shop_yoga_mat", "mat"),
+                      ("shop_plant", "plant"), ("shop_radio", "radio"), ("shop_board_game", "table_board")]:
+        img, _ = PROP_LIST[src]
+        icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+        scale = min(1.0, 16 / img.width, 16 / img.height)
+        small = img.resize((max(1, int(img.width * scale)), max(1, int(img.height * scale))), Image.NEAREST)
+        icon.alpha_composite(small, ((16 - small.width) // 2, (16 - small.height) // 2))
+        PROP_LIST[shop] = (icon, 0)
+
     os.makedirs(PROPS, exist_ok=True)
     props = {"scale": 3, "props": {}}
     for name, (img, seat) in PROP_LIST.items():

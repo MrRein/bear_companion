@@ -185,7 +185,7 @@ public sealed partial class PetWindow : Window
         if (_save.StayPut)
         {
             // Пак си е на дивана, където го оставихме.
-            StartScene(Scenes.Reading, quiet: true);
+            StartScene(Scenes.ById(_save.StayScene), quiet: true);
             Say(Lines.Greeting(_save.OwnerName));
         }
         else if (_save.SleepingByChoice)

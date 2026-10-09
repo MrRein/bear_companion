@@ -18,6 +18,7 @@ public sealed class SaveData
     public double MenuTop { get; set; } = double.NaN;
     public bool SleepingByChoice { get; set; }
     public bool StayPut { get; set; }
+    public string StayScene { get; set; } = "reading";   // кое кътче е избрала Тут („Почивай си“)
     public DateTime QuietUntil { get; set; }
     public bool StartWithWindows { get; set; } = true;
     public bool FirstRunDone { get; set; }

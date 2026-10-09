@@ -61,12 +61,17 @@ public sealed partial class PetWindow
         {
             var w = new FoodWindow(this, food, fullness, food.Energy / food.Count, prop, PixelSize);
             // Появява се някъде по екрана (не върху мечока) и пада на земята.
-            double x;
+            // Разпръсква се по целия екран (не върху мечока) и си виси там, докато не я събереш.
+            double x, y;
             int tries = 0;
-            do x = area.Left + 40 + _rng.NextDouble() * Math.Max(0, area.Width - 80 - w.Width);
-            while (Math.Abs(x - _x) < 150 && area.Width > 600 && ++tries < 20);
+            do
+            {
+                x = area.Left + 30 + _rng.NextDouble() * Math.Max(0, area.Width - 60 - w.Width);
+                y = area.Top + 30 + _rng.NextDouble() * Math.Max(0, area.Height - 60 - w.Height);
+            }
+            while (Math.Abs(x - _x) < 150 && Math.Abs(y - _y) < 200 && ++tries < 30);
             w.Left = x;
-            w.Top = area.Top + area.Height * (0.1 + 0.5 * _rng.NextDouble());
+            w.Top = y;
             w.Closed += (_, _) => _food.Remove(w);
             _food.Add(w);
             w.Show();
@@ -92,7 +97,11 @@ public sealed partial class PetWindow
         _save.Hazelnuts -= upgrade.Price;
         _save.Owned.Add(upgrade.Id);
         Say($"Ура! {upgrade.Icon} {upgrade.Name}! {upgrade.Description}", 6);
-        if (CanAnimateFreely) Play("dance", length: 3);
+        // Ново нещо за почивка: веднага го пробва (ако не работите).
+        var scene = Scenes.Fun.FirstOrDefault(f => f.Unlock == upgrade.Id);
+        if (scene != null && !InFocus && !_save.StayPut && !IsAsleep && _state is not (BearState.Drag or BearState.Falling))
+            StartScene(scene, 180 + _rng.Next(120));
+        else if (CanAnimateFreely) Play("dance", length: 3);
         NotifyCare();
         Persist();
     }
@@ -151,24 +160,8 @@ public sealed partial class PetWindow
         Play(_rng.Next(2) == 0 ? "sad" : "idle", length: 2);
     }
 
-    /// <summary>Пуснатата храна пада до земята на своя екран.</summary>
+    /// <summary>Храната е без гравитация: стои там, където е, докато Тут не я занесе.</summary>
     private void UpdateFood(double dt)
     {
-        foreach (var f in _food.ToList())
-        {
-            if (f.IsDragging) continue;
-            var b = f.Bounds;
-            // Пада на земята или на нарисувана платформа.
-            var foodArea = AreaAt(b.Left + b.Width / 2, b.Top + b.Height / 2);
-            double floor = _drawings.GroundAt(foodArea, b.Left + b.Width / 2, b.Width * 0.3, b.Bottom) - b.Height;
-            if (f.Top >= floor - 0.5)
-            {
-                f.VelocityY = 0;
-                if (Math.Abs(f.Top - floor) > 0.5) f.Top = floor;
-                continue;
-            }
-            f.VelocityY += Gravity * 0.6 * dt;
-            f.Top = Math.Min(floor, f.Top + f.VelocityY * dt);
-        }
     }
 }

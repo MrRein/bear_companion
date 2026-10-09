@@ -333,7 +333,7 @@ public sealed partial class PetWindow
             _save.PomodoroPhase = PomodoroPhase.Break;
             _save.PomodoroEndsAt = DateTime.Now + BreakLength;
             Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts), 8);
-            if (!InFocus) Relax();
+            if (!InFocus) RelaxAfterWork();
         }
         else
         {
@@ -383,18 +383,18 @@ public sealed partial class PetWindow
         _save.TimerEndsAt = DateTime.MinValue;
         int nuts = PayForMinutes(_save.TimerMinutes);
         Say((label.Length > 0 ? $"⏰ Времето изтече: {label}!" : "⏰ Времето изтече!") + Earned(nuts), 12);
-        if (!InFocus) Relax();
+        if (!InFocus) RelaxAfterWork();
         else if (CanAnimateFreely) Play("dance", length: 3);
         NotifyCare();
         Persist();
     }
 
     /// <summary>След работа: става от бюрото, танцува и сяда на чай за почивката.</summary>
-    private void Relax()
+    private void RelaxAfterWork()
     {
         LeaveWorkMode();
         if (CanAnimateFreely && !IsAsleep)
-            Play("dance", length: 3, after: () => { if (!InFocus && CanAnimateFreely) StartScene(Scenes.Tea, 90 + _rng.Next(60)); });
+            Play("dance", length: 3, after: () => { if (!InFocus && CanAnimateFreely) StartScene(Scenes.IsUnlocked(Scenes.Tea, _save) ? Scenes.Tea : Scenes.Reading, 120 + _rng.Next(60)); });
     }
 
     private static string Clock(TimeSpan t) =>

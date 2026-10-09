@@ -12,7 +12,8 @@ public sealed record Food(
     string Id, string Name, string Icon, double Fullness, double Energy, int Cost, int Count, string? Tool, string[] Lines);
 
 /// <summary>Нещо за купуване с лешници: уред за кухнята или подобрение.</summary>
-public sealed record Upgrade(string Id, string Name, string Icon, int Price, string Description);
+/// <summary>Нещо за купуване с лешници. Shelf е разделът в магазина.</summary>
+public sealed record Upgrade(string Id, string Name, string Icon, int Price, string Description, string Shelf = Kitchen.KitchenShelf);
 
 /// <summary>
 /// Икономиката: лешниците се печелят с работа (задачи, мечо-доро, таймери) и се
@@ -22,6 +23,12 @@ public static class Kitchen
 {
     public const string Pot = "pot", Pan = "pan", Oven = "oven", CoffeeMachine = "coffee_machine", Kettle = "kettle";
     public const string Bed = "bed", Fridge = "fridge", Cookbook = "cookbook", Headphones = "headphones";
+
+    // Предмети за почивка: всеки отключва кътче (виж Scenes).
+    public const string Easel = "easel", Computer = "computer", YogaMat = "yoga_mat", PlantPot = "plant", Radio = "radio", BoardGame = "board_game";
+
+    // Раздели в магазина
+    public const string KitchenShelf = "Кухня", FunShelf = "За почивка", HelpShelf = "Подобрения";
 
     /// <summary>Безплатните боровинки се берат най-много веднъж на толкова минути.</summary>
     public const int BerryMinutes = 30;
@@ -45,14 +52,22 @@ public static class Kitchen
     public static readonly Upgrade[] Upgrades =
     {
         new(Pot, "Тенджера", "🍲", 10, "Мечокът може да пука пуканки."),
-        new(Kettle, "Чайник", "🫖", 15, "Чай с мед: малко енергия и уют."),
+        new(Kettle, "Чайник", "🫖", 15, "Чай с мед и кътче за чай."),
         new(Pan, "Тиган", "🍳", 25, "Мечокът може да пържи кюфтенца."),
-        new(CoffeeMachine, "Кафе машина", "☕", 30, "Кафе: вдига енергията много (но не повече от 2 на половин час!)."),
-        new(Headphones, "Слушалки", "🎧", 35, "+1 🌰 за всяко завършено мечо-доро."),
-        new(Bed, "Меко легло", "🛏️", 40, "Мечокът се наспива два пъти по-бързо."),
+        new(CoffeeMachine, "Кафе машина", "☕", 30, "Кафе: вдига енергията много (най-много 2 на половин час)."),
         new(Oven, "Фурна", "🔥", 45, "Мечокът може да пече мечешки картофки."),
-        new(Fridge, "Хладилник", "🧊", 50, "Всяко ястие струва с 1 🌰 по-малко."),
-        new(Cookbook, "Готварска книга", "📖", 60, "Всяко ястие засища с 25% повече."),
+
+        new(PlantPot, "Саксия с цвете", "🌱", 10, "Мечокът полива цветето.", FunShelf),
+        new(YogaMat, "Постелка за йога", "🧘", 15, "Мечокът прави йога.", FunShelf),
+        new(Radio, "Радио", "📻", 20, "Мечокът слуша музика.", FunShelf),
+        new(BoardGame, "Настолна игра", "🎲", 25, "Мечокът плейтества на масичка.", FunShelf),
+        new(Easel, "Статив", "🎨", 30, "Мечокът рисува като Тут.", FunShelf),
+        new(Computer, "Компютър", "🎮", 50, "Мечокът играе игрички.", FunShelf),
+
+        new(Headphones, "Слушалки", "🎧", 35, "+1 🌰 за всяко завършено мечо-доро.", HelpShelf),
+        new(Bed, "Меко легло", "🛏️", 40, "Мечокът се наспива два пъти по-бързо.", HelpShelf),
+        new(Fridge, "Хладилник", "🧊", 50, "Всяко ястие струва с 1 🌰 по-малко.", HelpShelf),
+        new(Cookbook, "Готварска книга", "📖", 60, "Всяко ястие засища с 25% повече.", HelpShelf),
     };
 
     public static Upgrade? Find(string id) => Upgrades.FirstOrDefault(u => u.Id == id);

@@ -161,6 +161,14 @@ public static class Lines
 
     public static readonly string[] WorkTired = { "*прозява се над лаптопа*", "Буквите се размазват…", "Още малко… *клюма*", "Кафе… трябва ми кафе." };
 
+    public static readonly string[] Wondering =
+    {
+        "Хм… какво да правя?", "Да почета ли? Или да порисувам?", "Скучаааа ми…", "*чуди се*",
+        "{0}, какво да правя сега?", "Хм-хм-хм.", "Мисля си за кюфтенца. И за игри.",
+    };
+
+    public static readonly string[] BoredNap = { "Скучно ми е… ще подремна.", "*прозява се* Нищо за правене. Лягам.", "Ще дремна малко, докато измислиш нещо." };
+
     public static string Greeting(string owner)
     {
         int h = DateTime.Now.Hour;

@@ -76,7 +76,7 @@ public sealed class TrayIcon : IDisposable
         menu.Opening += (_, _) =>
         {
             show.Text = _pet.IsVisible ? "Скрий мечока" : "Покажи мечока";
-            stay.Text = _pet.StaysPut ? "Стани от дивана" : "Стой тук и почети";
+            stay.Text = _pet.StaysPut ? "Стани" : "Почивай си: чети";
             sleep.Text = _pet.IsAsleep ? "Събуди се" : "Лягай да спиш";
             sleep.Enabled = _pet.CanSleep;
             quiet.Text = _pet.IsQuiet ? "Може да говориш" : "Тихо за 1 час";

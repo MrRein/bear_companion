@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
@@ -52,30 +53,47 @@ public sealed partial class PetWindow
     }
 
     private string _lastActivity = "";
+    private double _idleSince;          // откога се скита без работа и без кътче
+    private double _boredAfter = 240;   // след колко секунди скитане решава сам какво да прави
 
     /// <summary>
-    /// Избира следващото занимание. Тежестите казват колко често е всяко; зависят от
-    /// умората и от часа (сутрин йога и чай, следобед игри и рисуване, вечер четене и
-    /// музика). Едно и също занимание не се повтаря два пъти подред.
+    /// Поведението е на три нива:
+    /// 1. Скита се: разходки, чуди се какво да прави, дребни неща (пеперуда, наднича,
+    ///    курсор, жонглира, скица, зар, катерене по рисунките).
+    /// 2. Забавления: ако дълго (3–6 мин) никой не му е казал какво да прави, решава
+    ///    сам: уморен ли е, дрямва; иначе сяда в някое от своите кътчета за 3–6 мин.
+    ///    Тут също може да избере кътче („Почивай си“), тогава стои там до „Стани“.
+    /// 3. Работа: мечо-доро или работен таймер (виж EnterWorkMode).
+    /// Едно и също не се повтаря подред; тежестите зависят от умората.
     /// </summary>
     private void ChooseActivity()
     {
-        var area = Area;
-        bool tired = IsExhausted; // уморен: не му се играе, по-скоро сяда или се прозява
-        int hour = DateTime.Now.Hour;
-        bool morning = hour is >= 6 and < 12, afternoon = hour is >= 12 and < 18, evening = hour >= 18 || hour < 6;
-        int busy = InFocus ? 0 : 1;     // по време на мечо-доро не сяда в кътчета
+        if (_idleSince <= 0) _idleSince = Now;
+        if (Now - _idleSince > _boredAfter)
+        {
+            _idleSince = Now;
+            _boredAfter = 180 + _rng.Next(180);
+            if (_save.Energy < 45)
+            {
+                TakeNap(Lines.Pick(Lines.BoredNap, _save.OwnerName));
+                return;
+            }
+            StartFun();
+            return;
+        }
 
+        bool tired = IsExhausted; // уморен: не му се играе, по-скоро се прозява
         var choices = new (string Name, double Weight, Action Do)[]
         {
-            ("walk", tired ? 6 : 20, () =>
+            ("walk", tired ? 10 : 26, () =>
             {
                 double x = WalkTarget();
                 if (Math.Abs(x - _x) > 30) WalkTo(x);
                 else SetIdle();
             }),
-            ("climb", tired || !HasPlatforms ? 0 : 10, Climb),
-            ("sketch", tired ? 2 : 8, () => Play("work", length: 8 + _rng.Next(8), after: () => Say(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
+            ("wonder", 10, Wonder),
+            ("climb", tired || !HasPlatforms ? 0 : 8, Climb),
+            ("sketch", tired ? 1 : 5, () => Play("work", length: 8 + _rng.Next(8), after: () => Say(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
             ("dice", tired ? 0 : 4, () =>
             {
                 int n = _rng.Next(1, 7);
@@ -86,7 +104,7 @@ public sealed partial class PetWindow
                 Play("dance", length: 3);
                 Say(Lines.Pick(Lines.Dancing, _save.OwnerName), 3);
             }),
-            ("snack", _save.Fullness < 90 ? 3 : 0, () =>
+            ("snack", _save.Fullness < 90 ? 2 : 0, () =>
             {
                 Play("eat");
                 Say(Lines.Pick(Lines.Snack, _save.OwnerName), 3);
@@ -97,22 +115,11 @@ public sealed partial class PetWindow
                 Play("yawn");
                 Say(tired ? Lines.Pick(Lines.Sleepy, _save.OwnerName) : "*протяга се* Ааах.", 3);
             }),
-            ("cursor", tired ? 0 : 6, FollowCursor),
+            ("cursor", tired ? 0 : 5, FollowCursor),
             ("butterfly", tired ? 0 : 5, StartChase),
-            ("peek", tired ? 0 : 4, Peekaboo),
-            ("juggle", tired ? 0 : 4, Juggle),
-
-            // Кътчета: сяда с предмет за около минута.
-            ("reading", busy * (tired ? 12 : evening ? 9 : 5), () => StartScene(Scenes.Reading, 40 + _rng.Next(50))),
-            ("gaming", busy * (tired ? 1 : afternoon || evening ? 8 : 4), () => StartScene(Scenes.Gaming, 45 + _rng.Next(45))),
-            ("painting", busy * (tired ? 1 : afternoon ? 7 : 4), () => StartScene(Scenes.Painting, 40 + _rng.Next(40))),
-            ("tea", busy * (morning ? 6 : tired ? 6 : 3), () => StartScene(Scenes.Tea, 30 + _rng.Next(30))),
-            ("yoga", busy * (tired ? 0 : morning ? 6 : 2), () => StartScene(Scenes.Yoga, 25 + _rng.Next(25))),
-            ("plant", busy * (morning ? 4 : 2), () => StartScene(Scenes.Plant, 15 + _rng.Next(15))),
-            ("music", busy * (evening ? 7 : 3), () => StartScene(Scenes.Music, 30 + _rng.Next(40))),
-            ("board", busy * (tired ? 1 : afternoon ? 6 : 3), () => StartScene(Scenes.Board, 40 + _rng.Next(40))),
-
-            ("idle", 12, SetIdle),
+            ("peek", tired ? 0 : 3, Peekaboo),
+            ("juggle", tired ? 0 : 3, Juggle),
+            ("idle", 14, SetIdle),
         };
 
         double total = 0;
@@ -130,6 +137,42 @@ public sealed partial class PetWindow
             roll -= c.Weight;
         }
         SetIdle();
+    }
+
+    /// <summary>Сяда в някое от кътчетата, които има (сутрин по-често йога и чай, вечер четене и музика).</summary>
+    private void StartFun()
+    {
+        int hour = DateTime.Now.Hour;
+        bool morning = hour is >= 6 and < 12, evening = hour >= 18 || hour < 6;
+        var owned = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save) && f.Id != _lastActivity).ToList();
+        if (owned.Count == 0) owned.Add(Scenes.Reading);
+        double Weight(Scene f) =>
+            (morning && (f == Scenes.Yoga || f == Scenes.Tea || f == Scenes.Plant) ? 3 : 1) *
+            (evening && (f == Scenes.Reading || f == Scenes.Music) ? 3 : 1) *
+            (IsExhausted && (f == Scenes.Reading || f == Scenes.Tea) ? 3 : 1);
+        double total = owned.Sum(Weight), roll = _rng.NextDouble() * total;
+        var pick = owned[^1];
+        foreach (var f in owned)
+        {
+            if ((roll -= Weight(f)) < 0)
+            {
+                pick = f;
+                break;
+            }
+        }
+        _lastActivity = pick.Id;
+        StartScene(pick, 180 + _rng.Next(180));
+    }
+
+    /// <summary>Чуди се какво да прави; понякога мечтае за нещо от магазина.</summary>
+    private void Wonder()
+    {
+        var missing = Kitchen.Upgrades.Where(u => u.Shelf == Kitchen.FunShelf && !Kitchen.Owns(_save, u.Id)).ToList();
+        string line = missing.Count > 0 && _rng.Next(3) == 0
+            ? $"Ех, да имах {missing[_rng.Next(missing.Count)].Name.ToLowerInvariant()}…"
+            : Lines.Pick(Lines.Wondering, _save.OwnerName);
+        Say(line, 4);
+        Play(_rng.Next(2) == 0 ? "think" : "idle", length: 3 + _rng.Next(3));
     }
 
     // ───────────────────────── Наднича иззад ръба ─────────────────────────

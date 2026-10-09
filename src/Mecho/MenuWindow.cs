@@ -39,7 +39,7 @@ public sealed class MenuWindow : Window
     private Button _sleepButton = null!, _couchButton = null!, _quietButton = null!;
     // Мрежа по 3: всички плочки в един ред са еднакво високи, бутоните са на една линия.
     private readonly UniformGrid _foodTiles = new() { Columns = 3 };
-    private readonly UniformGrid _shopTiles = new() { Columns = 3 };
+    private readonly StackPanel _shopTiles = new();   // раздели: кухня, за почивка, подобрения
     private TextBlock _foodInfo = null!, _shopInfo = null!;
     private readonly StackPanel _taskList = new();
     private TextBlock _taskSummary = null!;
@@ -336,14 +336,7 @@ public sealed class MenuWindow : Window
         }));
         actions.Children.Add(_sleepButton);
         actions.Children.Add(Wide(Button("Погали", _pet.Pet, icon: "heart")));
-        _couchButton = Wide(Button("", () =>
-        {
-            if (_pet.StaysPut) _pet.GetUp();
-            else _pet.StayHere();
-            Refresh(false);
-        }));
-        actions.Children.Add(_couchButton);
-        actions.Children.Add(Wide(Button("Хвърли зар", _pet.RollDice, icon: "dice")));
+        actions.Children.Add(Wide(Button("Зар", _pet.RollDice, icon: "dice")));
         _quietButton = Wide(Button("", () =>
         {
             _pet.SetQuiet(!_pet.IsQuiet);
@@ -352,8 +345,48 @@ public sealed class MenuWindow : Window
         actions.Children.Add(_quietButton);
         actions.Children.Add(Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil")));
         actions.Children.Add(Wide(Button("Поговори", () => { Hide(); _pet.Ask(Conversations.Next(_pet)); }, icon: "bear")));
+        _couchButton = Wide(Button("Стани", () =>
+        {
+            _pet.GetUp();
+            Refresh(true);
+        }, icon: "walk"));
+        _couchButton.ToolTip = Tip("Става от кътчето и пак се разхожда.");
+        actions.Children.Add(_couchButton);
         p.Children.Add(actions);
-        return p;
+
+        // „Почивай си“: Тут избира какво да прави мечокът. Стои там до „Стани“.
+        p.Children.Add(Ribbon("Почивай си", "couch"));
+        p.Children.Add(_relaxGrid);
+        return new ScrollViewer { Content = p, MaxHeight = 600 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+    }
+
+    private readonly UniformGrid _relaxGrid = new() { Columns = 2 };
+
+    private void BuildRelaxButtons()
+    {
+        var s = _pet.Save;
+        var chosen = _pet.ChosenScene;
+        _relaxGrid.Children.Clear();
+        foreach (var scene in Scenes.Fun)
+        {
+            var sc = scene;
+            bool unlocked = Scenes.IsUnlocked(sc, s);
+            var b = Wide(Button(sc.Name, () =>
+            {
+                _pet.Relax(sc);
+                Refresh(true);
+            }, primary: chosen == sc, icon: unlocked ? sc.Icon : "lock"));
+            b.HorizontalContentAlignment = HorizontalAlignment.Left;
+            if (!unlocked)
+            {
+                var item = Kitchen.Find(sc.Unlock!);
+                b.IsEnabled = false;
+                b.ToolTip = Tip($"Заключено. Трябва „{item?.Name}“ от магазина ({item?.Price} лешника).");
+                ToolTipService.SetShowOnDisabled(b, true);
+            }
+            else if (chosen == sc) b.ToolTip = Tip("Сега прави това. „Стани“ го спира.");
+            _relaxGrid.Children.Add(b);
+        }
     }
 
     private static Button Wide(Button b)
@@ -493,8 +526,19 @@ public sealed class MenuWindow : Window
     {
         var s = _pet.Save;
         _shopTiles.Children.Clear();
-        foreach (var upgrade in Kitchen.Upgrades)
+        UniformGrid? grid = null;
+        string shelf = "";
+        foreach (var upgrade in Kitchen.Upgrades.OrderBy(u => u.Shelf == Kitchen.KitchenShelf ? 0 : u.Shelf == Kitchen.FunShelf ? 1 : 2))
         {
+            if (upgrade.Shelf != shelf)
+            {
+                shelf = upgrade.Shelf;
+                var ribbon = Ribbon(shelf, shelf == Kitchen.KitchenShelf ? "food" : shelf == Kitchen.FunShelf ? "couch" : "plus");
+                if (_shopTiles.Children.Count == 0) ribbon.Margin = new Thickness(0, 0, 0, 8);
+                _shopTiles.Children.Add(ribbon);
+                grid = new UniformGrid { Columns = 3 };
+                _shopTiles.Children.Add(grid);
+            }
             var u = upgrade;
             Button action;
             string? why = null;
@@ -520,7 +564,7 @@ public sealed class MenuWindow : Window
                 TextAlignment = TextAlignment.Center,
                 TextWrapping = TextWrapping.Wrap,
             };
-            _shopTiles.Children.Add(MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, description, action, dim: false, why, owned));
+            grid!.Children.Add(MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, description, action, dim: false, why, owned));
         }
     }
 
@@ -967,9 +1011,7 @@ public sealed class MenuWindow : Window
         if (_pet.IsAsleep) SetButton(_sleepButton, "Събуди", "sun");
         else SetButton(_sleepButton, "Приспи", "moon");
         _sleepButton.IsEnabled = _pet.CanSleep;
-        if (_pet.StaysPut) SetButton(_couchButton, "Стани", "walk");
-        else SetButton(_couchButton, "Седни", "couch");
-        _couchButton.ToolTip = Tip(_pet.StaysPut ? "Става от дивана и пак се разхожда." : "Сяда на дивана и чете, докато не го вдигнеш.");
+        _couchButton.IsEnabled = _pet.StaysPut;
         if (_pet.IsQuiet) SetButton(_quietButton, "Говори", "bell");
         else SetButton(_quietButton, "Тихо 1 ч", "quiet");
 
@@ -980,6 +1022,7 @@ public sealed class MenuWindow : Window
                          (s.FocusMinutesBank >= 1 ? $" (събрани {s.FocusMinutesBank:0} мин към следващия)." : ".");
         if (rebuild)
         {
+            BuildRelaxButtons();
             BuildFoodTiles();
             BuildShopTiles();
             BuildTaskList();
