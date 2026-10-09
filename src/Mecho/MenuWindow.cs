@@ -6,6 +6,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using static Mecho.Ui;
 
 namespace Mecho;
 
@@ -15,23 +16,17 @@ namespace Mecho;
 /// </summary>
 public sealed class MenuWindow : Window
 {
-    private static readonly Brush Ink = new SolidColorBrush(Color.FromRgb(59, 36, 20));
-    private static readonly Brush Paper = new SolidColorBrush(Color.FromRgb(255, 248, 230));
-    private static readonly Brush PaperDark = new SolidColorBrush(Color.FromRgb(240, 224, 196));
-    private static readonly Brush Hover = new SolidColorBrush(Color.FromRgb(255, 233, 170));
-    private static readonly Brush Honey = new SolidColorBrush(Color.FromRgb(255, 214, 102));
-    private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(140, 115, 90));
-    private static readonly Brush Good = new SolidColorBrush(Color.FromRgb(120, 180, 80));
-    private static readonly Brush Okay = new SolidColorBrush(Color.FromRgb(240, 170, 60));
-    private static readonly Brush Bad = new SolidColorBrush(Color.FromRgb(220, 90, 80));
-
     private const double BarWidth = 170;
+
+    public const int BearTab = 0, TasksTab = 1, NotesTab = 2, PomodoroTab = 3, MoreTab = 4;
 
     private readonly PetWindow _pet;
     private readonly DispatcherTimer _refresh;
-    private readonly Border[] _tabButtons = new Border[4];
-    private readonly UIElement[] _tabs = new UIElement[4];
+    private readonly Border[] _tabButtons = new Border[5];
+    private readonly UIElement[] _tabs = new UIElement[5];
     private int _tab;
+    private readonly StackPanel _noteList = new();
+    private TextBox _noteInput = null!;
 
     // Динамични части
     private readonly TextBlock _nuts = new();
@@ -64,16 +59,17 @@ public sealed class MenuWindow : Window
         Foreground = Ink;
         UseLayoutRounding = true;
 
-        _tabs[0] = BuildBearTab();
-        _tabs[1] = BuildTasksTab();
-        _tabs[2] = BuildPomodoroTab();
-        _tabs[3] = BuildMoreTab();
+        _tabs[BearTab] = BuildBearTab();
+        _tabs[TasksTab] = BuildTasksTab();
+        _tabs[NotesTab] = BuildNotesTab();
+        _tabs[PomodoroTab] = BuildPomodoroTab();
+        _tabs[MoreTab] = BuildMoreTab();
 
-        var content = new Grid { Width = 320 };
+        var content = new Grid { Width = 380 };
         foreach (var t in _tabs) content.Children.Add(t);
 
         var tabs = new UniformGrid4();
-        string[] names = { "🐻 Мечо", "📋 Задачи", "🍯 Мед-доро", "⚙️ Още" };
+        string[] names = { "🐻 Мечо", "📋 Задачи", "📝 Бележки", "🍯 Мед-доро", "⚙️ Още" };
         for (int i = 0; i < names.Length; i++)
         {
             int index = i;
@@ -123,9 +119,9 @@ public sealed class MenuWindow : Window
     /// Показва панела до мечока (вдясно или вляво, където има място), за да
     /// се вижда балончето над него.
     /// </summary>
-    public void ShowNear(Rect bear, Rect area)
+    public void ShowNear(Rect bear, Rect area, int tab)
     {
-        Refresh(rebuildTasks: true);
+        SelectTab(tab);
         Show();
         UpdateLayout();
         double left = bear.Right + 8;
@@ -144,7 +140,8 @@ public sealed class MenuWindow : Window
             _tabButtons[i].Background = i == index ? Honey : PaperDark;
         }
         Refresh(rebuildTasks: true);
-        if (index == 1) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
+        if (index == TasksTab) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
+        if (index == NotesTab) Dispatcher.BeginInvoke(() => _noteInput.Focus(), DispatcherPriority.Input);
     }
 
     // ───────────────────────── Части ─────────────────────────
@@ -287,6 +284,127 @@ public sealed class MenuWindow : Window
         return p;
     }
 
+    private UIElement BuildNotesTab()
+    {
+        var p = new StackPanel();
+        _noteInput = new TextBox
+        {
+            FontSize = 13,
+            Padding = new Thickness(4, 3, 4, 3),
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(2),
+            Background = Brushes.White,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinHeight = 60,
+            MaxHeight = 140,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        };
+        _noteInput.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                AddNote();
+                e.Handled = true;
+            }
+        };
+        var hint = new TextBlock
+        {
+            Text = "Запиши нещо… (Ctrl+Enter)",
+            Foreground = Muted,
+            IsHitTestVisible = false,
+            Margin = new Thickness(8, 5, 0, 0),
+        };
+        _noteInput.TextChanged += (_, _) =>
+            hint.Visibility = _noteInput.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var input = new Grid();
+        input.Children.Add(_noteInput);
+        input.Children.Add(hint);
+        p.Children.Add(input);
+
+        var save = Button("📝 Запиши", AddNote);
+        save.HorizontalAlignment = HorizontalAlignment.Left;
+        save.Margin = new Thickness(0, 6, 0, 0);
+        p.Children.Add(save);
+
+        p.Children.Add(new ScrollViewer
+        {
+            Content = _noteList,
+            MaxHeight = 300,
+            Margin = new Thickness(0, 8, 0, 0),
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        });
+        return p;
+    }
+
+    private void AddNote()
+    {
+        if (string.IsNullOrWhiteSpace(_noteInput.Text)) return;
+        _pet.AddNote(_noteInput.Text);
+        _noteInput.Clear();
+        _noteInput.Focus();
+    }
+
+    private void BuildNoteList()
+    {
+        _noteList.Children.Clear();
+        if (_pet.Save.Notes.Count == 0)
+        {
+            _noteList.Children.Add(new TextBlock
+            {
+                Text = "Тефтерът е празен. Запиши идея, телефон, мисъл, която те разсейва… Мечокът ще я пази.",
+                Foreground = Muted,
+                TextWrapping = TextWrapping.Wrap,
+            });
+            return;
+        }
+        foreach (var note in _pet.Save.Notes.ToList())
+        {
+            var n = note;
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition());
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var body = new StackPanel();
+            // TextBox само за четене, за да може текстът да се маркира и копира.
+            body.Children.Add(new TextBox
+            {
+                Text = n.Text,
+                IsReadOnly = true,
+                TextWrapping = TextWrapping.Wrap,
+                BorderThickness = new Thickness(0),
+                Background = Brushes.Transparent,
+                Foreground = Ink,
+                Padding = new Thickness(0),
+            });
+            body.Children.Add(new TextBlock
+            {
+                Text = n.Created.ToString("d.MM.yyyy, HH:mm"),
+                Foreground = Muted,
+                FontSize = 11,
+            });
+            grid.Children.Add(body);
+
+            var del = Chip("✕", () => _pet.DeleteNote(n));
+            del.Padding = new Thickness(5, 0, 5, 1);
+            del.VerticalAlignment = VerticalAlignment.Top;
+            del.ToolTip = "Изтрий";
+            Grid.SetColumn(del, 1);
+            grid.Children.Add(del);
+
+            _noteList.Children.Add(new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = PaperDark,
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(6, 4, 4, 4),
+                Margin = new Thickness(0, 0, 0, 4),
+                Child = grid,
+            });
+        }
+    }
+
     private UIElement BuildMoreTab()
     {
         var p = new StackPanel();
@@ -346,7 +464,11 @@ public sealed class MenuWindow : Window
 
         if (rebuildTasks || _foods.Children.Count == 0) BuildFoods();
 
-        if (rebuildTasks) BuildTaskList();
+        if (rebuildTasks)
+        {
+            BuildTaskList();
+            BuildNoteList();
+        }
 
         var left = _pet.PomodoroLeft;
         switch (s.PomodoroPhase)
@@ -529,71 +651,6 @@ public sealed class MenuWindow : Window
         fill.Background = value >= 50 ? Good : value >= 25 ? Okay : Bad;
         text.Text = word;
         fill.ToolTip = $"{value:0}%";
-    }
-
-    private static Button Button(string text, Action onClick)
-    {
-        var b = new Button
-        {
-            Content = text,
-            Padding = new Thickness(8, 3, 8, 4),
-            Margin = new Thickness(0, 0, 4, 4),
-            Background = PaperDark,
-            Foreground = Ink,
-            BorderBrush = Ink,
-            BorderThickness = new Thickness(2),
-            FontWeight = FontWeights.SemiBold,
-            Cursor = Cursors.Hand,
-            Template = FlatTemplate(),
-        };
-        b.Click += (_, _) => onClick();
-        return b;
-    }
-
-    /// <summary>Малък „бутон“ от Border (за табове, размери и ×).</summary>
-    private static Border Chip(string text, Action onClick)
-    {
-        var chip = new Border
-        {
-            Background = PaperDark,
-            BorderBrush = Ink,
-            BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(6, 2, 6, 3),
-            Cursor = Cursors.Hand,
-            Child = new TextBlock { Text = text, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center },
-        };
-        chip.MouseLeftButtonUp += (_, e) =>
-        {
-            onClick();
-            e.Handled = true;
-        };
-        return chip;
-    }
-
-    /// <summary>Плосък бутон с рамка, който светва при посочване.</summary>
-    private static ControlTemplate FlatTemplate()
-    {
-        var border = new FrameworkElementFactory(typeof(Border), "bd");
-        border.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
-        border.SetBinding(Border.BackgroundProperty, new Binding(nameof(Control.Background)) { RelativeSource = RelativeSource.TemplatedParent });
-        border.SetBinding(Border.BorderBrushProperty, new Binding(nameof(Control.BorderBrush)) { RelativeSource = RelativeSource.TemplatedParent });
-        border.SetBinding(Border.BorderThicknessProperty, new Binding(nameof(Control.BorderThickness)) { RelativeSource = RelativeSource.TemplatedParent });
-        border.SetBinding(Border.PaddingProperty, new Binding(nameof(Control.Padding)) { RelativeSource = RelativeSource.TemplatedParent });
-
-        var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
-        presenter.SetBinding(HorizontalAlignmentProperty, new Binding(nameof(Control.HorizontalContentAlignment)) { RelativeSource = RelativeSource.TemplatedParent });
-        presenter.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
-        border.AppendChild(presenter);
-
-        var template = new ControlTemplate(typeof(Button)) { VisualTree = border };
-        var hover = new Trigger { Property = IsMouseOverProperty, Value = true };
-        hover.Setters.Add(new Setter(Border.BackgroundProperty, Hover, "bd"));
-        template.Triggers.Add(hover);
-        var disabled = new Trigger { Property = IsEnabledProperty, Value = false };
-        disabled.Setters.Add(new Setter(OpacityProperty, 0.5));
-        template.Triggers.Add(disabled);
-        return template;
     }
 
     /// <summary>Ред от равни по ширина табове.</summary>

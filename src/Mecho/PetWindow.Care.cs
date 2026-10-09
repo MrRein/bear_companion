@@ -189,6 +189,25 @@ public sealed partial class PetWindow
         Persist();
     }
 
+    // ───────────────────────── Бележки ─────────────────────────
+
+    public void AddNote(string text, bool quiet = false)
+    {
+        text = text.Trim();
+        if (text.Length == 0) return;
+        _save.Notes.Insert(0, new NoteItem { Text = text });
+        if (!quiet) Say(Lines.Pick(Lines.NoteAdded, _save.OwnerName), 3);
+        NotifyCare();
+        Persist();
+    }
+
+    public void DeleteNote(NoteItem note)
+    {
+        _save.Notes.Remove(note);
+        NotifyCare();
+        Persist();
+    }
+
     // ───────────────────────── Мед-доро ─────────────────────────
 
     public bool InFocus => _save.PomodoroPhase == PomodoroPhase.Focus;

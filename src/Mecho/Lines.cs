@@ -29,11 +29,6 @@ public static class Lines
         "Мечешки картофки + настолна игра = перфектна вечер.",
     };
 
-    public static readonly string[] Poked =
-    {
-        "Хи-хи!", "Гъделичка!", "Здрасти, {0}!", "Мечешка прегръдка!", "Пак ли ме цъкна? Хареса ми.", "Ура!",
-    };
-
     public static readonly string[] PokedAsleep = { "Ззз… още пет минутки…", "Мм… сънувам зарове…", "Ззз… лешници…" };
 
     public static readonly string[] WokenByDrag = { "Ей! Спях!", "Къде ме носиш насън?!" };
@@ -48,11 +43,7 @@ public static class Lines
 
     public static readonly string[] WokeUp = { "Добро утро! Колко спах?", "*протяга се* Готов съм!", "Сънувах нова игра!" };
 
-    public static readonly string[] GoingForCouch = { "Чакай, отивам за дивана!", "Момент, ей сега се връщам!", "Ще си донеса нещо удобно…" };
-
-    public static readonly string[] Pushing = { "Хъх… тежичък е!", "*скръц, скръц*", "Пази се, идва диван!", "Зает съм, бутам диван!" };
-
-    public static readonly string[] SatDown = { "Ааах, удобно. Време за книжка.", "Най-накрая! Докъде бях стигнал…", "Диван + книжка = щастие." };
+    public static readonly string[] SatDown = { "*пуф!* Диван! Време за книжка.", "*пуф!* Ааах, удобно. Докъде бях стигнал…", "*пуф!* Диван + книжка = щастие." };
 
     public static readonly string[] StandUp = { "Добре, ставам.", "Ще прибера дивана.", "Отбелязах си страницата!" };
 
@@ -95,6 +86,15 @@ public static class Lines
     public static readonly string[] FocusDone = { "Мед-доро готово! 5 минути почивка: стани и пийни вода.", "Буркан мед! Почивка, {0}!", "Браво! Сега се раздвижи малко." };
 
     public static readonly string[] BreakDone = { "Почивката свърши. Още едно мед-доро?", "Готова ли си за още?", "Хайде пак, {0}!" };
+
+    public static readonly string[] Tickled = { "Хи-хи-хи! Гъдел!", "Ахаха, не там!", "Хи-хи, спри! Не, не спирай!", "*кикоти се*" };
+
+    public static readonly string[] FocusPoked =
+    {
+        "Шшт, работим сега!", "Фокус, {0}! После почивка.", "Още малко! Аз пиша правила.", "Мед-доро тече. Работим!",
+    };
+
+    public static readonly string[] NoteAdded = { "Записах я в тефтера!", "Бележката е на сигурно.", "Готово, записано!" };
 
     public static string Greeting(string owner)
     {

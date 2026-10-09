@@ -19,18 +19,14 @@ public enum BearState
     Sleep,
     Drag,
     Falling,
-    Couch,    // „Стой тук“: носи дивана, чете, прибира дивана (виж CouchPhase)
+    Couch,    // „Стой тук“: седи на дивана и чете (виж CouchPhase)
 }
 
 public enum CouchPhase
 {
     None,
-    GoingOut,    // отива до ръба на екрана и излиза
-    Waiting,     // чака малко зад ръба (после идва _couchNext)
-    Bringing,    // бута дивана навътре
-    Walking,     // отива до _walkTarget (после идва _couchNext)
+    Walking,     // връща се до дивана (например след като е бил вдигнат)
     Sitting,     // седи и чете
-    TakingAway,  // бута дивана навън
 }
 
 /// <summary>
@@ -41,7 +37,6 @@ public sealed partial class PetWindow : Window
 {
     private const double BubbleZone = 140;     // място за балончето от двете страни на мечока
     private const double WalkSpeed = 45;       // DIP в секунда
-    private const double PushSpeed = 30;       // с дивана е по-бавно
     private const double Gravity = 2200;       // DIP/s²
     private const double AwayToSleep = 5 * 60; // секунди без мишка и клавиатура
 
@@ -74,10 +69,8 @@ public sealed partial class PetWindow : Window
 
     // Диванът
     private CouchPhase _couchPhase;
-    private CouchPhase _couchNext;
     private bool _couchVisible;
     private double _couchX;        // средата на дивана
-    private int _couchEdge = 1;    // -1: диванът живее зад левия ръб, +1: зад десния
 
     private double _nextChatter;
     private double _lastTime;
@@ -156,7 +149,8 @@ public sealed partial class PetWindow : Window
         _sprite.MouseLeftButtonDown += OnMouseDown;
         _sprite.MouseMove += OnMouseMove;
         _sprite.MouseLeftButtonUp += OnMouseUp;
-        _sprite.ContextMenu = BuildMenu();
+        _sprite.MouseRightButtonDown += OnRightDown;
+        _sprite.MouseRightButtonUp += OnRightUp;
 
         var primary = SystemParameters.WorkArea;
         _x = double.IsNaN(save.X) ? primary.Left + primary.Width * 0.75 : save.X;
@@ -192,7 +186,6 @@ public sealed partial class PetWindow : Window
         if (_save.StayPut)
         {
             // Пак си е на дивана, където го оставихме.
-            _couchEdge = _save.CouchEdge < 0 ? -1 : 1;
             _couchX = ClampCouchSpot(_save.CouchX);
             _couchVisible = true;
             SitOnCouch(quiet: true);
@@ -260,8 +253,7 @@ public sealed partial class PetWindow : Window
     }
 
     private bool MayLeaveScreen =>
-        _state == BearState.Couch && _couchPhase is CouchPhase.GoingOut or CouchPhase.Waiting
-            or CouchPhase.Bringing or CouchPhase.TakingAway or CouchPhase.Walking;
+        _state == BearState.Couch && _couchPhase == CouchPhase.Walking;
 
     private void UpdateIdle(double now)
     {
@@ -288,7 +280,7 @@ public sealed partial class PetWindow : Window
         if (_stateTime < _stateLength) return;
 
         // Докато панелът е отворен, стои до него.
-        if (MenuIsOpen)
+        if (MenuIsOpen || ChatIsOpen)
         {
             SetIdle();
             return;
@@ -385,27 +377,19 @@ public sealed partial class PetWindow : Window
     private double CouchWidth => _couch.Width;
     private double SeatHeight => _couchProp.Seat * PixelSize;
 
-    /// <summary>Разстояние между средата на мечока и средата на дивана, докато го бута.</summary>
-    private double PushOffset => (SpriteWidth + CouchWidth) / 2 - 2 * PixelSize;
-
+    /// <summary>„Стой тук“: зад мечока се появява диван и той сяда да чете.</summary>
     public void StayHere()
     {
         if (_save.StayPut) return;
         _save.StayPut = true;
         _save.SleepingByChoice = false;
-        if (!_couchVisible)
-        {
-            // Диванът идва от по-близкия ръб и застава там, където е мечокът сега.
-            var area = AreaAt(_x, _y - 1);
-            _couchX = ClampCouchSpot(_x, area);
-            _couchEdge = _x - area.Left < area.Right - _x ? -1 : 1;
-            _save.CouchX = _couchX;
-            Say(Lines.Pick(Lines.GoingForCouch, _save.OwnerName));
-        }
+        _couchX = ClampCouchSpot(_x, AreaAt(_x, _y - 1));
+        _save.CouchX = _couchX;
         ContinueCouch();
         Persist();
     }
 
+    /// <summary>Става от дивана и диванът изчезва.</summary>
     public void GetUp()
     {
         if (!_save.StayPut) return;
@@ -415,52 +399,30 @@ public sealed partial class PetWindow : Window
         Persist();
     }
 
-    /// <summary>
-    /// Решава следващата стъпка с дивана според това дали трябва да стои и
-    /// къде са мечокът и диванът. Вика се при всяка промяна и след приземяване.
-    /// </summary>
+    /// <summary>Следващата стъпка с дивана. Вика се при всяка промяна и след приземяване.</summary>
     private void ContinueCouch()
     {
-        var area = Area;
-        if (_save.StayPut)
+        if (!_save.StayPut)
         {
-            if (!_couchVisible)
-            {
-                _walkTarget = _couchEdge < 0 ? area.Left - SpriteWidth : area.Right + SpriteWidth;
-                SetCouchPhase(CouchPhase.GoingOut, "walk");
-            }
-            else if (Math.Abs(_x - _couchX) < 1) SitOnCouch(quiet: false);
-            else WalkThen(_couchX, CouchPhase.Sitting);
-        }
-        else if (_couchVisible)
-        {
-            // Застава от вътрешната страна на дивана и го бута към ръба.
-            WalkThen(_couchX - _couchEdge * PushOffset, CouchPhase.TakingAway);
-        }
-        else if (_x < area.Left + SpriteWidth / 2 || _x > area.Right - SpriteWidth / 2)
-        {
-            // Извън екрана (или наполовина): прибира се до мястото, където беше диванът.
-            WalkThen(ClampCouchSpot(_save.CouchX), CouchPhase.None);
-        }
-        else
-        {
+            _couchVisible = false;
             _couchPhase = CouchPhase.None;
             SetIdle();
+            return;
         }
-    }
-
-    private void WalkThen(double target, CouchPhase next)
-    {
-        _walkTarget = target;
-        _couchNext = next;
-        SetCouchPhase(CouchPhase.Walking, "walk");
-    }
-
-    private void WaitThen(CouchPhase next)
-    {
-        _couchNext = next;
-        SetCouchPhase(CouchPhase.Waiting, "idle");
-        _stateLength = 1.5;
+        if (!_couchVisible)
+        {
+            // Диванът се появява точно зад мечока.
+            _couchX = ClampCouchSpot(_x, AreaAt(_x, _y - 1));
+            _save.CouchX = _couchX;
+            _couchVisible = true;
+            SitOnCouch(quiet: false);
+        }
+        else if (Math.Abs(_x - _couchX) < 1) SitOnCouch(quiet: false);
+        else
+        {
+            _walkTarget = _couchX;
+            SetCouchPhase(CouchPhase.Walking, "walk");
+        }
     }
 
     private void SetCouchPhase(CouchPhase phase, string anim)
@@ -480,60 +442,10 @@ public sealed partial class PetWindow : Window
 
     private void UpdateCouch(double dt, double now)
     {
-        var area = Area;
         switch (_couchPhase)
         {
-            case CouchPhase.GoingOut:
-                if (StepTowards(_walkTarget, WalkSpeed * 1.3, dt)) WaitThen(CouchPhase.Bringing);
-                break;
-
-            case CouchPhase.Waiting:
-                if (_stateTime < _stateLength) break;
-                if (_couchNext == CouchPhase.Bringing)
-                {
-                    // Диванът тръгва изцяло зад ръба, мечокът е зад него.
-                    _couchX = _couchEdge < 0 ? area.Left - CouchWidth / 2 : area.Right + CouchWidth / 2;
-                    _x = _couchX + _couchEdge * PushOffset;
-                    _couchVisible = true;
-                    SetCouchPhase(CouchPhase.Bringing, "push");
-                    Say(Lines.Pick(Lines.Pushing, _save.OwnerName), 3);
-                }
-                else ContinueCouch();
-                break;
-
-            case CouchPhase.Bringing:
-            {
-                double spot = ClampCouchSpot(_save.CouchX);
-                bool there = StepTowards(spot + _couchEdge * PushOffset, PushSpeed, dt);
-                _couchX = _x - _couchEdge * PushOffset;
-                if (there) SitOnCouch(quiet: false);
-                break;
-            }
-
-            case CouchPhase.TakingAway:
-            {
-                double gone = _couchEdge < 0 ? area.Left - CouchWidth / 2 - 4 : area.Right + CouchWidth / 2 + 4;
-                bool there = StepTowards(gone - _couchEdge * PushOffset, PushSpeed, dt);
-                _couchX = _x + _couchEdge * PushOffset;
-                if (there)
-                {
-                    _couchVisible = false;
-                    WaitThen(CouchPhase.None);
-                }
-                break;
-            }
-
             case CouchPhase.Walking:
-                if (!StepTowards(_walkTarget, WalkSpeed, dt) && _stateTime < 60) break;
-                switch (_couchNext)
-                {
-                    case CouchPhase.Sitting: SitOnCouch(quiet: false); break;
-                    case CouchPhase.TakingAway: SetCouchPhase(CouchPhase.TakingAway, "push"); break;
-                    default:
-                        _couchPhase = CouchPhase.None;
-                        SetIdle();
-                        break;
-                }
+                if (StepTowards(_walkTarget, WalkSpeed * 1.5, dt) || _stateTime > 60) SitOnCouch(quiet: false);
                 break;
 
             case CouchPhase.Sitting:
@@ -547,7 +459,7 @@ public sealed partial class PetWindow : Window
                     _animTime = 0;
                     if (!away) Say(Lines.Pick(Lines.WelcomeBack, _save.OwnerName));
                 }
-                if (!away && !IsQuiet && now > _nextChatter)
+                if (!away && !IsQuiet && !InFocus && now > _nextChatter)
                 {
                     _nextChatter = now + 180 + _rng.Next(180);
                     Say(Lines.Pick(Lines.Reading, _save.OwnerName), 6);
@@ -651,7 +563,6 @@ public sealed partial class PetWindow : Window
     {
         _save.X = _x;
         _save.Y = _y;
-        _save.CouchEdge = _couchEdge;
         _save.Save();
     }
 
@@ -703,7 +614,7 @@ public sealed partial class PetWindow : Window
     {
         _pressed = true;
         _pressScreen = MouseScreen(e);
-        _menuOpenAtPress = MenuIsOpen || Now - _menuClosedAt < 0.3;
+        _chatOpenAtPress = ChatIsOpen || Now - _chatClosedAt < 0.3;
         _sprite.CaptureMouse();
         e.Handled = true;
     }
@@ -750,27 +661,100 @@ public sealed partial class PetWindow : Window
             Persist();
             return;
         }
-        Poke();
+        OnLeftClick();
     }
 
-    /// <summary>Клик върху мечока: отваря (или затваря) панела и мечокът реагира.</summary>
-    private void Poke()
+    private void OnRightDown(object sender, MouseButtonEventArgs e)
+    {
+        _menuOpenAtPress = MenuIsOpen || Now - _menuClosedAt < 0.3;
+        e.Handled = true;
+    }
+
+    private void OnRightUp(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (_state is BearState.Drag or BearState.Falling) return;
+        OnRightClick();
+    }
+
+    private double _lastFocusPoke = -100;
+
+    /// <summary>
+    /// Ляв клик: разговор. По време на мед-доро напомня, че работим, а ако го
+    /// цъкнеш пак скоро, пита дали да спре мед-дорото.
+    /// </summary>
+    private void OnLeftClick()
+    {
+        if (ChatIsOpen)
+        {
+            _chat!.Hide();
+            return;
+        }
+        if (_chatOpenAtPress) return;
+
+        if (InFocus)
+        {
+            if (Now - _lastFocusPoke < 20)
+            {
+                _lastFocusPoke = -100;
+                Ask(Conversations.StopFocus(this));
+            }
+            else
+            {
+                _lastFocusPoke = Now;
+                Say(Lines.Pick(Lines.FocusPoked, _save.OwnerName), 3);
+            }
+            return;
+        }
+        Ask(Conversations.Next(this));
+    }
+
+    /// <summary>Десен бутон: гъделичкане и панелът „Мечо“.</summary>
+    private void OnRightClick()
     {
         if (!ToggleMenu(fromClick: true)) return;
 
         if (IsAsleep || _anim == "read_sleep")
             Say(Lines.Pick(Lines.PokedAsleep, _save.OwnerName), 3);
-        else if (_state == BearState.Couch && _couchPhase == CouchPhase.Sitting)
-            Say(Lines.Pick(Lines.PokedReading, _save.OwnerName), 3);
-        else if (CanAnimateFreely && _state != BearState.Busy)
-            Play("happy");
+        else
+        {
+            Say(Lines.Pick(Lines.Tickled, _save.OwnerName), 3);
+            if (CanAnimateFreely && _state != BearState.Busy) Play("happy");
+        }
     }
+
+    // ───────────────────────── Разговор ─────────────────────────
+
+    private ChatWindow? _chat;
+    private double _chatClosedAt = -10;
+    private bool _chatOpenAtPress;
+
+    public bool ChatIsOpen => _chat is { IsVisible: true };
+
+    /// <summary>Мечокът пита нещо и показва бутони за отговор.</summary>
+    public void Ask(ChatQuestion question)
+    {
+        if (MenuIsOpen) _menu!.Hide();
+        HideBubble();
+        _chat ??= new ChatWindow(this);
+        _chat.Ask(question, _bearRect, Area);
+    }
+
+    internal void ChatClosed() => _chatClosedAt = Now;
+
+    /// <summary>Казва нещо и подскача от радост (ако може).</summary>
+    public void Cheer(string text)
+    {
+        Say(text, 4);
+        if (CanAnimateFreely && !IsReading) Play("happy");
+    }
+
+    public bool IsReading => _state == BearState.Couch && _couchPhase == CouchPhase.Sitting;
 
     // ───────────────────────── Панелът ─────────────────────────
 
     private MenuWindow? _menu;
     private double _menuClosedAt = -10;
-
     private bool _menuOpenAtPress;
 
     public bool MenuIsOpen => _menu is { IsVisible: true };
@@ -785,69 +769,19 @@ public sealed partial class PetWindow : Window
         }
         // Кликът върху мечока първо затваря панела (той губи фокус); да не го отворим пак веднага.
         if (fromClick && _menuOpenAtPress) return false;
-
-        _menu ??= new MenuWindow(this);
-        _menu.ShowNear(_bearRect, Area);
+        OpenMenu(MenuWindow.BearTab);
         return true;
     }
 
-    internal void MenuClosed() => _menuClosedAt = Now;
-
-    private ContextMenu BuildMenu()
+    /// <summary>Отваря панела на даден таб.</summary>
+    public void OpenMenu(int tab)
     {
-        var menu = new ContextMenu();
-        var open = new MenuItem { Header = "📋 Отвори панела" };
-        open.Click += (_, _) => ToggleMenu();
-        menu.Items.Add(open);
-        menu.Items.Add(new Separator());
-        var hello = new MenuItem { Header = "👋 Здравей!" };
-        hello.Click += (_, _) =>
-        {
-            if (IsAsleep) return;
-            if (!OnCouchMission) Play("dance", length: 3);
-            Say(Lines.Pick(Lines.Poked, _save.OwnerName));
-        };
-        var dice = new MenuItem { Header = "🎲 Хвърли зар" };
-        dice.Click += (_, _) => RollDice();
-        var stay = new MenuItem();
-        stay.Click += (_, _) => { if (_save.StayPut) GetUp(); else StayHere(); };
-        var sleep = new MenuItem();
-        sleep.Click += (_, _) => { if (IsAsleep) WakeUp(); else GoToSleep(); };
-        var quiet = new MenuItem();
-        quiet.Click += (_, _) => SetQuiet(!IsQuiet);
-        var update = new MenuItem();
-        update.Click += (_, _) =>
-        {
-            if (_updater.IsAvailable) _ = InstallUpdate();
-            else _ = CheckForUpdates(manual: true);
-        };
-        var hide = new MenuItem { Header = "🙈 Скрий (иконката е до часовника)" };
-        hide.Click += (_, _) => Hide();
-
-        menu.Items.Add(hello);
-        menu.Items.Add(dice);
-        menu.Items.Add(stay);
-        menu.Items.Add(sleep);
-        menu.Items.Add(quiet);
-        menu.Items.Add(new Separator());
-        menu.Items.Add(update);
-        menu.Items.Add(hide);
-
-        menu.Opened += (_, _) =>
-        {
-            stay.Header = _save.StayPut ? "🚶 Стани от дивана" : "🛋️ Стой тук и почети";
-            sleep.Header = IsAsleep ? "☀️ Събуди се" : "🌙 Лягай да спиш";
-            quiet.Header = IsQuiet ? "🔔 Може да говориш" : "🤫 Тихо за 1 час";
-            dice.IsEnabled = !IsAsleep;
-            hello.IsEnabled = !IsAsleep;
-            sleep.IsEnabled = CanSleep;
-            update.Header = _updater.IsAvailable
-                ? $"⬆️ Обнови до версия {_updater.LatestVersion}"
-                : $"🔄 Провери за обновление (сега: {Updater.CurrentVersion})";
-            update.IsEnabled = !_updater.IsBusy;
-        };
-        return menu;
+        if (ChatIsOpen) _chat!.Hide();
+        _menu ??= new MenuWindow(this);
+        _menu.ShowNear(_bearRect, Area, tab);
     }
+
+    internal void MenuClosed() => _menuClosedAt = Now;
 
     // ───────────────────────── Рисуване ─────────────────────────
 

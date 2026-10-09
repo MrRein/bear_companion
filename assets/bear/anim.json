@@ -63,11 +63,6 @@
       "fps": 2,
       "loop": true
     },
-    "push": {
-      "file": "push.png",
-      "fps": 5,
-      "loop": true
-    },
     "read": {
       "file": "read.png",
       "fps": 2,

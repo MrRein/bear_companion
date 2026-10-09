@@ -30,6 +30,12 @@ public sealed class TrayIcon : IDisposable
         var menu = new Forms.ContextMenuStrip();
         var show = menu.Items.Add("Покажи мечока");
         show.Click += (_, _) => Toggle();
+        var panel = menu.Items.Add("Отвори панела");
+        panel.Click += (_, _) =>
+        {
+            if (!_pet.IsVisible) _pet.Show();
+            _pet.OpenMenu(MenuWindow.BearTab);
+        };
         var stay = menu.Items.Add("");
         stay.Click += (_, _) => { if (_pet.StaysPut) _pet.GetUp(); else _pet.StayHere(); };
         var sleep = menu.Items.Add("");

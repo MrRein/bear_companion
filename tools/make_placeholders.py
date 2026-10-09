@@ -257,8 +257,6 @@ ANIMS = {
     "fall": ([bear(legs="sit", eyes="dizzy", mouth="open", bob=3), bear(legs="sit", eyes="dizzy", mouth="open", bob=2),
               bear(legs="sit", eyes="happy", mouth="smile", bob=3)], 3, False),
     "sad": ([bear(eyes="sad", mouth="sad", ears="down"), bear(eyes="sad", mouth="sad", ears="down", bob=1)], 2, True),
-    "push": ([bear(arms="front", legs="step1", mouth="open"), bear(arms="front", bob=-1),
-              bear(arms="front", legs="step2", mouth="open"), bear(arms="front", bob=-1)], 5, True),
     "read": ([bear(arms="front", legs="sit", bob=2, extra=book()), bear(arms="front", legs="sit", bob=2, extra=book()),
               bear(arms="front", legs="sit", bob=2, eyes="closed", extra=book()),
               bear(arms="front", legs="sit", bob=2, extra=book()), bear(arms="front", legs="sit", bob=2, extra=book()),

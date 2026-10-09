@@ -15,7 +15,6 @@ public sealed class SaveData
     public bool SleepingByChoice { get; set; }
     public bool StayPut { get; set; }
     public double CouchX { get; set; } = double.NaN;
-    public int CouchEdge { get; set; } = 1;
     public DateTime QuietUntil { get; set; }
     public bool StartWithWindows { get; set; } = true;
     public bool FirstRunDone { get; set; }
@@ -37,6 +36,7 @@ public sealed class SaveData
     public DateTime PomodoroEndsAt { get; set; }
 
     public List<TaskItem> Tasks { get; set; } = new();
+    public List<NoteItem> Notes { get; set; } = new();
 
     public static string Folder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mecho");
@@ -98,4 +98,12 @@ public sealed class TaskItem
     public DateTime? DoneAt { get; set; }
 
     public int Reward => Size switch { 3 => 5, 2 => 3, _ => 1 };
+}
+
+/// <summary>Бележка в тефтера на мечока.</summary>
+public sealed class NoteItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Text { get; set; } = "";
+    public DateTime Created { get; set; } = DateTime.Now;
 }
