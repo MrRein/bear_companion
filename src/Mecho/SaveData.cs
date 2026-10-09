@@ -12,6 +12,10 @@ public sealed class SaveData
     public string OwnerName { get; set; } = "Тут";
     public double X { get; set; } = double.NaN;
     public double Y { get; set; } = double.NaN;
+
+    // Къде Тут е преместила панела „Мечо“ (NaN = до мечока)
+    public double MenuLeft { get; set; } = double.NaN;
+    public double MenuTop { get; set; } = double.NaN;
     public bool SleepingByChoice { get; set; }
     public bool StayPut { get; set; }
     public DateTime QuietUntil { get; set; }

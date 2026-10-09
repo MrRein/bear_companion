@@ -127,6 +127,21 @@ public sealed class MenuWindow : Window
         SelectTab(tab);
         Show();
         UpdateLayout();
+
+        // Ако Тут е преместила панела, отваря се там (стига екранът още да го има).
+        var s = _pet.Save;
+        if (!double.IsNaN(s.MenuLeft) && !double.IsNaN(s.MenuTop))
+        {
+            var home = _pet.AreaAt(s.MenuLeft + 20, s.MenuTop + 20);
+            if (home.Contains(new Point(s.MenuLeft + 20, s.MenuTop + 20)))
+            {
+                Left = Math.Clamp(s.MenuLeft, home.Left, Math.Max(home.Left, home.Right - ActualWidth));
+                Top = Math.Clamp(s.MenuTop, home.Top, Math.Max(home.Top, home.Bottom - ActualHeight));
+                Activate();
+                return;
+            }
+        }
+
         double left = bear.Right + 8;
         if (left + ActualWidth > area.Right - 4) left = bear.Left - ActualWidth - 8;
         Left = Math.Clamp(left, area.Left + 4, Math.Max(area.Left + 4, area.Right - ActualWidth - 4));
@@ -151,7 +166,16 @@ public sealed class MenuWindow : Window
 
     private UIElement BuildHeader()
     {
-        var grid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+        // Заглавието е дръжка: за него панелът се мести, а мястото се запомня.
+        var grid = new Grid { Margin = new Thickness(0, 0, 0, 8), Background = Brushes.Transparent, Cursor = Cursors.SizeAll, ToolTip = "Хвани ме оттук, за да ме преместиш" };
+        grid.MouseLeftButtonDown += (_, e) =>
+        {
+            try { DragMove(); }
+            catch (InvalidOperationException) { return; }
+            _pet.Save.MenuLeft = Left;
+            _pet.Save.MenuTop = Top;
+            _pet.Persist();
+        };
         grid.ColumnDefinitions.Add(new ColumnDefinition());
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -498,7 +522,15 @@ public sealed class MenuWindow : Window
             Hide();
             _pet.Hide();
         });
-        foreach (var b in new[] { _stayButton, _quietButton, _updateButton, hide })
+        var reset = Button("📍 Панелът да се отваря до мечока", () =>
+        {
+            _pet.Save.MenuLeft = double.NaN;
+            _pet.Save.MenuTop = double.NaN;
+            _pet.Persist();
+            Hide();
+            _pet.OpenMenu(MoreTab);
+        });
+        foreach (var b in new[] { _stayButton, _quietButton, _updateButton, reset, hide })
         {
             b.HorizontalAlignment = HorizontalAlignment.Stretch;
             b.HorizontalContentAlignment = HorizontalAlignment.Left;

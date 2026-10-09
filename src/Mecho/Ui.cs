@@ -52,6 +52,8 @@ public static class Ui
             Cursor = Cursors.Hand,
             Child = new TextBlock { Text = text, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center },
         };
+        // Натискането не стига до родителя (например до дръжката за местене на панела).
+        chip.MouseLeftButtonDown += (_, e) => e.Handled = true;
         chip.MouseLeftButtonUp += (_, e) =>
         {
             onClick();

@@ -816,7 +816,15 @@ public sealed partial class PetWindow : Window
             var size = _bubble.DesiredSize;
             // Балончето не излиза извън екрана, дори когато мечокът е до ръба.
             double left = Math.Clamp(_x - size.Width / 2, area.Left + 4, Math.Max(area.Left + 4, area.Right - 4 - size.Width));
-            bubble = new Rect(left, above - size.Height, size.Width, size.Height);
+            double top = above - size.Height;
+            if (top < area.Top + 4)
+            {
+                // Горе няма място (вдигнат е до горния ръб): балончето отива встрани от мечока.
+                left = bear.Right + 6 + size.Width <= area.Right - 4 ? bear.Right + 6 : bear.Left - 6 - size.Width;
+                left = Math.Clamp(left, area.Left + 4, Math.Max(area.Left + 4, area.Right - 4 - size.Width));
+                top = Math.Clamp(bear.Top, area.Top + 4, Math.Max(area.Top + 4, area.Bottom - 4 - size.Height));
+            }
+            bubble = new Rect(left, top, size.Width, size.Height);
             bounds.Union(bubble);
         }
 
@@ -859,7 +867,7 @@ public sealed partial class PetWindow : Window
     }
 
     /// <summary>Работната площ на екрана, в който е точката (в DIP), или на най-близкия.</summary>
-    private Rect AreaAt(double x, double y)
+    public Rect AreaAt(double x, double y)
     {
         double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
         if (double.IsNaN(x) || double.IsNaN(y)) return SystemParameters.WorkArea;
@@ -891,6 +899,8 @@ public sealed partial class PetWindow : Window
     {
         _bubbleText.Text = text;
         _bubble.Visibility = Visibility.Visible;
+        // Балончето не бива да остава под панела, храната или друг прозорец „винаги отгоре“.
+        if (!ChatIsOpen) NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
         _bubbleUntil = Now + seconds + text.Length * 0.04;
     }
 

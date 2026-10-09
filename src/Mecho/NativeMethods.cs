@@ -21,6 +21,18 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     private static extern int SetWindowLong(IntPtr hWnd, int index, int value);
 
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
+
+    private static readonly IntPtr HWND_TOPMOST = new(-1);
+    private const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10;
+
+    /// <summary>Слага прозореца най-отгоре (над другите „винаги отгоре“), без да му дава фокус.</summary>
+    public static void BringToTop(IntPtr hwnd)
+    {
+        if (hwnd != IntPtr.Zero) SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+
     private const int GWL_EXSTYLE = -20;
     private const int WS_EX_TOOLWINDOW = 0x80;
 
