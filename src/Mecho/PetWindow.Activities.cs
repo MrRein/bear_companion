@@ -64,7 +64,7 @@ public sealed partial class PetWindow
         bool tired = IsExhausted; // уморен: не му се играе, по-скоро сяда или се прозява
         int hour = DateTime.Now.Hour;
         bool morning = hour is >= 6 and < 12, afternoon = hour is >= 12 and < 18, evening = hour >= 18 || hour < 6;
-        int busy = InFocus ? 0 : 1;     // по време на мед-доро не сяда в кътчета
+        int busy = InFocus ? 0 : 1;     // по време на мечо-доро не сяда в кътчета
 
         var choices = new (string Name, double Weight, Action Do)[]
         {

@@ -53,6 +53,8 @@ public sealed class MenuWindow : Window
     private TextBlock _timerTime = null!;
     private TextBox _timerLabel = null!, _timerMinutes = null!;
     private Button _timerStop = null!;
+    private Border _workChip = null!;
+    private bool _timerWork = true;
     private Button _updateButton = null!;
 
     public MenuWindow(PetWindow pet)
@@ -227,7 +229,7 @@ public sealed class MenuWindow : Window
         nutRow.Children.Add(_nuts);
         var nuts = Pill(nutRow);
         nuts.Margin = new Thickness(0, 0, 8, 0);
-        nuts.ToolTip = Tip("Лешници: печелят се със задачи и с работа (всеки 10 минути мед-доро или таймер = 1). Харчат се за храна и в магазина.");
+        nuts.ToolTip = Tip("Лешници: печелят се със задачи и с работа (всеки 10 минути мечо-доро или таймер = 1). Харчат се за храна и в магазина.");
         Grid.SetColumn(nuts, 1);
         grid.Children.Add(nuts);
 
@@ -456,7 +458,7 @@ public sealed class MenuWindow : Window
                 if (s.Hazelnuts < cost)
                 {
                     action.IsEnabled = false;
-                    why = $"Трябват {cost} лешника, а имаш {s.Hazelnuts}. Свърши някоя задача или пусни мед-доро.";
+                    why = $"Трябват {cost} лешника, а имаш {s.Hazelnuts}. Свърши някоя задача или пусни мечо-доро.";
                 }
             }
             _foodTiles.Children.Add(MakeTile(_pet.PropImage("food_" + f.Id), f.Name, effects, action, locked, why));
@@ -803,7 +805,7 @@ public sealed class MenuWindow : Window
     private UIElement BuildPomodoroTab()
     {
         var p = new StackPanel();
-        var pomRibbon = Ribbon("Мед-доро", "honey");
+        var pomRibbon = Ribbon("Мечо-доро", "honey");
         pomRibbon.Margin = new Thickness(0, 0, 0, 8);
         p.Children.Add(pomRibbon);
         _pomTime = new TextBlock { FontFamily = MonoFont, FontSize = Huge, HorizontalAlignment = HorizontalAlignment.Center };
@@ -835,11 +837,24 @@ public sealed class MenuWindow : Window
         _timerLabel = NewTextInput();
         p.Children.Add(WithHint(_timerLabel, "За какво е? (чай, пране… по избор)"));
 
+        // Работен таймер: мечокът сяда на бюрото и работи сериозно, докато тече.
+        _timerWork = _pet.Save.TimerIsWork;
+        _workChip = Chip("", () =>
+        {
+            _timerWork = !_timerWork;
+            UpdateWorkChip();
+        });
+        _workChip.HorizontalAlignment = HorizontalAlignment.Left;
+        _workChip.Margin = new Thickness(0, 8, 0, 0);
+        _workChip.ToolTip = Tip("Работен: мечокът сяда на бюрото, слага очила и работи сериозно с теб. Изключи го за таймер за чай или пране.");
+        p.Children.Add(_workChip);
+        UpdateWorkChip();
+
         var presets = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
         foreach (int m in new[] { 5, 10, 15, 30, 45, 60 })
         {
             int minutes = m;
-            var chip = Chip($"{m} мин", () => _pet.StartTimer(minutes, _timerLabel.Text));
+            var chip = Chip($"{m} мин", () => _pet.StartTimer(minutes, _timerLabel.Text, _timerWork));
             chip.Margin = new Thickness(0, 0, 6, 6);
             presets.Children.Add(chip);
         }
@@ -864,7 +879,7 @@ public sealed class MenuWindow : Window
 
         p.Children.Add(new TextBlock
         {
-            Text = "Всеки 10 минути мед-доро или таймер носят 1 лешник.",
+            Text = "Всеки 10 минути мечо-доро или таймер носят 1 лешник.",
             Foreground = Muted,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 10, 0, 0),
@@ -872,12 +887,18 @@ public sealed class MenuWindow : Window
         return p;
     }
 
+    private void UpdateWorkChip()
+    {
+        ((TextBlock)_workChip.Child).Text = _timerWork ? "✓ Работен (мечокът работи с теб)" : "✗ Не е за работа";
+        _workChip.Background = _timerWork ? Honey : PaperDark;
+    }
+
     private void StartCustomTimer()
     {
         string text = _timerMinutes.Text.Trim().Replace(',', '.');
         if (double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double m) && m > 0 && m <= 24 * 60)
         {
-            _pet.StartTimer(m, _timerLabel.Text);
+            _pet.StartTimer(m, _timerLabel.Text, _timerWork);
             _timerMinutes.Clear();
         }
     }
@@ -955,7 +976,7 @@ public sealed class MenuWindow : Window
         // Храна и магазин
         _foodInfo.Text = "Сготвеното се появява из екрана: занеси го при мечока с мишката.";
         _shopInfo.Text = "Уредите отключват нови ястия, а подобренията помагат на мечока. Лешниците се печелят " +
-                         "със задачи и с работа: всеки 10 мин мед-доро или таймер = 1" +
+                         "със задачи и с работа: всеки 10 мин мечо-доро или таймер = 1" +
                          (s.FocusMinutesBank >= 1 ? $" (събрани {s.FocusMinutesBank:0} мин към следващия)." : ".");
         if (rebuild)
         {
@@ -983,7 +1004,7 @@ public sealed class MenuWindow : Window
                 break;
         }
         _pomStart.Visibility = s.PomodoroPhase == PomodoroPhase.Focus ? Visibility.Collapsed : Visibility.Visible;
-        SetButton(_pomStart, s.PomodoroPhase == PomodoroPhase.Break ? "Нов мед-доро" : "Започни 25 минути", "play");
+        SetButton(_pomStart, s.PomodoroPhase == PomodoroPhase.Break ? "Нов мечо-доро" : "Започни 25 минути", "play");
         _pomStop.Visibility = s.PomodoroPhase == PomodoroPhase.Off ? Visibility.Collapsed : Visibility.Visible;
         _pomToday.Text = $"Днес: {s.PomodorosToday}   ·   Общо: {s.PomodorosTotal}";
 

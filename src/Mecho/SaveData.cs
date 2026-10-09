@@ -38,7 +38,7 @@ public sealed class SaveData
     public string PomodoroDay { get; set; } = "";
     public int PomodorosToday { get; set; }
 
-    // Мед-доро, което тече в момента (за да продължи след рестарт)
+    // Мечо-доро, което тече в момента (за да продължи след рестарт)
     public PomodoroPhase PomodoroPhase { get; set; }
     public DateTime PomodoroEndsAt { get; set; }
 
@@ -46,6 +46,7 @@ public sealed class SaveData
     public DateTime TimerEndsAt { get; set; } = DateTime.MinValue;
     public string TimerLabel { get; set; } = "";
     public double TimerMinutes { get; set; }
+    public bool TimerIsWork { get; set; } = true;   // работен таймер: мечокът работи сериозно
 
     public List<TaskItem> Tasks { get; set; } = new();
     public List<NoteItem> Notes { get; set; } = new();

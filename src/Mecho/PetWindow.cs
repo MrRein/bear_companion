@@ -300,10 +300,10 @@ public sealed partial class PetWindow : Window
             return;
         }
 
-        // По време на мед-доро работи до Тут и не се разхожда.
+        // По време на мечо-доро работи до Тут и не се разхожда.
         if (InFocus)
         {
-            Play("work", length: 30);
+            EnterWorkMode();
             return;
         }
 
@@ -587,8 +587,8 @@ public sealed partial class PetWindow : Window
     private double _lastFocusPoke = -100;
 
     /// <summary>
-    /// Ляв клик: разговор. По време на мед-доро напомня, че работим, а ако го
-    /// цъкнеш пак скоро, пита дали да спре мед-дорото.
+    /// Ляв клик: разговор. По време на мечо-доро напомня, че работим, а ако го
+    /// цъкнеш пак скоро, пита дали да спре мечо-дорото.
     /// </summary>
     private void OnLeftClick()
     {

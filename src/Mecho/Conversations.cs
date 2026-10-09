@@ -58,12 +58,13 @@ public static class Conversations
         return topics[i](pet);
     }
 
-    /// <summary>Докато тече мед-доро и я питаш втори път: да спрем ли?</summary>
+    /// <summary>Докато тече мечо-доро и я питаш втори път: да спрем ли?</summary>
     public static ChatQuestion StopFocus(PetWindow pet)
     {
-        int left = (int)Math.Ceiling(pet.PomodoroLeft.TotalMinutes);
-        return new ChatQuestion($"Остават {left} мин. от мед-дорото. Искаш ли да спрем?",
-            new ChatOption("■ Да, спри го", p => p.StopPomodoro()),
+        bool pomodoro = pet.PomodoroFocus;
+        int left = (int)Math.Ceiling((pomodoro ? pet.PomodoroLeft : pet.TimerLeft).TotalMinutes);
+        return new ChatQuestion(pomodoro ? $"Остават {left} мин. от мечо-дорото. Искаш ли да спрем?" : $"Остават {left} мин. от работния таймер. Да го спрем ли?",
+            new ChatOption("■ Да, спри го", p => { if (pomodoro) p.StopPomodoro(); else p.StopTimer(); }),
             Reply("🍯 Не, продължаваме", Pick("Браво! Още малко и почивка.", "Така те искам! Аз пиша правила.", "Супер. Мълча като мишка.")));
     }
 
@@ -92,7 +93,7 @@ public static class Conversations
     private static ChatQuestion WhatNow(PetWindow pet) => new("Какво ще правим сега?",
         new ChatOption("📋 Ще запиша задача", p => p.OpenMenu(MenuWindow.TasksTab)),
         new ChatOption("📝 Ще си запиша бележка", p => p.OpenMenu(MenuWindow.NotesTab)),
-        new ChatOption("🍯 Пусни мед-доро", p => p.StartFocus()),
+        new ChatOption("🍯 Пусни мечо-доро", p => p.StartFocus()),
         Reply("☕ Почивам си", "Добра идея. И аз ще си почина."));
 
     private static ChatQuestion IdeaOffer(PetWindow pet) => new("Искаш ли идея за игра?",
@@ -231,7 +232,7 @@ public static class Conversations
             Reply("🤷 Не знам какво да рисувам", "Нарисувай чашата си. После я нарисувай като чудовище."),
             Reply("😒 Не ми харесва", "Обърни рисунката огледално. Свежият поглед вижда всичко."),
             Reply("🎞️ Движението е дървено", "Пробвай с повече разтягане и свиване. И изпревари движението с малко обратно."),
-            new ChatOption("⏳ Нямам време", p2 => p2.Ask(new ChatQuestion("Едно мед-доро? Само 25 минути, аз ще пазя.",
+            new ChatOption("⏳ Нямам време", p2 => p2.Ask(new ChatQuestion("Едно мечо-доро? Само 25 минути, аз ще пазя.",
                 new ChatOption("🍯 Хайде", p3 => p3.StartFocus()),
                 Reply("Не сега", "Добре. Тук съм, когато решиш."))))))),
         Reply("🙊 Не питай", "Добре, мълча. *шшт*"));

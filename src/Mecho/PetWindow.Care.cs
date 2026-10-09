@@ -6,7 +6,7 @@ using System.Windows.Media;
 
 namespace Mecho;
 
-// Грижа и работа: глад, енергия, храна, задачи и мед-доро.
+// Грижа и работа: глад, енергия, храна, задачи и мечо-доро.
 public sealed partial class PetWindow
 {
     // Колко бързо се променят нуждите (точки на час).
@@ -68,7 +68,7 @@ public sealed partial class PetWindow
         _save.Fullness = Math.Max(Math.Min(_save.Fullness, 30), _save.Fullness - hours * HungerAsleep);
     }
 
-    /// <summary>Нов ден: свършените вчера задачи се махат, броячът на мед-дора се нулира.</summary>
+    /// <summary>Нов ден: свършените вчера задачи се махат, броячът на мечо-дора се нулира.</summary>
     private void StartNewDay()
     {
         string today = DateTime.Today.ToString("yyyy-MM-dd");
@@ -192,9 +192,47 @@ public sealed partial class PetWindow
         Persist();
     }
 
-    // ───────────────────────── Мед-доро ─────────────────────────
+    // ───────────────────────── Мечо-доро ─────────────────────────
 
-    public bool InFocus => _save.PomodoroPhase == PomodoroPhase.Focus;
+    public bool PomodoroFocus => _save.PomodoroPhase == PomodoroPhase.Focus;
+
+    /// <summary>Работен таймер тече (не таймер за чай и пране).</summary>
+    public bool WorkTimer => TimerRunning && _save.TimerIsWork;
+
+    /// <summary>Работим: мечо-доро или работен таймер. Тогава мечокът е сериозен и мълчи.</summary>
+    public bool InFocus => PomodoroFocus || WorkTimer;
+
+    /// <summary>Сяда на бюрото и работи сериозно, докато трае работата.</summary>
+    private void EnterWorkMode()
+    {
+        if (_scene == Scenes.Focus || _state is BearState.Drag or BearState.Falling or BearState.Jump) return;
+        _save.SleepingByChoice = false;
+        _save.StayPut = false;
+        StartScene(Scenes.Focus, quiet: false);
+        _nextFocusSwitch = Now + 15 + _rng.Next(15);
+    }
+
+    /// <summary>Работата свърши: става от бюрото.</summary>
+    private void LeaveWorkMode()
+    {
+        if (_scene == Scenes.Focus) LeaveScene();
+    }
+
+    private double _nextFocusSwitch;
+
+    /// <summary>В работния режим сменя заниманията си: пише, мисли, записва.</summary>
+    private void UpdateFocusScene(double now)
+    {
+        if (now < _nextFocusSwitch) return;
+        _nextFocusSwitch = now + 15 + _rng.Next(20);
+        string[] anims = { "focus", "focus", "think", "write" };
+        string next = anims[_rng.Next(anims.Length)];
+        if (next != _anim)
+        {
+            _anim = next;
+            _animTime = 0;
+        }
+    }
 
     public TimeSpan PomodoroLeft =>
         _save.PomodoroPhase == PomodoroPhase.Off ? TimeSpan.Zero : Max(TimeSpan.Zero, _save.PomodoroEndsAt - DateTime.Now);
@@ -205,14 +243,14 @@ public sealed partial class PetWindow
     {
         _save.PomodoroPhase = PomodoroPhase.Focus;
         _save.PomodoroEndsAt = DateTime.Now + FocusLength;
+        EnterWorkMode();
         Say(Lines.Pick(Lines.FocusStart, _save.OwnerName), 4);
-        if (CanAnimateFreely) Play("work", length: 20);
         NotifyCare();
         Persist();
     }
 
     /// <summary>
-    /// Плаща работата: за всеки 10 минути мед-доро или таймер по 1 лешник.
+    /// Плаща работата: за всеки 10 минути мечо-доро или таймер по 1 лешник.
     /// Остатъкът под 10 минути се пази за следващия път.
     /// </summary>
     private int PayForMinutes(double minutes)
@@ -233,6 +271,7 @@ public sealed partial class PetWindow
         bool wasFocus = InFocus;
         int nuts = wasFocus ? PayForMinutes((FocusLength - PomodoroLeft).TotalMinutes) : 0;
         _save.PomodoroPhase = PomodoroPhase.Off;
+        if (!InFocus) LeaveWorkMode();
         Say((wasFocus ? "Добре, спираме. Ще продължим после." : "Почивката свърши по-рано. Хайде!") + Earned(nuts), 3);
         NotifyCare();
         Persist();
@@ -256,7 +295,7 @@ public sealed partial class PetWindow
             _save.PomodoroPhase = PomodoroPhase.Break;
             _save.PomodoroEndsAt = DateTime.Now + BreakLength;
             Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts), 8);
-            if (CanAnimateFreely) Play("dance", length: 3);
+            if (!InFocus) Relax();
         }
         else
         {
@@ -274,13 +313,15 @@ public sealed partial class PetWindow
 
     public TimeSpan TimerLeft => TimerRunning ? Max(TimeSpan.Zero, _save.TimerEndsAt - DateTime.Now) : TimeSpan.Zero;
 
-    public void StartTimer(double minutes, string label)
+    public void StartTimer(double minutes, string label, bool work)
     {
         if (minutes <= 0) return;
         if (TimerRunning) PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes);
         _save.TimerEndsAt = DateTime.Now.AddMinutes(minutes);
         _save.TimerMinutes = minutes;
         _save.TimerLabel = label.Trim();
+        _save.TimerIsWork = work;
+        if (work) EnterWorkMode();
         Say($"⏰ Пускам таймер за {minutes:0.#} мин.{(_save.TimerLabel.Length > 0 ? $" ({_save.TimerLabel})" : "")}", 3);
         NotifyCare();
         Persist();
@@ -291,6 +332,7 @@ public sealed partial class PetWindow
         if (!TimerRunning) return;
         int nuts = PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes);
         _save.TimerEndsAt = DateTime.MinValue;
+        if (!InFocus) LeaveWorkMode();
         Say("Спрях таймера." + Earned(nuts), 2);
         NotifyCare();
         Persist();
@@ -303,9 +345,18 @@ public sealed partial class PetWindow
         _save.TimerEndsAt = DateTime.MinValue;
         int nuts = PayForMinutes(_save.TimerMinutes);
         Say((label.Length > 0 ? $"⏰ Времето изтече: {label}!" : "⏰ Времето изтече!") + Earned(nuts), 12);
-        if (CanAnimateFreely) Play("dance", length: 3);
+        if (!InFocus) Relax();
+        else if (CanAnimateFreely) Play("dance", length: 3);
         NotifyCare();
         Persist();
+    }
+
+    /// <summary>След работа: става от бюрото, танцува и сяда на чай за почивката.</summary>
+    private void Relax()
+    {
+        LeaveWorkMode();
+        if (CanAnimateFreely && !IsAsleep)
+            Play("dance", length: 3, after: () => { if (!InFocus && CanAnimateFreely) StartScene(Scenes.Tea, 90 + _rng.Next(60)); });
     }
 
     private static string Clock(TimeSpan t) =>

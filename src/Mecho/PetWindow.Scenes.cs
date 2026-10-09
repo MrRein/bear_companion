@@ -18,6 +18,12 @@ public static class Scenes
     public static readonly Scene Reading = new("reading", "couch", null, 0, "read",
         Lines.SatDown, Lines.Reading, Lines.DoneReading);
 
+    /// <summary>Работният режим: сериозен, с очила, на бюро. Не говори, докато работи.</summary>
+    public static readonly Scene Focus = new("focus", "stool", "desk", 1, "focus",
+        new[] { "*слага очилата* Работим.", "Сериозен режим. Започваме.", "Фокус. Аз пиша, ти рисуваш." },
+        Array.Empty<string>(),
+        new[] { "*сваля очилата* Готово!", "Свършихме. Браво на нас!", "Уф, свършихме работа!" });
+
     public static readonly Scene Gaming = new("gaming", "stool", "computer", -1, "game",
         new[] { "*включва компютъра* Само едно ниво!", "Време за игричка!", "Да видим дали ще мина босa." },
         new[] { "Ееей! Почти!", "Още едно ниво…", "Кой е сложил тук този шип?!", "РЕКОРД! …а, не, сбърках.", "Пиу-пиу-пиу!", "Тази игра има нужда от повече мечки." },
@@ -164,6 +170,19 @@ public sealed partial class PetWindow
             return;
         }
 
+        if (scene == Scenes.Focus)
+        {
+            // Работи, докато трае мечо-дорото или работният таймер. Мълчи.
+            if (!InFocus)
+            {
+                Say(Lines.Pick(scene.End, _save.OwnerName), 3);
+                LeaveScene();
+                return;
+            }
+            UpdateFocusScene(now);
+            return;
+        }
+
         bool away = NativeMethods.IdleSeconds() > AwayToSleep;
         if (scene == Scenes.Reading)
         {
@@ -183,7 +202,7 @@ public sealed partial class PetWindow
             return;
         }
 
-        if (!away && !IsQuiet && !InFocus && now > _nextChatter)
+        if (!away && !IsQuiet && !InFocus && scene.During.Length > 0 && now > _nextChatter)
         {
             _nextChatter = now + (stay ? 180 : 25) + _rng.Next(stay ? 180 : 20);
             Say(Lines.Pick(scene.During, _save.OwnerName), 5);

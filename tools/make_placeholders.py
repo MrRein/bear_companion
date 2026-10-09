@@ -366,6 +366,54 @@ def nut_small(d):
     d.line((1, 0, 3, 0), fill=OUTLINE)
 
 
+def serious(d, y):
+    """Очила и вежди: сериозен работен вид."""
+    ey = 9 + y
+    for x in (9, 19):
+        d.rectangle((x, ey - 1, x + 3, ey + 2), outline=OUTLINE)
+    d.line((13, ey, 18, ey), fill=OUTLINE)
+    d.line((9, ey - 3, 12, ey - 2), fill=OUTLINE)    # намръщени вежди
+    d.line((19, ey - 2, 22, ey - 3), fill=OUTLINE)
+
+
+def typing(left_down):
+    def f(d, y):
+        serious(d, y)
+        # ръцете на клавиатурата (отдясно е бюрото)
+        d.rectangle((12, 22 + y, 21, 24 + y), fill=(80, 80, 90, 255), outline=OUTLINE)
+        d.point((14 if left_down else 18, 22 + y), fill=WHITE)
+    return f
+
+
+def thinking(d, y):
+    serious(d, y)
+    oval(d, (17, 13 + y, 21, 17 + y), FUR)   # лапа на брадичката
+    d.point((26, 3), fill=OUTLINE)            # мисъл: три точки
+    d.point((28, 1), fill=OUTLINE)
+    d.point((30, 0), fill=OUTLINE)
+
+
+def writing(dx):
+    def f(d, y):
+        serious(d, y)
+        d.rectangle((11, 20 + y, 20, 25 + y), fill=PAPER, outline=OUTLINE)
+        d.line((13, 22 + y, 13 + 2 + dx, 22 + y), fill=(120, 120, 140, 255))
+        d.line((19 + dx, 17 + y, 21 + dx, 21 + y), fill=(240, 200, 60, 255))
+    return f
+
+
+def desk(d):
+    d.rectangle((0, 12, 23, 13), fill=WOOD, outline=OUTLINE)    # плот
+    d.line((1, 14, 1, 21), fill=OUTLINE)
+    d.line((22, 14, 22, 21), fill=OUTLINE)
+    d.polygon([(2, 11), (4, 4), (13, 4), (13, 11)], fill=(150, 150, 160, 255), outline=OUTLINE)  # лаптоп
+    d.rectangle((5, 5, 12, 9), fill=(170, 210, 235, 255))
+    d.line((6, 7, 10, 7), fill=OUTLINE)
+    d.line((17, 11, 17, 5), fill=OUTLINE)                       # лампа
+    d.polygon([(15, 5), (20, 5), (18, 2)], fill=(255, 209, 102, 255), outline=OUTLINE)
+    d.ellipse((19, 9, 22, 11), fill=WHITE, outline=OUTLINE)     # чашка
+
+
 ANIMS = {
     # име: (кадри, кадри в секунда, повтаря ли се)
     "idle": ([bear(), bear(bob=1), bear(), bear(eyes="closed")], 3, True),
@@ -417,6 +465,14 @@ ANIMS = {
                bear(arms="front", eyes="happy", extra=watering(True))], 2, True),
     "music": ([bear(eyes="closed", mouth="smile", extra=headphones(True)), bear(eyes="closed", mouth="smile", bob=1, extra=headphones(False)),
                bear(eyes="closed", mouth="open", legs="step1", extra=headphones(True)), bear(eyes="closed", mouth="smile", bob=1, extra=headphones(False))], 4, True),
+    # работният режим: седнал на столче, бюрото е отдясно
+    "focus": ([bear(arms="front", legs="sit", bob=2, mouth="none", extra=typing(True)),
+               bear(arms="front", legs="sit", bob=2, mouth="none", extra=typing(False)),
+               bear(arms="front", legs="sit", bob=2, mouth="none", extra=typing(True)),
+               bear(arms="front", legs="sit", bob=1, mouth="none", extra=typing(False))], 6, True),
+    "think": ([bear(legs="sit", bob=2, extra=thinking), bear(legs="sit", bob=2, eyes="closed", extra=thinking)], 1, True),
+    "write": ([bear(arms="front", legs="sit", bob=2, extra=writing(0)), bear(arms="front", legs="sit", bob=2, extra=writing(2)),
+               bear(arms="front", legs="sit", bob=2, extra=writing(1))], 3, True),
     "juggle": ([bear(arms="left_up", mouth="open"), bear(arms="right_up", mouth="smile"),
                 bear(arms="left_up", eyes="happy"), bear(arms="right_up", mouth="open")], 6, True),
 }
@@ -579,6 +635,7 @@ PROP_LIST = {
     "couch": (couch(), 10),
     "butterfly": (butterfly(), 0),
     "stool": (prop(16, 8, stool), 7),
+    "desk": (prop(24, 22, desk), 0),
     "computer": (prop(20, 22, computer), 0),
     "easel": (prop(18, 28, easel), 0),
     "table_tea": (prop(16, 16, table_tea), 0),
