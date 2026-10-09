@@ -158,9 +158,10 @@ public sealed partial class PetWindow : Window
         _sprite.MouseLeftButtonUp += OnMouseUp;
         _sprite.ContextMenu = BuildMenu();
 
-        var area = SystemParameters.WorkArea;
-        _x = double.IsNaN(save.X) ? area.Left + area.Width * 0.75 : save.X;
-        _y = area.Bottom;
+        var primary = SystemParameters.WorkArea;
+        _x = double.IsNaN(save.X) ? primary.Left + primary.Width * 0.75 : save.X;
+        _y = double.IsNaN(save.Y) ? primary.Bottom : save.Y;
+        _y = Area.Bottom;
         ApplySpriteSize();
         ClampX();
         WindowStartupLocation = WindowStartupLocation.Manual;
@@ -235,7 +236,7 @@ public sealed partial class PetWindow : Window
         if (_state != BearState.Drag && _state != BearState.Falling)
         {
             // Лентата със задачи може да се е преместила.
-            _y = SystemParameters.WorkArea.Bottom;
+            _y = Area.Bottom;
             if (!MayLeaveScreen) ClampX();
         }
 
@@ -304,7 +305,7 @@ public sealed partial class PetWindow : Window
         int roll = _rng.Next(100);
         if (roll < 50)
         {
-            var area = SystemParameters.WorkArea;
+            var area = Area;
             _walkTarget = area.Left + 60 + _rng.NextDouble() * Math.Max(0, area.Width - 120);
             if (Math.Abs(_walkTarget - _x) > 30) SetState(BearState.Walk, "walk");
             else SetIdle();
@@ -362,7 +363,7 @@ public sealed partial class PetWindow : Window
     {
         _vy += Gravity * dt;
         _y += _vy * dt;
-        double floor = SystemParameters.WorkArea.Bottom;
+        double floor = Area.Bottom;
         if (_y < floor) return;
 
         _y = floor;
@@ -395,8 +396,8 @@ public sealed partial class PetWindow : Window
         if (!_couchVisible)
         {
             // Диванът идва от по-близкия ръб и застава там, където е мечокът сега.
-            var area = SystemParameters.WorkArea;
-            _couchX = ClampCouchSpot(_x);
+            var area = AreaAt(_x, _y - 1);
+            _couchX = ClampCouchSpot(_x, area);
             _couchEdge = _x - area.Left < area.Right - _x ? -1 : 1;
             _save.CouchX = _couchX;
             Say(Lines.Pick(Lines.GoingForCouch, _save.OwnerName));
@@ -420,7 +421,7 @@ public sealed partial class PetWindow : Window
     /// </summary>
     private void ContinueCouch()
     {
-        var area = SystemParameters.WorkArea;
+        var area = Area;
         if (_save.StayPut)
         {
             if (!_couchVisible)
@@ -479,7 +480,7 @@ public sealed partial class PetWindow : Window
 
     private void UpdateCouch(double dt, double now)
     {
-        var area = SystemParameters.WorkArea;
+        var area = Area;
         switch (_couchPhase)
         {
             case CouchPhase.GoingOut:
@@ -557,9 +558,9 @@ public sealed partial class PetWindow : Window
     }
 
     /// <summary>Диванът трябва да се вижда целият.</summary>
-    private double ClampCouchSpot(double x)
+    private double ClampCouchSpot(double x, Rect? onArea = null)
     {
-        var area = SystemParameters.WorkArea;
+        var area = onArea ?? Area;
         double half = (double.IsNaN(CouchWidth) ? 144 : CouchWidth) / 2;
         if (double.IsNaN(x)) x = area.Left + area.Width * 0.75;
         return Math.Clamp(x, area.Left + half, Math.Max(area.Left + half, area.Right - half));
@@ -649,6 +650,7 @@ public sealed partial class PetWindow : Window
     public void Persist()
     {
         _save.X = _x;
+        _save.Y = _y;
         _save.CouchEdge = _couchEdge;
         _save.Save();
     }
@@ -727,10 +729,10 @@ public sealed partial class PetWindow : Window
             SetState(BearState.Drag, "drag");
         }
 
-        var area = SystemParameters.WorkArea;
-        _x = p.X + _grabOffset.X;
+        // Може да се мести и на друг екран: пазим го в екрана под мишката.
+        var area = AreaAt(p.X, p.Y);
+        _x = Math.Clamp(p.X + _grabOffset.X, area.Left + SpriteWidth / 2, Math.Max(area.Left + SpriteWidth / 2, area.Right - SpriteWidth / 2));
         _y = Math.Clamp(p.Y + _grabOffset.Y, area.Top + SpriteHeight, area.Bottom);
-        ClampX();
     }
 
     private void OnMouseUp(object sender, MouseButtonEventArgs e)
@@ -785,7 +787,7 @@ public sealed partial class PetWindow : Window
         if (fromClick && _menuOpenAtPress) return false;
 
         _menu ??= new MenuWindow(this);
-        _menu.ShowNear(_bearRect);
+        _menu.ShowNear(_bearRect, Area);
         return true;
     }
 
@@ -888,7 +890,7 @@ public sealed partial class PetWindow : Window
     /// </summary>
     private void UpdateLayoutAndWindow()
     {
-        var area = SystemParameters.WorkArea;
+        var area = Area;
         bool sitting = _state == BearState.Couch && _couchPhase == CouchPhase.Sitting;
 
         var bear = new Rect(_x - SpriteWidth / 2, _y - SpriteHeight - (sitting ? SeatHeight : 0), SpriteWidth, SpriteHeight);
@@ -950,9 +952,35 @@ public sealed partial class PetWindow : Window
         Canvas.SetTop(element, Math.Round((screen.Top - winTop) * dpi) / dpi);
     }
 
+    /// <summary>
+    /// Работната площ (без лентата със задачите) на екрана, където е мечокът.
+    /// Докато е зает с дивана, това е екранът на дивана, за да не се обърка,
+    /// ако излезе през ръба към съседен екран.
+    /// </summary>
+    private Rect Area
+    {
+        get
+        {
+            // Докато го влачиш или пада, е там, където е мишката.
+            bool couchHome = OnCouchMission && !double.IsNaN(_save.CouchX) && _state is not (BearState.Drag or BearState.Falling);
+            double x = couchHome ? _save.CouchX : _x;
+            return AreaAt(x, _y - 1);
+        }
+    }
+
+    /// <summary>Работната площ на екрана, в който е точката (в DIP), или на най-близкия.</summary>
+    private Rect AreaAt(double x, double y)
+    {
+        double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        if (double.IsNaN(x) || double.IsNaN(y)) return SystemParameters.WorkArea;
+        var px = new System.Drawing.Point((int)Math.Round(x * dpi), (int)Math.Round(y * dpi));
+        var wa = System.Windows.Forms.Screen.FromPoint(px).WorkingArea;
+        return new Rect(wa.Left / dpi, wa.Top / dpi, wa.Width / dpi, wa.Height / dpi);
+    }
+
     private void ClampX()
     {
-        var area = SystemParameters.WorkArea;
+        var area = Area;
         double half = SpriteWidth > 0 ? SpriteWidth / 2 : 48;
         _x = Math.Clamp(_x, area.Left + half, area.Right - half);
     }

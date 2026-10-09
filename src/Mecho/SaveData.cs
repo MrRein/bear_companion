@@ -11,6 +11,7 @@ public sealed class SaveData
 {
     public string OwnerName { get; set; } = "Тут";
     public double X { get; set; } = double.NaN;
+    public double Y { get; set; } = double.NaN;
     public bool SleepingByChoice { get; set; }
     public bool StayPut { get; set; }
     public double CouchX { get; set; } = double.NaN;

@@ -123,12 +123,11 @@ public sealed class MenuWindow : Window
     /// Показва панела до мечока (вдясно или вляво, където има място), за да
     /// се вижда балончето над него.
     /// </summary>
-    public void ShowNear(Rect bear)
+    public void ShowNear(Rect bear, Rect area)
     {
         Refresh(rebuildTasks: true);
         Show();
         UpdateLayout();
-        var area = SystemParameters.WorkArea;
         double left = bear.Right + 8;
         if (left + ActualWidth > area.Right - 4) left = bear.Left - ActualWidth - 8;
         Left = Math.Clamp(left, area.Left + 4, Math.Max(area.Left + 4, area.Right - ActualWidth - 4));
