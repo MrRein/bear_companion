@@ -175,6 +175,8 @@ public static class Lines
 
     public static readonly string[] TrampolineHunt = { "Чакай, ще си я взема сам! Батут!", "Хоп-хоп, идвам за храната!", "Батутът ще ме качи до нея!" };
 
+    public static readonly string[] MissedTrampoline = { "Ох! Изпуснах батута!", "Бум! Къде отиде батутът?", "Ауч! Дръж батута под мен!" };
+
     public static string Greeting(string owner)
     {
         int h = DateTime.Now.Hour;
