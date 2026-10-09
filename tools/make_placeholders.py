@@ -1,4 +1,4 @@
-"""Рисува временните (placeholder) спрайтове на мечока в assets/bear/.
+"""Рисува временните (placeholder) спрайтове в assets/bear/ и assets/props/.
 
 Всяка анимация е лента от кадри 32x32, един до друг отляво надясно.
 Истинските рисунки просто заменят тези PNG файлове (може и с друг брой кадри).
@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw
 
 SIZE = 32
 OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "bear")
+PROPS = os.path.join(os.path.dirname(__file__), "..", "assets", "props")
 
 OUTLINE = (59, 36, 20, 255)
 FUR = (139, 90, 43, 255)
@@ -24,6 +25,11 @@ WHITE = (255, 255, 255, 255)
 NUT = (150, 95, 40, 255)
 PAPER = (245, 240, 225, 255)
 RED = (220, 60, 60, 255)
+COUCH = (170, 70, 70, 255)
+COUCH_DARK = (120, 45, 50, 255)
+COUCH_LIGHT = (200, 100, 95, 255)
+BOOK = (60, 110, 170, 255)
+WOOD = (90, 55, 30, 255)
 
 
 def oval(d, box, fill, outline=OUTLINE):
@@ -184,6 +190,48 @@ def die(x, yy, pips):
     return f
 
 
+def book(open_pages=True, page=0):
+    """Книжка в ръцете на седнал мечок."""
+    def f(d, y):
+        d.rectangle((10, 19 + y, 21, 25 + y), fill=BOOK, outline=OUTLINE)
+        if open_pages:
+            d.rectangle((11, 20 + y, 15, 24 + y), fill=PAPER)
+            d.rectangle((16, 20 + y, 20, 24 + y), fill=PAPER)
+            d.line((12, 21 + y, 14, 21 + y), fill=(120, 120, 140, 255))
+            d.line((17, 21 + y, 19, 21 + y), fill=(120, 120, 140, 255))
+            if page:  # страницата се обръща
+                d.rectangle((16 - page, 19 + y, 16, 24 + y), fill=WHITE, outline=(120, 120, 140, 255))
+    return f
+
+
+def reading_sleep(z):
+    """Заспал на дивана с книжката на корема."""
+    def f(d, y):
+        d.rectangle((11, 21 + y, 20, 25 + y), fill=BOOK, outline=OUTLINE)
+        zs = [(23, 6), (26, 2)][: z + 1]
+        for x, yy in zs:
+            d.line((x, yy, x + 3, yy), fill=WHITE)
+            d.line((x + 3, yy, x, yy + 3), fill=WHITE)
+            d.line((x, yy + 3, x + 3, yy + 3), fill=WHITE)
+    return bear(eyes="closed", arms="front", legs="sit", bob=2, extra=f)
+
+
+def couch():
+    """Диван отпред, 48x24. Седалката е на 10 пиксела от земята."""
+    img = Image.new("RGBA", (48, 24), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle((4, 21, 6, 23), fill=WOOD)  # крачета
+    d.rectangle((41, 21, 43, 23), fill=WOOD)
+    d.rounded_rectangle((4, 0, 43, 15), 4, fill=COUCH_DARK, outline=OUTLINE)  # облегалка
+    d.rounded_rectangle((5, 12, 42, 21), 2, fill=COUCH, outline=OUTLINE)  # седалка
+    d.line((24, 13, 24, 20), fill=OUTLINE)
+    d.line((7, 13, 22, 13), fill=COUCH_LIGHT)
+    d.line((26, 13, 40, 13), fill=COUCH_LIGHT)
+    d.rounded_rectangle((0, 8, 7, 21), 3, fill=COUCH, outline=OUTLINE)  # облегалки за ръце
+    d.rounded_rectangle((40, 8, 47, 21), 3, fill=COUCH, outline=OUTLINE)
+    return img
+
+
 ANIMS = {
     # име: (кадри, кадри в секунда, повтаря ли се)
     "idle": ([bear(), bear(bob=1), bear(), bear(eyes="closed")], 3, True),
@@ -209,6 +257,20 @@ ANIMS = {
     "fall": ([bear(legs="sit", eyes="dizzy", mouth="open", bob=3), bear(legs="sit", eyes="dizzy", mouth="open", bob=2),
               bear(legs="sit", eyes="happy", mouth="smile", bob=3)], 3, False),
     "sad": ([bear(eyes="sad", mouth="sad", ears="down"), bear(eyes="sad", mouth="sad", ears="down", bob=1)], 2, True),
+    "push": ([bear(arms="front", legs="step1", mouth="open"), bear(arms="front", bob=-1),
+              bear(arms="front", legs="step2", mouth="open"), bear(arms="front", bob=-1)], 5, True),
+    "read": ([bear(arms="front", legs="sit", bob=2, extra=book()), bear(arms="front", legs="sit", bob=2, extra=book()),
+              bear(arms="front", legs="sit", bob=2, eyes="closed", extra=book()),
+              bear(arms="front", legs="sit", bob=2, extra=book()), bear(arms="front", legs="sit", bob=2, extra=book()),
+              bear(arms="front", legs="sit", bob=2, extra=book(page=2)),
+              bear(arms="front", legs="sit", bob=2, extra=book(page=4)),
+              bear(arms="front", legs="sit", bob=2, mouth="smile", extra=book())], 2, True),
+    "read_sleep": ([reading_sleep(0), reading_sleep(1)], 1, True),
+}
+
+PROP_LIST = {
+    # име: (рисунка, на колко пиксела от земята е седалката)
+    "couch": (couch(), 10),
 }
 
 
@@ -227,6 +289,15 @@ def main():
     with open(os.path.join(OUT, "anim.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
+    os.makedirs(PROPS, exist_ok=True)
+    props = {"scale": 3, "props": {}}
+    for name, (img, seat) in PROP_LIST.items():
+        img.save(os.path.join(PROPS, f"{name}.png"))
+        props["props"][name] = {"file": f"{name}.png", "seat": seat}
+    with open(os.path.join(PROPS, "props.json"), "w", encoding="utf-8") as fh:
+        json.dump(props, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+
     preview.resize((preview.width * 4, preview.height * 4), Image.NEAREST).save(
         os.path.join(os.path.dirname(__file__), "placeholders_preview.png"))
 

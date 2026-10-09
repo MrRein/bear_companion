@@ -1,0 +1,9 @@
+{
+  "scale": 3,
+  "props": {
+    "couch": {
+      "file": "couch.png",
+      "seat": 10
+    }
+  }
+}

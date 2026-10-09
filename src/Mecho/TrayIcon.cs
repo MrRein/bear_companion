@@ -30,6 +30,8 @@ public sealed class TrayIcon : IDisposable
         var menu = new Forms.ContextMenuStrip();
         var show = menu.Items.Add("Покажи мечока");
         show.Click += (_, _) => Toggle();
+        var stay = menu.Items.Add("");
+        stay.Click += (_, _) => { if (_pet.StaysPut) _pet.GetUp(); else _pet.StayHere(); };
         var sleep = menu.Items.Add("");
         sleep.Click += (_, _) => { if (_pet.IsAsleep) _pet.WakeUp(); else _pet.GoToSleep(); };
         var quiet = menu.Items.Add("");
@@ -56,7 +58,9 @@ public sealed class TrayIcon : IDisposable
         menu.Opening += (_, _) =>
         {
             show.Text = _pet.IsVisible ? "Скрий мечока" : "Покажи мечока";
+            stay.Text = _pet.StaysPut ? "Стани от дивана" : "Стой тук и почети";
             sleep.Text = _pet.IsAsleep ? "Събуди се" : "Лягай да спиш";
+            sleep.Enabled = _pet.CanSleep;
             quiet.Text = _pet.IsQuiet ? "Може да говориш" : "Тихо за 1 час";
             autostart.Checked = _save.StartWithWindows;
         };

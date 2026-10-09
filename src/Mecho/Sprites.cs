@@ -26,6 +26,15 @@ public sealed class SpriteAnimation
     }
 }
 
+/// <summary>Предмет без анимация, например диванът.</summary>
+public sealed class Prop
+{
+    public required BitmapSource Image { get; init; }
+
+    /// <summary>На колко пиксела от земята сяда мечокът (за мебели).</summary>
+    public int Seat { get; init; }
+}
+
 /// <summary>
 /// Чете анимациите от assets/bear/anim.json и PNG лентите до него.
 /// Ако нещо липсва, рисува цветен квадрат с името на анимацията.
@@ -47,13 +56,28 @@ public sealed class SpriteLibrary
         public bool Loop { get; set; } = true;
     }
 
+    private sealed class PropManifest
+    {
+        public Dictionary<string, PropEntry> Props { get; set; } = new();
+    }
+
+    private sealed class PropEntry
+    {
+        public string? File { get; set; }
+        public int Seat { get; set; }
+    }
+
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private readonly Dictionary<string, SpriteAnimation> _anims = new();
+    private readonly Dictionary<string, Prop> _props = new();
 
     public int FrameWidth { get; private set; } = 32;
     public int FrameHeight { get; private set; } = 32;
     public int Scale { get; private set; } = 3;
 
     public static string Folder => Path.Combine(AppContext.BaseDirectory, "assets", "bear");
+    public static string PropsFolder => Path.Combine(AppContext.BaseDirectory, "assets", "props");
 
     public static SpriteLibrary Load()
     {
@@ -63,10 +87,7 @@ public sealed class SpriteLibrary
         {
             string path = Path.Combine(Folder, "anim.json");
             if (File.Exists(path))
-            {
-                var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                manifest = JsonSerializer.Deserialize<Manifest>(File.ReadAllText(path), opts) ?? manifest;
-            }
+                manifest = JsonSerializer.Deserialize<Manifest>(File.ReadAllText(path), JsonOptions) ?? manifest;
         }
         catch (Exception)
         {
@@ -83,24 +104,41 @@ public sealed class SpriteLibrary
             if (frames != null)
                 lib._anims[name] = new SpriteAnimation { Frames = frames, Fps = Math.Max(0.1, entry.Fps), Loop = entry.Loop };
         }
+
+        try
+        {
+            string path = Path.Combine(PropsFolder, "props.json");
+            if (File.Exists(path))
+            {
+                var props = JsonSerializer.Deserialize<PropManifest>(File.ReadAllText(path), JsonOptions);
+                foreach (var (name, entry) in props?.Props ?? new())
+                {
+                    var img = LoadPng(Path.Combine(PropsFolder, entry.File ?? name + ".png"));
+                    if (img != null) lib._props[name] = new Prop { Image = img, Seat = Math.Max(0, entry.Seat) };
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Счупен props.json: ползваме placeholder-и.
+        }
         return lib;
     }
 
-    public SpriteAnimation Get(string name)
+    /// <summary>Предмет по име. Ако го няма, връща кафяв правоъгълник с размерите по подразбиране.</summary>
+    public Prop GetProp(string name, int width, int height, int seat)
     {
-        if (_anims.TryGetValue(name, out var a)) return a;
-        a = new SpriteAnimation { Frames = new[] { Placeholder(name) }, Fps = 1, Loop = true };
-        _anims[name] = a;
-        return a;
+        if (_props.TryGetValue(name, out var p)) return p;
+        p = new Prop { Image = Placeholder(name, width, height), Seat = seat };
+        _props[name] = p;
+        return p;
     }
 
-    private BitmapSource[]? LoadStrip(string file)
+    private static BitmapImage? LoadPng(string path)
     {
+        if (!File.Exists(path)) return null;
         try
         {
-            string path = Path.Combine(Folder, file);
-            if (!File.Exists(path)) return null;
-
             // OnLoad: файлът не остава заключен и може да се смени, докато мечокът работи.
             var img = new BitmapImage();
             img.BeginInit();
@@ -109,6 +147,28 @@ public sealed class SpriteLibrary
             img.UriSource = new Uri(path);
             img.EndInit();
             img.Freeze();
+            return img;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    public SpriteAnimation Get(string name)
+    {
+        if (_anims.TryGetValue(name, out var a)) return a;
+        a = new SpriteAnimation { Frames = new[] { Placeholder(name, FrameWidth, FrameHeight) }, Fps = 1, Loop = true };
+        _anims[name] = a;
+        return a;
+    }
+
+    private BitmapSource[]? LoadStrip(string file)
+    {
+        try
+        {
+            var img = LoadPng(Path.Combine(Folder, file));
+            if (img == null) return null;
 
             int count = Math.Max(1, img.PixelWidth / FrameWidth);
             int height = Math.Min(FrameHeight, img.PixelHeight);
@@ -127,18 +187,18 @@ public sealed class SpriteLibrary
         }
     }
 
-    private BitmapSource Placeholder(string name)
+    private static BitmapSource Placeholder(string name, int width, int height)
     {
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
         {
             dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(139, 90, 43)), new Pen(Brushes.Black, 1),
-                new Rect(0.5, 0.5, FrameWidth - 1, FrameHeight - 1));
+                new Rect(0.5, 0.5, width - 1, height - 1));
             var text = new FormattedText(name.Length > 4 ? name[..4] : name, CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight, new Typeface("Consolas"), 8, Brushes.White, 1.0);
-            dc.DrawText(text, new Point(2, FrameHeight / 2.0 - 5));
+            dc.DrawText(text, new Point(2, height / 2.0 - 5));
         }
-        var bmp = new RenderTargetBitmap(FrameWidth, FrameHeight, 96, 96, PixelFormats.Pbgra32);
+        var bmp = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
         bmp.Render(visual);
         bmp.Freeze();
         return bmp;
