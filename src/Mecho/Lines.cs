@@ -34,8 +34,6 @@ public static class Lines
         "Хи-хи!", "Гъделичка!", "Здрасти, {0}!", "Мечешка прегръдка!", "Пак ли ме цъкна? Хареса ми.", "Ура!",
     };
 
-    public static readonly string[] TooManyPokes = { "Стига ме цъкаш!", "Ей, не съм бутон!", "Ще ти взема зара!" };
-
     public static readonly string[] PokedAsleep = { "Ззз… още пет минутки…", "Мм… сънувам зарове…", "Ззз… лешници…" };
 
     public static readonly string[] WokenByDrag = { "Ей! Спях!", "Къде ме носиш насън?!" };
@@ -71,6 +69,32 @@ public static class Lines
     };
 
     public static readonly string[] PokedReading = { "Шшт, чета!", "Стигнах до най-интересното!", "Само да довърша главата…", "Хи-хи, гъделичка, ама чета." };
+
+    public static readonly string[] Hungry =
+    {
+        "Коремчето ми къркори…", "{0}, има ли нещо за хапване?", "Мириша ли кюфтенца, или си въобразявам?",
+        "Гладен съм като мечок през пролетта.",
+    };
+
+    public static readonly string[] Sleepy = { "*прозява се* Нещо ми се доспа…", "Очите ми се затварят…", "Ще дремна малко, става ли?" };
+
+    public static readonly string[] Full = { "Не мога повече! Ще се пръсна.", "Пълен съм като кутия с карти.", "Може би по-късно. Ох." };
+
+    public static readonly string[] Petted = { "Хи-хи, гъделичка!", "Мечешка прегръдка!", "*мърка* Още!", "Обичам те, {0}!" };
+
+    public static readonly string[] TaskAdded = { "Записах я!", "Добре, на дъсчицата е.", "Ще ти пазя списъка." };
+
+    public static readonly string[] SmallTaskDone = { "Готово! Браво!", "Една по-малко!", "Отметка! Обичам отметки." };
+
+    public static readonly string[] TaskDone = { "Супер, {0}!", "Ето това е работа!", "Браво! Заслужи лешници." };
+
+    public static readonly string[] BigTaskDone = { "УРА! Голямата задача е готова!", "{0}, ти си звезда!", "Това заслужава танц!" };
+
+    public static readonly string[] FocusStart = { "Слагам слушалките. Работим!", "Мед-доро започва. Тихо съм като мишка.", "Хайде заедно!" };
+
+    public static readonly string[] FocusDone = { "Мед-доро готово! 5 минути почивка: стани и пийни вода.", "Буркан мед! Почивка, {0}!", "Браво! Сега се раздвижи малко." };
+
+    public static readonly string[] BreakDone = { "Почивката свърши. Още едно мед-доро?", "Готова ли си за още?", "Хайде пак, {0}!" };
 
     public static string Greeting(string owner)
     {

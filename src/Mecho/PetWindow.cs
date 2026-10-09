@@ -37,7 +37,7 @@ public enum CouchPhase
 /// Прозрачен прозорец, в който живее мечокът. Прозорецът следи мечока (и дивана,
 /// ако е навън) и се разтяга точно колкото трябва.
 /// </summary>
-public sealed class PetWindow : Window
+public sealed partial class PetWindow : Window
 {
     private const double BubbleZone = 140;     // място за балончето от двете страни на мечока
     private const double WalkSpeed = 45;       // DIP в секунда
@@ -84,14 +84,13 @@ public sealed class PetWindow : Window
     private double _lastSave;
     private double _bubbleUntil;
     private double _nextUpdateCheck;
+    private Rect _bearRect;
     private int _announcedVersion;
 
     // Мишка
     private bool _pressed;
     private Point _pressScreen;
     private Vector _grabOffset;
-    private int _pokes;
-    private double _pokeWindowStart;
 
     public bool IsAsleep => _state == BearState.Sleep;
     public bool IsQuiet => DateTime.Now < _save.QuietUntil;
@@ -152,6 +151,7 @@ public sealed class PetWindow : Window
         _root.Children.Add(_sprite);
         _root.Children.Add(_bubble);
         Content = _root;
+        InitCare();
 
         _sprite.MouseLeftButtonDown += OnMouseDown;
         _sprite.MouseMove += OnMouseMove;
@@ -230,6 +230,7 @@ public sealed class PetWindow : Window
             case BearState.Couch: UpdateCouch(dt, now); break;
             case BearState.Drag: break;
         }
+        UpdateCare(dt, now);
 
         if (_state != BearState.Drag && _state != BearState.Falling)
         {
@@ -239,6 +240,7 @@ public sealed class PetWindow : Window
         }
 
         if (_bubble.Visibility == Visibility.Visible && now > _bubbleUntil) HideBubble();
+        UpdateTimerTag();
         UpdateFrame();
         UpdateLayoutAndWindow();
 
@@ -251,6 +253,7 @@ public sealed class PetWindow : Window
         if (now - _lastSave > 60)
         {
             _lastSave = now;
+            StartNewDay();
             Persist();
         }
     }
@@ -268,13 +271,34 @@ public sealed class PetWindow : Window
             return;
         }
 
-        if (!IsQuiet && now > _nextChatter)
+        if (WantsNap)
+        {
+            Say(Lines.Pick(Lines.Sleepy, _save.OwnerName));
+            Play("yawn", then: "sleep");
+            return;
+        }
+
+        if (!IsQuiet && !InFocus && now > _nextChatter)
         {
             _nextChatter = now + 240 + _rng.Next(240);
             Say(Lines.Pick(Lines.Chatter, _save.OwnerName), 6);
         }
 
         if (_stateTime < _stateLength) return;
+
+        // Докато панелът е отворен, стои до него.
+        if (MenuIsOpen)
+        {
+            SetIdle();
+            return;
+        }
+
+        // По време на мед-доро работи до Тут и не се разхожда.
+        if (InFocus)
+        {
+            Play("work", length: 30);
+            return;
+        }
 
         // Решава какво да прави.
         int roll = _rng.Next(100);
@@ -323,6 +347,14 @@ public sealed class PetWindow : Window
         {
             Say(Lines.Pick(Lines.WelcomeBack, _save.OwnerName));
             Play("happy");
+        }
+        // Дрямка: става сам, щом се наспи.
+        else if (!_sleepIsAway && _save.Energy >= 100)
+        {
+            _save.SleepingByChoice = false;
+            Say(Lines.Pick(Lines.WokeUp, _save.OwnerName));
+            Play("happy");
+            NotifyCare();
         }
     }
 
@@ -567,6 +599,11 @@ public sealed class PetWindow : Window
     public void GoToSleep()
     {
         if (IsAsleep || OnCouchMission) return;
+        if (_save.Energy >= 95)
+        {
+            Say("Не ми се спи още! Бодър съм.", 3);
+            return;
+        }
         _save.SleepingByChoice = true;
         Say(Lines.Pick(Lines.GoingToSleep, _save.OwnerName));
         Play("yawn", then: "sleep");
@@ -664,6 +701,7 @@ public sealed class PetWindow : Window
     {
         _pressed = true;
         _pressScreen = MouseScreen(e);
+        _menuOpenAtPress = MenuIsOpen || Now - _menuClosedAt < 0.3;
         _sprite.CaptureMouse();
         e.Handled = true;
     }
@@ -713,44 +751,53 @@ public sealed class PetWindow : Window
         Poke();
     }
 
+    /// <summary>Клик върху мечока: отваря (или затваря) панела и мечокът реагира.</summary>
     private void Poke()
     {
-        double now = Now;
-        if (now - _pokeWindowStart > 3)
-        {
-            _pokeWindowStart = now;
-            _pokes = 0;
-        }
-        _pokes++;
+        if (!ToggleMenu(fromClick: true)) return;
 
-        if (IsAsleep)
-        {
+        if (IsAsleep || _anim == "read_sleep")
             Say(Lines.Pick(Lines.PokedAsleep, _save.OwnerName), 3);
-            return;
-        }
-        if (_state is BearState.Falling) return;
-        if (_state == BearState.Couch || OnCouchMission)
-        {
-            if (_couchPhase == CouchPhase.Sitting)
-                Say(Lines.Pick(_anim == "read_sleep" ? Lines.PokedAsleep : Lines.PokedReading, _save.OwnerName), 3);
-            else
-                Say(Lines.Pick(Lines.Pushing, _save.OwnerName), 3);
-            return;
-        }
-        if (_pokes >= 6)
-        {
-            Say(Lines.Pick(Lines.TooManyPokes, _save.OwnerName));
-            Play("sad", length: 3);
-            _pokes = 0;
-            return;
-        }
-        Say(Lines.Pick(Lines.Poked, _save.OwnerName), 3);
-        Play("happy");
+        else if (_state == BearState.Couch && _couchPhase == CouchPhase.Sitting)
+            Say(Lines.Pick(Lines.PokedReading, _save.OwnerName), 3);
+        else if (CanAnimateFreely && _state != BearState.Busy)
+            Play("happy");
     }
+
+    // ───────────────────────── Панелът ─────────────────────────
+
+    private MenuWindow? _menu;
+    private double _menuClosedAt = -10;
+
+    private bool _menuOpenAtPress;
+
+    public bool MenuIsOpen => _menu is { IsVisible: true };
+
+    /// <summary>Отваря панела или го затваря. Връща true, ако го е отворил.</summary>
+    public bool ToggleMenu(bool fromClick = false)
+    {
+        if (MenuIsOpen)
+        {
+            _menu!.Hide();
+            return false;
+        }
+        // Кликът върху мечока първо затваря панела (той губи фокус); да не го отворим пак веднага.
+        if (fromClick && _menuOpenAtPress) return false;
+
+        _menu ??= new MenuWindow(this);
+        _menu.ShowNear(_bearRect);
+        return true;
+    }
+
+    internal void MenuClosed() => _menuClosedAt = Now;
 
     private ContextMenu BuildMenu()
     {
         var menu = new ContextMenu();
+        var open = new MenuItem { Header = "📋 Отвори панела" };
+        open.Click += (_, _) => ToggleMenu();
+        menu.Items.Add(open);
+        menu.Items.Add(new Separator());
         var hello = new MenuItem { Header = "👋 Здравей!" };
         hello.Click += (_, _) =>
         {
@@ -855,6 +902,19 @@ public sealed class PetWindow : Window
             bounds.Union(couch);
         }
 
+        _bearRect = bear;
+        double above = bear.Top - 4;
+
+        Rect tag = Rect.Empty;
+        if (_timerTag.Visibility == Visibility.Visible)
+        {
+            _timerTag.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var ts = _timerTag.DesiredSize;
+            tag = new Rect(_x - ts.Width / 2, above - ts.Height, ts.Width, ts.Height);
+            bounds.Union(tag);
+            above = tag.Top - 3;
+        }
+
         Rect bubble = Rect.Empty;
         if (_bubble.Visibility == Visibility.Visible)
         {
@@ -862,7 +922,7 @@ public sealed class PetWindow : Window
             var size = _bubble.DesiredSize;
             // Балончето не излиза извън екрана, дори когато мечокът е до ръба.
             double left = Math.Clamp(_x - size.Width / 2, area.Left + 4, Math.Max(area.Left + 4, area.Right - 4 - size.Width));
-            bubble = new Rect(left, bear.Top - 4 - size.Height, size.Width, size.Height);
+            bubble = new Rect(left, above - size.Height, size.Width, size.Height);
             bounds.Union(bubble);
         }
 
@@ -876,6 +936,7 @@ public sealed class PetWindow : Window
         Place(_sprite, bear, winLeft, winTop, dpi);
         if (_couchVisible) Place(_couch, couch, winLeft, winTop, dpi);
         if (!bubble.IsEmpty) Place(_bubble, bubble, winLeft, winTop, dpi);
+        if (!tag.IsEmpty) Place(_timerTag, tag, winLeft, winTop, dpi);
 
         if (Math.Abs(Left - winLeft) > 0.01) Left = winLeft;
         if (Math.Abs(Top - winTop) > 0.01) Top = winTop;
