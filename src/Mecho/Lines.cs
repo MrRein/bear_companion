@@ -153,6 +153,14 @@ public static class Lines
 
     public static readonly string[] Climbed = { "Тук горе е хубаво!", "Виж ме колко съм високо!", "Аз съм цар на платформата!", "Гледката е супер." };
 
+    public static readonly string[] WorkNap =
+    {
+        "Ти поработи, аз ще посънча малко…", "{0}, продължавай. Аз ще дремна пет минутки.",
+        "Очите ми се затварят. Ти работи, аз ще пазя… ззз.", "Ще подремна и после пак ще работим заедно, става ли?",
+    };
+
+    public static readonly string[] WorkTired = { "*прозява се над лаптопа*", "Буквите се размазват…", "Още малко… *клюма*", "Кафе… трябва ми кафе." };
+
     public static string Greeting(string owner)
     {
         int h = DateTime.Now.Hour;

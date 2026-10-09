@@ -209,7 +209,7 @@ public sealed partial class PetWindow : Window
         double dt = Math.Clamp(now - _lastTime, 0, 0.1);
         _lastTime = now;
         _stateTime += dt;
-        _animTime += dt;
+        _animTime += dt * AnimSpeed;
 
         switch (_state)
         {
@@ -393,13 +393,16 @@ public sealed partial class PetWindow : Window
         _anim = anim;
     }
 
-    private void SetIdle() => SetState(BearState.Idle, "idle", 3 + _rng.NextDouble() * 6);
+    private void SetIdle() => SetState(BearState.Idle, IsExhausted ? "tired" : "idle", 3 + _rng.NextDouble() * 6);
+
+    /// <summary>Уморен: всичко му върви по-бавно.</summary>
+    private double AnimSpeed => IsExhausted && !IsResting ? 0.6 : 1;
 
     /// <summary>Пуска анимация веднъж (или за length секунди, ако се повтаря).</summary>
     private void Play(string anim, string? then = null, bool away = false, double length = 0, Action? after = null)
     {
         var a = _lib.Get(anim);
-        SetState(BearState.Busy, anim, length > 0 ? length : a.Duration + 0.4);
+        SetState(BearState.Busy, anim, length > 0 ? length : a.Duration / AnimSpeed + 0.4);
         _afterBusy = then;
         _afterAction = after;
         _sleepIsAway = away;

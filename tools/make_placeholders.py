@@ -402,6 +402,16 @@ def writing(dx):
     return f
 
 
+def droopy(d, y):
+    """Полузатворени очи и торбички: уморен."""
+    ey = 9 + y
+    for x in (10, 20):
+        d.rectangle((x, ey, x + 1, ey + 1), fill=FUR)
+        d.line((x, ey + 1, x + 1, ey + 1), fill=BLACK)
+        d.point((x, ey + 2), fill=(110, 70, 40, 255))
+        d.point((x + 1, ey + 2), fill=(110, 70, 40, 255))
+
+
 def desk(d):
     d.rectangle((0, 12, 23, 13), fill=WOOD, outline=OUTLINE)    # плот
     d.line((1, 14, 1, 21), fill=OUTLINE)
@@ -473,6 +483,15 @@ ANIMS = {
     "think": ([bear(legs="sit", bob=2, extra=thinking), bear(legs="sit", bob=2, eyes="closed", extra=thinking)], 1, True),
     "write": ([bear(arms="front", legs="sit", bob=2, extra=writing(0)), bear(arms="front", legs="sit", bob=2, extra=writing(2)),
                bear(arms="front", legs="sit", bob=2, extra=writing(1))], 3, True),
+    # уморен: клепнали уши, полузатворени очи, отпуснат (всичко върви и по-бавно)
+    "tired": ([bear(ears="down", eyes="none", bob=1, extra=droopy), bear(ears="down", eyes="none", bob=2, extra=droopy),
+               bear(ears="down", eyes="closed", bob=2, mouth="open"), bear(ears="down", eyes="none", bob=1, extra=droopy)], 2, True),
+    "walk_tired": ([bear(ears="down", eyes="none", legs="step1", bob=1, extra=droopy), bear(ears="down", eyes="none", bob=2, extra=droopy),
+                    bear(ears="down", eyes="none", legs="step2", bob=1, extra=droopy), bear(ears="down", eyes="none", bob=2, extra=droopy)], 5, True),
+    "focus_tired": ([bear(arms="front", legs="sit", bob=2, eyes="none", extra=lambda d, y: (droopy(d, y), serious(d, y))),
+                     bear(arms="front", legs="sit", bob=3, eyes="closed", extra=serious),
+                     bear(arms="front", legs="sit", bob=4, eyes="closed", mouth="open", extra=serious),
+                     bear(arms="front", legs="sit", bob=2, eyes="none", extra=lambda d, y: (droopy(d, y), serious(d, y)))], 1.5, True),
     "juggle": ([bear(arms="left_up", mouth="open"), bear(arms="right_up", mouth="smile"),
                 bear(arms="left_up", eyes="happy"), bear(arms="right_up", mouth="open")], 6, True),
 }

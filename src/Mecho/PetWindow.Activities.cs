@@ -47,7 +47,7 @@ public sealed partial class PetWindow
     private void WalkTo(double x, Action? then = null)
     {
         _walkTarget = x;
-        SetState(BearState.Walk, "walk");
+        SetState(BearState.Walk, IsExhausted ? "walk_tired" : "walk");
         _afterAction = then;
     }
 

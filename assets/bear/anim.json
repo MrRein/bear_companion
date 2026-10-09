@@ -118,6 +118,21 @@
       "fps": 3,
       "loop": true
     },
+    "tired": {
+      "file": "tired.png",
+      "fps": 2,
+      "loop": true
+    },
+    "walk_tired": {
+      "file": "walk_tired.png",
+      "fps": 5,
+      "loop": true
+    },
+    "focus_tired": {
+      "file": "focus_tired.png",
+      "fps": 1.5,
+      "loop": true
+    },
     "juggle": {
       "file": "juggle.png",
       "fps": 6,

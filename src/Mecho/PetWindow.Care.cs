@@ -13,6 +13,7 @@ public sealed partial class PetWindow
     private const double HungerAwake = 22;     // сит → гладен за ~3,5 часа
     private const double HungerAsleep = 4;
     private const double TiredAwake = 35;      // бодър → уморен за ~2 часа: трябва да спи
+    private const double TiredWorking = 56;    // докато работи: ~23 енергия за едно мечо-доро
     private const double RestAsleep = 240;     // от 20 до 100 за ~20 минути дрямка (с легло: 10)
 
     private double RestRate => RestAsleep * (Kitchen.Owns(_save, Kitchen.Bed) ? 2 : 1);
@@ -86,7 +87,8 @@ public sealed partial class PetWindow
     {
         double h = dt / 3600;
         _save.Fullness = Math.Clamp(_save.Fullness - (IsResting ? HungerAsleep : HungerAwake) * h, 0, 100);
-        _save.Energy = Math.Clamp(_save.Energy + (IsResting ? RestRate : -TiredAwake) * h, 0, 100);
+        double tiring = _scene == Scenes.Focus ? TiredWorking : TiredAwake;
+        _save.Energy = Math.Clamp(_save.Energy + (IsResting ? RestRate : -tiring) * h, 0, 100);
 
         UpdatePomodoro();
         UpdateTimer();
@@ -101,7 +103,8 @@ public sealed partial class PetWindow
             }
             else if (_save.Energy < 25)
             {
-                _nextNeedLine = now + 240 + _rng.Next(120);
+                // Колкото е по-уморен, толкова по-често го казва.
+                _nextNeedLine = now + (_save.Energy < 12 ? 90 : 200) + _rng.Next(90);
                 Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 5);
             }
         }
@@ -205,7 +208,13 @@ public sealed partial class PetWindow
     /// <summary>Сяда на бюрото и работи сериозно, докато трае работата.</summary>
     private void EnterWorkMode()
     {
-        if (_scene == Scenes.Focus || _state is BearState.Drag or BearState.Falling or BearState.Jump) return;
+        if (_scene == Scenes.Focus || IsAsleep || _state is BearState.Drag or BearState.Falling or BearState.Jump) return;
+        if (IsExhausted)
+        {
+            // Твърде уморен е да работи: ще дремне, а като се наспи, ще дойде да работи.
+            TakeNap(Lines.Pick(Lines.WorkNap, _save.OwnerName));
+            return;
+        }
         _save.SleepingByChoice = false;
         _save.StayPut = false;
         StartScene(Scenes.Focus, quiet: false);
@@ -220,9 +229,37 @@ public sealed partial class PetWindow
 
     private double _nextFocusSwitch;
 
-    /// <summary>В работния режим сменя заниманията си: пише, мисли, записва.</summary>
+    /// <summary>Дрямка: прозява се и заспива; става сам, когато се наспи.</summary>
+    private void TakeNap(string line)
+    {
+        if (IsAsleep) return;
+        if (_inScene) LeaveScene();
+        _save.SleepingByChoice = true;
+        Say(line, 5);
+        Play("yawn", then: "sleep");
+    }
+
+    /// <summary>
+    /// В работния режим сменя заниманията си: пише, мисли, записва. Ако се умори,
+    /// клюма над лаптопа, а ако съвсем капне, отива да дремне.
+    /// </summary>
     private void UpdateFocusScene(double now)
     {
+        if (_save.Energy < 8)
+        {
+            TakeNap(Lines.Pick(Lines.WorkNap, _save.OwnerName));
+            return;
+        }
+        if (IsExhausted)
+        {
+            if (_anim != "focus_tired")
+            {
+                _anim = "focus_tired";
+                _animTime = 0;
+                Say(Lines.Pick(Lines.WorkTired, _save.OwnerName), 4);
+            }
+            return;
+        }
         if (now < _nextFocusSwitch) return;
         _nextFocusSwitch = now + 15 + _rng.Next(20);
         string[] anims = { "focus", "focus", "think", "write" };
@@ -243,8 +280,9 @@ public sealed partial class PetWindow
     {
         _save.PomodoroPhase = PomodoroPhase.Focus;
         _save.PomodoroEndsAt = DateTime.Now + FocusLength;
+        // Ако е уморен, EnterWorkMode казва „ти поработи, аз ще посънча“ и той дрямва.
+        if (!IsExhausted) Say(Lines.Pick(Lines.FocusStart, _save.OwnerName), 4);
         EnterWorkMode();
-        Say(Lines.Pick(Lines.FocusStart, _save.OwnerName), 4);
         NotifyCare();
         Persist();
     }
@@ -321,8 +359,8 @@ public sealed partial class PetWindow
         _save.TimerMinutes = minutes;
         _save.TimerLabel = label.Trim();
         _save.TimerIsWork = work;
-        if (work) EnterWorkMode();
         Say($"⏰ Пускам таймер за {minutes:0.#} мин.{(_save.TimerLabel.Length > 0 ? $" ({_save.TimerLabel})" : "")}", 3);
+        if (work) EnterWorkMode();
         NotifyCare();
         Persist();
     }
