@@ -164,6 +164,27 @@ public sealed partial class PetWindow
         StartScene(pick, 180 + _rng.Next(180));
     }
 
+    /// <summary>„Почивам си“ (от разговора): и той си почива в някое от кътчетата си.</summary>
+    public void RestToo()
+    {
+        if (InFocus)
+        {
+            Say("Първо работата! После почивка.", 3);
+            return;
+        }
+        Say(Lines.Pick(Lines.RestToo, _save.OwnerName), 4);
+        _idleSince = Now;
+        if (_inScene) LeaveScene();
+        StartFun();
+    }
+
+    /// <summary>Случайно отключено кътче (за „Почивай си → Случайно“).</summary>
+    public Scene RandomUnlockedFun()
+    {
+        var owned = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save)).ToList();
+        return owned[_rng.Next(owned.Count)];
+    }
+
     /// <summary>Чуди се какво да прави; понякога мечтае за нещо от магазина.</summary>
     private void Wonder()
     {

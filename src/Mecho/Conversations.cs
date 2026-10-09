@@ -94,7 +94,7 @@ public static class Conversations
         new ChatOption("📋 Ще запиша задача", p => p.OpenMenu(MenuWindow.TasksTab)),
         new ChatOption("📝 Ще си запиша бележка", p => p.OpenMenu(MenuWindow.NotesTab)),
         new ChatOption("🍯 Пусни мечо-доро", p => p.StartFocus()),
-        Reply("☕ Почивам си", "Добра идея. И аз ще си почина."));
+        new ChatOption("☕ Почивам си", p => p.RestToo()));
 
     private static ChatQuestion IdeaOffer(PetWindow pet) => new("Искаш ли идея за игра?",
         new ChatOption("💡 Да!", p => p.Ask(Idea())),

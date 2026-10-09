@@ -26,6 +26,7 @@ public static class Kitchen
 
     // Предмети за почивка: всеки отключва кътче (виж Scenes).
     public const string Easel = "easel", Computer = "computer", YogaMat = "yoga_mat", PlantPot = "plant", Radio = "radio", BoardGame = "board_game";
+    public const string Trampoline = "trampoline";
 
     // Раздели в магазина
     public const string KitchenShelf = "Кухня", FunShelf = "За почивка", HelpShelf = "Подобрения";
@@ -62,6 +63,7 @@ public static class Kitchen
         new(Radio, "Радио", "📻", 20, "Мечокът слуша музика.", FunShelf),
         new(BoardGame, "Настолна игра", "🎲", 25, "Мечокът плейтества на масичка.", FunShelf),
         new(Easel, "Статив", "🎨", 30, "Мечокът рисува като Тут.", FunShelf),
+        new(Trampoline, "Батут", "🤸", 35, "Мечокът скача, а разпиляната храна събира сам във въздуха!", FunShelf),
         new(Computer, "Компютър", "🎮", 50, "Мечокът играе игрички.", FunShelf),
 
         new(Headphones, "Слушалки", "🎧", 35, "+1 🌰 за всяко завършено мечо-доро.", HelpShelf),

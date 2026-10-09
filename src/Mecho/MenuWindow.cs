@@ -367,6 +367,14 @@ public sealed class MenuWindow : Window
         var s = _pet.Save;
         var chosen = _pet.ChosenScene;
         _relaxGrid.Children.Clear();
+        var random = Wide(Button("Случайно", () =>
+        {
+            _pet.Relax(_pet.RandomUnlockedFun());
+            Refresh(true);
+        }, primary: true, icon: "dice"));
+        random.HorizontalContentAlignment = HorizontalAlignment.Left;
+        random.ToolTip = Tip("Мечокът сам избира едно от отключените кътчета.");
+        _relaxGrid.Children.Add(random);
         foreach (var scene in Scenes.Fun)
         {
             var sc = scene;

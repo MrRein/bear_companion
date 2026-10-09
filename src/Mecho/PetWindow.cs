@@ -22,6 +22,7 @@ public enum BearState
     Couch,    // седи на дивана и чете
     Chase,    // гони пеперуда
     Jump,     // скача на нарисувана платформа
+    Bounce,   // подскача на батута
 }
 
 /// <summary>
@@ -221,13 +222,14 @@ public sealed partial class PetWindow : Window
             case BearState.Couch: UpdateScene(now); break;
             case BearState.Chase: UpdateChase(dt); break;
             case BearState.Jump: UpdateJump(dt); break;
+            case BearState.Bounce: UpdateBounce(dt); break;
             case BearState.Drag: break;
         }
         UpdateCare(dt, now);
         UpdateFood(dt);
         UpdateButterfly(dt);
 
-        if (_state is not (BearState.Drag or BearState.Falling or BearState.Jump))
+        if (_state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
         {
             // Земята: нарисувана платформа или долният край (лентата със задачи може да се е преместила).
             double ground = Ground(_y);
@@ -297,6 +299,13 @@ public sealed partial class PetWindow : Window
         if (WaitingForFood)
         {
             WaitForFood(now);
+            return;
+        }
+
+        // Тут го е оставила в кътче (и после са го вдигнали): връща се там.
+        if (_save.StayPut && !_inScene && !_onTrampoline && !InFocus)
+        {
+            StartScene(Scenes.ById(_save.StayScene), quiet: true);
             return;
         }
 
@@ -383,6 +392,13 @@ public sealed partial class PetWindow : Window
 
     private void SetState(BearState state, string anim, double length = 0)
     {
+        // Ако го вдигнат или заспи, слиза от батута (батутът изчезва).
+        if (_onTrampoline && state is BearState.Drag or BearState.Sleep or BearState.Couch)
+        {
+            _onTrampoline = false;
+            _hunting = false;
+            _trampWindow?.Hide();
+        }
         _state = state;
         if (state is BearState.Drag or BearState.Sleep or BearState.Couch) _peeking = false;
         if (state != BearState.Busy) _afterBusy = null;

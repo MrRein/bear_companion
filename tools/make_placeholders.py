@@ -412,6 +412,14 @@ def droopy(d, y):
         d.point((x + 1, ey + 2), fill=(110, 70, 40, 255))
 
 
+def trampoline(d):
+    d.rectangle((1, 2, 26, 4), fill=(90, 140, 210, 255), outline=OUTLINE)   # пружиниращото
+    d.line((0, 3, 27, 3), fill=OUTLINE)
+    for x in (3, 13, 24):
+        d.line((x, 5, x, 7), fill=OUTLINE)                                  # крачета
+    d.line((2, 1, 25, 1), fill=(255, 209, 102, 255))
+
+
 def desk(d):
     d.rectangle((0, 12, 23, 13), fill=WOOD, outline=OUTLINE)    # плот
     d.line((1, 14, 1, 21), fill=OUTLINE)
@@ -492,6 +500,8 @@ ANIMS = {
                      bear(arms="front", legs="sit", bob=3, eyes="closed", extra=serious),
                      bear(arms="front", legs="sit", bob=4, eyes="closed", mouth="open", extra=serious),
                      bear(arms="front", legs="sit", bob=2, eyes="none", extra=lambda d, y: (droopy(d, y), serious(d, y)))], 1.5, True),
+    "bounce": ([bear(arms="up", legs="dangle", eyes="happy", mouth="open"), bear(arms="up", legs="dangle", eyes="happy", mouth="smile", bob=-1),
+                bear(arms="left_up", legs="dangle", eyes="happy", mouth="open"), bear(arms="right_up", legs="dangle", eyes="happy", mouth="smile")], 6, True),
     "juggle": ([bear(arms="left_up", mouth="open"), bear(arms="right_up", mouth="smile"),
                 bear(arms="left_up", eyes="happy"), bear(arms="right_up", mouth="open")], 6, True),
 }
@@ -654,6 +664,7 @@ PROP_LIST = {
     "couch": (couch(), 10),
     "butterfly": (butterfly(), 0),
     "stool": (prop(16, 8, stool), 7),
+    "trampoline": (prop(28, 8, trampoline), 4),
     "desk": (prop(24, 22, desk), 0),
     "computer": (prop(20, 22, computer), 0),
     "easel": (prop(18, 28, easel), 0),
@@ -698,7 +709,7 @@ def main():
         fh.write("\n")
     # Иконки за магазина от предметите за почивка: смалени до 16 x 16.
     for shop, src in [("shop_easel", "easel"), ("shop_computer", "computer"), ("shop_yoga_mat", "mat"),
-                      ("shop_plant", "plant"), ("shop_radio", "radio"), ("shop_board_game", "table_board")]:
+                      ("shop_plant", "plant"), ("shop_radio", "radio"), ("shop_board_game", "table_board"), ("shop_trampoline", "trampoline")]:
         img, _ = PROP_LIST[src]
         icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
         scale = min(1.0, 16 / img.width, 16 / img.height)

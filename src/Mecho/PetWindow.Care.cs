@@ -128,7 +128,7 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Може ли да пусне анимация, без да прекъсне дивана, влаченето или съня.</summary>
-    private bool CanAnimateFreely => !OnCouchMission && !IsAsleep && _state is not (BearState.Drag or BearState.Falling);
+    private bool CanAnimateFreely => !OnCouchMission && !_onTrampoline && !IsAsleep && _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce);
 
     // ───────────────────────── Задачи ─────────────────────────
 

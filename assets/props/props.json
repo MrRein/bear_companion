@@ -13,6 +13,10 @@
       "file": "stool.png",
       "seat": 7
     },
+    "trampoline": {
+      "file": "trampoline.png",
+      "seat": 4
+    },
     "desk": {
       "file": "desk.png",
       "seat": 0
@@ -131,6 +135,10 @@
     },
     "shop_board_game": {
       "file": "shop_board_game.png",
+      "seat": 0
+    },
+    "shop_trampoline": {
+      "file": "shop_trampoline.png",
       "seat": 0
     }
   }

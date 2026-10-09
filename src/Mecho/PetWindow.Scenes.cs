@@ -27,7 +27,14 @@ public sealed record Scene(
 public static class Scenes
 {
     /// <summary>Забавленията: кътчета, в които сяда сам, когато скучае, или когато Тут му каже „Почивай си“.</summary>
-    public static Scene[] Fun => new[] { Reading, Painting, Gaming, Tea, Yoga, Plant, Music, Board };
+    public static Scene[] Fun => new[] { Reading, Painting, Gaming, Tea, Yoga, Plant, Music, Board, Trampoline };
+
+    /// <summary>Батутът е особен: не седи, а подскача (виж PetWindow.Trampoline.cs).</summary>
+    public static readonly Scene Trampoline = new("trampoline", null, null, 0, "bounce",
+        new[] { "Батут! Уиииии!", "*пуф* Батут! Да скачаме!", "Гледай колко високо!" },
+        new[] { "Уиии!", "По-високо!", "Виждам целия екран оттук!", "Хоп! Хоп! Хоп!" },
+        new[] { "Уф, задъхах се. Стига скачане.", "Добре, слизам.", "Краката ми са като желе!" })
+    { Name = "Скачай на батута", Icon = "trampoline", Unlock = Kitchen.Trampoline };
 
     public static Scene ById(string? id) => Fun.FirstOrDefault(s => s.Id == id) ?? Reading;
 
@@ -119,7 +126,7 @@ public sealed partial class PetWindow
         _save.StayPut = true;
         _save.StayScene = scene.Id;
         _save.SleepingByChoice = false;
-        if (_scene != scene) StartScene(scene, quiet: false);
+        if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) StartScene(scene, quiet: false);
         _sceneUntil = 0;
         _idleSince = Now;
         Persist();
@@ -133,6 +140,7 @@ public sealed partial class PetWindow
     {
         _save.StayPut = false;
         if (_inScene) Say(Lines.Pick(Lines.StandUp, _save.OwnerName));
+        if (_onTrampoline) EndBounce(Lines.Pick(Scenes.Trampoline.End, _save.OwnerName));
         LeaveScene();
         Persist();
     }
@@ -140,12 +148,24 @@ public sealed partial class PetWindow
     /// <summary>Кътче за малко (едно от нещата, които прави, когато е свободен).</summary>
     private void StartScene(Scene scene, double seconds)
     {
+        if (scene == Scenes.Trampoline)
+        {
+            StartTrampoline(seconds);
+            return;
+        }
         StartScene(scene, quiet: false);
         _sceneUntil = Now + seconds;
     }
 
     private void StartScene(Scene scene, bool quiet)
     {
+        if (scene == Scenes.Trampoline)
+        {
+            if (_inScene) LeaveScene();
+            StartTrampoline(0, quiet);
+            return;
+        }
+        if (_onTrampoline) EndBounce(null);
         _scene = scene;
         _inScene = true;
         _sceneUntil = 0;

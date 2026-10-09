@@ -133,6 +133,11 @@
       "fps": 1.5,
       "loop": true
     },
+    "bounce": {
+      "file": "bounce.png",
+      "fps": 6,
+      "loop": true
+    },
     "juggle": {
       "file": "juggle.png",
       "fps": 6,

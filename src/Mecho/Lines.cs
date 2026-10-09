@@ -169,6 +169,12 @@ public static class Lines
 
     public static readonly string[] BoredNap = { "Скучно ми е… ще подремна.", "*прозява се* Нищо за правене. Лягам.", "Ще дремна малко, докато измислиш нещо." };
 
+    public static readonly string[] CaughtFood = { "Хванах го! Ам!", "Точен удар!", "Ам! В устата!" };
+
+    public static readonly string[] RestToo = { "И аз ще си почина.", "Добра идея! И аз.", "Почивка! Обичам почивки." };
+
+    public static readonly string[] TrampolineHunt = { "Чакай, ще си я взема сам! Батут!", "Хоп-хоп, идвам за храната!", "Батутът ще ме качи до нея!" };
+
     public static string Greeting(string owner)
     {
         int h = DateTime.Now.Hour;

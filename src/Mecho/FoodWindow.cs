@@ -21,6 +21,13 @@ public sealed class FoodWindow : Window
     public double Fullness { get; }
     public double Energy { get; }
     public double VelocityY { get; set; }
+    public double VelocityX { get; set; }
+
+    /// <summary>Хвърлена е от Тут: ако улучи мечока в движение, той я хваща.</summary>
+    public bool Thrown { get; set; }
+
+    private Point _lastScreen;
+    private DateTime _lastMove;
     public bool IsDragging => _dragging;
 
     public FoodWindow(PetWindow pet, Food food, double fullness, double energy, Prop prop, double pixelSize)
@@ -59,7 +66,11 @@ public sealed class FoodWindow : Window
         {
             _dragging = true;
             VelocityY = 0;
+            VelocityX = 0;
+            Thrown = false;
             _grab = e.GetPosition(this);
+            _lastScreen = new Point(Left, Top);
+            _lastMove = DateTime.Now;
             image.CaptureMouse();
             e.Handled = true;
         };
@@ -69,6 +80,13 @@ public sealed class FoodWindow : Window
             var p = e.GetPosition(this);
             Left += p.X - _grab.X;
             Top += p.Y - _grab.Y;
+            // Скорост на хвърляне: от последното движение.
+            var now = DateTime.Now;
+            double dt = Math.Max(0.008, (now - _lastMove).TotalSeconds);
+            VelocityX = VelocityX * 0.5 + (Left - _lastScreen.X) / dt * 0.5;
+            VelocityY = VelocityY * 0.5 + (Top - _lastScreen.Y) / dt * 0.5;
+            _lastScreen = new Point(Left, Top);
+            _lastMove = now;
         };
         image.MouseLeftButtonUp += (_, e) =>
         {
@@ -76,6 +94,9 @@ public sealed class FoodWindow : Window
             _dragging = false;
             image.ReleaseMouseCapture();
             e.Handled = true;
+            // Пусната без движение: спира. Хвърлена: лети и се плъзга.
+            if ((DateTime.Now - _lastMove).TotalSeconds > 0.1) VelocityX = VelocityY = 0;
+            Thrown = Math.Abs(VelocityX) + Math.Abs(VelocityY) > 150;
             _pet.FoodDropped(this);
         };
     }
