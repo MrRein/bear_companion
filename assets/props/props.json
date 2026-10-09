@@ -21,6 +21,42 @@
       "file": "food_tea.png",
       "seat": 0
     },
+    "shop_pot": {
+      "file": "shop_pot.png",
+      "seat": 0
+    },
+    "shop_pan": {
+      "file": "shop_pan.png",
+      "seat": 0
+    },
+    "shop_oven": {
+      "file": "shop_oven.png",
+      "seat": 0
+    },
+    "shop_kettle": {
+      "file": "shop_kettle.png",
+      "seat": 0
+    },
+    "shop_coffee_machine": {
+      "file": "shop_coffee_machine.png",
+      "seat": 0
+    },
+    "shop_headphones": {
+      "file": "shop_headphones.png",
+      "seat": 0
+    },
+    "shop_bed": {
+      "file": "shop_bed.png",
+      "seat": 0
+    },
+    "shop_fridge": {
+      "file": "shop_fridge.png",
+      "seat": 0
+    },
+    "shop_cookbook": {
+      "file": "shop_cookbook.png",
+      "seat": 0
+    },
     "food_popcorn": {
       "file": "food_popcorn.png",
       "seat": 0

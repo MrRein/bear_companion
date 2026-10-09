@@ -102,6 +102,7 @@ public sealed partial class PetWindow : Window
         ShowActivated = false;
         ResizeMode = ResizeMode.NoResize;
         UseLayoutRounding = true;
+        TextOptions.SetTextRenderingMode(this, TextRenderingMode.Aliased); // пикселният шрифт да е рязък
         SnapsToDevicePixels = true;
 
         RenderOptions.SetBitmapScalingMode(_sprite, BitmapScalingMode.NearestNeighbor);
@@ -115,9 +116,9 @@ public sealed partial class PetWindow : Window
         {
             TextWrapping = TextWrapping.Wrap,
             TextAlignment = TextAlignment.Center,
-            FontFamily = new FontFamily("Segoe UI"),
-            FontWeight = FontWeights.SemiBold,
-            FontSize = 13,
+            FontFamily = Ui.GameFont,
+            FontWeight = FontWeights.Normal,
+            FontSize = 10,
             Foreground = new SolidColorBrush(Color.FromRgb(59, 36, 20)),
         };
         _bubble = new Border

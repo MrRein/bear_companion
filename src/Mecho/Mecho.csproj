@@ -16,6 +16,9 @@
 
   <ItemGroup>
     <Resource Include="mecho.ico" />
+    <!-- Pixeled (OmegaPC777, FontStruct Non-Commercial License) и резервен Pixelify Sans
+         (SIL Open Font License, виж fonts/OFL.txt, с добавени кирилски О и П). -->
+    <Resource Include="fonts\*.ttf" />
     <!-- Рисунките стоят до .exe файла, за да могат да се сменят без компилиране. -->
     <None Include="..\..\assets\**\*" Link="assets\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>

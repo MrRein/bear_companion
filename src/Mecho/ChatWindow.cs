@@ -34,17 +34,18 @@ public sealed class ChatWindow : Window
         AllowsTransparency = true;
         Background = Brushes.Transparent;
         SizeToContent = SizeToContent.WidthAndHeight;
-        FontFamily = new FontFamily("Segoe UI");
-        FontSize = 13;
+        FontFamily = Ui.GameFont;
+        FontSize = 10;
         Foreground = Ink;
         UseLayoutRounding = true;
+        TextOptions.SetTextRenderingMode(this, TextRenderingMode.Aliased); // пикселният шрифт да е рязък
 
         _text = new TextBlock
         {
-            FontSize = 14,
-            FontWeight = FontWeights.Bold,
+            FontSize = 10,
+            FontWeight = FontWeights.Normal,
             TextWrapping = TextWrapping.Wrap,
-            MaxWidth = 280,
+            MaxWidth = 340,
             Margin = new Thickness(0, 0, 0, 8),
         };
         var panel = new StackPanel { MinWidth = 200 };
@@ -78,7 +79,7 @@ public sealed class ChatWindow : Window
             });
             b.HorizontalAlignment = HorizontalAlignment.Stretch;
             b.HorizontalContentAlignment = HorizontalAlignment.Left;
-            b.MaxWidth = 280;
+            b.MaxWidth = 340;
             _options.Children.Add(b);
         }
 

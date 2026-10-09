@@ -344,6 +344,81 @@ def butterfly():
     return img
 
 
+GREY = (150, 150, 160, 255)
+DARK = (70, 70, 80, 255)
+
+
+def icon(draw_fn):
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    draw_fn(ImageDraw.Draw(img))
+    return img
+
+
+def shop_pot(d):
+    d.rectangle((2, 6, 13, 14), fill=GREY, outline=OUTLINE)
+    d.line((0, 7, 2, 7), fill=OUTLINE)
+    d.line((13, 7, 15, 7), fill=OUTLINE)
+    d.rectangle((1, 4, 14, 6), fill=DARK, outline=OUTLINE)
+    d.rectangle((6, 2, 9, 4), fill=DARK, outline=OUTLINE)
+
+
+def shop_pan(d):
+    oval(d, (0, 7, 10, 13), DARK)
+    d.rectangle((10, 9, 15, 11), fill=WOOD, outline=OUTLINE)
+    oval(d, (3, 8, 7, 11), (250, 230, 120, 255), outline=None)  # яйце
+    d.point((5, 9), fill=(240, 160, 40, 255))
+
+
+def shop_oven(d):
+    d.rectangle((1, 2, 14, 15), fill=(200, 200, 210, 255), outline=OUTLINE)
+    d.rectangle((3, 7, 12, 13), fill=(60, 40, 30, 255), outline=OUTLINE)
+    d.rectangle((4, 10, 11, 12), fill=(240, 120, 40, 255))  # огън
+    for x in (4, 7, 10):
+        d.point((x, 4), fill=OUTLINE)
+
+
+def shop_kettle(d):
+    oval(d, (2, 5, 12, 15), (90, 160, 200, 255))
+    d.line((12, 8, 15, 5), fill=OUTLINE)
+    d.arc((4, 1, 10, 7), 180, 360, fill=OUTLINE)
+    d.line((5, 2, 4, 0), fill=(220, 220, 220, 255))
+
+
+def shop_coffee(d):
+    d.rectangle((2, 1, 13, 15), fill=(60, 60, 70, 255), outline=OUTLINE)
+    d.rectangle((4, 3, 11, 5), fill=(120, 200, 120, 255))  # екранче
+    d.rectangle((6, 6, 9, 8), fill=GREY)  # чучур
+    d.rectangle((5, 10, 10, 14), fill=WHITE, outline=OUTLINE)  # чашка
+    d.line((6, 11, 9, 11), fill=(90, 55, 30, 255))
+
+
+def shop_headphones(d):
+    d.arc((2, 1, 13, 12), 180, 360, fill=OUTLINE, width=2)
+    d.rectangle((1, 7, 4, 13), fill=RED, outline=OUTLINE)
+    d.rectangle((11, 7, 14, 13), fill=RED, outline=OUTLINE)
+
+
+def shop_bed(d):
+    d.rectangle((0, 3, 2, 15), fill=WOOD, outline=OUTLINE)
+    d.rectangle((2, 9, 15, 12), fill=(110, 140, 220, 255), outline=OUTLINE)
+    d.rectangle((3, 7, 6, 9), fill=WHITE, outline=OUTLINE)  # възглавница
+    d.line((14, 12, 14, 15), fill=OUTLINE)
+
+
+def shop_fridge(d):
+    d.rectangle((3, 0, 12, 15), fill=(230, 240, 250, 255), outline=OUTLINE)
+    d.line((3, 6, 12, 6), fill=OUTLINE)
+    d.line((10, 2, 10, 4), fill=OUTLINE)
+    d.line((10, 8, 10, 11), fill=OUTLINE)
+
+
+def shop_cookbook(d):
+    d.rectangle((2, 2, 13, 14), fill=(200, 60, 60, 255), outline=OUTLINE)
+    d.line((4, 2, 4, 14), fill=OUTLINE)
+    d.rectangle((6, 5, 11, 8), fill=PAPER)
+    d.point((8, 6), fill=(230, 180, 70, 255))
+
+
 PROP_LIST = {
     # име: (рисунка, на колко пиксела от земята е седалката)
     "couch": (couch(), 10),
@@ -351,6 +426,15 @@ PROP_LIST = {
     "food_berries": (food_berries(), 0),
     "food_coffee": (cup((90, 55, 30, 255)), 0),
     "food_tea": (cup((200, 140, 60, 255)), 0),
+    "shop_pot": (icon(shop_pot), 0),
+    "shop_pan": (icon(shop_pan), 0),
+    "shop_oven": (icon(shop_oven), 0),
+    "shop_kettle": (icon(shop_kettle), 0),
+    "shop_coffee_machine": (icon(shop_coffee), 0),
+    "shop_headphones": (icon(shop_headphones), 0),
+    "shop_bed": (icon(shop_bed), 0),
+    "shop_fridge": (icon(shop_fridge), 0),
+    "shop_cookbook": (icon(shop_cookbook), 0),
     "food_popcorn": (food_popcorn(), 0),
     "food_meatballs": (food_meatballs(), 0),
     "food_potatoes": (food_potatoes(), 0),

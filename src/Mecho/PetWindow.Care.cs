@@ -36,9 +36,9 @@ public sealed partial class PetWindow
 
     private void InitCare()
     {
-        _timerText.FontFamily = new FontFamily("Segoe UI");
-        _timerText.FontWeight = FontWeights.Bold;
-        _timerText.FontSize = 12;
+        _timerText.FontFamily = Ui.GameFont;
+        _timerText.FontWeight = FontWeights.Normal;
+        _timerText.FontSize = 10;
         _timerText.Foreground = new SolidColorBrush(Color.FromRgb(59, 36, 20));
         _timerTag.Child = _timerText;
         _timerTag.Background = new SolidColorBrush(Color.FromRgb(255, 214, 102));

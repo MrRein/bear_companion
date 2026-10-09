@@ -29,6 +29,12 @@ public sealed partial class PetWindow
         _root.Children.Add(_butterfly);
     }
 
+    /// <summary>Картинка на предмет (храна, уред) за панела.</summary>
+    public System.Windows.Media.Imaging.BitmapSource PropImage(string name) => _lib.GetProp(name, 16, 16, 0).Image;
+
+    /// <summary>Портрет за панела: първият кадър от „стои“.</summary>
+    public System.Windows.Media.Imaging.BitmapSource Portrait => _lib.Get("idle").Frames[0];
+
     /// <summary>Свърши едно нещо: застава и прави каквото е обещал след него.</summary>
     private void FinishThen()
     {
