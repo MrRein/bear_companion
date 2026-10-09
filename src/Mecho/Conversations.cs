@@ -29,11 +29,15 @@ public static class Conversations
                 new ChatOption("🤫 Остави го да спи", _ => { }));
         }
         if (s.Fullness < 25) return Hungry(pet);
-        if (s.Energy < 20)
+        if (s.Energy < 25)
         {
-            return new ChatQuestion("*прозява се* Доспа ми се. Може ли да дремна?",
-                new ChatOption("🌙 Да, лека нощ", p => p.GoToSleep()),
-                Reply("Още малко, моля", "Добре… *клепачите му падат*"));
+            var options = new List<ChatOption> { new("🌙 Да, лека нощ", p => p.GoToSleep()) };
+            // Кафе и чай, ако има с какво да ги направи.
+            options.AddRange(Kitchen.Foods
+                .Where(f => f.Energy > 0 && Kitchen.CanCook(f, s))
+                .Select(f => new ChatOption($"{f.Icon} {f.Name} ({Kitchen.CostOf(f, s)} 🌰)", p => p.Cook(f))));
+            options.Add(Reply("Още малко, моля", "Добре… *клепачите му падат*"));
+            return new ChatQuestion("*прозява се* Доспа ми се. Може ли да дремна?", options.ToArray());
         }
         if (pet.IsReading && Rng.Next(2) == 0)
         {
@@ -65,10 +69,14 @@ public static class Conversations
 
     private static ChatQuestion Hungry(PetWindow pet)
     {
+        var s = pet.Save;
         var options = Kitchen.Foods
-            .Where(f => Kitchen.IsUnlocked(f, pet.Save))
-            .Select(f => new ChatOption($"{f.Icon} {f.Name}", p => p.Feed(f)))
+            .Where(f => f.Fullness >= 10 && Kitchen.CanCook(f, s))
+            .Select(f => new ChatOption(
+                Kitchen.CostOf(f, s) == 0 ? $"{f.Icon} {f.Name} (безплатни)" : $"{f.Icon} {f.Name} ({Kitchen.CostOf(f, s)} 🌰)",
+                p => p.Cook(f)))
             .ToList();
+        options.Add(new ChatOption("🍳 Отвори кухнята", p => p.OpenMenu(MenuWindow.FoodTab)));
         options.Add(Reply("По-късно", "Добре… *къркор*"));
         return new ChatQuestion("Гладен съм… ще ме нахраниш ли?", options.ToArray());
     }
@@ -129,7 +137,8 @@ public static class Conversations
     private static ChatQuestion Tastiest(PetWindow pet)
     {
         var options = Kitchen.Foods
-            .Where(f => Kitchen.IsUnlocked(f, pet.Save))
+            .Where(f => f.Fullness >= 10)
+            .Take(4)
             .Select(f => Reply($"{f.Icon} {f.Name}", $"Знаех си! {f.Name} са най-вкусни!"))
             .ToList();
         options.Add(Reply("😋 Всичко!", "Ето затова те обичам."));

@@ -48,21 +48,22 @@ public sealed partial class PetWindow
     private void ChooseActivity()
     {
         var area = Area;
+        bool tired = IsExhausted; // уморен: не му се играе, по-скоро сяда или се прозява
         var choices = new (int Weight, Action Do)[]
         {
-            (26, () =>
+            (tired ? 6 : 26, () =>
             {
                 double x = area.Left + 60 + _rng.NextDouble() * Math.Max(0, area.Width - 120);
                 if (Math.Abs(x - _x) > 30) WalkTo(x);
                 else SetIdle();
             }),
-            (12, () => Play("work", length: 8 + _rng.Next(8), after: () => Say(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
-            (7, () =>
+            (tired ? 2 : 12, () => Play("work", length: 8 + _rng.Next(8), after: () => Say(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
+            (tired ? 0 : 7, () =>
             {
                 int n = _rng.Next(1, 7);
                 Play("dice", after: () => Say(Lines.DiceRoll(n) + " " + Lines.Pick(Lines.Playtest, _save.OwnerName), 5));
             }),
-            (5, () =>
+            (tired ? 0 : 5, () =>
             {
                 Play("dance", length: 3);
                 Say(Lines.Pick(Lines.Dancing, _save.OwnerName), 3);
@@ -71,16 +72,16 @@ public sealed partial class PetWindow
             {
                 Play("eat");
                 Say(Lines.Pick(Lines.Snack, _save.OwnerName), 3);
-                _save.Fullness = Math.Min(100, _save.Fullness + 2);
+                _save.Fullness = Math.Min(100, _save.Fullness + 1);
             }),
-            (InFocus ? 0 : 7, () => ReadForAWhile(40 + _rng.Next(50))),
-            (_save.Energy < 70 ? 4 : 1, () =>
+            (InFocus ? 0 : tired ? 12 : 7, () => ReadForAWhile(40 + _rng.Next(50))),
+            (tired ? 12 : _save.Energy < 70 ? 4 : 1, () =>
             {
                 Play("yawn");
-                Say("*протяга се* Ааах.", 3);
+                Say(tired ? Lines.Pick(Lines.Sleepy, _save.OwnerName) : "*протяга се* Ааах.", 3);
             }),
-            (8, FollowCursor),
-            (7, StartChase),
+            (tired ? 0 : 8, FollowCursor),
+            (tired ? 0 : 7, StartChase),
             (16, SetIdle),
         };
 

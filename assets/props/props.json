@@ -9,8 +9,16 @@
       "file": "butterfly.png",
       "seat": 0
     },
-    "food_hazelnuts": {
-      "file": "food_hazelnuts.png",
+    "food_berries": {
+      "file": "food_berries.png",
+      "seat": 0
+    },
+    "food_coffee": {
+      "file": "food_coffee.png",
+      "seat": 0
+    },
+    "food_tea": {
+      "file": "food_tea.png",
       "seat": 0
     },
     "food_popcorn": {

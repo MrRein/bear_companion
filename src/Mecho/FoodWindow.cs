@@ -19,14 +19,16 @@ public sealed class FoodWindow : Window
 
     public Food Food { get; }
     public double Fullness { get; }
+    public double Energy { get; }
     public double VelocityY { get; set; }
     public bool IsDragging => _dragging;
 
-    public FoodWindow(PetWindow pet, Food food, double fullness, Prop prop, double pixelSize)
+    public FoodWindow(PetWindow pet, Food food, double fullness, double energy, Prop prop, double pixelSize)
     {
         _pet = pet;
         Food = food;
         Fullness = fullness;
+        Energy = energy;
         Title = food.Name;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;

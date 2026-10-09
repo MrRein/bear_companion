@@ -49,7 +49,7 @@ public static class Lines
 
     public static readonly string[] Dancing = { "*танцува* Ла-ла-ла!", "Танц на победата! Не знам за какво.", "Туп-туп, туп-туп!" };
 
-    public static readonly string[] Snack = { "*хрус* Намерих лешник в джоба!", "Малка закуска. Шшт, не казвай.", "Ням-ням." };
+    public static readonly string[] Snack = { "*хрус* Намерих трохичка от пуканки!", "Малка закуска. Шшт, не казвай.", "Ням-ням." };
 
     public static readonly string[] CursorFound = { "Хванах курсора! Шегувам се.", "Какво правиш, {0}?", "Здрасти, курсор!", "Тук ли рисуваш?" };
 

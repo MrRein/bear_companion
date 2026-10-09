@@ -10,10 +10,15 @@ namespace Mecho;
 public sealed partial class PetWindow
 {
     // Колко бързо се променят нуждите (точки на час).
-    private const double HungerAwake = 20;     // сит → гладен за ~4 часа
-    private const double HungerAsleep = 7;
-    private const double TiredAwake = 14;      // бодър → сънлив за ~6 часа
-    private const double RestAsleep = 300;     // от 20 до 100 за ~16 минути дрямка
+    private const double HungerAwake = 12;     // сит → гладен за ~6 часа
+    private const double HungerAsleep = 4;
+    private const double TiredAwake = 25;      // бодър → сънлив за ~3 часа: трябва да спи
+    private const double RestAsleep = 240;     // от 20 до 100 за ~20 минути дрямка (с легло: 10)
+
+    private double RestRate => RestAsleep * (Kitchen.Owns(_save, Kitchen.Bed) ? 2 : 1);
+
+    /// <summary>Много е уморен: ходи бавно и не му се играе.</summary>
+    public bool IsExhausted => _save.Energy < 25;
 
     public static readonly TimeSpan FocusLength = TimeSpan.FromMinutes(25);
     public static readonly TimeSpan BreakLength = TimeSpan.FromMinutes(5);
@@ -58,7 +63,7 @@ public sealed partial class PetWindow
         if (_save.LastSeen == default) return;
         double hours = Math.Max(0, (DateTime.Now - _save.LastSeen).TotalHours);
         if (hours < 0.05) return;
-        _save.Energy = Math.Min(100, _save.Energy + hours * RestAsleep);
+        _save.Energy = Math.Min(100, _save.Energy + hours * RestRate);
         _save.Fullness = Math.Max(Math.Min(_save.Fullness, 30), _save.Fullness - hours * HungerAsleep);
     }
 
@@ -80,7 +85,7 @@ public sealed partial class PetWindow
     {
         double h = dt / 3600;
         _save.Fullness = Math.Clamp(_save.Fullness - (IsResting ? HungerAsleep : HungerAwake) * h, 0, 100);
-        _save.Energy = Math.Clamp(_save.Energy + (IsResting ? RestAsleep : -TiredAwake) * h, 0, 100);
+        _save.Energy = Math.Clamp(_save.Energy + (IsResting ? RestRate : -TiredAwake) * h, 0, 100);
 
         UpdatePomodoro();
         UpdateTimer();
@@ -102,7 +107,8 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Сам ли иска да дремне (вика се, когато стои без работа).</summary>
-    private bool WantsNap => _save.Energy < 15 && !InFocus;
+    /// <summary>Капнал е: заспива сам, каквото и да става (иначе чака Тут да го приспи).</summary>
+    private bool WantsNap => _save.Energy < 5;
 
     // ───────────────────────── Храна ─────────────────────────
 
@@ -151,14 +157,10 @@ public sealed partial class PetWindow
         _save.Hazelnuts += task.Reward;
         _save.TasksDoneTotal++;
 
-        var unlocked = Kitchen.UnlockedAt(_save.TasksDoneTotal);
-        if (unlocked != null)
-            Say($"Ура! Отключи {unlocked.Unlock}! Вече мога да правя {unlocked.Name.ToLowerInvariant()}! {unlocked.Icon}", 8);
-        else
-            Say(Lines.Pick(task.Size switch { 3 => Lines.BigTaskDone, 2 => Lines.TaskDone, _ => Lines.SmallTaskDone }, _save.OwnerName) +
-                $" +{task.Reward} 🌰", 4);
+        Say(Lines.Pick(task.Size switch { 3 => Lines.BigTaskDone, 2 => Lines.TaskDone, _ => Lines.SmallTaskDone }, _save.OwnerName) +
+            $" +{task.Reward} 🌰", 4);
 
-        if (CanAnimateFreely) Play(task.Size >= 3 || unlocked != null ? "dance" : "happy", length: task.Size >= 3 ? 3 : 0);
+        if (CanAnimateFreely) Play(task.Size >= 3 ? "dance" : "happy", length: task.Size >= 3 ? 3 : 0);
         NotifyCare();
         Persist();
     }
@@ -208,12 +210,29 @@ public sealed partial class PetWindow
         Persist();
     }
 
+    /// <summary>
+    /// Плаща работата: за всеки 10 минути мед-доро или таймер по 1 лешник.
+    /// Остатъкът под 10 минути се пази за следващия път.
+    /// </summary>
+    private int PayForMinutes(double minutes)
+    {
+        if (minutes <= 0) return 0;
+        _save.FocusMinutesBank += minutes;
+        int nuts = (int)Math.Floor(_save.FocusMinutesBank / 10 + 1e-9);
+        _save.FocusMinutesBank -= nuts * 10;
+        _save.Hazelnuts += nuts;
+        return nuts;
+    }
+
+    private static string Earned(int nuts) => nuts > 0 ? $" +{nuts} 🌰" : "";
+
     public void StopPomodoro()
     {
         if (_save.PomodoroPhase == PomodoroPhase.Off) return;
         bool wasFocus = InFocus;
+        int nuts = wasFocus ? PayForMinutes((FocusLength - PomodoroLeft).TotalMinutes) : 0;
         _save.PomodoroPhase = PomodoroPhase.Off;
-        Say(wasFocus ? "Добре, спираме. Ще продължим после." : "Почивката свърши по-рано. Хайде!", 3);
+        Say((wasFocus ? "Добре, спираме. Ще продължим после." : "Почивката свърши по-рано. Хайде!") + Earned(nuts), 3);
         NotifyCare();
         Persist();
     }
@@ -227,10 +246,15 @@ public sealed partial class PetWindow
         {
             _save.PomodorosTotal++;
             _save.PomodorosToday++;
-            _save.Hazelnuts++;
+            int nuts = PayForMinutes(FocusLength.TotalMinutes);
+            if (Kitchen.Owns(_save, Kitchen.Headphones))
+            {
+                _save.Hazelnuts++;
+                nuts++;
+            }
             _save.PomodoroPhase = PomodoroPhase.Break;
             _save.PomodoroEndsAt = DateTime.Now + BreakLength;
-            Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + " +1 🌰", 8);
+            Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts), 8);
             if (CanAnimateFreely) Play("dance", length: 3);
         }
         else
@@ -252,7 +276,9 @@ public sealed partial class PetWindow
     public void StartTimer(double minutes, string label)
     {
         if (minutes <= 0) return;
+        if (TimerRunning) PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes);
         _save.TimerEndsAt = DateTime.Now.AddMinutes(minutes);
+        _save.TimerMinutes = minutes;
         _save.TimerLabel = label.Trim();
         Say($"⏰ Пускам таймер за {minutes:0.#} мин.{(_save.TimerLabel.Length > 0 ? $" ({_save.TimerLabel})" : "")}", 3);
         NotifyCare();
@@ -262,8 +288,9 @@ public sealed partial class PetWindow
     public void StopTimer()
     {
         if (!TimerRunning) return;
+        int nuts = PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes);
         _save.TimerEndsAt = DateTime.MinValue;
-        Say("Спрях таймера.", 2);
+        Say("Спрях таймера." + Earned(nuts), 2);
         NotifyCare();
         Persist();
     }
@@ -273,7 +300,8 @@ public sealed partial class PetWindow
         if (!TimerRunning || DateTime.Now < _save.TimerEndsAt) return;
         string label = _save.TimerLabel;
         _save.TimerEndsAt = DateTime.MinValue;
-        Say(label.Length > 0 ? $"⏰ Времето изтече: {label}!" : "⏰ Времето изтече!", 12);
+        int nuts = PayForMinutes(_save.TimerMinutes);
+        Say((label.Length > 0 ? $"⏰ Времето изтече: {label}!" : "⏰ Времето изтече!") + Earned(nuts), 12);
         if (CanAnimateFreely) Play("dance", length: 3);
         NotifyCare();
         Persist();

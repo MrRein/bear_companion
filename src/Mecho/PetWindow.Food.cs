@@ -11,10 +11,13 @@ public sealed partial class PetWindow
     private const int MaxFoodOnScreen = 12;
     private readonly List<FoodWindow> _food = new();
 
-    /// <summary>Тут избира храна: тя се появява из екрана и трябва да се занесе на мечока.</summary>
-    public void Feed(Food food)
+    /// <summary>
+    /// Мечокът сготвя ястие (ако има уреда и лешниците). То се появява из екрана
+    /// и Тут трябва да го занесе при него.
+    /// </summary>
+    public void Cook(Food food)
     {
-        if (!Kitchen.IsUnlocked(food, _save)) return;
+        if (!Kitchen.CanCook(food, _save)) return;
         if (IsResting)
         {
             Say("Ззз… ще ям, като стана.", 3);
@@ -25,16 +28,43 @@ public sealed partial class PetWindow
             Say("Първо ми донеси другата храна!", 4);
             return;
         }
+        if (food.Cost == 0 && Kitchen.BerriesIn(_save) > 0)
+        {
+            Say($"Храстът още не е дал нови боровинки. След {Kitchen.BerriesIn(_save)} мин.", 4);
+            return;
+        }
+        if (food.Energy >= 30)
+        {
+            // Две кафета на половин час стигат.
+            _save.CoffeeTimes.RemoveAll(t => (DateTime.Now - t).TotalMinutes > 30);
+            if (_save.CoffeeTimes.Count >= 2)
+            {
+                Say("Сърцето ми прави туп-туп-туп! Стига кафе за сега.", 4);
+                return;
+            }
+        }
+        int cost = Kitchen.CostOf(food, _save);
+        if (_save.Hazelnuts < cost)
+        {
+            Say($"Трябват ми {cost} 🌰, а имам {_save.Hazelnuts}. Да свършим някоя задача?", 4);
+            return;
+        }
+
+        _save.Hazelnuts -= cost;
+        if (food.Cost == 0) _save.BerriesReadyAt = DateTime.Now.AddMinutes(Kitchen.BerryMinutes);
+        if (food.Energy >= 30) _save.CoffeeTimes.Add(DateTime.Now);
 
         var area = Area;
         var prop = _lib.GetProp("food_" + food.Id, 16, 16, 0);
+        double fullness = Kitchen.FullnessOf(food, _save) / food.Count;
         for (int i = 0; i < food.Count; i++)
         {
-            var w = new FoodWindow(this, food, food.Fullness / food.Count, prop, PixelSize);
+            var w = new FoodWindow(this, food, fullness, food.Energy / food.Count, prop, PixelSize);
             // Появява се някъде по екрана (не върху мечока) и пада на земята.
             double x;
+            int tries = 0;
             do x = area.Left + 40 + _rng.NextDouble() * Math.Max(0, area.Width - 80 - w.Width);
-            while (food.Count < 8 && Math.Abs(x - _x) < 150 && area.Width > 600);
+            while (Math.Abs(x - _x) < 150 && area.Width > 600 && ++tries < 20);
             w.Left = x;
             w.Top = area.Top + area.Height * (0.1 + 0.5 * _rng.NextDouble());
             w.Closed += (_, _) => _food.Remove(w);
@@ -42,10 +72,29 @@ public sealed partial class PetWindow
             w.Show();
         }
         Say(food.Count > 1
-            ? $"Разпилях {food.Name.ToLowerInvariant()} из екрана! Донеси ми ги всичките {food.Icon}"
-            : $"{food.Icon} {food.Name}! Донеси ги тук, моля!", 5);
+            ? $"{food.Icon} {food.Name}! Разпилях ги из екрана, донеси ми ги всичките!"
+            : $"{food.Icon} {food.Name}! Донеси ми го тук, моля!", 5);
         _nextFoodReminder = Now + 15;
         if (_state is BearState.Walk or BearState.Chase or BearState.Busy) SetIdle();
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>Купува уред или подобрение с лешници.</summary>
+    public void Buy(Upgrade upgrade)
+    {
+        if (Kitchen.Owns(_save, upgrade.Id)) return;
+        if (_save.Hazelnuts < upgrade.Price)
+        {
+            Say($"{upgrade.Icon} {upgrade.Name} струва {upgrade.Price} 🌰. Имаме {_save.Hazelnuts}. Още малко работа!", 4);
+            return;
+        }
+        _save.Hazelnuts -= upgrade.Price;
+        _save.Owned.Add(upgrade.Id);
+        Say($"Ура! {upgrade.Icon} {upgrade.Name}! {upgrade.Description}", 6);
+        if (CanAnimateFreely) Play("dance", length: 3);
+        NotifyCare();
+        Persist();
     }
 
     /// <summary>Тут пусна храна. Ако е върху мечока, той я изяжда; иначе пада на земята.</summary>
@@ -63,6 +112,7 @@ public sealed partial class PetWindow
 
         // Изяжда всичко, което му донесеш, дори да е сит.
         _save.Fullness = Math.Min(100, _save.Fullness + food.Fullness);
+        _save.Energy = Math.Min(100, _save.Energy + food.Energy);
         food.Close();
         _food.Remove(food);
         if (_food.Count == 0)

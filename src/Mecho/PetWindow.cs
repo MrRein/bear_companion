@@ -297,7 +297,7 @@ public sealed partial class PetWindow : Window
 
     private void UpdateWalk(double dt)
     {
-        if (StepTowards(_walkTarget, WalkSpeed, dt) || _stateTime > 30) FinishThen();
+        if (StepTowards(_walkTarget, IsExhausted ? WalkSpeed * 0.6 : WalkSpeed, dt) || _stateTime > 60) FinishThen();
     }
 
     /// <summary>Мести мечока към target. Връща true, когато е стигнал.</summary>

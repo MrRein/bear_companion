@@ -277,6 +277,30 @@ def food_hazelnut():
     return img
 
 
+def food_berries():
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.line((8, 1, 8, 5), fill=(70, 130, 60, 255))
+    d.ellipse((8, 1, 12, 4), fill=(90, 170, 70, 255))  # листо
+    for x, y in [(2, 6), (8, 5), (5, 10)]:
+        oval(d, (x, y, x + 6, y + 5), (70, 90, 190, 255))
+        d.point((x + 2, y + 1), fill=(170, 190, 255, 255))
+    return img
+
+
+def cup(drink, steam=True):
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    if steam:
+        d.line((6, 0, 5, 3), fill=(220, 220, 220, 255))
+        d.line((9, 1, 10, 4), fill=(220, 220, 220, 255))
+    d.rectangle((2, 6, 11, 14), fill=WHITE, outline=OUTLINE)
+    d.rectangle((3, 7, 10, 8), fill=drink)
+    d.ellipse((10, 8, 14, 12), outline=OUTLINE)
+    d.line((1, 15, 13, 15), fill=OUTLINE)
+    return img
+
+
 def food_popcorn():
     img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -324,7 +348,9 @@ PROP_LIST = {
     # име: (рисунка, на колко пиксела от земята е седалката)
     "couch": (couch(), 10),
     "butterfly": (butterfly(), 0),
-    "food_hazelnuts": (food_hazelnut(), 0),
+    "food_berries": (food_berries(), 0),
+    "food_coffee": (cup((90, 55, 30, 255)), 0),
+    "food_tea": (cup((200, 140, 60, 255)), 0),
     "food_popcorn": (food_popcorn(), 0),
     "food_meatballs": (food_meatballs(), 0),
     "food_potatoes": (food_potatoes(), 0),

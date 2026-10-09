@@ -18,12 +18,12 @@ public sealed class MenuWindow : Window
 {
     private const double BarWidth = 170;
 
-    public const int BearTab = 0, TasksTab = 1, NotesTab = 2, PomodoroTab = 3, MoreTab = 4;
+    public const int BearTab = 0, FoodTab = 1, TasksTab = 2, NotesTab = 3, PomodoroTab = 4, MoreTab = 5;
 
     private readonly PetWindow _pet;
     private readonly DispatcherTimer _refresh;
-    private readonly Border[] _tabButtons = new Border[5];
-    private readonly UIElement[] _tabs = new UIElement[5];
+    private readonly Border[] _tabButtons = new Border[6];
+    private readonly UIElement[] _tabs = new UIElement[6];
     private int _tab;
     private readonly StackPanel _noteList = new();
     private TextBox _noteInput = null!;
@@ -33,6 +33,7 @@ public sealed class MenuWindow : Window
     private Border _fullBar = null!, _energyBar = null!;
     private TextBlock _fullText = null!, _energyText = null!;
     private readonly StackPanel _foods = new();
+    private TextBlock _earnInfo = null!;
     private Button _sleepButton = null!;
     private readonly StackPanel _taskList = new();
     private TextBlock _taskSummary = null!;
@@ -63,16 +64,17 @@ public sealed class MenuWindow : Window
         UseLayoutRounding = true;
 
         _tabs[BearTab] = BuildBearTab();
+        _tabs[FoodTab] = BuildFoodTab();
         _tabs[TasksTab] = BuildTasksTab();
         _tabs[NotesTab] = BuildNotesTab();
         _tabs[PomodoroTab] = BuildPomodoroTab();
         _tabs[MoreTab] = BuildMoreTab();
 
-        var content = new Grid { Width = 380 };
+        var content = new Grid { Width = 430 };
         foreach (var t in _tabs) content.Children.Add(t);
 
         var tabs = new UniformGrid4();
-        string[] names = { "🐻 Мечо", "📋 Задачи", "📝 Бележки", "⏰ Време", "⚙️ Още" };
+        string[] names = { "🐻 Мечо", "🍳 Храна", "📋 Задачи", "📝 Бележки", "⏰ Време", "⚙️ Още" };
         for (int i = 0; i < names.Length; i++)
         {
             int index = i;
@@ -186,7 +188,7 @@ public sealed class MenuWindow : Window
         _nuts.FontWeight = FontWeights.Bold;
         _nuts.VerticalAlignment = VerticalAlignment.Center;
         _nuts.Margin = new Thickness(0, 0, 10, 0);
-        _nuts.ToolTip = "Лешници: печелят се със задачи и мед-дора";
+        _nuts.ToolTip = "Лешници: печелят се със задачи, мед-доро и таймери; харчат се в 🍳 Храна";
         Grid.SetColumn(_nuts, 1);
         grid.Children.Add(_nuts);
 
@@ -203,8 +205,10 @@ public sealed class MenuWindow : Window
         p.Children.Add(Bar("🍯 Ситост", out _fullBar, out _fullText));
         p.Children.Add(Bar("💤 Енергия", out _energyBar, out _energyText));
 
-        p.Children.Add(Heading("Нахрани го"));
-        p.Children.Add(_foods);
+        var feed = Button("🍳 Нахрани го (кухнята)", () => SelectTab(FoodTab));
+        feed.HorizontalAlignment = HorizontalAlignment.Left;
+        feed.Margin = new Thickness(0, 8, 0, 0);
+        p.Children.Add(feed);
 
         p.Children.Add(Heading("Грижа"));
         var row = new WrapPanel();
@@ -564,6 +568,8 @@ public sealed class MenuWindow : Window
         _sleepButton.IsEnabled = _pet.CanSleep;
 
         if (rebuildTasks || _foods.Children.Count == 0) BuildFoods();
+        _earnInfo.Text = $"🌰 {s.Hazelnuts} лешника. Печелят се със задачи (1/3/5) и с работа: всеки 10 мин мед-доро или таймер = 1 🌰" +
+                         (s.FocusMinutesBank >= 1 ? $" (събрани {s.FocusMinutesBank:0} мин към следващия)." : ".");
 
         if (rebuildTasks)
         {
@@ -609,44 +615,92 @@ public sealed class MenuWindow : Window
         _updateButton.IsEnabled = !_pet.Updater.IsBusy;
     }
 
+    private UIElement BuildFoodTab()
+    {
+        var p = new StackPanel();
+        _earnInfo = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) };
+        p.Children.Add(_earnInfo);
+        p.Children.Add(_foods);
+        return new ScrollViewer { Content = p, MaxHeight = 470, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+    }
+
+    /// <summary>Кухнята: какво може да сготви сега и какво може да се купи.</summary>
     private void BuildFoods()
     {
+        var s = _pet.Save;
         _foods.Children.Clear();
-        var wrap = new WrapPanel();
+
+        _foods.Children.Add(Heading("Готви"));
         foreach (var food in Kitchen.Foods)
         {
-            bool unlocked = Kitchen.IsUnlocked(food, _pet.Save);
             var f = food;
-            var b = Button($"{food.Icon} {food.Name}", () =>
+            int cost = Kitchen.CostOf(f, s);
+            string effect = string.Join(", ", new[]
             {
-                // Храната се появява из екрана; панелът се скрива, за да я занесеш.
-                _pet.Feed(f);
-                Hide();
-            });
-            if (!unlocked)
-            {
-                int left = food.UnlockTasks - _pet.Save.TasksDoneTotal;
-                b.Content = $"🔒 {food.Name}";
-                b.ToolTip = $"Трябва {food.Unlock}: още {left} {(left == 1 ? "задача" : "задачи")}";
-                b.IsEnabled = false;
-                ToolTipService.SetShowOnDisabled(b, true);
-            }
-            wrap.Children.Add(b);
-        }
-        _foods.Children.Add(wrap);
+                f.Fullness >= 5 ? $"+{Kitchen.FullnessOf(f, s):0} ситост" : null,
+                f.Energy > 0 ? $"+{f.Energy:0} енергия" : null,
+            }.Where(x => x != null));
 
-        var next = Kitchen.Foods.FirstOrDefault(f => !Kitchen.IsUnlocked(f, _pet.Save));
-        if (next != null)
-        {
-            int left = next.UnlockTasks - _pet.Save.TasksDoneTotal;
-            _foods.Children.Add(new TextBlock
+            Button action;
+            if (!Kitchen.CanCook(f, s))
             {
-                Text = $"Още {left} {(left == 1 ? "свършена задача" : "свършени задачи")} до {next.Unlock} ({next.Icon} {next.Name.ToLowerInvariant()})!",
-                Foreground = Muted,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(2, 2, 0, 0),
-            });
+                var tool = Kitchen.Find(f.Tool!);
+                action = Button($"🔒 трябва {tool?.Icon} {tool?.Name}", () => { });
+                action.IsEnabled = false;
+            }
+            else if (cost == 0 && Kitchen.BerriesIn(s) > 0)
+            {
+                action = Button($"⏳ след {Kitchen.BerriesIn(s)} мин", () => { });
+                action.IsEnabled = false;
+            }
+            else
+            {
+                action = Button(cost == 0 ? "Набери (безплатно)" : $"Сготви · {cost} 🌰", () =>
+                {
+                    // Храната се появява из екрана; панелът се скрива, за да я занесеш.
+                    _pet.Cook(f);
+                    Hide();
+                });
+                action.IsEnabled = s.Hazelnuts >= cost;
+            }
+            _foods.Children.Add(Row($"{f.Icon} {f.Name}", effect, action));
         }
+
+        _foods.Children.Add(Heading("Кухня и подобрения"));
+        foreach (var upgrade in Kitchen.Upgrades)
+        {
+            var u = upgrade;
+            Button action;
+            if (Kitchen.Owns(s, u.Id))
+            {
+                action = Button("✓ Имаш", () => { });
+                action.IsEnabled = false;
+            }
+            else
+            {
+                action = Button($"Купи · {u.Price} 🌰", () => _pet.Buy(u));
+                action.IsEnabled = s.Hazelnuts >= u.Price;
+            }
+            _foods.Children.Add(Row($"{u.Icon} {u.Name}", u.Description, action));
+        }
+    }
+
+    /// <summary>Ред: заглавие и описание отляво, бутон отдясно.</summary>
+    private static UIElement Row(string title, string description, Button action)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 2, 0, 4) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold });
+        if (description.Length > 0)
+            text.Children.Add(new TextBlock { Text = description, Foreground = Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap });
+        grid.Children.Add(text);
+        action.Margin = new Thickness(6, 0, 0, 0);
+        action.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(action, 1);
+        grid.Children.Add(action);
+        return grid;
     }
 
     private void BuildTaskList()

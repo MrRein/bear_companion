@@ -29,6 +29,10 @@ public sealed class SaveData
 
     // Прогрес
     public int Hazelnuts { get; set; }
+    public List<string> Owned { get; set; } = new();            // купени уреди и подобрения
+    public double FocusMinutesBank { get; set; }                // минути фокус, още неизплатени в лешници
+    public DateTime BerriesReadyAt { get; set; }
+    public List<DateTime> CoffeeTimes { get; set; } = new();
     public int TasksDoneTotal { get; set; }
     public int PomodorosTotal { get; set; }
     public string PomodoroDay { get; set; } = "";
@@ -41,6 +45,7 @@ public sealed class SaveData
     // Обикновен таймер (MinValue = не тече)
     public DateTime TimerEndsAt { get; set; } = DateTime.MinValue;
     public string TimerLabel { get; set; } = "";
+    public double TimerMinutes { get; set; }
 
     public List<TaskItem> Tasks { get; set; } = new();
     public List<NoteItem> Notes { get; set; } = new();
