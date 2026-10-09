@@ -67,13 +67,13 @@ public sealed class ChatWindow : Window
     /// <summary>Показва въпроса над мечока (в рамките на екрана).</summary>
     public void Ask(ChatQuestion question, Rect bear, Rect area)
     {
-        _text.Text = question.Text;
+        Ui.SetRichText(_text, question.Text);
         _options.Children.Clear();
         foreach (var option in question.Options)
         {
             var o = option;
-            // Без емоджи отпред: в пикселния шрифт те стоят неравно.
-            string label = System.Text.RegularExpressions.Regex.Replace(o.Label, @"^[^\p{L}\p{N}(]+", "").Trim();
+            // Познатите емоджи стават пикселни иконки, другите отпадат (виж Ui.SetRichText).
+            string label = o.Label;
             var b = Button(label, () =>
             {
                 Hide();

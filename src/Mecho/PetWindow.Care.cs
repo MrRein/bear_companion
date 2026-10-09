@@ -397,6 +397,70 @@ public sealed partial class PetWindow
             Play("dance", length: 3, after: () => { if (!InFocus && CanAnimateFreely) StartScene(Scenes.IsUnlocked(Scenes.Tea, _save) ? Scenes.Tea : Scenes.Reading, 120 + _rng.Next(60)); });
     }
 
+    // ───────────────────────── Таймерът, когато мечокът е скрит ─────────────────────────
+
+    private Window? _timerBadge;
+    private TextBlock? _timerBadgeText;
+    private string _timerBadgeShown = "";
+
+    /// <summary>
+    /// Скрит ли е мечокът, а тече мечо-доро или таймер: малка табелка в долния десен
+    /// ъгъл (над часовника) показва колко остава. Клик върху нея връща мечока.
+    /// </summary>
+    private void UpdateTimerBadge(System.Collections.Generic.List<string> parts)
+    {
+        bool show = !IsVisible && parts.Count > 0;
+        if (!show)
+        {
+            _timerBadge?.Hide();
+            return;
+        }
+        if (_timerBadge == null)
+        {
+            _timerBadgeText = Ui.RichText("", bold: true);
+            _timerBadgeText.FontFamily = Ui.MonoFont;
+            var pill = Ui.Pill(_timerBadgeText);
+            pill.Cursor = System.Windows.Input.Cursors.Hand;
+            pill.ToolTip = Ui.Tip("Мечокът е скрит, но времето тече. Цъкни, за да го покажеш.");
+            _timerBadge = new Window
+            {
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                Topmost = true,
+                ShowInTaskbar = false,
+                ShowActivated = false,
+                ResizeMode = ResizeMode.NoResize,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                FontFamily = Ui.GameFont,
+                FontSize = Ui.Body,
+                Foreground = Ui.Ink,
+                Content = pill,
+                WindowStartupLocation = WindowStartupLocation.Manual,
+            };
+            System.Windows.Media.TextOptions.SetTextRenderingMode(_timerBadge, System.Windows.Media.TextRenderingMode.Aliased);
+            _timerBadge.SourceInitialized += (_, _) =>
+                NativeMethods.MakeToolWindow(new System.Windows.Interop.WindowInteropHelper(_timerBadge).Handle);
+            pill.MouseLeftButtonUp += (_, _) =>
+            {
+                _timerBadge.Hide();
+                Show();
+            };
+        }
+        string text = string.Join("   ", parts);
+        if (text != _timerBadgeShown)
+        {
+            _timerBadgeShown = text;
+            Ui.SetRichText(_timerBadgeText!, text);
+        }
+        if (!_timerBadge.IsVisible) _timerBadge.Show();
+        _timerBadge.UpdateLayout();
+        // Над часовника: долният десен ъгъл на главния екран (над лентата със задачите).
+        var area = SystemParameters.WorkArea;
+        _timerBadge.Left = area.Right - _timerBadge.ActualWidth - 8;
+        _timerBadge.Top = area.Bottom - _timerBadge.ActualHeight - 8;
+    }
+
     private static string Clock(TimeSpan t) =>
         t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
 
@@ -405,12 +469,13 @@ public sealed partial class PetWindow
         var parts = new System.Collections.Generic.List<string>();
         if (_save.PomodoroPhase != PomodoroPhase.Off) parts.Add($"{(InFocus ? "🍯" : "☕")} {Clock(PomodoroLeft)}");
         if (TimerRunning) parts.Add($"⏰ {Clock(TimerLeft)}");
+        UpdateTimerBadge(parts);
         if (parts.Count == 0)
         {
             _timerTag.Visibility = Visibility.Collapsed;
             return;
         }
-        _timerText.Text = string.Join("   ", parts);
+        Ui.SetRichText(_timerText, string.Join("   ", parts));
         _timerTag.Visibility = Visibility.Visible;
     }
 }

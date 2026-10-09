@@ -234,8 +234,7 @@ public sealed class MenuWindow : Window
         grid.Children.Add(nuts);
 
         var close = Chip("✕", Hide);
-        close.Background = Bad;
-        ((TextBlock)close.Child).Foreground = Cream;
+        // Червеното ✕ е пикселна иконка; фонът е светъл, за да се вижда.
         close.VerticalAlignment = VerticalAlignment.Center;
         close.ToolTip = Tip("Затвори (Esc)");
         Grid.SetColumn(close, 2);
@@ -595,7 +594,7 @@ public sealed class MenuWindow : Window
         {
             // Катинарче или отметка в ъгъла.
             var badge = owned
-                ? (FrameworkElement)new TextBlock { Text = "✓", FontSize = Ui.Title, FontWeight = FontWeights.Bold, Foreground = Good }
+                ? Icon("check", 2)
                 : Icon("lock");
             badge.HorizontalAlignment = HorizontalAlignment.Right;
             badge.VerticalAlignment = VerticalAlignment.Top;
@@ -943,7 +942,7 @@ public sealed class MenuWindow : Window
 
     private void UpdateWorkChip()
     {
-        ((TextBlock)_workChip.Child).Text = _timerWork ? "✓ Работен (мечокът работи с теб)" : "✗ Не е за работа";
+        SetChip(_workChip, _timerWork ? "✓ Работен (мечокът работи с теб)" : "✕ Не е за работа");
         _workChip.Background = _timerWork ? Honey : PaperDark;
     }
 

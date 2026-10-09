@@ -67,6 +67,15 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(autostart);
         menu.Items.Add(new Forms.ToolStripSeparator());
         var exit = menu.Items.Add("Изход");
+
+        // Пикселните иконки и тук (вместо празно място отляво).
+        menu.ImageScalingSize = new System.Drawing.Size(24, 24);
+        (Forms.ToolStripItem Item, string Icon)[] icons =
+        {
+            (show, "bear"), (panel, "gear"), (stay, "couch"), (sleep, "moon"), (quiet, "quiet"), (update, "update"),
+            (draw, "pencil"), (reload, "notes"), (exit, "close"),
+        };
+        foreach (var (item, icon) in icons) item.Image = PixelIcon(icon);
         exit.Click += (_, _) =>
         {
             _pet.Persist();
@@ -101,6 +110,27 @@ public sealed class TrayIcon : IDisposable
     {
         if (_pet.IsVisible) _pet.Hide();
         else _pet.Show();
+    }
+
+    /// <summary>Пикселна иконка от assets/ui, увеличена 2 пъти без размазване.</summary>
+    private static System.Drawing.Image? PixelIcon(string name)
+    {
+        try
+        {
+            string path = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "ui", name + ".png");
+            if (!System.IO.File.Exists(path)) return null;
+            using var src = new Bitmap(path);
+            var big = new Bitmap(src.Width * 2, src.Height * 2);
+            using var g = Graphics.FromImage(big);
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+            g.DrawImage(src, 0, 0, big.Width, big.Height);
+            return big;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     private static Icon LoadIcon()

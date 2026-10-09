@@ -124,7 +124,9 @@ public static class Ui
         BitmapSource? image = null;
         try
         {
+            // Иконките са в assets/ui; храната и предметите от магазина – в assets/props.
             string path = Path.Combine(AppContext.BaseDirectory, "assets", "ui", name + ".png");
+            if (!File.Exists(path)) path = Path.Combine(AppContext.BaseDirectory, "assets", "props", name + ".png");
             if (File.Exists(path))
             {
                 var bmp = new BitmapImage();
@@ -157,6 +159,79 @@ public static class Ui
         return image;
     }
 
+    // ───────────────────────── Емоджи → пикселни иконки ─────────────────────────
+
+    /// <summary>Кое емоджи (или знак) с коя пикселна иконка се показва.</summary>
+    private static readonly Dictionary<string, string> EmojiIcons = new()
+    {
+        ["🌰"] = "nut", ["⏰"] = "clock", ["🍯"] = "honey", ["☕"] = "tea", ["⚡"] = "energy",
+        ["■"] = "stop", ["▶"] = "play", ["✓"] = "check", ["✔"] = "check", ["✕"] = "close", ["✗"] = "close",
+        ["🫐"] = "food_berries", ["🍿"] = "food_popcorn", ["🍖"] = "food_meatballs", ["🥔"] = "food_potatoes", ["🍵"] = "food_tea",
+        ["🍲"] = "shop_pot", ["🫖"] = "shop_kettle", ["🍳"] = "shop_pan", ["🔥"] = "shop_oven", ["🎧"] = "shop_headphones",
+        ["🛏"] = "shop_bed", ["🧊"] = "shop_fridge", ["📖"] = "shop_cookbook", ["🌱"] = "shop_plant", ["🧘"] = "shop_yoga_mat",
+        ["📻"] = "shop_radio", ["🎲"] = "dice", ["🎨"] = "shop_easel", ["🎮"] = "shop_computer", ["🤸"] = "shop_trampoline",
+        ["💡"] = "pencil", ["📝"] = "notes", ["📋"] = "tasks", ["🛋"] = "couch", ["🚶"] = "walk", ["🔒"] = "lock",
+        ["💤"] = "moon", ["🌙"] = "moon", ["☀"] = "sun", ["❤"] = "heart", ["♪"] = "music",
+    };
+
+    /// <summary>
+    /// Пише текст в TextBlock, като сменя познатите емоджи с пикселни иконки
+    /// (останалите емоджи остават като букви).
+    /// </summary>
+    public static void SetRichText(TextBlock block, string text)
+    {
+        block.Inlines.Clear();
+        var plain = new System.Text.StringBuilder();
+        bool skipSpace = false;
+        var e = System.Globalization.StringInfo.GetTextElementEnumerator(text);
+        while (e.MoveNext())
+        {
+            string el = e.GetTextElement().Replace("\uFE0F", "");
+            if (EmojiIcons.TryGetValue(el, out var icon) && LoadIcon(icon) != null)
+            {
+                if (plain.Length > 0)
+                {
+                    block.Inlines.Add(new System.Windows.Documents.Run(plain.ToString()));
+                    plain.Clear();
+                }
+                var image = Icon(icon);
+                image.Margin = new Thickness(1, 0, 1, 0);
+                block.Inlines.Add(new System.Windows.Documents.InlineUIContainer(image)
+                {
+                    BaselineAlignment = BaselineAlignment.Center,
+                });
+            }
+            else if (IsEmoji(el))
+            {
+                // Непознато емоджи: не го показваме (в пикселния шрифт стои неравно).
+                if (plain.Length == 0 && block.Inlines.Count == 0) skipSpace = true;
+            }
+            else if (skipSpace && el == " ") skipSpace = false;
+            else
+            {
+                skipSpace = false;
+                plain.Append(el);
+            }
+        }
+        if (plain.Length > 0) block.Inlines.Add(new System.Windows.Documents.Run(plain.ToString()));
+    }
+
+    private static bool IsEmoji(string el) =>
+        char.IsSurrogate(el[0]) || el[0] is >= '\u2190' and <= '\u2BFF' && el[0] != '…';
+
+    /// <summary>TextBlock с текст, в който емоджитата са пикселни иконки.</summary>
+    public static TextBlock RichText(string text, double? size = null, bool bold = false)
+    {
+        var block = new TextBlock
+        {
+            FontWeight = bold ? FontWeights.Bold : FontWeights.Normal,
+            FontSize = size ?? Body,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        SetRichText(block, text);
+        return block;
+    }
+
     /// <summary>Иконка и текст на един ред, подравнени по средата.</summary>
     public static StackPanel IconText(string? icon, string text, bool bold = false, double? size = null)
     {
@@ -168,16 +243,7 @@ public static class Ui
             i.Margin = new Thickness(0, 0, text.Length > 0 ? 6 : 0, 0);
             row.Children.Add(i);
         }
-        if (text.Length > 0)
-        {
-            row.Children.Add(new TextBlock
-            {
-                Text = text,
-                FontWeight = bold ? FontWeights.Bold : FontWeights.Normal,
-                FontSize = size ?? Body,
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-        }
+        if (text.Length > 0) row.Children.Add(RichText(text, size, bold));
         return row;
     }
 
@@ -218,7 +284,7 @@ public static class Ui
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(8, 3, 8, 4),
             Cursor = Cursors.Hand,
-            Child = new TextBlock { Text = text, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center },
+            Child = ChipContent(text),
         };
         // Натискането не стига до родителя (например до дръжката за местене на панела).
         chip.MouseLeftButtonDown += (_, e) => e.Handled = true;
@@ -229,6 +295,16 @@ public static class Ui
         };
         return chip;
     }
+
+    private static TextBlock ChipContent(string text)
+    {
+        var t = RichText(text, bold: true);
+        t.HorizontalAlignment = HorizontalAlignment.Center;
+        return t;
+    }
+
+    /// <summary>Сменя текста на копче.</summary>
+    public static void SetChip(Border chip, string text) => SetRichText((TextBlock)chip.Child, text);
 
     private static ControlTemplate ChunkyTemplate()
     {
@@ -306,7 +382,7 @@ public static class Ui
     /// <summary>Подсказка (при посочване) в стила на играта.</summary>
     public static ToolTip Tip(string text) => new()
     {
-        Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, MaxWidth = 280, FontSize = Body },
+        Content = Wrapped(text, 280),
         FontFamily = GameFont,
         Background = Cream,
         Foreground = Ink,
@@ -314,6 +390,14 @@ public static class Ui
         BorderThickness = new Thickness(2),
         Padding = new Thickness(8, 5, 8, 6),
     };
+
+    private static TextBlock Wrapped(string text, double maxWidth)
+    {
+        var t = RichText(text);
+        t.TextWrapping = TextWrapping.Wrap;
+        t.MaxWidth = maxWidth;
+        return t;
+    }
 
     /// <summary>Колко физически пиксела на точка за картинките (храна, портрет): big = 2 → „нормално“.</summary>
     public static int ArtScale(int big) => Math.Max(1, _k * big / 2);

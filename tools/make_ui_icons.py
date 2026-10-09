@@ -500,6 +500,32 @@ kkkkkkkkkkkk
 kuuuuuuuuuuk
 kkkkkkkkkkkk
 .k...k..k..k""",
+    "check": """
+............
+..........kk
+.........kgk
+........kggk
+.kk....kggk.
+kggk..kggk..
+kgggkkggk...
+.kgggggk....
+..kgggk.....
+...kgk......
+....k.......
+............""",
+    "close": """
+............
+.kk......kk.
+krrk....krrk
+krrrk..krrrk
+.krrrkkrrrk.
+..krrrrrrk..
+..krrrrrrk..
+.krrrkkrrrk.
+krrrk..krrrk
+krrk....krrk
+.kk......kk.
+............""",
 }
 
 

@@ -377,7 +377,7 @@ public sealed partial class PetWindow : Window
         if (_inScene)
         {
             // С дивана (или столчето) кацането е меко.
-            if (hard) Say(Lines.Pick(Lines.CouchLanded, _save.OwnerName));
+            if (hard) Say(Lines.Pick(_scene == Scenes.Reading ? Lines.CouchLanded : Lines.LandedInScene, _save.OwnerName));
             ResumeScene();
         }
         else if (hard)
@@ -554,7 +554,8 @@ public sealed partial class PetWindow : Window
             bool goingToSleep = _afterBusy == "sleep";
             _save.SleepingByChoice = false;
             if (_inScene)
-                Say(Lines.Pick(Lines.FlyingCouch, _save.OwnerName), 3);
+                // Продължава да прави същото; само коментира, че са го вдигнали.
+                Say(Lines.Pick(_scene == Scenes.Reading ? Lines.FlyingCouch : _scene == Scenes.Focus ? Lines.LiftedAtWork : Lines.LiftedInScene, _save.OwnerName), 3);
             else if (IsAsleep || goingToSleep)
                 Say(Lines.Pick(Lines.WokenByDrag, _save.OwnerName));
             else
@@ -882,7 +883,7 @@ public sealed partial class PetWindow : Window
 
     public void Say(string text, double seconds = 4)
     {
-        _bubbleText.Text = text;
+        Ui.SetRichText(_bubbleText, text);
         _bubble.Visibility = Visibility.Visible;
         // Балончето не бива да остава под панела, храната или друг прозорец „винаги отгоре“.
         if (!ChatIsOpen) NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
