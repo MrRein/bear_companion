@@ -10,9 +10,9 @@ namespace Mecho;
 public sealed partial class PetWindow
 {
     // Колко бързо се променят нуждите (точки на час).
-    private const double HungerAwake = 12;     // сит → гладен за ~6 часа
+    private const double HungerAwake = 22;     // сит → гладен за ~3,5 часа
     private const double HungerAsleep = 4;
-    private const double TiredAwake = 25;      // бодър → сънлив за ~3 часа: трябва да спи
+    private const double TiredAwake = 35;      // бодър → уморен за ~2 часа: трябва да спи
     private const double RestAsleep = 240;     // от 20 до 100 за ~20 минути дрямка (с легло: 10)
 
     private double RestRate => RestAsleep * (Kitchen.Owns(_save, Kitchen.Bed) ? 2 : 1);
@@ -38,7 +38,8 @@ public sealed partial class PetWindow
     {
         _timerText.FontFamily = Ui.GameFont;
         _timerText.FontWeight = FontWeights.Normal;
-        _timerText.FontSize = 10;
+        _timerText.FontSize = Ui.Body;
+        _timerText.FontFamily = Ui.MonoFont;
         _timerText.Foreground = new SolidColorBrush(Color.FromRgb(59, 36, 20));
         _timerTag.Child = _timerText;
         _timerTag.Background = new SolidColorBrush(Color.FromRgb(255, 214, 102));

@@ -90,6 +90,8 @@ public sealed partial class PetWindow : Window
     public PetWindow(SaveData save)
     {
         _save = save;
+        // Размерите на шрифта и иконките зависят от мащаба на екрана.
+        Ui.Init(VisualTreeHelper.GetDpi(this).DpiScaleX);
         _lib = SpriteLibrary.Load();
         _couchProp = _lib.GetProp("couch", 48, 24, 10);
 
@@ -118,7 +120,7 @@ public sealed partial class PetWindow : Window
             TextAlignment = TextAlignment.Center,
             FontFamily = Ui.GameFont,
             FontWeight = FontWeights.Normal,
-            FontSize = 10,
+            FontSize = Ui.Body,
             Foreground = new SolidColorBrush(Color.FromRgb(59, 36, 20)),
         };
         _bubble = new Border

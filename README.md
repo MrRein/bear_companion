@@ -56,7 +56,7 @@
   и над главата му тече таймер. Мед-дорото носи 2–3 🌰 (по 1 на 10 минути).
 * **⚙️ Още:** стой тук и почети, тихо за 1 час, обновления, скрий.
 
-Огладнява за ~6 часа, а се уморява за ~3, затова **трябва да спи**: когато е
+Огладнява за ~3,5 часа, а се уморява за ~2, затова **трябва да спи**: когато е
 уморен, ходи бавно, не му се играе, прозява се и моли да го приспиш. Дрямката
 от 20 до 100 енергия трае ~20 минути (с легло ~10). Кафето и чаят вдигат
 енергията. Ако съвсем капне, заспива сам. Никога не умира и не се разболява.
@@ -123,8 +123,9 @@
 
 Иконките в магазина са `assets/props/shop_<име>.png` (16 × 16): `shop_pot`,
 `shop_pan`, `shop_oven`, `shop_kettle`, `shop_coffee_machine`, `shop_headphones`,
-`shop_bed`, `shop_fridge`, `shop_cookbook`. Шрифтът е Pixeled
-(OmegaPC777, FontStruct Non-Commercial License) в `src/Mecho/fonts/`.
+`shop_bed`, `shop_fridge`, `shop_cookbook`. Иконките в менюто са в
+`assets/ui/` (всички 12 × 12, от `tools/make_ui_icons.py`). Шрифтът е Pixeloid
+Sans / Bold / Mono (GGBotNet, SIL Open Font License) в `src/Mecho/fonts/`.
 
 Предметите са в `assets/props/`: диванът, пеперудата и храната
 (`food_berries.png`, `food_popcorn.png`, `food_meatballs.png`, `food_potatoes.png`,

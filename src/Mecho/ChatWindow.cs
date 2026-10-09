@@ -35,14 +35,14 @@ public sealed class ChatWindow : Window
         Background = Brushes.Transparent;
         SizeToContent = SizeToContent.WidthAndHeight;
         FontFamily = Ui.GameFont;
-        FontSize = 10;
+        FontSize = Ui.Body;
         Foreground = Ink;
         UseLayoutRounding = true;
         TextOptions.SetTextRenderingMode(this, TextRenderingMode.Aliased); // пикселният шрифт да е рязък
 
         _text = new TextBlock
         {
-            FontSize = 10,
+            FontSize = Ui.Body,
             FontWeight = FontWeights.Normal,
             TextWrapping = TextWrapping.Wrap,
             MaxWidth = 340,
@@ -72,7 +72,9 @@ public sealed class ChatWindow : Window
         foreach (var option in question.Options)
         {
             var o = option;
-            var b = Button(o.Label, () =>
+            // Без емоджи отпред: в пикселния шрифт те стоят неравно.
+            string label = System.Text.RegularExpressions.Regex.Replace(o.Label, @"^[^\p{L}\p{N}(]+", "").Trim();
+            var b = Button(label, () =>
             {
                 Hide();
                 o.Do(_pet);

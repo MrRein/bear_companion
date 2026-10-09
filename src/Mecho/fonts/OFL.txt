@@ -1,4 +1,4 @@
-Copyright 2021 The Pixelify Sans Project Authors (https://github.com/eifetx/Pixelify-Sans)
+Pixeloid Sans, Pixeloid Sans Bold and Pixeloid Mono: Copyright (c) 2020-2025 GGBotNet (https://ggbot.net)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

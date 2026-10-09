@@ -1,0 +1,407 @@
+"""Рисува пикселните иконки за менюто в assets/ui/ (всички 12 x 12, за да са еднакви).
+
+Всяка иконка е 12 реда по 12 знака; всеки знак е цвят от PALETTE ('.' е прозрачно).
+Истинските рисунки просто заменят тези PNG файлове (пак 12 x 12).
+
+    python tools/make_ui_icons.py
+"""
+
+import os
+
+from PIL import Image
+
+OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "ui")
+
+PALETTE = {
+    ".": (0, 0, 0, 0),
+    "k": (59, 36, 20, 255),      # контур
+    "b": (139, 90, 43, 255),     # козина
+    "l": (232, 196, 150, 255),   # светло
+    "w": (255, 255, 255, 255),
+    "c": (255, 244, 220, 255),   # крем
+    "y": (255, 209, 102, 255),   # мед
+    "o": (240, 160, 60, 255),    # оранжево
+    "r": (220, 90, 80, 255),     # червено
+    "p": (240, 140, 150, 255),   # розово
+    "g": (120, 180, 80, 255),    # зелено
+    "u": (90, 140, 210, 255),    # синьо
+    "s": (160, 160, 170, 255),   # сиво
+    "d": (80, 80, 90, 255),      # тъмно сиво
+    "n": (150, 95, 40, 255),     # лешник
+    "m": (110, 70, 30, 255),     # тъмно кафяво
+}
+
+ICONS = {
+    "bear": """
+.kk......kk.
+kbbkkkkkkbbk
+kblbbbbbblbk
+.kbbbbbbbbk.
+kbbbbbbbbbbk
+kbkkbbbbkkbk
+kbbbbllbbbbk
+kbbblkklbbbk
+kbbbllllbbbk
+.kbbbbbbbbk.
+..kkkkkkkk..
+............""",
+    "food": """
+..s..s..s...
+...s..s..s..
+..s..s..s...
+............
+kkkkkkkkkkkk
+kcccccccccck
+kuccoocccuck
+.kuccccccuk.
+.kuuuuuuuuk.
+..kuuuuuuk..
+...kkkkkk...
+............""",
+    "shop": """
+....kkkk....
+...k....k...
+...k....k...
+.kkkkkkkkkk.
+.kyyyyyyyyk.
+.kyyyyyyyyk.
+.kyyykkyyyk.
+.kyykooky.k.
+.kyykooky.k.
+.kyyykkyyyk.
+.kkkkkkkkkk.
+............""",
+    "tasks": """
+....kkkk....
+.kkkkyykkkk.
+.kcckkkkcck.
+.kcccccccck.
+.kgkcckkkck.
+.kkgccccccк.
+.kcccccccck.
+.kgkcckkkck.
+.kkgccccccк.
+.kcccccccck.
+.kkkkkkkkkk.
+............""",
+    "notes": """
+.kkkkkkkk...
+.kcccccckk..
+.kckkkkkcok.
+.kccccccoyk.
+.kckkkkoyk..
+.kcccccoyk..
+.kckkkoykk..
+.kcccoykck..
+.kccckkcck..
+.kcccccccck.
+.kkkkkkkkkk.
+............""",
+    "clock": """
+...kkkkkk...
+..kccccccк..
+.kcccckcccк.
+kcccccкccccк
+kcccccкccccк
+kcccccкkkccк
+kcccccccccck
+kcccccccccck
+.kccccccccк.
+..kccccccк..
+...kkkkkk...
+............""",
+    "gear": """
+.....kk.....
+..kk.ss.kk..
+..kssssssk..
+...ssddss...
+.kssdkkdssk.
+kssdk..kdssk
+kssdk..kdssk
+.kssdkkdssk.
+...ssddss...
+..kssssssk..
+..kk.ss.kk..
+.....kk.....""",
+    "honey": """
+...kkkkkk...
+...kmmmmk...
+..kkkkkkkk..
+.kyyyyyyyyk.
+kyyccyyyyyyk
+kyycyyyyyyyk
+kyyyyyyyyyyk
+kyooooooooyk
+kyyooooooyyk
+.kyyyyyyyyk.
+..kkkkkkkk..
+............""",
+    "energy": """
+......kkk...
+.....kyyk...
+....kyyk....
+...kyyk.....
+..kyyyykkk..
+.kyyyyyyyk..
+..kkkyyyk...
+....kyyk....
+...kyyk.....
+..kyyk......
+..kkk.......
+............""",
+    "nut": """
+....kkk.....
+.....k......
+..kkkkkkk...
+.kmmmmmmmk..
+.kkkkkkkkk..
+.knnnnnnnk..
+kncnnnnnnnk.
+knnnnnnnnnk.
+knnnnnnnnnk.
+.knnnnnnnk..
+..kkkkkkk...
+............""",
+    "moon": """
+....kkkk....
+..kkyyyk....
+.kyyyyk.....
+.kyyyk......
+kyyyyk......
+kyyyyk......
+kyyyyk......
+kyyyyyk.....
+.kyyyyykkkk.
+.kyyyyyyyyk.
+..kkyyyykk..
+....kkkk....""",
+    "sun": """
+.....kk.....
+..k..kk..k..
+...k....k...
+....kkkk....
+...kyyyyk...
+kk.kyyyyk.kk
+kk.kyyyyk.kk
+...kyyyyk...
+....kkkk....
+...k....k...
+..k..kk..k..
+.....kk.....""",
+    "heart": """
+............
+.kkk...kkk..
+krrrk.krrrk.
+krwrrkrrrrk.
+krrrrrrrrrk.
+krrrrrrrrrk.
+.krrrrrrrk..
+..krrrrrk...
+...krrrk....
+....krk.....
+.....k......
+............""",
+    "dice": """
+............
+.kkkkkkkkkk.
+.kwwwwwwwwk.
+.kwrwwwwwwk.
+.kwwwwwwwwk.
+.kwwwrrwwwk.
+.kwwwrrwwwk.
+.kwwwwwwwwk.
+.kwwwwwwrwk.
+.kwwwwwwwwk.
+.kkkkkkkkkk.
+............""",
+    "couch": """
+............
+..kkkkkkkk..
+.krrrrrrrrk.
+.krrrrrrrrk.
+kkrrrrrrrrkk
+krkkkkkkkkrk
+krppppkpppprk
+krppppkpppprk
+kkkkkkkkkkkk
+.k........k.
+............
+............""",
+    "walk": """
+.....kkk....
+....kbbbk...
+....kbbbk...
+.....kkk....
+....kbbbkk..
+...kbbbbbbk.
+...kkbbbkk..
+....kbbbk...
+...kbk.kbk..
+...kbk..kbk.
+..kkk...kkk.
+............""",
+    "plus": """
+............
+....kkkk....
+....kggk....
+....kggk....
+.kkkkggkkkk.
+.kggggggggk.
+.kggggggggk.
+.kkkkggkkkk.
+....kggk....
+....kggk....
+....kkkk....
+............""",
+    "play": """
+............
+..kk........
+..kgkk......
+..kgggkk....
+..kgggggkk..
+..kgggggggk.
+..kgggggggk.
+..kgggggkk..
+..kgggkk....
+..kgkk......
+..kk........
+............""",
+    "stop": """
+............
+............
+..kkkkkkkk..
+..krrrrrrk..
+..krrrrrrk..
+..krrrrrrk..
+..krrrrrrk..
+..krrrrrrk..
+..krrrrrrk..
+..kkkkkkkk..
+............
+............""",
+    "pencil": """
+.........kk.
+........kppk
+.......kspk.
+......kyysk.
+.....kyyyk..
+....kyyyk...
+...kyyyk....
+..kyyyk.....
+.kcyyk......
+.kkck.......
+kkkk........
+............""",
+    "bell": """
+.....kk.....
+....kyyk....
+...kyyyyk...
+..kyyyyyyk..
+..kyyyyyyk..
+..kyyyyyyk..
+..kyyyyyyk..
+.kyyyyyyyyk.
+kkkkkkkkkkkk
+.....kk.....
+....kkkk....
+............""",
+    "quiet": """
+............
+....k.......
+...kk.......
+kkkdk.r...r.
+kddddk.r.r..
+kddddk..r...
+kddddk.r.r..
+kkkdk.r...r.
+...kk.......
+....k.......
+............
+............""",
+    "update": """
+.....kk.....
+....kggk....
+...kggggk...
+..kggggggk..
+.kkkkggkkkk.
+....kggk....
+....kggk....
+....kggk....
+....kggk....
+....kkkk....
+.kkkkkkkkkk.
+............""",
+    "pin": """
+....kkkk....
+...krrrrk...
+..krrwrrrk..
+..krrrrrrk..
+..krrrrrrk..
+...krrrrk...
+....krrk....
+....kssk....
+.....ks.....
+.....ks.....
+.....k......
+............""",
+    "hide": """
+............
+............
+...kkkkkk...
+.kkccccccкk.
+kcccckkccccк
+kccckddkcccк
+kccckddkcccк
+kcccckkccccк
+.kkccccccкk.
+...kkkkkk...
+............
+............""",
+    "lock": """
+....kkkk....
+...ksssk....
+..ks....sk..
+..ks....sk..
+.kkkkkkkkkk.
+.kyyyyyyyyk.
+.kyyykkyyyk.
+.kyyykkyyyk.
+.kyyyykyyyk.
+.kyyyyyyyyk.
+.kkkkkkkkkk.
+............""",
+    "hourglass": """
+.kkkkkkkkkk.
+..kcccccck..
+..kcyyyyck..
+...kcyyck...
+....kyyk....
+....kcck....
+...kccyck...
+..kccyyyck..
+..kcyyyyyk..
+..kyyyyyyk..
+.kkkkkkkkkk.
+............""",
+}
+
+
+def main():
+    os.makedirs(OUT, exist_ok=True)
+    preview = Image.new("RGBA", (13 * len(ICONS), 12), (255, 244, 220, 255))
+    for i, (name, art) in enumerate(ICONS.items()):
+        rows = art.strip("\n").split("\n")
+        img = Image.new("RGBA", (12, 12), (0, 0, 0, 0))
+        for y, row in enumerate(rows[:12]):
+            # Кирилско „к“ по погрешка се брои за контур.
+            row = row.replace("к", "k").replace("К", "k")
+            for x, ch in enumerate(row[:12]):
+                img.putpixel((x, y), PALETTE.get(ch, PALETTE["k"]))
+        img.save(os.path.join(OUT, f"{name}.png"))
+        preview.alpha_composite(img, (i * 13, 0))
+    preview.resize((preview.width * 4, preview.height * 4), Image.NEAREST).save(
+        os.path.join(os.path.dirname(__file__), "ui_icons_preview.png"))
+
+
+if __name__ == "__main__":
+    main()

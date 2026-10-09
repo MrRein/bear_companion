@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -12,28 +13,30 @@ namespace Mecho;
 
 /// <summary>
 /// Панелът „Мечо“ (десен бутон върху мечока), направен като меню на игра:
-/// дървена рамка, табове с иконки, плочки с картинки. Мести се за заглавието
-/// и помни мястото си. Затваря се с Esc, с ✕ или с клик другаде.
+/// дървена рамка, хартия, табове с пикселни иконки, плочки с картинки и
+/// подсказки. Мести се за заглавието и помни мястото си. Затваря се с Esc,
+/// с ✕ или с клик другаде.
 /// </summary>
 public sealed class MenuWindow : Window
 {
     public const int BearTab = 0, FoodTab = 1, ShopTab = 2, TasksTab = 3, NotesTab = 4, PomodoroTab = 5, MoreTab = 6;
 
-    private const double ContentWidth = 560;
     private const int Segments = 10; // деленца в лентите за ситост и енергия
 
     private readonly PetWindow _pet;
     private readonly DispatcherTimer _refresh;
     private readonly Border[] _tabButtons = new Border[7];
     private readonly UIElement[] _tabs = new UIElement[7];
-    private int _tab;
+
+    /// <summary>Мерна единица: всичко е пропорционално на големината на шрифта.</summary>
+    private static double U => Body / 18;
 
     // Динамични части
-    private readonly TextBlock _nuts = new() { FontWeight = FontWeights.Normal, FontSize = 15 };
+    private readonly TextBlock _nuts = new() { FontWeight = FontWeights.Bold };
     private Image _portrait = null!;
     private Border[] _fullBar = null!, _energyBar = null!;
     private TextBlock _fullText = null!, _energyText = null!, _mood = null!;
-    private Button _sleepButton = null!;
+    private Button _sleepButton = null!, _couchButton = null!, _quietButton = null!;
     private readonly WrapPanel _foodTiles = new();
     private readonly WrapPanel _shopTiles = new();
     private TextBlock _foodInfo = null!, _shopInfo = null!;
@@ -49,7 +52,7 @@ public sealed class MenuWindow : Window
     private TextBlock _timerTime = null!;
     private TextBox _timerLabel = null!, _timerMinutes = null!;
     private Button _timerStop = null!;
-    private Button _stayButton = null!, _quietButton = null!, _updateButton = null!;
+    private Button _updateButton = null!;
 
     public MenuWindow(PetWindow pet)
     {
@@ -63,11 +66,12 @@ public sealed class MenuWindow : Window
         Background = Brushes.Transparent;
         SizeToContent = SizeToContent.WidthAndHeight;
         FontFamily = GameFont;
-        FontSize = 10; // Pixeled е най-рязък на 10, 15, 20…
+        FontSize = Body;
         Foreground = Ink;
         UseLayoutRounding = true;
         SnapsToDevicePixels = true;
         TextOptions.SetTextRenderingMode(this, TextRenderingMode.Aliased);
+        TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
 
         _tabs[BearTab] = BuildBearTab();
         _tabs[FoodTab] = BuildFoodTab();
@@ -77,7 +81,7 @@ public sealed class MenuWindow : Window
         _tabs[PomodoroTab] = BuildPomodoroTab();
         _tabs[MoreTab] = BuildMoreTab();
 
-        var content = new Grid { Width = ContentWidth, MinHeight = 300 };
+        var content = new Grid { Width = 680 * U, MinHeight = 380 * U };
         foreach (var t in _tabs) content.Children.Add(t);
 
         var root = new DockPanel();
@@ -89,21 +93,21 @@ public sealed class MenuWindow : Window
         root.Children.Add(tabs);
         root.Children.Add(new Border
         {
-            Background = Paper,
+            Background = PaperTexture,
             BorderBrush = Ink,
             BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(0, 0, 5, 5),
-            Padding = new Thickness(12, 10, 12, 12),
+            CornerRadius = new CornerRadius(0, 0, 6, 6),
+            Padding = new Thickness(14 * U, 12 * U, 14 * U, 14 * U),
             Child = content,
         });
 
         Content = new Border
         {
-            Background = Wood,
+            Background = WoodTexture,
             BorderBrush = Ink,
             BorderThickness = new Thickness(3),
-            CornerRadius = new CornerRadius(9),
-            Padding = new Thickness(6, 4, 6, 6),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(7, 5, 7, 7),
             Child = root,
         };
 
@@ -161,15 +165,14 @@ public sealed class MenuWindow : Window
 
     private void SelectTab(int index)
     {
-        _tab = index;
         for (int i = 0; i < _tabs.Length; i++)
         {
             bool on = i == index;
             _tabs[i].Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-            // Избраният таб е „слят“ с хартията отдолу, другите са по-тъмни.
+            // Избраният таб е по-висок и слят с хартията отдолу, другите са по-тъмни.
             _tabButtons[i].Background = on ? Paper : WoodLight;
-            _tabButtons[i].BorderThickness = on ? new Thickness(2, 2, 2, 0) : new Thickness(2);
-            _tabButtons[i].Margin = new Thickness(i == 0 ? 0 : 3, on ? 0 : 4, 0, on ? -2 : 0);
+            _tabButtons[i].BorderThickness = on ? new Thickness(2, 2, 2, 0) : new Thickness(2, 2, 2, 2);
+            _tabButtons[i].Margin = new Thickness(i == 0 ? 0 : 3, on ? 0 : 5 * U, 0, on ? -2 : 0);
         }
         Refresh(rebuild: true);
         if (index == TasksTab) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
@@ -186,7 +189,7 @@ public sealed class MenuWindow : Window
             Margin = new Thickness(4, 0, 0, 6),
             Background = Brushes.Transparent,
             Cursor = Cursors.SizeAll,
-            ToolTip = "Хвани ме оттук, за да ме преместиш",
+            ToolTip = Tip("Хвани ме оттук, за да ме преместиш"),
         };
         grid.MouseLeftButtonDown += (_, e) =>
         {
@@ -200,26 +203,38 @@ public sealed class MenuWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        grid.Children.Add(new TextBlock
+        var title = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var bear = Icon("bear", 2);
+        bear.Margin = new Thickness(0, 0, 8, 0);
+        title.Children.Add(bear);
+        title.Children.Add(new TextBlock
         {
             Text = "МЕЧО",
-            FontSize = 20,
-            FontWeight = FontWeights.Normal,
+            FontSize = Ui.Title,
+            FontWeight = FontWeights.Bold,
             Foreground = Cream,
             VerticalAlignment = VerticalAlignment.Center,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, ShadowDepth = 2, BlurRadius = 0, Opacity = 0.6 },
+            Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(59, 36, 20), ShadowDepth = 2, Direction = 315, BlurRadius = 0, Opacity = 1 },
         });
+        grid.Children.Add(title);
 
-        var nuts = Pill(_nuts);
+        var nutRow = new StackPanel { Orientation = Orientation.Horizontal };
+        var nut = Icon("nut");
+        nut.Margin = new Thickness(0, 0, 6, 0);
+        nutRow.Children.Add(nut);
+        _nuts.VerticalAlignment = VerticalAlignment.Center;
+        nutRow.Children.Add(_nuts);
+        var nuts = Pill(nutRow);
         nuts.Margin = new Thickness(0, 0, 8, 0);
-        nuts.ToolTip = "Лешници: печелят се със задачи, мед-доро и таймери";
+        nuts.ToolTip = Tip("Лешници: печелят се със задачи и с работа (всеки 10 минути мед-доро или таймер = 1). Харчат се за храна и в магазина.");
         Grid.SetColumn(nuts, 1);
         grid.Children.Add(nuts);
 
         var close = Chip("✕", Hide);
         close.Background = Bad;
-        close.Padding = new Thickness(8, 1, 8, 2);
         ((TextBlock)close.Child).Foreground = Cream;
+        close.VerticalAlignment = VerticalAlignment.Center;
+        close.ToolTip = Tip("Затвори (Esc)");
         Grid.SetColumn(close, 2);
         grid.Children.Add(close);
         return grid;
@@ -230,22 +245,26 @@ public sealed class MenuWindow : Window
         var grid = new Grid { Margin = new Thickness(2, 0, 2, 0) };
         (string Icon, string Name)[] tabs =
         {
-            ("🐻", "Мечо"), ("🍳", "Храна"), ("🛒", "Магазин"), ("📋", "Задачи"), ("📝", "Бележки"), ("⏰", "Време"), ("⚙️", "Още"),
+            ("bear", "Мечо"), ("food", "Храна"), ("shop", "Магазин"), ("tasks", "Задачи"), ("notes", "Бележки"), ("clock", "Време"), ("gear", "Още"),
         };
         for (int i = 0; i < tabs.Length; i++)
         {
             int index = i;
             var label = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            label.Children.Add(new TextBlock { Text = tabs[i].Icon, FontSize = 18, HorizontalAlignment = HorizontalAlignment.Center });
-            label.Children.Add(new TextBlock { Text = tabs[i].Name, FontSize = 10, FontWeight = FontWeights.Normal, HorizontalAlignment = HorizontalAlignment.Center });
+            var icon = Icon(tabs[i].Icon, 2);
+            icon.HorizontalAlignment = HorizontalAlignment.Center;
+            label.Children.Add(icon);
+            label.Children.Add(new TextBlock { Text = tabs[i].Name, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 3, 0, 0) });
             var tab = new Border
             {
                 BorderBrush = Ink,
-                CornerRadius = new CornerRadius(5, 5, 0, 0),
-                Padding = new Thickness(2, 3, 2, 3),
+                CornerRadius = new CornerRadius(6, 6, 0, 0),
+                Padding = new Thickness(2, 5 * U, 2, 5 * U),
                 Cursor = Cursors.Hand,
                 Child = label,
             };
+            tab.MouseEnter += (_, _) => { if (tab.Background != Paper) tab.Background = Hover; };
+            tab.MouseLeave += (_, _) => { if (tab.Background == Hover) tab.Background = WoodLight; };
             tab.MouseLeftButtonDown += (_, e) => e.Handled = true;
             tab.MouseLeftButtonUp += (_, e) =>
             {
@@ -261,7 +280,7 @@ public sealed class MenuWindow : Window
         return grid;
     }
 
-    // ───────────────────────── 🐻 Мечо ─────────────────────────
+    // ───────────────────────── Мечо ─────────────────────────
 
     private UIElement BuildBearTab()
     {
@@ -271,58 +290,90 @@ public sealed class MenuWindow : Window
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         top.ColumnDefinitions.Add(new ColumnDefinition());
 
-        _portrait = new Image { Width = 128, Height = 128, SnapsToDevicePixels = true };
-        RenderOptions.SetBitmapScalingMode(_portrait, BitmapScalingMode.NearestNeighbor);
+        // Портрет: мечокът на тревата под небето.
+        _portrait = Pixel(_pet.Portrait, ArtScale(3));
+        _portrait.VerticalAlignment = VerticalAlignment.Bottom;
+        _portrait.HorizontalAlignment = HorizontalAlignment.Center;
+        _portrait.Margin = new Thickness(0, 0, 0, 6 * U);
+        var scene = new Grid { Width = 150 * U, Height = 150 * U, ClipToBounds = true };
+        scene.RowDefinitions.Add(new RowDefinition());
+        scene.RowDefinitions.Add(new RowDefinition { Height = new GridLength(24 * U) });
+        scene.Children.Add(new Border { Background = Sky });
+        var grass = new Border { Background = Grass, BorderBrush = Ink, BorderThickness = new Thickness(0, 2, 0, 0) };
+        Grid.SetRow(grass, 1);
+        scene.Children.Add(grass);
+        Grid.SetRowSpan(_portrait, 2);
+        scene.Children.Add(_portrait);
         top.Children.Add(new Border
         {
-            Background = TileArt,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(2, 2, 2, 4),
+            BorderThickness = new Thickness(3, 3, 3, 5),
             CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(6),
-            Child = _portrait,
+            Child = scene,
+            VerticalAlignment = VerticalAlignment.Top,
         });
 
-        var stats = new StackPanel { Margin = new Thickness(14, 2, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        _mood = new TextBlock { FontSize = 15, FontWeight = FontWeights.Normal, Margin = new Thickness(0, 0, 0, 8), TextWrapping = TextWrapping.Wrap };
+        var stats = new StackPanel { Margin = new Thickness(16 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        _mood = new TextBlock { FontSize = Ui.Title, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10 * U), TextWrapping = TextWrapping.Wrap };
         stats.Children.Add(_mood);
-        stats.Children.Add(Bar("🍯 Ситост", out _fullBar, out _fullText));
-        stats.Children.Add(Bar("⚡ Енергия", out _energyBar, out _energyText));
+        stats.Children.Add(Bar("honey", "Ситост", out _fullBar, out _fullText));
+        stats.Children.Add(Bar("energy", "Енергия", out _energyBar, out _energyText));
         Grid.SetColumn(stats, 1);
         top.Children.Add(stats);
         p.Children.Add(top);
 
-        var row = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
-        row.Children.Add(Button("🍳 Нахрани", () => SelectTab(FoodTab), primary: true));
-        _sleepButton = Button("", () =>
+        p.Children.Add(Ribbon("Какво да правим?"));
+        var actions = new UniformGrid { Columns = 3 };
+        actions.Children.Add(Wide(Button("Нахрани", () => SelectTab(FoodTab), primary: true, icon: "food")));
+        _sleepButton = Wide(Button("", () =>
         {
             if (_pet.IsAsleep) _pet.WakeUp();
             else _pet.GoToSleep();
             Refresh(false);
-        });
-        row.Children.Add(_sleepButton);
-        row.Children.Add(Button("🤗 Погали", _pet.Pet));
-        row.Children.Add(Button("🎲 Зар", _pet.RollDice));
-        p.Children.Add(row);
+        }));
+        actions.Children.Add(_sleepButton);
+        actions.Children.Add(Wide(Button("Погали", _pet.Pet, icon: "heart")));
+        _couchButton = Wide(Button("", () =>
+        {
+            if (_pet.StaysPut) _pet.GetUp();
+            else _pet.StayHere();
+            Refresh(false);
+        }));
+        actions.Children.Add(_couchButton);
+        actions.Children.Add(Wide(Button("Хвърли зар", _pet.RollDice, icon: "dice")));
+        _quietButton = Wide(Button("", () =>
+        {
+            _pet.SetQuiet(!_pet.IsQuiet);
+            Refresh(false);
+        }));
+        actions.Children.Add(_quietButton);
+        p.Children.Add(actions);
         return p;
     }
 
-    private static UIElement Bar(string label, out Border[] segments, out TextBlock value)
+    private static Button Wide(Button b)
     {
-        var grid = new Grid { Margin = new Thickness(0, 3, 0, 3) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+        b.HorizontalAlignment = HorizontalAlignment.Stretch;
+        b.Margin = new Thickness(0, 0, 6, 6);
+        return b;
+    }
+
+    private static UIElement Bar(string icon, string label, out Border[] segments, out TextBlock value)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130 * U) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.Children.Add(new TextBlock { Text = label, FontWeight = FontWeights.Normal, VerticalAlignment = VerticalAlignment.Center });
+        grid.Children.Add(IconText(icon, label, bold: true));
 
-        var track = new StackPanel { Orientation = Orientation.Horizontal };
+        var track = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         segments = new Border[Segments];
         for (int i = 0; i < Segments; i++)
         {
             segments[i] = new Border
             {
-                Width = 15,
-                Height = 16,
+                Width = 18 * U,
+                Height = 20 * U,
                 Margin = new Thickness(0, 0, 2, 0),
                 BorderBrush = Ink,
                 BorderThickness = new Thickness(2),
@@ -334,7 +385,7 @@ public sealed class MenuWindow : Window
         Grid.SetColumn(track, 1);
         grid.Children.Add(track);
 
-        value = new TextBlock { Foreground = Muted, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        value = new TextBlock { Foreground = Muted, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(value, 2);
         grid.Children.Add(value);
         return grid;
@@ -346,21 +397,21 @@ public sealed class MenuWindow : Window
         var colour = value >= 50 ? Good : value >= 25 ? Okay : Bad;
         for (int i = 0; i < segments.Length; i++) segments[i].Background = i < filled ? colour : Empty;
         text.Text = word;
-        ((FrameworkElement)segments[0].Parent).ToolTip = $"{value:0}%";
+        ((FrameworkElement)segments[0].Parent).ToolTip = Tip($"{value:0} от 100");
     }
 
-    // ───────────────────────── 🍳 Храна ─────────────────────────
+    // ───────────────────────── Храна ─────────────────────────
 
     private UIElement BuildFoodTab()
     {
         var p = new StackPanel();
-        _foodInfo = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 8) };
+        _foodInfo = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 10) };
         p.Children.Add(_foodInfo);
         p.Children.Add(_foodTiles);
-        return new ScrollViewer { Content = p, MaxHeight = 480, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 
-    /// <summary>Плочки с храните: картинка, какво дава и бутон „Сготви“.</summary>
+    /// <summary>Плочки с храните: картинка, какво дава и бутон „Сготви“. Посочиш ли заключена, казва защо.</summary>
     private void BuildFoodTiles()
     {
         var s = _pet.Save;
@@ -369,48 +420,55 @@ public sealed class MenuWindow : Window
         {
             var f = food;
             int cost = Kitchen.CostOf(f, s);
-            string effect = string.Join("  ", new[]
+            string effect = string.Join("   ", new[]
             {
-                f.Fullness >= 5 ? $"🍯+{Kitchen.FullnessOf(f, s):0}" : null,
-                f.Energy > 0 ? $"⚡+{f.Energy:0}" : null,
+                f.Fullness >= 5 ? $"Ситост +{Kitchen.FullnessOf(f, s):0}" : null,
+                f.Energy > 0 ? $"Енергия +{f.Energy:0}" : null,
             }.Where(x => x != null));
 
             Button action;
+            string? why = null;
             bool locked = !Kitchen.CanCook(f, s);
             if (locked)
             {
                 var tool = Kitchen.Find(f.Tool!);
-                action = Button($"🔒 {tool?.Name}", () => SelectTab(ShopTab));
-                action.ToolTip = $"Трябва {tool?.Icon} {tool?.Name}. Цъкни, за да отидеш в магазина.";
+                action = Button("Заключено", () => SelectTab(ShopTab), icon: "lock");
+                why = $"Заключено: мечокът няма {tool?.Name.ToLowerInvariant()}. Купи я в магазина за {tool?.Price} лешника " +
+                      $"(имаш {s.Hazelnuts}). Цъкни, за да отидеш там.";
             }
             else if (cost == 0 && Kitchen.BerriesIn(s) > 0)
             {
-                action = Button($"⏳ {Kitchen.BerriesIn(s)} мин", () => { });
+                action = Button($"{Kitchen.BerriesIn(s)} мин", () => { }, icon: "hourglass");
                 action.IsEnabled = false;
+                why = $"Храстът още не е дал нови боровинки. Пак след {Kitchen.BerriesIn(s)} мин.";
             }
             else
             {
-                action = Button(cost == 0 ? "Набери" : $"Сготви · {cost} 🌰", () =>
+                action = Button(cost == 0 ? "Набери" : $"Сготви  {cost}", () =>
                 {
                     // Храната се появява из екрана; панелът се скрива, за да я занесеш.
                     _pet.Cook(f);
                     Hide();
-                }, primary: true);
-                action.IsEnabled = s.Hazelnuts >= cost;
+                }, primary: true, icon: cost == 0 ? null : "nut");
+                if (s.Hazelnuts < cost)
+                {
+                    action.IsEnabled = false;
+                    why = $"Трябват {cost} лешника, а имаш {s.Hazelnuts}. Свърши някоя задача или пусни мед-доро.";
+                }
             }
-            _foodTiles.Children.Add(MakeTile(_pet.PropImage("food_" + f.Id), f.Name, effect, action, locked));
+            _foodTiles.Children.Add(MakeTile(_pet.PropImage("food_" + f.Id), f.Name, effect, action, locked, why));
         }
     }
 
-    // ───────────────────────── 🛒 Магазин ─────────────────────────
+    // ───────────────────────── Магазин ─────────────────────────
 
     private UIElement BuildShopTab()
     {
         var p = new StackPanel();
-        _shopInfo = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 8) };
+        _shopInfo = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 10) };
         p.Children.Add(_shopInfo);
         p.Children.Add(_shopTiles);
-        return new ScrollViewer { Content = p, MaxHeight = 480, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 
     private void BuildShopTiles()
@@ -421,92 +479,103 @@ public sealed class MenuWindow : Window
         {
             var u = upgrade;
             Button action;
+            string? why = null;
             bool owned = Kitchen.Owns(s, u.Id);
             if (owned)
             {
-                action = Button("✓ Купено", () => { });
+                action = Button("Купено", () => { });
                 action.IsEnabled = false;
             }
             else
             {
-                action = Button($"Купи · {u.Price} 🌰", () => _pet.Buy(u), primary: true);
-                action.IsEnabled = s.Hazelnuts >= u.Price;
+                action = Button($"Купи  {u.Price}", () => _pet.Buy(u), primary: true, icon: "nut");
+                if (s.Hazelnuts < u.Price)
+                {
+                    action.IsEnabled = false;
+                    why = $"Трябват {u.Price} лешника, а имаш {s.Hazelnuts}. Още {u.Price - s.Hazelnuts}!";
+                }
             }
-            _shopTiles.Children.Add(MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, u.Description, action, dim: false, owned: owned));
+            _shopTiles.Children.Add(MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, u.Description, action, dim: false, why, owned));
         }
     }
 
-    /// <summary>Плочка: картинка на тъмен фон, име, описание и бутон.</summary>
-    private static Border MakeTile(BitmapSource art, string name, string description, Button action, bool dim, bool owned = false)
+    /// <summary>Плочка: картинка на тъмен фон, име, описание и бутон. why = подсказка при посочване.</summary>
+    private static Border MakeTile(BitmapSource art, string name, string description, Button action, bool dim, string? why, bool owned = false)
     {
-        const double width = 176;
-        var image = Pixel(art, 4);
+        var image = Pixel(art, ArtScale(4));
+        image.HorizontalAlignment = HorizontalAlignment.Center;
+        image.VerticalAlignment = VerticalAlignment.Center;
         if (dim) image.Opacity = 0.35;
+        var artGrid = new Grid();
+        artGrid.Children.Add(image);
+        if (dim || owned)
+        {
+            // Катинарче или отметка в ъгъла.
+            var badge = owned
+                ? (FrameworkElement)new TextBlock { Text = "✓", FontSize = Ui.Title, FontWeight = FontWeights.Bold, Foreground = Good }
+                : Icon("lock");
+            badge.HorizontalAlignment = HorizontalAlignment.Right;
+            badge.VerticalAlignment = VerticalAlignment.Top;
+            badge.Margin = new Thickness(0, 4, 6, 0);
+            artGrid.Children.Add(badge);
+        }
         var artBox = new Border
         {
             Background = TileArt,
             BorderBrush = WoodDark,
             BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(4),
-            Height = 78,
-            Child = image,
+            Height = 96 * U,
+            Child = artGrid,
         };
-        if (owned)
-        {
-            var g = new Grid();
-            g.Children.Add(image);
-            g.Children.Add(new TextBlock
-            {
-                Text = "✓",
-                FontSize = 20,
-                FontWeight = FontWeights.Normal,
-                Foreground = Good,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 0, 4, 0),
-            });
-            artBox.Child = g;
-        }
 
         var stack = new StackPanel();
         stack.Children.Add(artBox);
         stack.Children.Add(new TextBlock
         {
             Text = name,
-            FontWeight = FontWeights.Normal,
-            FontSize = 10,
+            FontWeight = FontWeights.Bold,
             TextAlignment = TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 5, 0, 1),
+            Margin = new Thickness(0, 8 * U, 0, 2),
         });
         stack.Children.Add(new TextBlock
         {
             Text = description,
             Foreground = Muted,
-            FontSize = 10,
             TextAlignment = TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
-            Height = 42,
+            MinHeight = 44 * U,
         });
-        action.Margin = new Thickness(0, 4, 0, 0);
+        action.Margin = new Thickness(0, 6 * U, 0, 0);
         action.HorizontalAlignment = HorizontalAlignment.Stretch;
-        action.HorizontalContentAlignment = HorizontalAlignment.Center;
         stack.Children.Add(action);
 
-        return new Border
+        var tile = new Border
         {
-            Width = width,
+            Width = 212 * U,
             Background = Tile,
             BorderBrush = Ink,
             BorderThickness = new Thickness(2, 2, 2, 4),
             CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(6),
-            Margin = new Thickness(0, 0, 6, 6),
+            Padding = new Thickness(8 * U),
+            Margin = new Thickness(0, 0, 8 * U, 8 * U),
             Child = stack,
         };
+        tile.MouseEnter += (_, _) => tile.Background = Hover;
+        tile.MouseLeave += (_, _) => tile.Background = Tile;
+        if (why != null)
+        {
+            // Подсказката излиза и над изключения бутон.
+            tile.ToolTip = Tip(why);
+            action.ToolTip = Tip(why);
+            ToolTipService.SetShowOnDisabled(action, true);
+            ToolTipService.SetInitialShowDelay(tile, 200);
+        }
+        return tile;
     }
 
-    // ───────────────────────── 📋 Задачи ─────────────────────────
+    // ───────────────────────── Задачи ─────────────────────────
 
     private UIElement BuildTasksTab()
     {
@@ -518,8 +587,8 @@ public sealed class MenuWindow : Window
         };
         p.Children.Add(WithHint(_taskInput, "Нова задача…"));
 
-        var sizes = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
-        string[] labels = { "малка +1 🌰", "средна +3 🌰", "голяма +5 🌰" };
+        var sizes = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+        string[] labels = { "малка +1", "средна +3", "голяма +5" };
         for (int i = 0; i < 3; i++)
         {
             int size = i + 1;
@@ -528,10 +597,12 @@ public sealed class MenuWindow : Window
                 _taskSize = size;
                 UpdateSizeButtons();
             });
-            _sizeButtons[i].Margin = new Thickness(0, 0, 4, 0);
+            _sizeButtons[i].Margin = new Thickness(0, 0, 6, 0);
+            _sizeButtons[i].VerticalAlignment = VerticalAlignment.Center;
+            _sizeButtons[i].ToolTip = Tip($"Носи {labels[i].Split(' ')[1].TrimStart('+')} лешника");
             sizes.Children.Add(_sizeButtons[i]);
         }
-        var add = Button("➕ Добави", AddTask, primary: true);
+        var add = Button("Добави", AddTask, primary: true, icon: "plus");
         add.Margin = new Thickness(4, 0, 0, 0);
         sizes.Children.Add(add);
         p.Children.Add(sizes);
@@ -540,8 +611,8 @@ public sealed class MenuWindow : Window
         p.Children.Add(new ScrollViewer
         {
             Content = _taskList,
-            MaxHeight = 300,
-            Margin = new Thickness(0, 10, 0, 0),
+            MaxHeight = 360 * U,
+            Margin = new Thickness(0, 12, 0, 0),
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         });
 
@@ -569,32 +640,28 @@ public sealed class MenuWindow : Window
             {
                 IsChecked = t.Done,
                 VerticalContentAlignment = VerticalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
                 Content = new TextBlock
                 {
                     Text = t.Title,
                     TextWrapping = TextWrapping.Wrap,
                     TextDecorations = t.Done ? TextDecorations.Strikethrough : null,
                     Foreground = t.Done ? Muted : Ink,
-                    Margin = new Thickness(2, 0, 0, 0),
+                    Margin = new Thickness(4, 0, 0, 0),
                 },
             };
             check.Click += (_, _) => _pet.SetTaskDone(t, check.IsChecked == true);
             row.Children.Add(check);
 
-            var reward = new TextBlock
-            {
-                Text = $"+{t.Reward} 🌰",
-                FontWeight = FontWeights.Normal,
-                Foreground = t.Done ? Muted : Ink,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(6, 0, 6, 0),
-            };
+            var reward = IconText("nut", $"+{t.Reward}", bold: true);
+            reward.Margin = new Thickness(8, 0, 8, 0);
+            reward.Opacity = t.Done ? 0.5 : 1;
             Grid.SetColumn(reward, 1);
             row.Children.Add(reward);
 
             var del = Chip("✕", () => _pet.DeleteTask(t));
-            del.Padding = new Thickness(5, 0, 5, 1);
-            del.ToolTip = "Изтрий";
+            del.VerticalAlignment = VerticalAlignment.Center;
+            del.ToolTip = Tip("Изтрий");
             Grid.SetColumn(del, 2);
             row.Children.Add(del);
 
@@ -619,7 +686,7 @@ public sealed class MenuWindow : Window
             _sizeButtons[i].Background = i + 1 == _taskSize ? Honey : PaperDark;
     }
 
-    // ───────────────────────── 📝 Бележки ─────────────────────────
+    // ───────────────────────── Бележки ─────────────────────────
 
     private UIElement BuildNotesTab()
     {
@@ -627,8 +694,9 @@ public sealed class MenuWindow : Window
         _noteInput = NewTextInput();
         _noteInput.AcceptsReturn = true;
         _noteInput.TextWrapping = TextWrapping.Wrap;
-        _noteInput.MinHeight = 60;
-        _noteInput.MaxHeight = 140;
+        _noteInput.MinHeight = 70 * U;
+        _noteInput.MaxHeight = 160 * U;
+        _noteInput.VerticalContentAlignment = VerticalAlignment.Top;
         _noteInput.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         _noteInput.PreviewKeyDown += (_, e) =>
         {
@@ -640,16 +708,16 @@ public sealed class MenuWindow : Window
         };
         p.Children.Add(WithHint(_noteInput, "Запиши нещо… (Ctrl+Enter)"));
 
-        var save = Button("📝 Запиши", AddNote, primary: true);
+        var save = Button("Запиши", AddNote, primary: true, icon: "pencil");
         save.HorizontalAlignment = HorizontalAlignment.Left;
-        save.Margin = new Thickness(0, 6, 0, 0);
+        save.Margin = new Thickness(0, 8, 0, 0);
         p.Children.Add(save);
 
         p.Children.Add(new ScrollViewer
         {
             Content = _noteList,
-            MaxHeight = 320,
-            Margin = new Thickness(0, 8, 0, 0),
+            MaxHeight = 360 * U,
+            Margin = new Thickness(0, 10, 0, 0),
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         });
         return p;
@@ -689,15 +757,15 @@ public sealed class MenuWindow : Window
                 Background = Brushes.Transparent,
                 Foreground = Ink,
                 FontFamily = GameFont,
+                FontSize = Body,
                 Padding = new Thickness(0),
             });
-            body.Children.Add(new TextBlock { Text = n.Created.ToString("d.MM.yyyy, HH:mm"), Foreground = Muted, FontSize = 10 });
+            body.Children.Add(new TextBlock { Text = n.Created.ToString("d.MM.yyyy, HH:mm"), Foreground = Muted, Margin = new Thickness(0, 2, 0, 0) });
             grid.Children.Add(body);
 
             var del = Chip("✕", () => _pet.DeleteNote(n));
-            del.Padding = new Thickness(5, 0, 5, 1);
             del.VerticalAlignment = VerticalAlignment.Top;
-            del.ToolTip = "Изтрий";
+            del.ToolTip = Tip("Изтрий");
             Grid.SetColumn(del, 1);
             grid.Children.Add(del);
 
@@ -705,76 +773,76 @@ public sealed class MenuWindow : Window
         }
     }
 
-    // ───────────────────────── ⏰ Време ─────────────────────────
+    // ───────────────────────── Време ─────────────────────────
 
     private UIElement BuildPomodoroTab()
     {
         var p = new StackPanel();
-        p.Children.Add(Heading("🍯 Мед-доро"));
-        _pomTime = new TextBlock { FontSize = 40, FontWeight = FontWeights.Normal, HorizontalAlignment = HorizontalAlignment.Center };
-        _pomStatus = new TextBlock { HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center };
+        var pomRibbon = Ribbon("Мед-доро", "honey");
+        pomRibbon.Margin = new Thickness(0, 0, 0, 8);
+        p.Children.Add(pomRibbon);
+        _pomTime = new TextBlock { FontFamily = MonoFont, FontSize = Huge, HorizontalAlignment = HorizontalAlignment.Center };
+        _pomStatus = new TextBlock { HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
         p.Children.Add(new Border
         {
             Background = TileArt,
             BorderBrush = Ink,
             BorderThickness = new Thickness(2, 2, 2, 4),
             CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(8, 2, 8, 8),
+            Padding = new Thickness(10, 6, 10, 10),
             Child = new StackPanel { Children = { _pomTime, _pomStatus } },
         });
 
-        var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
-        _pomStart = Button("▶ Започни 25 минути", _pet.StartFocus, primary: true);
-        _pomStop = Button("■ Спри", _pet.StopPomodoro);
+        var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) };
+        _pomStart = Button("Започни 25 минути", _pet.StartFocus, primary: true, icon: "play");
+        _pomStop = Button("Спри", _pet.StopPomodoro, icon: "stop");
         row.Children.Add(_pomStart);
         row.Children.Add(_pomStop);
         p.Children.Add(row);
 
-        _pomToday = new TextBlock { Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
+        _pomToday = new TextBlock { Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center };
         p.Children.Add(_pomToday);
 
-        p.Children.Add(Heading("⏰ Таймер"));
-        _timerTime = new TextBlock { FontSize = 20, FontWeight = FontWeights.Normal, HorizontalAlignment = HorizontalAlignment.Center };
+        p.Children.Add(Ribbon("Таймер", "clock"));
+        _timerTime = new TextBlock { FontFamily = MonoFont, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 6) };
         p.Children.Add(_timerTime);
 
         _timerLabel = NewTextInput();
-        var label = WithHint(_timerLabel, "За какво е? (чай, пране… по избор)");
-        ((FrameworkElement)label).Margin = new Thickness(0, 4, 0, 6);
-        p.Children.Add(label);
+        p.Children.Add(WithHint(_timerLabel, "За какво е? (чай, пране… по избор)"));
 
-        var presets = new WrapPanel();
+        var presets = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
         foreach (int m in new[] { 5, 10, 15, 30, 45, 60 })
         {
             int minutes = m;
             var chip = Chip($"{m} мин", () => _pet.StartTimer(minutes, _timerLabel.Text));
-            chip.Margin = new Thickness(0, 0, 4, 4);
+            chip.Margin = new Thickness(0, 0, 6, 6);
             presets.Children.Add(chip);
         }
         p.Children.Add(presets);
 
         var custom = new StackPanel { Orientation = Orientation.Horizontal };
         _timerMinutes = NewTextInput();
-        _timerMinutes.Width = 56;
+        _timerMinutes.Width = 70 * U;
         _timerMinutes.KeyDown += (_, e) =>
         {
             if (e.Key == Key.Enter) StartCustomTimer();
         };
         custom.Children.Add(_timerMinutes);
-        custom.Children.Add(new TextBlock { Text = "мин", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 6, 0) });
-        var start = Button("▶ Пусни", StartCustomTimer, primary: true);
+        custom.Children.Add(new TextBlock { Text = "мин", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 8, 0) });
+        var start = Button("Пусни", StartCustomTimer, primary: true, icon: "play");
         start.Margin = new Thickness(0);
         custom.Children.Add(start);
-        _timerStop = Button("■ Спри таймера", _pet.StopTimer);
+        _timerStop = Button("Спри таймера", _pet.StopTimer, icon: "stop");
         _timerStop.Margin = new Thickness(6, 0, 0, 0);
         custom.Children.Add(_timerStop);
         p.Children.Add(custom);
 
         p.Children.Add(new TextBlock
         {
-            Text = "Всеки 10 минути мед-доро или таймер носят 1 🌰.",
+            Text = "Всеки 10 минути мед-доро или таймер носят 1 лешник.",
             Foreground = Muted,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 8, 0, 0),
+            Margin = new Thickness(0, 10, 0, 0),
         });
         return p;
     }
@@ -789,47 +857,37 @@ public sealed class MenuWindow : Window
         }
     }
 
-    // ───────────────────────── ⚙️ Още ─────────────────────────
+    // ───────────────────────── Още ─────────────────────────
 
     private UIElement BuildMoreTab()
     {
         var p = new StackPanel();
-        _stayButton = Button("", () =>
-        {
-            if (_pet.StaysPut) _pet.GetUp();
-            else _pet.StayHere();
-            Refresh(false);
-        });
-        _quietButton = Button("", () =>
-        {
-            _pet.SetQuiet(!_pet.IsQuiet);
-            Refresh(false);
-        });
         _updateButton = Button("", () =>
         {
             if (_pet.Updater.IsAvailable) _ = _pet.InstallUpdate();
             else _ = _pet.CheckForUpdates(manual: true);
         });
-        var reset = Button("📍 Панелът да се отваря до мечока", () =>
+        var reset = Button("Панелът да се отваря до мечока", () =>
         {
             _pet.Save.MenuLeft = double.NaN;
             _pet.Save.MenuTop = double.NaN;
             _pet.Persist();
             Hide();
             _pet.OpenMenu(MoreTab);
-        });
-        var hide = Button("🙈 Скрий мечока (иконката е до часовника)", () =>
+        }, icon: "pin");
+        var hide = Button("Скрий мечока (иконката е до часовника)", () =>
         {
             Hide();
             _pet.Hide();
-        });
-        foreach (var b in new[] { _stayButton, _quietButton, _updateButton, reset, hide })
+        }, icon: "hide");
+        foreach (var b in new[] { _updateButton, reset, hide })
         {
             b.HorizontalAlignment = HorizontalAlignment.Stretch;
             b.HorizontalContentAlignment = HorizontalAlignment.Left;
-            b.Margin = new Thickness(0, 0, 0, 6);
+            b.Margin = new Thickness(0, 0, 0, 8);
             p.Children.Add(b);
         }
+        p.Children.Add(MutedText($"Мечо, версия {Updater.CurrentVersion}. Шрифт Pixeloid (GGBotNet, SIL OFL)."));
         return p;
     }
 
@@ -838,7 +896,7 @@ public sealed class MenuWindow : Window
     private void Refresh(bool rebuild)
     {
         var s = _pet.Save;
-        _nuts.Text = $"🌰 {s.Hazelnuts}";
+        _nuts.Text = s.Hazelnuts.ToString();
 
         // Мечо
         _portrait.Source = _pet.Portrait;
@@ -860,13 +918,19 @@ public sealed class MenuWindow : Window
             >= 25 => "уморен",
             _ => "капнал!",
         });
-        _sleepButton.Content = _pet.IsAsleep ? "☀️ Събуди" : "🌙 Приспи";
+        if (_pet.IsAsleep) SetButton(_sleepButton, "Събуди", "sun");
+        else SetButton(_sleepButton, "Приспи", "moon");
         _sleepButton.IsEnabled = _pet.CanSleep;
+        if (_pet.StaysPut) SetButton(_couchButton, "Стани", "walk");
+        else SetButton(_couchButton, "Седни", "couch");
+        _couchButton.ToolTip = Tip(_pet.StaysPut ? "Става от дивана и пак се разхожда." : "Сяда на дивана и чете, докато не го вдигнеш.");
+        if (_pet.IsQuiet) SetButton(_quietButton, "Говори", "bell");
+        else SetButton(_quietButton, "Тихо 1 ч", "quiet");
 
         // Храна и магазин
-        _foodInfo.Text = $"Имаш {s.Hazelnuts} 🌰. Сготвеното се появява из екрана: занеси го при мечока.";
+        _foodInfo.Text = "Сготвеното се появява из екрана: занеси го при мечока с мишката.";
         _shopInfo.Text = "Уредите отключват нови ястия, а подобренията помагат на мечока. Лешниците се печелят " +
-                         "със задачи (1/3/5) и с работа: всеки 10 мин мед-доро или таймер = 1 🌰" +
+                         "със задачи и с работа: всеки 10 мин мед-доро или таймер = 1" +
                          (s.FocusMinutesBank >= 1 ? $" (събрани {s.FocusMinutesBank:0} мин към следващия)." : ".");
         if (rebuild)
         {
@@ -886,7 +950,7 @@ public sealed class MenuWindow : Window
                 break;
             case PomodoroPhase.Break:
                 _pomTime.Text = $"{(int)left.TotalMinutes:00}:{left.Seconds:00}";
-                _pomStatus.Text = "☕ Почивка: стани, раздвижи се, пийни вода.";
+                _pomStatus.Text = "Почивка: стани, раздвижи се, пийни вода.";
                 break;
             default:
                 _pomTime.Text = $"{(int)PetWindow.FocusLength.TotalMinutes:00}:00";
@@ -894,50 +958,39 @@ public sealed class MenuWindow : Window
                 break;
         }
         _pomStart.Visibility = s.PomodoroPhase == PomodoroPhase.Focus ? Visibility.Collapsed : Visibility.Visible;
-        _pomStart.Content = s.PomodoroPhase == PomodoroPhase.Break ? "▶ Нов мед-доро" : "▶ Започни 25 минути";
+        SetButton(_pomStart, s.PomodoroPhase == PomodoroPhase.Break ? "Нов мед-доро" : "Започни 25 минути", "play");
         _pomStop.Visibility = s.PomodoroPhase == PomodoroPhase.Off ? Visibility.Collapsed : Visibility.Visible;
-        _pomToday.Text = $"Днес: {s.PomodorosToday} 🍯   ·   Общо: {s.PomodorosTotal}";
+        _pomToday.Text = $"Днес: {s.PomodorosToday}   ·   Общо: {s.PomodorosTotal}";
 
         if (_pet.TimerRunning)
         {
             var t = _pet.TimerLeft;
             string clock = t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
-            _timerTime.Text = s.TimerLabel.Length > 0 ? $"{clock} · {s.TimerLabel}" : clock;
+            _timerTime.Text = s.TimerLabel.Length > 0 ? $"{clock}  {s.TimerLabel}" : clock;
         }
         else _timerTime.Text = "--:--";
         _timerStop.Visibility = _pet.TimerRunning ? Visibility.Visible : Visibility.Collapsed;
 
         // Още
-        _stayButton.Content = _pet.StaysPut ? "🚶 Стани от дивана" : "🛋️ Стой тук и почети";
-        _quietButton.Content = _pet.IsQuiet ? "🔔 Може да говориш" : "🤫 Тихо за 1 час";
-        _updateButton.Content = _pet.Updater.IsAvailable
-            ? $"⬆️ Обнови до версия {_pet.Updater.LatestVersion}"
-            : $"🔄 Провери за обновление (сега: {Updater.CurrentVersion})";
+        if (_pet.Updater.IsAvailable) SetButton(_updateButton, $"Обнови до версия {_pet.Updater.LatestVersion}", "update");
+        else SetButton(_updateButton, $"Провери за обновление (сега: {Updater.CurrentVersion})", "update");
         _updateButton.IsEnabled = !_pet.Updater.IsBusy;
     }
 
     // ───────────────────────── Малки помощници ─────────────────────────
 
-    private static TextBlock Heading(string text) => new()
-    {
-        Text = text,
-        FontSize = 15,
-        FontWeight = FontWeights.Normal,
-        Margin = new Thickness(0, 10, 0, 6),
-    };
-
     private static TextBlock MutedText(string text) => new()
     {
         Text = text,
-        Foreground = Ui.Muted,
+        Foreground = Muted,
         TextWrapping = TextWrapping.Wrap,
     };
 
     private static TextBox NewTextInput() => new()
     {
         FontFamily = GameFont,
-        FontSize = 10,
-        Padding = new Thickness(6, 4, 6, 4),
+        FontSize = Body,
+        Padding = new Thickness(8, 6, 8, 6),
         BorderBrush = Ink,
         BorderThickness = new Thickness(2, 2, 2, 3),
         Background = Cream,
@@ -948,7 +1001,15 @@ public sealed class MenuWindow : Window
     /// <summary>Поле с бледа подсказка, докато е празно.</summary>
     private static UIElement WithHint(TextBox box, string hint)
     {
-        var text = new TextBlock { Text = hint, Foreground = Ui.Muted, IsHitTestVisible = false, Margin = new Thickness(9, 6, 0, 0) };
+        var text = new TextBlock
+        {
+            Text = hint,
+            Foreground = Muted,
+            IsHitTestVisible = false,
+            Margin = new Thickness(11, 0, 0, 0),
+            VerticalAlignment = box.AcceptsReturn ? VerticalAlignment.Top : VerticalAlignment.Center,
+        };
+        if (box.AcceptsReturn) text.Margin = new Thickness(11, 9, 0, 0);
         box.TextChanged += (_, _) => text.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         var grid = new Grid();
         grid.Children.Add(box);
@@ -963,8 +1024,8 @@ public sealed class MenuWindow : Window
         BorderBrush = WoodDark,
         BorderThickness = new Thickness(2, 2, 2, 3),
         CornerRadius = new CornerRadius(4),
-        Padding = new Thickness(8, 5, 5, 5),
-        Margin = new Thickness(0, 0, 0, 5),
+        Padding = new Thickness(10, 7, 7, 7),
+        Margin = new Thickness(0, 0, 0, 6),
         Child = child,
     };
 }
