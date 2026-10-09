@@ -1,0 +1,67 @@
+{
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "scale": 3,
+  "animations": {
+    "idle": {
+      "file": "idle.png",
+      "fps": 3,
+      "loop": true
+    },
+    "walk": {
+      "file": "walk.png",
+      "fps": 8,
+      "loop": true
+    },
+    "sleep": {
+      "file": "sleep.png",
+      "fps": 2,
+      "loop": true
+    },
+    "yawn": {
+      "file": "yawn.png",
+      "fps": 3,
+      "loop": false
+    },
+    "eat": {
+      "file": "eat.png",
+      "fps": 4,
+      "loop": false
+    },
+    "happy": {
+      "file": "happy.png",
+      "fps": 6,
+      "loop": false
+    },
+    "dance": {
+      "file": "dance.png",
+      "fps": 6,
+      "loop": true
+    },
+    "work": {
+      "file": "work.png",
+      "fps": 3,
+      "loop": true
+    },
+    "dice": {
+      "file": "dice.png",
+      "fps": 5,
+      "loop": false
+    },
+    "drag": {
+      "file": "drag.png",
+      "fps": 4,
+      "loop": true
+    },
+    "fall": {
+      "file": "fall.png",
+      "fps": 3,
+      "loop": false
+    },
+    "sad": {
+      "file": "sad.png",
+      "fps": 2,
+      "loop": true
+    }
+  }
+}

@@ -1,0 +1,42 @@
+# Всяко качване сглобява Mecho.exe (с папката assets) в Mecho.zip.
+# От клон main се пуска и нова версия (Release).
+name: Build
+
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Publish
+        run: >
+          dotnet publish src/Mecho -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none
+          -p:Version=0.1.${{ github.run_number }} -o publish/Mecho
+      - name: Zip
+        run: Compress-Archive -Path publish/Mecho -DestinationPath publish/Mecho.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mecho
+          path: publish/Mecho
+      - name: Release
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ github.event.head_commit.message }}
+        run: |
+          gh release create "v${{ github.run_number }}" publish/Mecho.zip \
+            --title "Версия ${{ github.run_number }}" --notes "${NOTES:-Нова версия}"
