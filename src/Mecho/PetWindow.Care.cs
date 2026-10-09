@@ -83,6 +83,7 @@ public sealed partial class PetWindow
         _save.Energy = Math.Clamp(_save.Energy + (IsResting ? RestAsleep : -TiredAwake) * h, 0, 100);
 
         UpdatePomodoro();
+        UpdateTimer();
 
         // Казва, че е гладен или сънлив, но не по-често от веднъж на няколко минути.
         if (!IsResting && !IsQuiet && !InFocus && now > _nextNeedLine && _state != BearState.Drag)
@@ -104,26 +105,6 @@ public sealed partial class PetWindow
     private bool WantsNap => _save.Energy < 15 && !InFocus;
 
     // ───────────────────────── Храна ─────────────────────────
-
-    public void Feed(Food food)
-    {
-        if (!Kitchen.IsUnlocked(food, _save)) return;
-        if (IsResting)
-        {
-            Say("Ззз… ще ям, като стана.", 3);
-            return;
-        }
-        if (_save.Fullness >= 95)
-        {
-            Say(Lines.Pick(Lines.Full, _save.OwnerName), 3);
-            return;
-        }
-        _save.Fullness = Math.Min(100, _save.Fullness + food.Fullness);
-        Say(food.Lines[_rng.Next(food.Lines.Length)], 4);
-        if (CanAnimateFreely) Play("eat");
-        NotifyCare();
-        Persist();
-    }
 
     public void Pet()
     {
@@ -262,16 +243,56 @@ public sealed partial class PetWindow
         Persist();
     }
 
+    // ───────────────────────── Таймер ─────────────────────────
+
+    public bool TimerRunning => _save.TimerEndsAt != DateTime.MinValue;
+
+    public TimeSpan TimerLeft => TimerRunning ? Max(TimeSpan.Zero, _save.TimerEndsAt - DateTime.Now) : TimeSpan.Zero;
+
+    public void StartTimer(double minutes, string label)
+    {
+        if (minutes <= 0) return;
+        _save.TimerEndsAt = DateTime.Now.AddMinutes(minutes);
+        _save.TimerLabel = label.Trim();
+        Say($"⏰ Пускам таймер за {minutes:0.#} мин.{(_save.TimerLabel.Length > 0 ? $" ({_save.TimerLabel})" : "")}", 3);
+        NotifyCare();
+        Persist();
+    }
+
+    public void StopTimer()
+    {
+        if (!TimerRunning) return;
+        _save.TimerEndsAt = DateTime.MinValue;
+        Say("Спрях таймера.", 2);
+        NotifyCare();
+        Persist();
+    }
+
+    private void UpdateTimer()
+    {
+        if (!TimerRunning || DateTime.Now < _save.TimerEndsAt) return;
+        string label = _save.TimerLabel;
+        _save.TimerEndsAt = DateTime.MinValue;
+        Say(label.Length > 0 ? $"⏰ Времето изтече: {label}!" : "⏰ Времето изтече!", 12);
+        if (CanAnimateFreely) Play("dance", length: 3);
+        NotifyCare();
+        Persist();
+    }
+
+    private static string Clock(TimeSpan t) =>
+        t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
+
     private void UpdateTimerTag()
     {
-        if (_save.PomodoroPhase == PomodoroPhase.Off)
+        var parts = new System.Collections.Generic.List<string>();
+        if (_save.PomodoroPhase != PomodoroPhase.Off) parts.Add($"{(InFocus ? "🍯" : "☕")} {Clock(PomodoroLeft)}");
+        if (TimerRunning) parts.Add($"⏰ {Clock(TimerLeft)}");
+        if (parts.Count == 0)
         {
             _timerTag.Visibility = Visibility.Collapsed;
             return;
         }
-        var left = PomodoroLeft;
-        string icon = InFocus ? "🍯" : "☕";
-        _timerText.Text = $"{icon} {(int)left.TotalMinutes:00}:{left.Seconds:00}";
+        _timerText.Text = string.Join("   ", parts);
         _timerTag.Visibility = Visibility.Visible;
     }
 }

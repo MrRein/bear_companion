@@ -41,6 +41,9 @@ public sealed class MenuWindow : Window
     private readonly Border[] _sizeButtons = new Border[3];
     private TextBlock _pomTime = null!, _pomStatus = null!, _pomToday = null!;
     private Button _pomStart = null!, _pomStop = null!;
+    private TextBlock _timerTime = null!;
+    private TextBox _timerLabel = null!, _timerMinutes = null!;
+    private Button _timerStop = null!;
     private Button _stayButton = null!, _quietButton = null!, _updateButton = null!;
 
     public MenuWindow(PetWindow pet)
@@ -69,7 +72,7 @@ public sealed class MenuWindow : Window
         foreach (var t in _tabs) content.Children.Add(t);
 
         var tabs = new UniformGrid4();
-        string[] names = { "🐻 Мечо", "📋 Задачи", "📝 Бележки", "🍯 Мед-доро", "⚙️ Още" };
+        string[] names = { "🐻 Мечо", "📋 Задачи", "📝 Бележки", "⏰ Време", "⚙️ Още" };
         for (int i = 0; i < names.Length; i++)
         {
             int index = i;
@@ -281,7 +284,73 @@ public sealed class MenuWindow : Window
             TextAlignment = TextAlignment.Center,
             Margin = new Thickness(0, 6, 0, 0),
         });
+
+        // Обикновен таймер: за чай, пране, кратка задача…
+        p.Children.Add(new Border { Height = 2, Background = PaperDark, Margin = new Thickness(0, 12, 0, 0) });
+        p.Children.Add(Heading("⏰ Таймер"));
+        _timerTime = new TextBlock { FontSize = 24, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center };
+        p.Children.Add(_timerTime);
+
+        _timerLabel = new TextBox
+        {
+            Padding = new Thickness(4, 3, 4, 3),
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(2),
+            Background = Brushes.White,
+            Margin = new Thickness(0, 4, 0, 6),
+        };
+        var hint = new TextBlock { Text = "За какво е? (чай, пране… по избор)", Foreground = Muted, IsHitTestVisible = false, Margin = new Thickness(8, 9, 0, 0) };
+        _timerLabel.TextChanged += (_, _) =>
+            hint.Visibility = _timerLabel.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var labelBox = new Grid();
+        labelBox.Children.Add(_timerLabel);
+        labelBox.Children.Add(hint);
+        p.Children.Add(labelBox);
+
+        var presets = new WrapPanel();
+        foreach (int m in new[] { 5, 10, 15, 30, 45, 60 })
+        {
+            int minutes = m;
+            var chip = Chip($"{m} мин", () => _pet.StartTimer(minutes, _timerLabel.Text));
+            chip.Margin = new Thickness(0, 0, 4, 4);
+            presets.Children.Add(chip);
+        }
+        p.Children.Add(presets);
+
+        var custom = new StackPanel { Orientation = Orientation.Horizontal };
+        _timerMinutes = new TextBox
+        {
+            Width = 50,
+            Padding = new Thickness(4, 2, 4, 2),
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(2),
+            Background = Brushes.White,
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+        _timerMinutes.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter) StartCustomTimer();
+        };
+        custom.Children.Add(_timerMinutes);
+        custom.Children.Add(new TextBlock { Text = "мин", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 6, 0) });
+        var start = Button("▶ Пусни", StartCustomTimer);
+        start.Margin = new Thickness(0);
+        custom.Children.Add(start);
+        _timerStop = Button("■ Спри таймера", _pet.StopTimer);
+        _timerStop.Margin = new Thickness(6, 0, 0, 0);
+        custom.Children.Add(_timerStop);
+        p.Children.Add(custom);
         return p;
+    }
+
+    private void StartCustomTimer()
+    {
+        string text = _timerMinutes.Text.Trim().Replace(',', '.');
+        if (double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double m) && m > 0 && m <= 24 * 60)
+        {
+            _pet.StartTimer(m, _timerLabel.Text);
+            _timerMinutes.Clear();
+        }
     }
 
     private UIElement BuildNotesTab()
@@ -491,6 +560,15 @@ public sealed class MenuWindow : Window
         _pomStop.Visibility = s.PomodoroPhase == PomodoroPhase.Off ? Visibility.Collapsed : Visibility.Visible;
         _pomToday.Text = $"Днес: {s.PomodorosToday} 🍯   ·   Общо: {s.PomodorosTotal}";
 
+        if (_pet.TimerRunning)
+        {
+            var t = _pet.TimerLeft;
+            string clock = t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
+            _timerTime.Text = s.TimerLabel.Length > 0 ? $"{clock} · {s.TimerLabel}" : clock;
+        }
+        else _timerTime.Text = "не тече";
+        _timerStop.Visibility = _pet.TimerRunning ? Visibility.Visible : Visibility.Collapsed;
+
         _stayButton.Content = _pet.StaysPut ? "🚶 Стани от дивана" : "🛋️ Стой тук и почети";
         _quietButton.Content = _pet.IsQuiet ? "🔔 Може да говориш" : "🤫 Тихо за 1 час";
         _updateButton.Content = _pet.Updater.IsAvailable
@@ -507,7 +585,12 @@ public sealed class MenuWindow : Window
         {
             bool unlocked = Kitchen.IsUnlocked(food, _pet.Save);
             var f = food;
-            var b = Button($"{food.Icon} {food.Name}", () => _pet.Feed(f));
+            var b = Button($"{food.Icon} {food.Name}", () =>
+            {
+                // Храната се появява из екрана; панелът се скрива, за да я занесеш.
+                _pet.Feed(f);
+                Hide();
+            });
             if (!unlocked)
             {
                 int left = food.UnlockTasks - _pet.Save.TasksDoneTotal;

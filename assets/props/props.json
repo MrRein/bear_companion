@@ -4,6 +4,26 @@
     "couch": {
       "file": "couch.png",
       "seat": 10
+    },
+    "butterfly": {
+      "file": "butterfly.png",
+      "seat": 0
+    },
+    "food_hazelnuts": {
+      "file": "food_hazelnuts.png",
+      "seat": 0
+    },
+    "food_popcorn": {
+      "file": "food_popcorn.png",
+      "seat": 0
+    },
+    "food_meatballs": {
+      "file": "food_meatballs.png",
+      "seat": 0
+    },
+    "food_potatoes": {
+      "file": "food_potatoes.png",
+      "seat": 0
     }
   }
 }

@@ -266,9 +266,68 @@ ANIMS = {
     "read_sleep": ([reading_sleep(0), reading_sleep(1)], 1, True),
 }
 
+def food_hazelnut():
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    oval(d, (2, 4, 13, 15), NUT)
+    d.rectangle((4, 2, 11, 6), fill=(110, 70, 30, 255), outline=OUTLINE)  # шапчица
+    d.line((7, 0, 8, 2), fill=OUTLINE)
+    d.point((5, 9), fill=(200, 140, 80, 255))
+    d.point((6, 8), fill=(200, 140, 80, 255))
+    return img
+
+
+def food_popcorn():
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.polygon([(2, 7), (13, 7), (11, 15), (4, 15)], fill=RED, outline=OUTLINE)
+    d.line((6, 8, 6, 14), fill=WHITE)
+    d.line((9, 8, 9, 14), fill=WHITE)
+    for x, y in [(3, 4), (6, 2), (9, 3), (12, 5), (5, 6), (10, 6), (7, 5)]:
+        oval(d, (x - 1, y - 1, x + 2, y + 2), (255, 245, 210, 255), outline=(200, 170, 90, 255))
+    return img
+
+
+def food_meatballs():
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    oval(d, (0, 9, 15, 15), WHITE)  # чиния
+    for x in (2, 6, 10):
+        oval(d, (x, 6, x + 4, 11), (130, 70, 40, 255))
+    d.line((5, 1, 5, 4), fill=(220, 220, 220, 255))  # пара
+    d.line((10, 0, 10, 3), fill=(220, 220, 220, 255))
+    return img
+
+
+def food_potatoes():
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle((0, 10, 15, 14), fill=(150, 150, 160, 255), outline=OUTLINE)  # тава
+    for x, y in [(1, 6), (5, 7), (9, 6), (4, 3), (8, 3)]:
+        oval(d, (x, y, x + 5, y + 4), (230, 180, 70, 255), outline=(150, 100, 30, 255))
+    return img
+
+
+def butterfly():
+    img = Image.new("RGBA", (9, 7), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    wing = (250, 150, 200, 255)
+    oval(d, (0, 0, 3, 3), wing)
+    oval(d, (5, 0, 8, 3), wing)
+    oval(d, (1, 3, 3, 6), (180, 140, 250, 255))
+    oval(d, (5, 3, 7, 6), (180, 140, 250, 255))
+    d.line((4, 1, 4, 6), fill=OUTLINE)
+    return img
+
+
 PROP_LIST = {
     # име: (рисунка, на колко пиксела от земята е седалката)
     "couch": (couch(), 10),
+    "butterfly": (butterfly(), 0),
+    "food_hazelnuts": (food_hazelnut(), 0),
+    "food_popcorn": (food_popcorn(), 0),
+    "food_meatballs": (food_meatballs(), 0),
+    "food_potatoes": (food_potatoes(), 0),
 }
 
 

@@ -19,14 +19,8 @@ public enum BearState
     Sleep,
     Drag,
     Falling,
-    Couch,    // „Стой тук“: седи на дивана и чете (виж CouchPhase)
-}
-
-public enum CouchPhase
-{
-    None,
-    Walking,     // връща се до дивана (например след като е бил вдигнат)
-    Sitting,     // седи и чете
+    Couch,    // седи на дивана и чете
+    Chase,    // гони пеперуда
 }
 
 /// <summary>
@@ -63,14 +57,13 @@ public sealed partial class PetWindow : Window
     private double _stateTime;
     private double _stateLength;
     private double _walkTarget;
-    private string? _afterBusy;   // какво следва след анимацията: "sleep" или "couch"
+    private string? _afterBusy;   // какво следва след анимацията: "sleep"
     private bool _sleepIsAway;    // заспал, защото Тут я няма
     private BitmapSource? _shownFrame;
 
     // Диванът
-    private CouchPhase _couchPhase;
-    private bool _couchVisible;
-    private double _couchX;        // средата на дивана
+    private bool _couchVisible;    // диванът е винаги точно под мечока
+    private double _tempCouchUntil; // седнал е сам за малко (не е „Стой тук“)
 
     private double _nextChatter;
     private double _lastTime;
@@ -91,8 +84,8 @@ public sealed partial class PetWindow : Window
     public bool CanSleep => IsAsleep || !OnCouchMission;
     public Updater Updater => _updater;
 
-    /// <summary>Зает с дивана: не прави нищо друго, докато не седне или не го прибере.</summary>
-    private bool OnCouchMission => _couchPhase != CouchPhase.None || _couchVisible || _save.StayPut || _afterBusy == "couch";
+    /// <summary>Седи на дивана (и го носиш заедно с него, ако го влачиш).</summary>
+    private bool OnCouchMission => _couchVisible;
 
     public PetWindow(SaveData save)
     {
@@ -145,6 +138,7 @@ public sealed partial class PetWindow : Window
         _root.Children.Add(_bubble);
         Content = _root;
         InitCare();
+        InitActivities();
 
         _sprite.MouseLeftButtonDown += OnMouseDown;
         _sprite.MouseMove += OnMouseMove;
@@ -186,8 +180,6 @@ public sealed partial class PetWindow : Window
         if (_save.StayPut)
         {
             // Пак си е на дивана, където го оставихме.
-            _couchX = ClampCouchSpot(_save.CouchX);
-            _couchVisible = true;
             SitOnCouch(quiet: true);
             Say(Lines.Greeting(_save.OwnerName));
         }
@@ -221,16 +213,19 @@ public sealed partial class PetWindow : Window
             case BearState.Busy: UpdateBusy(); break;
             case BearState.Sleep: UpdateSleep(); break;
             case BearState.Falling: UpdateFalling(dt); break;
-            case BearState.Couch: UpdateCouch(dt, now); break;
+            case BearState.Couch: UpdateCouch(now); break;
+            case BearState.Chase: UpdateChase(dt); break;
             case BearState.Drag: break;
         }
         UpdateCare(dt, now);
+        UpdateFood(dt);
+        UpdateButterfly(dt);
 
         if (_state != BearState.Drag && _state != BearState.Falling)
         {
             // Лентата със задачи може да се е преместила.
             _y = Area.Bottom;
-            if (!MayLeaveScreen) ClampX();
+            ClampX();
         }
 
         if (_bubble.Visibility == Visibility.Visible && now > _bubbleUntil) HideBubble();
@@ -251,9 +246,6 @@ public sealed partial class PetWindow : Window
             Persist();
         }
     }
-
-    private bool MayLeaveScreen =>
-        _state == BearState.Couch && _couchPhase == CouchPhase.Walking;
 
     private void UpdateIdle(double now)
     {
@@ -293,23 +285,12 @@ public sealed partial class PetWindow : Window
             return;
         }
 
-        // Решава какво да прави.
-        int roll = _rng.Next(100);
-        if (roll < 50)
-        {
-            var area = Area;
-            _walkTarget = area.Left + 60 + _rng.NextDouble() * Math.Max(0, area.Width - 120);
-            if (Math.Abs(_walkTarget - _x) > 30) SetState(BearState.Walk, "walk");
-            else SetIdle();
-        }
-        else if (roll < 62) Play("work", length: 15 + _rng.Next(20));
-        else if (roll < 68) Play("dice");
-        else SetIdle();
+        ChooseActivity();
     }
 
     private void UpdateWalk(double dt)
     {
-        if (StepTowards(_walkTarget, WalkSpeed, dt) || _stateTime > 30) SetIdle();
+        if (StepTowards(_walkTarget, WalkSpeed, dt) || _stateTime > 30) FinishThen();
     }
 
     /// <summary>Мести мечока към target. Връща true, когато е стигнал.</summary>
@@ -329,8 +310,7 @@ public sealed partial class PetWindow : Window
     {
         if (_stateTime < _stateLength) return;
         if (_afterBusy == "sleep") EnterSleep(_sleepIsAway);
-        else if (_afterBusy == "couch") ContinueCouch();
-        else SetIdle();
+        else FinishThen();
     }
 
     private void UpdateSleep()
@@ -361,14 +341,17 @@ public sealed partial class PetWindow : Window
         _y = floor;
         _vy = 0;
         bool hard = floor - _fallFrom > 120;
-        if (hard) Say(Lines.Pick(Lines.Fell, _save.OwnerName));
-
-        if (OnCouchMission)
+        if (_couchVisible)
         {
-            if (hard) Play("fall", then: "couch");
-            else ContinueCouch();
+            // С дивана кацането е меко.
+            if (hard) Say(Lines.Pick(Lines.CouchLanded, _save.OwnerName));
+            SitOnCouch(quiet: true);
         }
-        else if (hard) Play("fall");
+        else if (hard)
+        {
+            Say(Lines.Pick(Lines.Fell, _save.OwnerName));
+            Play("fall");
+        }
         else SetIdle();
     }
 
@@ -377,105 +360,72 @@ public sealed partial class PetWindow : Window
     private double CouchWidth => _couch.Width;
     private double SeatHeight => _couchProp.Seat * PixelSize;
 
-    /// <summary>„Стой тук“: зад мечока се появява диван и той сяда да чете.</summary>
+    /// <summary>„Стой тук“: зад мечока се появява диван и той сяда да чете, докато не го вдигнеш.</summary>
     public void StayHere()
     {
-        if (_save.StayPut) return;
         _save.StayPut = true;
         _save.SleepingByChoice = false;
-        _couchX = ClampCouchSpot(_x, AreaAt(_x, _y - 1));
-        _save.CouchX = _couchX;
-        ContinueCouch();
+        _tempCouchUntil = 0;
+        if (!IsReading) SitOnCouch(quiet: false);
         Persist();
     }
 
     /// <summary>Става от дивана и диванът изчезва.</summary>
     public void GetUp()
     {
-        if (!_save.StayPut) return;
         _save.StayPut = false;
-        Say(Lines.Pick(Lines.StandUp, _save.OwnerName));
-        ContinueCouch();
+        if (_couchVisible) Say(Lines.Pick(Lines.StandUp, _save.OwnerName));
+        LeaveCouch();
         Persist();
     }
 
-    /// <summary>Следващата стъпка с дивана. Вика се при всяка промяна и след приземяване.</summary>
-    private void ContinueCouch()
+    /// <summary>Сяда сам да почете за малко (едно от нещата, които прави, когато е свободен).</summary>
+    private void ReadForAWhile(double seconds)
     {
-        if (!_save.StayPut)
-        {
-            _couchVisible = false;
-            _couchPhase = CouchPhase.None;
-            SetIdle();
-            return;
-        }
-        if (!_couchVisible)
-        {
-            // Диванът се появява точно зад мечока.
-            _couchX = ClampCouchSpot(_x, AreaAt(_x, _y - 1));
-            _save.CouchX = _couchX;
-            _couchVisible = true;
-            SitOnCouch(quiet: false);
-        }
-        else if (Math.Abs(_x - _couchX) < 1) SitOnCouch(quiet: false);
-        else
-        {
-            _walkTarget = _couchX;
-            SetCouchPhase(CouchPhase.Walking, "walk");
-        }
-    }
-
-    private void SetCouchPhase(CouchPhase phase, string anim)
-    {
-        SetState(BearState.Couch, anim);
-        _couchPhase = phase;
+        _tempCouchUntil = Now + seconds;
+        SitOnCouch(quiet: false);
     }
 
     private void SitOnCouch(bool quiet)
     {
-        _x = _couchX;
-        _save.CouchX = _couchX;
+        // Диванът се появява точно под мечока (*пуф!*).
+        _couchVisible = true;
         _facingLeft = false;
-        SetCouchPhase(CouchPhase.Sitting, "read");
+        SetState(BearState.Couch, "read");
+        ClampX();
         if (!quiet) Say(Lines.Pick(Lines.SatDown, _save.OwnerName));
     }
 
-    private void UpdateCouch(double dt, double now)
+    private void LeaveCouch()
     {
-        switch (_couchPhase)
-        {
-            case CouchPhase.Walking:
-                if (StepTowards(_walkTarget, WalkSpeed * 1.5, dt) || _stateTime > 60) SitOnCouch(quiet: false);
-                break;
-
-            case CouchPhase.Sitting:
-            {
-                // Ако Тут я няма, задрямва с книжката на корема.
-                bool away = NativeMethods.IdleSeconds() > AwayToSleep;
-                string anim = away ? "read_sleep" : "read";
-                if (anim != _anim)
-                {
-                    _anim = anim;
-                    _animTime = 0;
-                    if (!away) Say(Lines.Pick(Lines.WelcomeBack, _save.OwnerName));
-                }
-                if (!away && !IsQuiet && !InFocus && now > _nextChatter)
-                {
-                    _nextChatter = now + 180 + _rng.Next(180);
-                    Say(Lines.Pick(Lines.Reading, _save.OwnerName), 6);
-                }
-                break;
-            }
-        }
+        _couchVisible = false;
+        _tempCouchUntil = 0;
+        if (_state is BearState.Couch) SetIdle();
     }
 
-    /// <summary>Диванът трябва да се вижда целият.</summary>
-    private double ClampCouchSpot(double x, Rect? onArea = null)
+    private void UpdateCouch(double now)
     {
-        var area = onArea ?? Area;
-        double half = (double.IsNaN(CouchWidth) ? 144 : CouchWidth) / 2;
-        if (double.IsNaN(x)) x = area.Left + area.Width * 0.75;
-        return Math.Clamp(x, area.Left + half, Math.Max(area.Left + half, area.Right - half));
+        if (!_save.StayPut && _tempCouchUntil > 0 && now > _tempCouchUntil)
+        {
+            Say(Lines.Pick(Lines.DoneReading, _save.OwnerName), 3);
+            LeaveCouch();
+            return;
+        }
+
+        // Ако Тут я няма, задрямва с книжката на корема.
+        bool away = NativeMethods.IdleSeconds() > AwayToSleep;
+        string anim = away ? "read_sleep" : "read";
+        if (anim != _anim)
+        {
+            _anim = anim;
+            _animTime = 0;
+            if (!away) Say(Lines.Pick(Lines.WelcomeBack, _save.OwnerName));
+        }
+        if (!away && !IsQuiet && !InFocus && now > _nextChatter)
+        {
+            _nextChatter = now + 180 + _rng.Next(180);
+            Say(Lines.Pick(Lines.Reading, _save.OwnerName), 6);
+        }
     }
 
     // ───────────────────────── Състояния ─────────────────────────
@@ -484,7 +434,7 @@ public sealed partial class PetWindow : Window
     {
         _state = state;
         if (state != BearState.Busy) _afterBusy = null;
-        if (state != BearState.Couch) _couchPhase = CouchPhase.None;
+        _afterAction = null;
         _stateTime = 0;
         _stateLength = length;
         if (anim != _anim) _animTime = 0;
@@ -494,11 +444,12 @@ public sealed partial class PetWindow : Window
     private void SetIdle() => SetState(BearState.Idle, "idle", 3 + _rng.NextDouble() * 6);
 
     /// <summary>Пуска анимация веднъж (или за length секунди, ако се повтаря).</summary>
-    private void Play(string anim, string? then = null, bool away = false, double length = 0)
+    private void Play(string anim, string? then = null, bool away = false, double length = 0, Action? after = null)
     {
         var a = _lib.Get(anim);
         SetState(BearState.Busy, anim, length > 0 ? length : a.Duration + 0.4);
         _afterBusy = then;
+        _afterAction = after;
         _sleepIsAway = away;
         _animTime = 0;
     }
@@ -554,6 +505,8 @@ public sealed partial class PetWindow : Window
     {
         _lib = SpriteLibrary.Load();
         _couchProp = _lib.GetProp("couch", 48, 24, 10);
+        _butterflyProp = _lib.GetProp("butterfly", 9, 7, 0);
+        _butterfly.Source = _butterflyProp.Image;
         _shownFrame = null;
         ApplySpriteSize();
         Say("Ново облекло? Ура!");
@@ -629,21 +582,23 @@ public sealed partial class PetWindow : Window
             if ((p - _pressScreen).Length < 5) return;
             bool goingToSleep = _afterBusy == "sleep";
             _save.SleepingByChoice = false;
-            if (IsAsleep || goingToSleep)
+            if (_couchVisible)
+                Say(Lines.Pick(Lines.FlyingCouch, _save.OwnerName), 3);
+            else if (IsAsleep || goingToSleep)
                 Say(Lines.Pick(Lines.WokenByDrag, _save.OwnerName));
             else
                 Say(Lines.Pick(Lines.Dragged, _save.OwnerName), 2);
 
-            // Ако е седял, хващаме го там, където се вижда (над седалката).
-            if (_couchPhase == CouchPhase.Sitting) _y -= SeatHeight;
+            // Ако седи на дивана, носиш го заедно с дивана и той си чете.
             _grabOffset = new Point(_x, _y) - _pressScreen;
-            SetState(BearState.Drag, "drag");
+            SetState(BearState.Drag, _couchVisible ? "read" : "drag");
         }
 
         // Може да се мести и на друг екран: пазим го в екрана под мишката.
         var area = AreaAt(p.X, p.Y);
-        _x = Math.Clamp(p.X + _grabOffset.X, area.Left + SpriteWidth / 2, Math.Max(area.Left + SpriteWidth / 2, area.Right - SpriteWidth / 2));
-        _y = Math.Clamp(p.Y + _grabOffset.Y, area.Top + SpriteHeight, area.Bottom);
+        double half = HalfWidth;
+        _x = Math.Clamp(p.X + _grabOffset.X, area.Left + half, Math.Max(area.Left + half, area.Right - half));
+        _y = Math.Clamp(p.Y + _grabOffset.Y, area.Top + SpriteHeight + (_couchVisible ? SeatHeight : 0), area.Bottom);
     }
 
     private void OnMouseUp(object sender, MouseButtonEventArgs e)
@@ -657,7 +612,7 @@ public sealed partial class PetWindow : Window
         {
             _fallFrom = _y;
             _vy = 0;
-            SetState(BearState.Falling, "drag");
+            SetState(BearState.Falling, _couchVisible ? _anim : "drag");
             Persist();
             return;
         }
@@ -749,7 +704,7 @@ public sealed partial class PetWindow : Window
         if (CanAnimateFreely && !IsReading) Play("happy");
     }
 
-    public bool IsReading => _state == BearState.Couch && _couchPhase == CouchPhase.Sitting;
+    public bool IsReading => _state == BearState.Couch;
 
     // ───────────────────────── Панелът ─────────────────────────
 
@@ -825,7 +780,7 @@ public sealed partial class PetWindow : Window
     private void UpdateLayoutAndWindow()
     {
         var area = Area;
-        bool sitting = _state == BearState.Couch && _couchPhase == CouchPhase.Sitting;
+        bool sitting = _couchVisible;
 
         var bear = new Rect(_x - SpriteWidth / 2, _y - SpriteHeight - (sitting ? SeatHeight : 0), SpriteWidth, SpriteHeight);
         var bounds = new Rect(_x - BubbleZone, bear.Top - 4, BubbleZone * 2, bear.Bottom - bear.Top + 4);
@@ -834,12 +789,15 @@ public sealed partial class PetWindow : Window
         _couch.Visibility = _couchVisible ? Visibility.Visible : Visibility.Collapsed;
         if (_couchVisible)
         {
-            couch = new Rect(_couchX - CouchWidth / 2, area.Bottom - _couch.Height, CouchWidth, _couch.Height);
+            couch = new Rect(_x - CouchWidth / 2, _y - _couch.Height, CouchWidth, _couch.Height);
             bounds.Union(couch);
         }
 
         _bearRect = bear;
         double above = bear.Top - 4;
+
+        Rect butterfly = ButterflyRect;
+        if (!butterfly.IsEmpty) bounds.Union(butterfly);
 
         Rect tag = Rect.Empty;
         if (_timerTag.Visibility == Visibility.Visible)
@@ -873,6 +831,7 @@ public sealed partial class PetWindow : Window
         if (_couchVisible) Place(_couch, couch, winLeft, winTop, dpi);
         if (!bubble.IsEmpty) Place(_bubble, bubble, winLeft, winTop, dpi);
         if (!tag.IsEmpty) Place(_timerTag, tag, winLeft, winTop, dpi);
+        if (!butterfly.IsEmpty) Place(_butterfly, butterfly, winLeft, winTop, dpi);
 
         if (Math.Abs(Left - winLeft) > 0.01) Left = winLeft;
         if (Math.Abs(Top - winTop) > 0.01) Top = winTop;
@@ -895,10 +854,7 @@ public sealed partial class PetWindow : Window
     {
         get
         {
-            // Докато го влачиш или пада, е там, където е мишката.
-            bool couchHome = OnCouchMission && !double.IsNaN(_save.CouchX) && _state is not (BearState.Drag or BearState.Falling);
-            double x = couchHome ? _save.CouchX : _x;
-            return AreaAt(x, _y - 1);
+            return AreaAt(_x, _y - 1);
         }
     }
 
@@ -912,11 +868,21 @@ public sealed partial class PetWindow : Window
         return new Rect(wa.Left / dpi, wa.Top / dpi, wa.Width / dpi, wa.Height / dpi);
     }
 
+    /// <summary>Половината ширина на мечока (или на дивана, ако седи на него).</summary>
+    private double HalfWidth
+    {
+        get
+        {
+            double w = _couchVisible && CouchWidth > SpriteWidth ? CouchWidth : SpriteWidth;
+            return double.IsNaN(w) || w <= 0 ? 48 : w / 2;
+        }
+    }
+
     private void ClampX()
     {
         var area = Area;
-        double half = SpriteWidth > 0 ? SpriteWidth / 2 : 48;
-        _x = Math.Clamp(_x, area.Left + half, area.Right - half);
+        double half = HalfWidth;
+        _x = Math.Clamp(_x, area.Left + half, Math.Max(area.Left + half, area.Right - half));
     }
 
     // ───────────────────────── Балонче ─────────────────────────

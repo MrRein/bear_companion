@@ -14,7 +14,6 @@ public sealed class SaveData
     public double Y { get; set; } = double.NaN;
     public bool SleepingByChoice { get; set; }
     public bool StayPut { get; set; }
-    public double CouchX { get; set; } = double.NaN;
     public DateTime QuietUntil { get; set; }
     public bool StartWithWindows { get; set; } = true;
     public bool FirstRunDone { get; set; }
@@ -35,6 +34,10 @@ public sealed class SaveData
     public PomodoroPhase PomodoroPhase { get; set; }
     public DateTime PomodoroEndsAt { get; set; }
 
+    // Обикновен таймер (MinValue = не тече)
+    public DateTime TimerEndsAt { get; set; } = DateTime.MinValue;
+    public string TimerLabel { get; set; } = "";
+
     public List<TaskItem> Tasks { get; set; } = new();
     public List<NoteItem> Notes { get; set; } = new();
 
@@ -46,7 +49,7 @@ public sealed class SaveData
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
-        // X и CouchX са NaN, докато не се знае къде са.
+        // X и Y са NaN, докато не се знае къде са.
         NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
         Converters = { new JsonStringEnumConverter() },
     };
