@@ -37,8 +37,9 @@ public sealed class MenuWindow : Window
     private Border[] _fullBar = null!, _energyBar = null!;
     private TextBlock _fullText = null!, _energyText = null!, _mood = null!;
     private Button _sleepButton = null!, _couchButton = null!, _quietButton = null!;
-    private readonly WrapPanel _foodTiles = new();
-    private readonly WrapPanel _shopTiles = new();
+    // Мрежа по 3: всички плочки в един ред са еднакво високи, бутоните са на една линия.
+    private readonly UniformGrid _foodTiles = new() { Columns = 3 };
+    private readonly UniformGrid _shopTiles = new() { Columns = 3 };
     private TextBlock _foodInfo = null!, _shopInfo = null!;
     private readonly StackPanel _taskList = new();
     private TextBlock _taskSummary = null!;
@@ -420,11 +421,11 @@ public sealed class MenuWindow : Window
         {
             var f = food;
             int cost = Kitchen.CostOf(f, s);
-            string effect = string.Join("   ", new[]
-            {
-                f.Fullness >= 5 ? $"Ситост +{Kitchen.FullnessOf(f, s):0}" : null,
-                f.Energy > 0 ? $"Енергия +{f.Energy:0}" : null,
-            }.Where(x => x != null));
+
+            // Какво дава: значки с иконки на един ред.
+            var effects = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            if (f.Fullness >= 5) effects.Children.Add(Stat("honey", $"+{Kitchen.FullnessOf(f, s):0}", "ситост"));
+            if (f.Energy > 0) effects.Children.Add(Stat("energy", $"+{f.Energy:0}", "енергия"));
 
             Button action;
             string? why = null;
@@ -432,9 +433,9 @@ public sealed class MenuWindow : Window
             if (locked)
             {
                 var tool = Kitchen.Find(f.Tool!);
-                action = Button("Заключено", () => SelectTab(ShopTab), icon: "lock");
-                why = $"Заключено: мечокът няма {tool?.Name.ToLowerInvariant()}. Купи я в магазина за {tool?.Price} лешника " +
-                      $"(имаш {s.Hazelnuts}). Цъкни, за да отидеш там.";
+                action = Button(tool?.Name ?? "Заключено", () => SelectTab(ShopTab), icon: "lock");
+                why = $"Заключено. Трябва ти „{tool?.Name}“ от магазина: {tool?.Price} лешника (имаш {s.Hazelnuts}). " +
+                      "Цъкни бутона, за да отидеш в магазина.";
             }
             else if (cost == 0 && Kitchen.BerriesIn(s) > 0)
             {
@@ -456,9 +457,22 @@ public sealed class MenuWindow : Window
                     why = $"Трябват {cost} лешника, а имаш {s.Hazelnuts}. Свърши някоя задача или пусни мед-доро.";
                 }
             }
-            _foodTiles.Children.Add(MakeTile(_pet.PropImage("food_" + f.Id), f.Name, effect, action, locked, why));
+            _foodTiles.Children.Add(MakeTile(_pet.PropImage("food_" + f.Id), f.Name, effects, action, locked, why));
         }
     }
+
+    /// <summary>Значка: иконка и число (например мед +24).</summary>
+    private static Border Stat(string icon, string value, string what) => new()
+    {
+        Background = Cream,
+        BorderBrush = WoodDark,
+        BorderThickness = new Thickness(2),
+        CornerRadius = new CornerRadius(8),
+        Padding = new Thickness(6 * U, 2, 8 * U, 2),
+        Margin = new Thickness(2, 0, 2, 0),
+        Child = IconText(icon, value, bold: true),
+        ToolTip = Tip($"{value} {what}"),
+    };
 
     // ───────────────────────── Магазин ─────────────────────────
 
@@ -495,12 +509,23 @@ public sealed class MenuWindow : Window
                     why = $"Трябват {u.Price} лешника, а имаш {s.Hazelnuts}. Още {u.Price - s.Hazelnuts}!";
                 }
             }
-            _shopTiles.Children.Add(MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, u.Description, action, dim: false, why, owned));
+            var description = new TextBlock
+            {
+                Text = u.Description,
+                Foreground = Muted,
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+            };
+            _shopTiles.Children.Add(MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, description, action, dim: false, why, owned));
         }
     }
 
-    /// <summary>Плочка: картинка на тъмен фон, име, описание и бутон. why = подсказка при посочване.</summary>
-    private static Border MakeTile(BitmapSource art, string name, string description, Button action, bool dim, string? why, bool owned = false)
+    /// <summary>
+    /// Плочка: картинка, име, какво дава и бутон. Бутонът е закрепен отдолу, така че
+    /// в мрежата всички бутони стоят на една линия, колкото и дълги да са имената.
+    /// why = подсказка при посочване (защо е заключено и т.н.).
+    /// </summary>
+    private static Border MakeTile(BitmapSource art, string name, UIElement details, Button action, bool dim, string? why, bool owned = false)
     {
         var image = Pixel(art, ArtScale(4));
         image.HorizontalAlignment = HorizontalAlignment.Center;
@@ -529,38 +554,36 @@ public sealed class MenuWindow : Window
             Child = artGrid,
         };
 
-        var stack = new StackPanel();
-        stack.Children.Add(artBox);
-        stack.Children.Add(new TextBlock
+        var dock = new DockPanel { LastChildFill = true };
+        DockPanel.SetDock(artBox, Dock.Top);
+        dock.Children.Add(artBox);
+
+        action.Margin = new Thickness(0, 8 * U, 0, 0);
+        action.HorizontalAlignment = HorizontalAlignment.Stretch;
+        DockPanel.SetDock(action, Dock.Bottom);
+        dock.Children.Add(action);
+
+        var middle = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+        middle.Children.Add(new TextBlock
         {
             Text = name,
             FontWeight = FontWeights.Bold,
             TextAlignment = TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 8 * U, 0, 2),
+            Margin = new Thickness(0, 8 * U, 0, 6 * U),
         });
-        stack.Children.Add(new TextBlock
-        {
-            Text = description,
-            Foreground = Muted,
-            TextAlignment = TextAlignment.Center,
-            TextWrapping = TextWrapping.Wrap,
-            MinHeight = 44 * U,
-        });
-        action.Margin = new Thickness(0, 6 * U, 0, 0);
-        action.HorizontalAlignment = HorizontalAlignment.Stretch;
-        stack.Children.Add(action);
+        middle.Children.Add(details);
+        dock.Children.Add(middle);
 
         var tile = new Border
         {
-            Width = 212 * U,
             Background = Tile,
             BorderBrush = Ink,
             BorderThickness = new Thickness(2, 2, 2, 4),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(8 * U),
             Margin = new Thickness(0, 0, 8 * U, 8 * U),
-            Child = stack,
+            Child = dock,
         };
         tile.MouseEnter += (_, _) => tile.Background = Hover;
         tile.MouseLeave += (_, _) => tile.Background = Tile;
