@@ -324,7 +324,7 @@ public sealed class MenuWindow : Window
         p.Children.Add(top);
 
         p.Children.Add(Ribbon("Какво да правим?"));
-        var actions = new UniformGrid { Columns = 3 };
+        var actions = new UniformGrid { Columns = 4 };
         actions.Children.Add(Wide(Button("Нахрани", () => SelectTab(FoodTab), primary: true, icon: "food")));
         _sleepButton = Wide(Button("", () =>
         {
@@ -348,6 +348,8 @@ public sealed class MenuWindow : Window
             Refresh(false);
         }));
         actions.Children.Add(_quietButton);
+        actions.Children.Add(Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil")));
+        actions.Children.Add(Wide(Button("Поговори", () => { Hide(); _pet.Ask(Conversations.Next(_pet)); }, icon: "bear")));
         p.Children.Add(actions);
         return p;
     }

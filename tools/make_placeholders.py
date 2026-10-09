@@ -232,6 +232,140 @@ def couch():
     return img
 
 
+def controller(blink):
+    def f(d, y):
+        d.rectangle((11, 20 + y, 20, 23 + y), fill=(60, 60, 70, 255), outline=OUTLINE)
+        d.point((13, 21 + y), fill=RED if blink else (120, 120, 130, 255))
+        d.point((18, 21 + y), fill=(90, 160, 220, 255))
+    return f
+
+
+def look_left(d, y):
+    # зеници наляво (гледа към компютъра)
+    for x in (10, 20):
+        d.rectangle((x, 9 + y, x + 1, 10 + y), fill=MUZZLE)
+        d.rectangle((x - 1, 9 + y, x, 10 + y), fill=BLACK)
+
+
+def brush(up):
+    def f(d, y):
+        if up:
+            d.line((25, 6 + y, 28, 2 + y), fill=WOOD)
+            d.rectangle((28, 0 + y, 29, 2 + y), fill=(90, 140, 210, 255))
+        else:
+            d.line((25, 16 + y, 29, 13 + y), fill=WOOD)
+            d.rectangle((29, 12 + y, 30, 13 + y), fill=(220, 90, 80, 255))
+    return f
+
+
+def cup_in_hands(up):
+    def f(d, y):
+        cy = 14 if up else 19
+        d.rectangle((13, cy + y, 18, cy + 4 + y), fill=WHITE, outline=OUTLINE)
+        d.line((14, cy + 1 + y, 17, cy + 1 + y), fill=(200, 140, 60, 255))
+    return f
+
+
+def headphones(note):
+    def f(d, y):
+        d.arc((6, 0 + y, 25, 14 + y), 180, 360, fill=OUTLINE, width=2)
+        d.rectangle((4, 7 + y, 7, 12 + y), fill=RED, outline=OUTLINE)
+        d.rectangle((24, 7 + y, 27, 12 + y), fill=RED, outline=OUTLINE)
+        if note:
+            d.line((28, 0, 28, 4), fill=OUTLINE)
+            d.rectangle((26, 3, 27, 4), fill=OUTLINE)
+    return f
+
+
+def watering(pour):
+    def f(d, y):
+        d.rectangle((21, 18 + y, 27, 23 + y), fill=(90, 140, 210, 255), outline=OUTLINE)
+        d.line((27, 19 + y, 31, 16 + y if pour else 19 + y), fill=OUTLINE)
+        if pour:
+            d.point((31, 19), fill=(120, 170, 240, 255))
+            d.point((30, 22), fill=(120, 170, 240, 255))
+    return f
+
+
+def prop(w, h, fn):
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    fn(ImageDraw.Draw(img))
+    return img
+
+
+def stool(d):
+    d.rectangle((1, 0, 14, 2), fill=WOOD, outline=OUTLINE)
+    d.line((3, 3, 2, 7), fill=OUTLINE)
+    d.line((12, 3, 13, 7), fill=OUTLINE)
+    d.line((3, 5, 12, 5), fill=OUTLINE)
+
+
+def computer(d):
+    d.rectangle((0, 14, 19, 15), fill=WOOD, outline=OUTLINE)   # плот
+    d.line((1, 16, 1, 21), fill=OUTLINE)
+    d.line((18, 16, 18, 21), fill=OUTLINE)
+    d.rectangle((2, 2, 17, 12), fill=(200, 200, 210, 255), outline=OUTLINE)  # монитор
+    d.rectangle((4, 4, 15, 10), fill=(30, 40, 60, 255))
+    d.rectangle((5, 8, 7, 9), fill=(120, 200, 120, 255))   # героят в игричката
+    d.rectangle((10, 6, 11, 9), fill=(220, 90, 80, 255))   # враг
+    d.point((13, 5), fill=(255, 209, 102, 255))            # монетка
+    d.rectangle((8, 12, 11, 13), fill=(160, 160, 170, 255))
+
+
+def easel(d):
+    d.line((3, 4, 1, 27), fill=WOOD)
+    d.line((14, 4, 16, 27), fill=WOOD)
+    d.line((9, 0, 9, 27), fill=WOOD)
+    d.rectangle((1, 3, 16, 17), fill=WHITE, outline=OUTLINE)
+    d.ellipse((3, 5, 8, 10), fill=(255, 209, 102, 255))            # слънце
+    d.polygon([(2, 16), (7, 10), (11, 16)], fill=(120, 180, 80, 255))  # хълм
+    d.rectangle((10, 11, 14, 15), fill=(90, 140, 210, 255))
+    d.line((0, 18, 17, 18), fill=OUTLINE)
+
+
+def table_tea(d):
+    d.rectangle((0, 8, 15, 9), fill=WOOD, outline=OUTLINE)
+    d.line((2, 10, 2, 15), fill=OUTLINE)
+    d.line((13, 10, 13, 15), fill=OUTLINE)
+    d.ellipse((2, 2, 9, 8), fill=(220, 120, 120, 255), outline=OUTLINE)  # чайник
+    d.line((9, 4, 11, 3), fill=OUTLINE)
+    d.rectangle((11, 5, 13, 7), fill=WHITE, outline=OUTLINE)
+
+
+def table_board(d):
+    d.rectangle((0, 8, 19, 9), fill=WOOD, outline=OUTLINE)
+    d.line((2, 10, 2, 15), fill=OUTLINE)
+    d.line((17, 10, 17, 15), fill=OUTLINE)
+    d.rectangle((2, 5, 12, 7), fill=(120, 180, 80, 255), outline=OUTLINE)  # дъска
+    d.rectangle((4, 3, 5, 4), fill=RED)   # пионка
+    d.rectangle((14, 4, 17, 7), fill=WHITE, outline=OUTLINE)  # карти
+    d.point((15, 5), fill=RED)
+
+
+def mat(d):
+    d.rectangle((0, 0, 39, 2), fill=(170, 120, 210, 255), outline=OUTLINE)
+
+
+def plant(d):
+    d.rectangle((2, 12, 9, 17), fill=(200, 110, 70, 255), outline=OUTLINE)
+    d.line((5, 11, 5, 4), fill=(70, 130, 60, 255))
+    d.ellipse((0, 4, 5, 8), fill=(120, 180, 80, 255), outline=OUTLINE)
+    d.ellipse((6, 2, 11, 6), fill=(120, 180, 80, 255), outline=OUTLINE)
+    d.ellipse((3, 0, 7, 3), fill=(240, 140, 150, 255), outline=OUTLINE)  # цвят
+
+
+def radio(d):
+    d.rectangle((0, 3, 13, 11), fill=(200, 90, 70, 255), outline=OUTLINE)
+    d.ellipse((2, 5, 7, 10), fill=(60, 60, 70, 255))
+    d.rectangle((9, 5, 11, 6), fill=(255, 209, 102, 255))
+    d.line((10, 2, 13, 0), fill=OUTLINE)
+
+
+def nut_small(d):
+    d.ellipse((0, 1, 4, 5), fill=NUT, outline=OUTLINE)
+    d.line((1, 0, 3, 0), fill=OUTLINE)
+
+
 ANIMS = {
     # име: (кадри, кадри в секунда, повтаря ли се)
     "idle": ([bear(), bear(bob=1), bear(), bear(eyes="closed")], 3, True),
@@ -264,6 +398,27 @@ ANIMS = {
               bear(arms="front", legs="sit", bob=2, extra=book(page=4)),
               bear(arms="front", legs="sit", bob=2, mouth="smile", extra=book())], 2, True),
     "read_sleep": ([reading_sleep(0), reading_sleep(1)], 1, True),
+    # седнал (столчето го вдига) и играе на компютъра отляво
+    "game": ([bear(arms="front", legs="sit", bob=2, extra=lambda d, y: (look_left(d, y), controller(True)(d, y))),
+              bear(arms="front", legs="sit", bob=2, mouth="open", extra=lambda d, y: (look_left(d, y), controller(False)(d, y))),
+              bear(arms="front", legs="sit", bob=1, extra=lambda d, y: (look_left(d, y), controller(True)(d, y))),
+              bear(arms="front", legs="sit", bob=2, eyes="happy", mouth="smile", extra=controller(False))], 4, True),
+    "paint": ([bear(arms="right_up", legs="sit", bob=2, extra=brush(True)),
+               bear(arms="down", legs="sit", bob=2, extra=brush(False)),
+               bear(arms="right_up", legs="sit", bob=2, mouth="smile", extra=brush(True)),
+               bear(arms="down", legs="sit", bob=2, eyes="closed", extra=brush(False))], 3, True),
+    "drink": ([bear(arms="front", legs="sit", bob=2, extra=cup_in_hands(False)),
+               bear(arms="front", legs="sit", bob=2, eyes="closed", extra=cup_in_hands(True)),
+               bear(arms="front", legs="sit", bob=2, eyes="closed", extra=cup_in_hands(True)),
+               bear(arms="front", legs="sit", bob=2, eyes="happy", mouth="smile", extra=cup_in_hands(False))], 2, True),
+    "yoga": ([bear(arms="up", eyes="closed"), bear(arms="up", eyes="closed", bob=-1),
+              bear(arms="left_up", eyes="closed", legs="step1"), bear(arms="right_up", eyes="closed", legs="step2")], 1.5, True),
+    "water": ([bear(arms="front", extra=watering(False)), bear(arms="front", extra=watering(True)),
+               bear(arms="front", eyes="happy", extra=watering(True))], 2, True),
+    "music": ([bear(eyes="closed", mouth="smile", extra=headphones(True)), bear(eyes="closed", mouth="smile", bob=1, extra=headphones(False)),
+               bear(eyes="closed", mouth="open", legs="step1", extra=headphones(True)), bear(eyes="closed", mouth="smile", bob=1, extra=headphones(False))], 4, True),
+    "juggle": ([bear(arms="left_up", mouth="open"), bear(arms="right_up", mouth="smile"),
+                bear(arms="left_up", eyes="happy"), bear(arms="right_up", mouth="open")], 6, True),
 }
 
 def food_hazelnut():
@@ -423,6 +578,15 @@ PROP_LIST = {
     # име: (рисунка, на колко пиксела от земята е седалката)
     "couch": (couch(), 10),
     "butterfly": (butterfly(), 0),
+    "stool": (prop(16, 8, stool), 7),
+    "computer": (prop(20, 22, computer), 0),
+    "easel": (prop(18, 28, easel), 0),
+    "table_tea": (prop(16, 16, table_tea), 0),
+    "table_board": (prop(20, 16, table_board), 0),
+    "mat": (prop(40, 3, mat), 2),
+    "plant": (prop(12, 18, plant), 0),
+    "radio": (prop(14, 12, radio), 0),
+    "nut": (prop(5, 6, nut_small), 0),
     "food_berries": (food_berries(), 0),
     "food_coffee": (cup((90, 55, 30, 255)), 0),
     "food_tea": (cup((200, 140, 60, 255)), 0),

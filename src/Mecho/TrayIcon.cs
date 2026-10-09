@@ -49,6 +49,12 @@ public sealed class TrayIcon : IDisposable
             if (_pet.Updater.IsAvailable) _ = _pet.InstallUpdate();
             else _ = _pet.CheckForUpdates(manual: true);
         };
+        var draw = menu.Items.Add("Рисувай платформи");
+        draw.Click += (_, _) =>
+        {
+            if (!_pet.IsVisible) _pet.Show();
+            _pet.OpenDrawing();
+        };
         var reload = menu.Items.Add("Презареди рисунките");
         reload.Click += (_, _) => _pet.ReloadArt();
         var autostart = new Forms.ToolStripMenuItem("Пускай се с Windows");

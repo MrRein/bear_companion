@@ -141,6 +141,18 @@ public static class Lines
 
     public static readonly string[] AllFoodEaten = { "Мерси! Сит съм и щастлив!", "Всичките! Ти си най-добрата, {0}!", "Ням! Сега мога да работя пак." };
 
+    public static readonly string[] Peekaboo = { "Бау!", "Бау! Уплаших ли те?", "Ку-ку!", "Изненада!" };
+
+    public static readonly string[] JuggleStart = { "Гледай! Жонглирам!", "Три лешника, един мечок.", "Цирк „Мечо“ представя…" };
+
+    public static readonly string[] JuggleEnd = { "Опа! Изпуснах ги.", "Та-даа!", "Ръкопляскайте! Може и мислено." };
+
+    public static readonly string[] DrawStart = { "Нарисувай ми нещо, на което да стъпя!", "Ооо, рисуване! Направи ми стълбичка!", "{0}, нарисувай ми площадка!" };
+
+    public static readonly string[] DrawDone = { "Ура! Отивам да го пробвам!", "Красиво е! Може ли да се кача?", "Ще се катеря!" };
+
+    public static readonly string[] Climbed = { "Тук горе е хубаво!", "Виж ме колко съм високо!", "Аз съм цар на платформата!", "Гледката е супер." };
+
     public static string Greeting(string owner)
     {
         int h = DateTime.Now.Hour;

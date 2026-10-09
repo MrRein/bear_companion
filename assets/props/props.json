@@ -9,6 +9,42 @@
       "file": "butterfly.png",
       "seat": 0
     },
+    "stool": {
+      "file": "stool.png",
+      "seat": 7
+    },
+    "computer": {
+      "file": "computer.png",
+      "seat": 0
+    },
+    "easel": {
+      "file": "easel.png",
+      "seat": 0
+    },
+    "table_tea": {
+      "file": "table_tea.png",
+      "seat": 0
+    },
+    "table_board": {
+      "file": "table_board.png",
+      "seat": 0
+    },
+    "mat": {
+      "file": "mat.png",
+      "seat": 2
+    },
+    "plant": {
+      "file": "plant.png",
+      "seat": 0
+    },
+    "radio": {
+      "file": "radio.png",
+      "seat": 0
+    },
+    "nut": {
+      "file": "nut.png",
+      "seat": 0
+    },
     "food_berries": {
       "file": "food_berries.png",
       "seat": 0

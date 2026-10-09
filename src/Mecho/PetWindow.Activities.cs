@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 using System.Windows.Media;
 
 namespace Mecho;
@@ -50,59 +51,156 @@ public sealed partial class PetWindow
         _afterAction = then;
     }
 
-    /// <summary>Избира следващото занимание. Тежестите са колко често да се случва всяко.</summary>
+    private string _lastActivity = "";
+
+    /// <summary>
+    /// Избира следващото занимание. Тежестите казват колко често е всяко; зависят от
+    /// умората и от часа (сутрин йога и чай, следобед игри и рисуване, вечер четене и
+    /// музика). Едно и също занимание не се повтаря два пъти подред.
+    /// </summary>
     private void ChooseActivity()
     {
         var area = Area;
         bool tired = IsExhausted; // уморен: не му се играе, по-скоро сяда или се прозява
-        var choices = new (int Weight, Action Do)[]
+        int hour = DateTime.Now.Hour;
+        bool morning = hour is >= 6 and < 12, afternoon = hour is >= 12 and < 18, evening = hour >= 18 || hour < 6;
+        int busy = InFocus ? 0 : 1;     // по време на мед-доро не сяда в кътчета
+
+        var choices = new (string Name, double Weight, Action Do)[]
         {
-            (tired ? 6 : 26, () =>
+            ("walk", tired ? 6 : 20, () =>
             {
-                double x = area.Left + 60 + _rng.NextDouble() * Math.Max(0, area.Width - 120);
+                double x = WalkTarget();
                 if (Math.Abs(x - _x) > 30) WalkTo(x);
                 else SetIdle();
             }),
-            (tired ? 2 : 12, () => Play("work", length: 8 + _rng.Next(8), after: () => Say(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
-            (tired ? 0 : 7, () =>
+            ("climb", tired || !HasPlatforms ? 0 : 10, Climb),
+            ("sketch", tired ? 2 : 8, () => Play("work", length: 8 + _rng.Next(8), after: () => Say(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
+            ("dice", tired ? 0 : 4, () =>
             {
                 int n = _rng.Next(1, 7);
                 Play("dice", after: () => Say(Lines.DiceRoll(n) + " " + Lines.Pick(Lines.Playtest, _save.OwnerName), 5));
             }),
-            (tired ? 0 : 5, () =>
+            ("dance", tired ? 0 : 3, () =>
             {
                 Play("dance", length: 3);
                 Say(Lines.Pick(Lines.Dancing, _save.OwnerName), 3);
             }),
-            (_save.Fullness < 90 ? 5 : 0, () =>
+            ("snack", _save.Fullness < 90 ? 3 : 0, () =>
             {
                 Play("eat");
                 Say(Lines.Pick(Lines.Snack, _save.OwnerName), 3);
                 _save.Fullness = Math.Min(100, _save.Fullness + 1);
             }),
-            (InFocus ? 0 : tired ? 12 : 7, () => ReadForAWhile(40 + _rng.Next(50))),
-            (tired ? 12 : _save.Energy < 70 ? 4 : 1, () =>
+            ("stretch", tired ? 10 : _save.Energy < 70 ? 3 : 1, () =>
             {
                 Play("yawn");
                 Say(tired ? Lines.Pick(Lines.Sleepy, _save.OwnerName) : "*протяга се* Ааах.", 3);
             }),
-            (tired ? 0 : 8, FollowCursor),
-            (tired ? 0 : 7, StartChase),
-            (16, SetIdle),
+            ("cursor", tired ? 0 : 6, FollowCursor),
+            ("butterfly", tired ? 0 : 5, StartChase),
+            ("peek", tired ? 0 : 4, Peekaboo),
+            ("juggle", tired ? 0 : 4, Juggle),
+
+            // Кътчета: сяда с предмет за около минута.
+            ("reading", busy * (tired ? 12 : evening ? 9 : 5), () => StartScene(Scenes.Reading, 40 + _rng.Next(50))),
+            ("gaming", busy * (tired ? 1 : afternoon || evening ? 8 : 4), () => StartScene(Scenes.Gaming, 45 + _rng.Next(45))),
+            ("painting", busy * (tired ? 1 : afternoon ? 7 : 4), () => StartScene(Scenes.Painting, 40 + _rng.Next(40))),
+            ("tea", busy * (morning ? 6 : tired ? 6 : 3), () => StartScene(Scenes.Tea, 30 + _rng.Next(30))),
+            ("yoga", busy * (tired ? 0 : morning ? 6 : 2), () => StartScene(Scenes.Yoga, 25 + _rng.Next(25))),
+            ("plant", busy * (morning ? 4 : 2), () => StartScene(Scenes.Plant, 15 + _rng.Next(15))),
+            ("music", busy * (evening ? 7 : 3), () => StartScene(Scenes.Music, 30 + _rng.Next(40))),
+            ("board", busy * (tired ? 1 : afternoon ? 6 : 3), () => StartScene(Scenes.Board, 40 + _rng.Next(40))),
+
+            ("idle", 12, SetIdle),
         };
 
-        int total = 0;
-        foreach (var c in choices) total += c.Weight;
-        int roll = _rng.Next(total);
+        double total = 0;
+        foreach (var c in choices) if (c.Name != _lastActivity || c.Name == "idle") total += c.Weight;
+        double roll = _rng.NextDouble() * total;
         foreach (var c in choices)
         {
+            if (c.Name == _lastActivity && c.Name != "idle") continue;
             if (roll < c.Weight)
             {
+                _lastActivity = c.Name;
                 c.Do();
                 return;
             }
             roll -= c.Weight;
         }
+        SetIdle();
+    }
+
+    // ───────────────────────── Наднича иззад ръба ─────────────────────────
+
+    private bool _peeking; // може да излезе наполовина извън екрана
+
+    /// <summary>Отива до ръба, скрива се зад него и изскача: „Бау!“.</summary>
+    private void Peekaboo()
+    {
+        var area = Area;
+        int dir = _x - area.Left < area.Right - _x ? -1 : 1;
+        double half = HalfWidth;
+        double inside = dir < 0 ? area.Left + half : area.Right - half;
+        double hidden = dir < 0 ? area.Left - half * 0.6 : area.Right + half * 0.6;
+        WalkTo(inside, () =>
+        {
+            _peeking = true;
+            WalkTo(hidden, () =>
+            {
+                _facingLeft = dir > 0;
+                Play("idle", length: 2.5 + _rng.NextDouble() * 2, after: () =>
+                {
+                    Say(Lines.Pick(Lines.Peekaboo, _save.OwnerName), 3);
+                    Play("happy", after: () => WalkTo(inside, () => _peeking = false));
+                });
+            });
+        });
+    }
+
+    // ───────────────────────── Жонглира ─────────────────────────
+
+    private readonly System.Collections.Generic.List<Image> _juggleNuts = new();
+    private double _juggleUntil, _juggleStart;
+
+    private void Juggle()
+    {
+        _juggleStart = Now;
+        _juggleUntil = Now + 6 + _rng.NextDouble() * 4;
+        Say(Lines.Pick(Lines.JuggleStart, _save.OwnerName), 3);
+        Play("juggle", length: _juggleUntil - Now, after: () => Say(Lines.Pick(Lines.JuggleEnd, _save.OwnerName), 3));
+    }
+
+    /// <summary>Лешниците летят в кръг над главата му, докато жонглира.</summary>
+    private Rect[] JuggleRects(Rect bear)
+    {
+        bool on = _anim == "juggle" && Now < _juggleUntil;
+        if (_juggleNuts.Count == 0)
+        {
+            var nut = _lib.GetProp("nut", 5, 5, 0);
+            for (int i = 0; i < 3; i++)
+            {
+                var img = new Image { Source = nut.Image, IsHitTestVisible = false };
+                RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.NearestNeighbor);
+                _juggleNuts.Add(img);
+                _root.Children.Add(img);
+            }
+        }
+        var rects = new Rect[3];
+        for (int i = 0; i < 3; i++)
+        {
+            var img = _juggleNuts[i];
+            img.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            if (!on) continue;
+            img.Width = ((BitmapSource)img.Source).PixelWidth * PixelSize;
+            img.Height = ((BitmapSource)img.Source).PixelHeight * PixelSize;
+            double t = (Now - _juggleStart) * 3.2 + i * Math.PI * 2 / 3;
+            double cx = bear.Left + bear.Width / 2 + Math.Cos(t) * bear.Width * 0.3;
+            double cy = bear.Top + bear.Height * 0.15 - Math.Abs(Math.Sin(t)) * bear.Height * 0.55;
+            rects[i] = new Rect(cx - img.Width / 2, cy - img.Height / 2, img.Width, img.Height);
+        }
+        return rects;
     }
 
     /// <summary>Отива до курсора на мишката (ако е на неговия екран) и го поздравява.</summary>

@@ -72,6 +72,41 @@
       "file": "read_sleep.png",
       "fps": 1,
       "loop": true
+    },
+    "game": {
+      "file": "game.png",
+      "fps": 4,
+      "loop": true
+    },
+    "paint": {
+      "file": "paint.png",
+      "fps": 3,
+      "loop": true
+    },
+    "drink": {
+      "file": "drink.png",
+      "fps": 2,
+      "loop": true
+    },
+    "yoga": {
+      "file": "yoga.png",
+      "fps": 1.5,
+      "loop": true
+    },
+    "water": {
+      "file": "water.png",
+      "fps": 2,
+      "loop": true
+    },
+    "music": {
+      "file": "music.png",
+      "fps": 4,
+      "loop": true
+    },
+    "juggle": {
+      "file": "juggle.png",
+      "fps": 6,
+      "loop": true
     }
   }
 }

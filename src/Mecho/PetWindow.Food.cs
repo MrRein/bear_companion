@@ -158,7 +158,9 @@ public sealed partial class PetWindow
         {
             if (f.IsDragging) continue;
             var b = f.Bounds;
-            double floor = AreaAt(b.Left + b.Width / 2, b.Top + b.Height / 2).Bottom - b.Height;
+            // Пада на земята или на нарисувана платформа.
+            var foodArea = AreaAt(b.Left + b.Width / 2, b.Top + b.Height / 2);
+            double floor = _drawings.GroundAt(foodArea, b.Left + b.Width / 2, b.Width * 0.3, b.Bottom) - b.Height;
             if (f.Top >= floor - 0.5)
             {
                 f.VelocityY = 0;

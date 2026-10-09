@@ -44,6 +44,15 @@ internal static class NativeMethods
         return unchecked((uint)Environment.TickCount - info.dwTime) / 1000.0;
     }
 
+    private const int WS_EX_TRANSPARENT = 0x20;
+    private const int WS_EX_LAYERED = 0x80000;
+
+    /// <summary>Кликовете минават през прозореца (и той не се вижда в Alt+Tab).</summary>
+    public static void MakeClickThrough(IntPtr hwnd)
+    {
+        SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT | WS_EX_LAYERED);
+    }
+
     /// <summary>Скрива прозореца от Alt+Tab.</summary>
     public static void MakeToolWindow(IntPtr hwnd)
     {
