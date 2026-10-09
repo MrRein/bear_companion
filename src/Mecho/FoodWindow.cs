@@ -26,6 +26,11 @@ public sealed class FoodWindow : Window
     /// <summary>Хвърлена е от Тут: ако улучи мечока в движение, той я хваща.</summary>
     public bool Thrown { get; set; }
 
+    private readonly DateTime _spawned = DateTime.Now;
+
+    /// <summary>Току-що разпръсната (под 3 секунди): мечокът още не може да я изяде.</summary>
+    public bool JustSpawned => (DateTime.Now - _spawned).TotalSeconds < 3;
+
     private Point _lastScreen;
     private DateTime _lastMove;
     public bool IsDragging => _dragging;

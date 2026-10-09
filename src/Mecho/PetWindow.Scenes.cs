@@ -132,6 +132,9 @@ public sealed partial class PetWindow
         Persist();
     }
 
+    /// <summary>Забавлението, което прави в момента (избрано от Тут или само), или null.</summary>
+    public Scene? CurrentFun => _onTrampoline ? Scenes.Trampoline : _inScene && _scene != null && Scenes.Fun.Contains(_scene) ? _scene : null;
+
     /// <summary>Кътчето, в което Тут го е оставила (или null).</summary>
     public Scene? ChosenScene => _save.StayPut ? Scenes.ById(_save.StayScene) : null;
 

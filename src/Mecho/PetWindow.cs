@@ -396,7 +396,7 @@ public sealed partial class PetWindow : Window
         if (_onTrampoline && state is BearState.Drag or BearState.Sleep or BearState.Couch)
         {
             _onTrampoline = false;
-            _hunting = false;
+            _streak = 0;
             _trampWindow?.Hide();
         }
         _state = state;

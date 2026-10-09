@@ -114,6 +114,8 @@ public sealed partial class PetWindow
     /// <summary>Изяжда парче храна (дори да е сит). Връща false, ако спи.</summary>
     private bool EatFood(FoodWindow food)
     {
+        // Първите 3 секунди храната още лети: не може да я изяде веднага.
+        if (food.JustSpawned) return false;
         if (IsResting)
         {
             Say("Ззз… после…", 2);
@@ -148,12 +150,6 @@ public sealed partial class PetWindow
     /// <summary>Стои, гледа храната и напомня да му я донесеш.</summary>
     private void WaitForFood(double now)
     {
-        // С батут не чака: отива сам да си събере храната във въздуха.
-        if (Kitchen.Owns(_save, Kitchen.Trampoline) && !InFocus && !_onTrampoline && !IsExhausted)
-        {
-            HuntFoodWithTrampoline();
-            return;
-        }
         if (now < _nextFoodReminder)
         {
             if (_anim != "idle") SetIdle();

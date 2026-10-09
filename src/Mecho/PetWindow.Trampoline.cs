@@ -73,9 +73,9 @@ public sealed class PropWindow : Window
     public void MoveTo(double centerX) => Left = centerX - Width / 2;
 }
 
-// Батутът като мини игра: мечокът подскача, Тут мести батута под него.
-// Удари ли центъра, отива право нагоре; ляво или дясно – натам. Каквото храна
-// мине във въздуха, изяжда. Ако Тут не пипа батута, мечокът играе сам.
+// Батутът като мини игра: мечокът си подскача. Хванеш ли батута, скача повече
+// и се насочва: център – право нагоре, ляво/дясно – натам. Три попадения подред
+// и скача много високо – стига и най-горната храна. Каквото мине, изяжда.
 public sealed partial class PetWindow
 {
     private PropWindow? _trampWindow;
@@ -83,8 +83,8 @@ public sealed partial class PetWindow
     private double _trampTop;         // висината на батута (екранно y, където стъпва)
     private double _bounceUntil;      // 0 = докато Тут не каже „Стани“
     private double _bounceVx, _bounceVy;
-    private bool _hunting;            // пуснат е заради храна: свършва, когато я изяде
-    private double _userSteerUntil;   // Тут мести батута: до тогава не играе сам
+    private double _userSteerUntil;   // Тут мести батута: тогава скача повече
+    private int _streak;              // попадения подред, докато Тут играе
 
     private const double BounceSideSpeed = 520;   // DIP/s при удар в самия край
 
@@ -98,21 +98,9 @@ public sealed partial class PetWindow
     private void StartTrampoline(double seconds, bool quiet = false)
     {
         _onTrampoline = true;
-        _hunting = false;
+        _streak = 0;
         _bounceUntil = seconds > 0 ? Now + seconds : 0;
         if (!quiet) Say(Lines.Pick(Scenes.Trampoline.Start, _save.OwnerName), 3);
-        PlaceTrampoline(_x);
-        BeginBounce();
-    }
-
-    /// <summary>Из екрана има храна: вади батута и отива да си я хване.</summary>
-    private void HuntFoodWithTrampoline()
-    {
-        if (_food.Count == 0) return;
-        _onTrampoline = true;
-        _hunting = true;
-        _bounceUntil = 0;
-        Say(Lines.Pick(Lines.TrampolineHunt, _save.OwnerName), 3);
         PlaceTrampoline(_x);
         BeginBounce();
     }
@@ -155,30 +143,22 @@ public sealed partial class PetWindow
 
     /// <summary>
     /// Отскок. offset е къде е паднал спрямо батута (-1 ляв край, 0 център, +1 десен).
-    /// Ако Тут не играе, мечокът сам се насочва към най-близката храна.
+    /// Сам си подскача ниско. Докато Тут държи батута – по-високо, а след три
+    /// попадения подред – много високо (до най-горната храна).
     /// </summary>
     private void LaunchFromTrampoline(double offset)
     {
         var area = Area;
-        double height = Math.Min(area.Height * 0.55, 520);
-        if (!UserSteering && _food.Count > 0)
-        {
-            // Играе сам: прицелва се така, че да мине през храната на върха на скока.
-            var food = _food.Where(f => !f.IsDragging).OrderBy(f => Math.Abs(f.Left + f.Width / 2 - _x)).FirstOrDefault();
-            if (food != null)
-            {
-                height = Math.Clamp(_trampTop - food.Top - food.Height / 2, 60, area.Height - 40);
-                double up = Math.Sqrt(2 * Gravity * height);
-                double toApex = up / Gravity;
-                _bounceVx = Math.Clamp((food.Left + food.Width / 2 - _x) / toApex, -900, 900);
-                _bounceVy = -up;
-                return;
-            }
-        }
-        if (!UserSteering && _food.Count == 0) height = 60 + _rng.NextDouble() * 160;
+        double top = _trampTop - area.Top - SpriteHeight;   // до горния край на екрана
+        double height;
+        if (!UserSteering) height = 50 + _rng.NextDouble() * 90;
+        else if (_streak >= 3) height = top * (0.85 + _rng.NextDouble() * 0.15);
+        else height = Math.Min(top, 160 + _streak * 110);
+        if (_streak == 3 && UserSteering) Say(Lines.Pick(Lines.SuperBounce, _save.OwnerName), 2);
+
         // Центърът (±20%) праща право нагоре; иначе настрани според мястото.
         _bounceVx = Math.Abs(offset) < 0.2 ? 0 : offset * BounceSideSpeed;
-        _bounceVy = -Math.Sqrt(2 * Gravity * height);
+        _bounceVy = -Math.Sqrt(2 * Gravity * Math.Max(30, height));
     }
 
     private void UpdateBounce(double dt)
@@ -194,15 +174,6 @@ public sealed partial class PetWindow
         if (_x > area.Right - half) { _x = area.Right - half; _bounceVx = -Math.Abs(_bounceVx) * 0.8; }
         if (_bounceVx != 0) _facingLeft = _bounceVx < 0;
 
-        // Играе сам: батутът тръгва към мястото, където ще падне.
-        if (!UserSteering && _trampWindow != null && _bounceVy > 0)
-        {
-            double fallTime = Math.Max(0.05, (_trampTop - _y) / Math.Max(1, _bounceVy));
-            double landX = Math.Clamp(_x + _bounceVx * Math.Min(fallTime, 1.5), area.Left + TrampHalf, area.Right - TrampHalf);
-            double step = Math.Clamp(landX - TrampX, -1200 * dt, 1200 * dt);
-            _trampWindow.MoveTo(TrampX + step);
-        }
-
         if (_bounceVy < 0 || _y < _trampTop) return;
 
         // Пада: на батута ли е?
@@ -210,9 +181,11 @@ public sealed partial class PetWindow
         if (Math.Abs(offset) <= 1.1)
         {
             _y = _trampTop;
+            if (UserSteering) _streak++;
+            else _streak = 0;
             if (ShouldStopBouncing())
             {
-                EndBounce(_hunting ? Lines.Pick(Lines.AllFoodEaten, _save.OwnerName) : Lines.Pick(Scenes.Trampoline.End, _save.OwnerName));
+                EndBounce(Lines.Pick(Scenes.Trampoline.End, _save.OwnerName));
                 return;
             }
             if (!IsQuiet && _rng.Next(5) == 0) Say(Lines.Pick(Scenes.Trampoline.During, _save.OwnerName), 2);
@@ -224,6 +197,7 @@ public sealed partial class PetWindow
         double ground = Area.Bottom;
         if (_y < ground) return;
         _y = ground;
+        _streak = 0;
         Say(Lines.Pick(Lines.MissedTrampoline, _save.OwnerName), 3);
         Play("fall", after: () =>
         {
@@ -236,15 +210,14 @@ public sealed partial class PetWindow
     private bool ShouldStopBouncing()
     {
         bool stay = _save.StayPut && _save.StayScene == Scenes.Trampoline.Id;
-        if (stay) return false;
-        if (_hunting) return _food.Count == 0;
-        return _bounceUntil > 0 && Now > _bounceUntil && _food.Count == 0;
+        if (stay || UserSteering) return false;
+        return _bounceUntil > 0 && Now > _bounceUntil;
     }
 
     private void EndBounce(string? line)
     {
         _onTrampoline = false;
-        _hunting = false;
+        _streak = 0;
         _trampWindow?.Hide();
         if (line != null) Say(line, 3);
         if (_state is BearState.Bounce or BearState.Busy)

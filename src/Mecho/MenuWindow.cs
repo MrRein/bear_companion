@@ -327,7 +327,7 @@ public sealed class MenuWindow : Window
 
         p.Children.Add(Ribbon("Какво да правим?"));
         var actions = new UniformGrid { Columns = 4 };
-        actions.Children.Add(Wide(Button("Нахрани", () => SelectTab(FoodTab), primary: true, icon: "food")));
+        actions.Children.Add(Wide(Button("Нахрани", () => SelectTab(FoodTab), icon: "food")));
         _sleepButton = Wide(Button("", () =>
         {
             if (_pet.IsAsleep) _pet.WakeUp();
@@ -365,13 +365,13 @@ public sealed class MenuWindow : Window
     private void BuildRelaxButtons()
     {
         var s = _pet.Save;
-        var chosen = _pet.ChosenScene;
+        var chosen = _pet.CurrentFun;
         _relaxGrid.Children.Clear();
         var random = Wide(Button("Случайно", () =>
         {
             _pet.Relax(_pet.RandomUnlockedFun());
             Refresh(true);
-        }, primary: true, icon: "dice"));
+        }, icon: "dice"));
         random.HorizontalContentAlignment = HorizontalAlignment.Left;
         random.ToolTip = Tip("Мечокът сам избира едно от отключените кътчета.");
         _relaxGrid.Children.Add(random);
@@ -379,9 +379,11 @@ public sealed class MenuWindow : Window
         {
             var sc = scene;
             bool unlocked = Scenes.IsUnlocked(sc, s);
+            // Каквото прави сега, свети; цъкнеш ли го пак, спира.
             var b = Wide(Button(sc.Name, () =>
             {
-                _pet.Relax(sc);
+                if (_pet.CurrentFun == sc) _pet.GetUp();
+                else _pet.Relax(sc);
                 Refresh(true);
             }, primary: chosen == sc, icon: unlocked ? sc.Icon : "lock"));
             b.HorizontalContentAlignment = HorizontalAlignment.Left;
@@ -392,7 +394,7 @@ public sealed class MenuWindow : Window
                 b.ToolTip = Tip($"Заключено. Трябва „{item?.Name}“ от магазина ({item?.Price} лешника).");
                 ToolTipService.SetShowOnDisabled(b, true);
             }
-            else if (chosen == sc) b.ToolTip = Tip("Сега прави това. „Стани“ го спира.");
+            else if (chosen == sc) b.ToolTip = Tip("Сега прави това. Цъкни пак, за да спре.");
             _relaxGrid.Children.Add(b);
         }
     }
@@ -1019,7 +1021,7 @@ public sealed class MenuWindow : Window
         if (_pet.IsAsleep) SetButton(_sleepButton, "Събуди", "sun");
         else SetButton(_sleepButton, "Приспи", "moon");
         _sleepButton.IsEnabled = _pet.CanSleep;
-        _couchButton.IsEnabled = _pet.StaysPut;
+        _couchButton.IsEnabled = _pet.StaysPut || _pet.CurrentFun != null;
         if (_pet.IsQuiet) SetButton(_quietButton, "Говори", "bell");
         else SetButton(_quietButton, "Тихо 1 ч", "quiet");
 

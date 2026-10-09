@@ -177,6 +177,8 @@ public static class Lines
 
     public static readonly string[] MissedTrampoline = { "Ох! Изпуснах батута!", "Бум! Къде отиде батутът?", "Ауч! Дръж батута под мен!" };
 
+    public static readonly string[] SuperBounce = { "Три подред! СУПЕР СКОК!", "Уиииии! До небето!", "Комбо! Летяяя!" };
+
     public static string Greeting(string owner)
     {
         int h = DateTime.Now.Hour;
