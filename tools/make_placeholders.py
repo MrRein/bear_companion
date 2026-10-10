@@ -15,12 +15,17 @@ SIZE = 32
 OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "bear")
 PROPS = os.path.join(os.path.dirname(__file__), "..", "assets", "props")
 
-OUTLINE = (59, 36, 20, 255)
-FUR = (139, 90, 43, 255)
-LIGHT = (196, 138, 79, 255)
-MUZZLE = (232, 196, 150, 255)
-BLACK = (25, 18, 12, 255)
-PINK = (240, 140, 150, 255)
+# Анимациите, които вече са нарисувани на ръка: скриптът не ги пипа (нито
+# шаблоните им за дрехи; тях ги прави tools/auto_clothes.py или Тут).
+HAND_DRAWN = {"idle"}
+
+# Цветовете са от мечока на Тут (assets/bear/idle.png).
+OUTLINE = (88, 29, 8, 255)
+FUR = (180, 108, 65, 255)
+LIGHT = (208, 154, 104, 255)
+MUZZLE = (251, 232, 195, 255)
+BLACK = (0, 0, 0, 255)
+PINK = (199, 122, 102, 255)
 WHITE = (255, 255, 255, 255)
 NUT = (150, 95, 40, 255)
 PAPER = (245, 240, 225, 255)
@@ -873,6 +878,12 @@ def main():
     manifest = {"frameWidth": SIZE, "frameHeight": SIZE, "scale": 3, "animations": {}}
     preview = Image.new("RGBA", (SIZE * 4 + 5, (SIZE + 1) * len(ANIMS)), (90, 120, 90, 255))
     for row, (name, (frames, fps, loop)) in enumerate(ANIMS.items()):
+        if name in HAND_DRAWN:
+            drawn = Image.open(os.path.join(OUT, f"{name}.png")).convert("RGBA")
+            for i in range(min(4, drawn.width // SIZE)):
+                preview.alpha_composite(drawn.crop((i * SIZE, 0, i * SIZE + SIZE, SIZE)), (i * (SIZE + 1), row * (SIZE + 1)))
+            manifest["animations"][name] = {"file": f"{name}.png", "fps": fps, "loop": loop}
+            continue
         strip = Image.new("RGBA", (SIZE * len(frames), SIZE), (0, 0, 0, 0))
         for i, f in enumerate(frames):
             strip.paste(f, (i * SIZE, 0))

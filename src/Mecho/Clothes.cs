@@ -156,7 +156,7 @@ public sealed class Dresser
     private static BitmapSource? Pick(BitmapSource[]? strip, int index) =>
         strip == null || strip.Length == 0 ? null : strip[index % strip.Length];
 
-    /// <summary>Сивият шаблон става дреха: тъмното е контур, средното е цветът, светлото е отблясък.</summary>
+    /// <summary>Сивият шаблон става дреха: под 80 контур, до 135 сянка, после цветът, над 200 отблясък.</summary>
     private static void Paint(uint[] px, int w, uint[] mask, int mw, int mh, Garment g)
     {
         int top = int.MaxValue;
@@ -180,8 +180,9 @@ public sealed class Dresser
                     _ => false,
                 };
                 var c = alt ? g.Alt : g.Main;
-                if (gray < 100) c = Mix(c, Color.FromRgb(40, 25, 15), 0.6);
-                else if (gray > 200) c = Mix(c, Colors.White, 0.3);
+                if (gray < 80) c = Mix(c, Color.FromRgb(40, 25, 15), 0.6);          // контур
+                else if (gray < 135) c = Mix(c, Color.FromRgb(40, 25, 15), 0.25);   // сянка
+                else if (gray > 200) c = Mix(c, Colors.White, 0.3);                // отблясък
                 px[(y + HatRoom) * w + x] = 0xFF000000u | ((uint)c.R << 16) | ((uint)c.G << 8) | c.B;
             }
         }

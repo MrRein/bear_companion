@@ -214,7 +214,9 @@ Sans / Bold / Mono (GGBotNet, SIL Open Font License) в `src/Mecho/fonts/`.
 
 В Aseprite: мечокът е един слой, а над него слоеве „shirt“, „pants“, „shoes“,
 „gloves“ и „head“; всеки се експортира като отделна лента. Placeholder-ите се
-правят от `tools/make_placeholders.py`.
+правят от `tools/make_placeholders.py`. За нарисуван мечок отпред
+`python tools/auto_clothes.py idle` прави шаблоните сам (по редовете на тялото);
+`make_placeholders.py` не пипа анимациите от списъка `HAND_DRAWN`.
 
 Ако някой файл липсва, на негово място излиза кафяв квадрат с името на анимацията.
 
