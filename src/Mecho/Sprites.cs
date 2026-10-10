@@ -18,11 +18,12 @@ public sealed class SpriteAnimation
 
     public double Duration => Frames.Length / Fps;
 
-    public BitmapSource FrameAt(double time)
+    public BitmapSource FrameAt(double time) => Frames[IndexAt(time)];
+
+    public int IndexAt(double time)
     {
         int i = (int)(time * Fps);
-        i = Loop ? i % Frames.Length : Math.Min(i, Frames.Length - 1);
-        return Frames[i];
+        return Loop ? i % Frames.Length : Math.Min(i, Frames.Length - 1);
     }
 }
 
@@ -71,6 +72,9 @@ public sealed class SpriteLibrary
 
     private readonly Dictionary<string, SpriteAnimation> _anims = new();
     private readonly Dictionary<string, Prop> _props = new();
+    private readonly Dictionary<string, string> _files = new();
+    private readonly Dictionary<string, BitmapSource[]?> _layers = new();
+    private readonly Dictionary<string, BitmapSource?> _clothes = new();
 
     public int FrameWidth { get; private set; } = 32;
     public int FrameHeight { get; private set; } = 32;
@@ -78,6 +82,7 @@ public sealed class SpriteLibrary
 
     public static string Folder => Path.Combine(AppContext.BaseDirectory, "assets", "bear");
     public static string PropsFolder => Path.Combine(AppContext.BaseDirectory, "assets", "props");
+    public static string ClothesFolder => Path.Combine(AppContext.BaseDirectory, "assets", "clothes");
 
     public static SpriteLibrary Load()
     {
@@ -101,6 +106,7 @@ public sealed class SpriteLibrary
         foreach (var (name, entry) in manifest.Animations)
         {
             var frames = lib.LoadStrip(entry.File ?? name + ".png");
+            lib._files[name] = entry.File ?? name + ".png";
             if (frames != null)
                 lib._anims[name] = new SpriteAnimation { Frames = frames, Fps = Math.Max(0.1, entry.Fps), Loop = entry.Loop };
         }
@@ -161,6 +167,29 @@ public sealed class SpriteLibrary
         a = new SpriteAnimation { Frames = new[] { Placeholder(name, FrameWidth, FrameHeight) }, Fps = 1, Loop = true };
         _anims[name] = a;
         return a;
+    }
+
+    /// <summary>
+    /// Слой към анимация: лентата &lt;файл&gt;_&lt;layer&gt;.png до нея (шаблон за блуза,
+    /// точката за шапката…), или null, ако го няма.
+    /// </summary>
+    public BitmapSource[]? Layer(string anim, string layer)
+    {
+        string key = anim + "|" + layer;
+        if (_layers.TryGetValue(key, out var frames)) return frames;
+        string file = _files.TryGetValue(anim, out var f) ? f : anim + ".png";
+        frames = LoadStrip(Path.GetFileNameWithoutExtension(file) + "_" + layer + ".png");
+        _layers[key] = frames;
+        return frames;
+    }
+
+    /// <summary>Рисунка от assets/clothes (например шапка), или null.</summary>
+    public BitmapSource? Clothes(string name)
+    {
+        if (_clothes.TryGetValue(name, out var img)) return img;
+        img = LoadPng(Path.Combine(ClothesFolder, name + ".png"));
+        _clothes[name] = img;
+        return img;
     }
 
     private BitmapSource[]? LoadStrip(string file)

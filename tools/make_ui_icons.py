@@ -500,6 +500,84 @@ kkkkkkkkkkkk
 kuuuuuuuuuuk
 kkkkkkkkkkkk
 .k...k..k..k""",
+    "wardrobe": """
+kkkkkkkkkkkk
+kmmmmkkmmmmk
+kmnnmkkmnnmk
+kmnnmkkmnnmk
+kmnnmkkmnnmk
+kmnnykkynnmk
+kmnnmkkmnnmk
+kmnnmkkmnnmk
+kmmmmkkmmmmk
+kkkkkkkkkkkk
+.km......mk.
+............""",
+    "hat": """
+............
+.....kk.....
+....kwwk....
+.....kk.....
+...kkrrkk...
+..krrrrrrk..
+.krrrrrrrrk.
+.krrrrrrrrk.
+kkwkwkwkwkwk
+kwwwwwwwwwwk
+kkkkkkkkkkkk
+............""",
+    "shirt": """
+............
+..kkk..kkk..
+.kuuukkuuuk.
+kuuuuuuuuuuk
+kuuuuuuuuuuk
+kkkuuuuuukkk
+..kwwwwwwk..
+..kuuuuuuk..
+..kwwwwwwk..
+..kuuuuuuk..
+..kkkkkkkk..
+............""",
+    "pants": """
+............
+.kkkkkkkkkk.
+.kuuuuuuuuk.
+.kuukuuuuuk.
+.kuuuukuuuk.
+.kuuuk.kuuk.
+.kuuuk.kuuk.
+.kuuuk.kuuk.
+.kuuuk.kuuk.
+.kkkkk.kkkk.
+............
+............""",
+    "shoe": """
+............
+............
+...kkkk.....
+...krrk.....
+...kwwk.....
+...krrkkk...
+..krrrrrrk..
+.krrrrrrrrk.
+.kwwwwwwwwk.
+.kkkkkkkkkk.
+............
+............""",
+    "glove": """
+............
+...k.k.k....
+..kwkwkwk...
+..kwkwkwk...
+..kwwwwwwk..
+kkkwwwwwwk..
+kwwkwwwwwk..
+.kwwwwwwwk..
+..kwwwwwk...
+..kkkkkkk...
+..krrrrrk...
+..kkkkkkk...""",
     "check": """
 ............
 ..........kk

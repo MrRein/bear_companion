@@ -48,6 +48,7 @@ public sealed partial class PetWindow : Window
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly Updater _updater = new();
     private SpriteLibrary _lib;
+    private readonly Dresser _dresser = new();
 
     // Положение в екранни DIP: x е средата на мечока, y е под стъпалата.
     private double _x, _y, _vy, _fallFrom;
@@ -712,8 +713,9 @@ public sealed partial class PetWindow : Window
 
     // ───────────────────────── Рисуване ─────────────────────────
 
-    private double SpriteWidth => _sprite.Width;
-    private double SpriteHeight => _sprite.Height;
+    // Размерът на самия мечок (картинката е по-висока: отгоре има място за шапка).
+    private double SpriteWidth => _lib.FrameWidth * PixelSize;
+    private double SpriteHeight => _lib.FrameHeight * PixelSize;
 
     /// <summary>Колко DIP е един пиксел от рисунката.</summary>
     private double PixelSize { get; set; } = 3;
@@ -728,13 +730,15 @@ public sealed partial class PetWindow : Window
         int pixelScale = Math.Max(1, (int)Math.Round(_lib.Scale * dpi));
         PixelSize = pixelScale / dpi;
         _sprite.Width = _lib.FrameWidth * PixelSize;
-        _sprite.Height = _lib.FrameHeight * PixelSize;
+        _sprite.Height = (_lib.FrameHeight + Dresser.HatRoom) * PixelSize;
         SizeSceneArt();
     }
 
     private void UpdateFrame()
     {
-        var frame = _lib.Get(_anim).FrameAt(_animTime);
+        var frame = _dresser.Frame(_lib, _anim, _lib.Get(_anim).IndexAt(_animTime), _save.Outfit);
+        // Докато се преоблича, е скрит зад вратата на гардероба.
+        _sprite.Visibility = Dressing ? Visibility.Hidden : Visibility.Visible;
         if (!ReferenceEquals(frame, _shownFrame))
         {
             _shownFrame = frame;
@@ -777,10 +781,11 @@ public sealed partial class PetWindow : Window
             // Предметът стои до мечока (отляво или отдясно), стъпил на същата земя.
             double overlap = 2 * PixelSize;
             double left = _scene!.SideDir < 0 ? bear.Left - _side.Width + overlap : bear.Right - overlap;
+            left += WardrobeShake;
             side = new Rect(left, ys - _side.Height, _side.Width, _side.Height);
         }
 
-        double above = bear.Top - 4;
+        double above = bear.Top - 4 - (WearsHat ? 5 * PixelSize : 0);
         Rect tag = Rect.Empty;
         if (_timerTag.Visibility == Visibility.Visible)
         {
@@ -814,7 +819,7 @@ public sealed partial class PetWindow : Window
         Rect butterfly = ButterflyRect;
         var nuts = JuggleRects(bear);
 
-        Place(_sprite, bear, _window.Left, _window.Top, dpi);
+        Place(_sprite, new Rect(bear.Left, bear.Top - Dresser.HatRoom * PixelSize, bear.Width, _sprite.Height), _window.Left, _window.Top, dpi);
         if (hasSeat) Place(_seat, seat, _window.Left, _window.Top, dpi);
         if (hasSide) Place(_side, side, _window.Left, _window.Top, dpi);
         if (!bubble.IsEmpty) Place(_bubble, bubble, _window.Left, _window.Top, dpi);

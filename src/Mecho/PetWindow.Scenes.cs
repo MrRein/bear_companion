@@ -36,6 +36,13 @@ public static class Scenes
         new[] { "Уф, задъхах се. Стига скачане.", "Добре, слизам.", "Краката ми са като желе!" })
     { Name = "Скачай на батута", Icon = "trampoline", Unlock = Kitchen.Trampoline };
 
+    /// <summary>Гардеробът: появява се до него, докато е отворен табът „Гардероб“.</summary>
+    public static readonly Scene Wardrobe = new("wardrobe", null, "wardrobe", 1, "idle",
+        new[] { "*отваря гардероба* Какво да облека?", "Гардеробът! Ще ме облечеш ли?", "*рови в гардероба* Мм, толкова избор." },
+        Array.Empty<string>(),
+        new[] { "*затваря гардероба* Готов съм!", "Как изглеждам?", "Модата е важна за мечките." })
+    { Name = "Гардероб", Icon = "wardrobe" };
+
     public static Scene ById(string? id) => Fun.FirstOrDefault(s => s.Id == id) ?? Reading;
 
     public static bool IsUnlocked(Scene scene, SaveData save) => scene.Unlock == null || Kitchen.Owns(save, scene.Unlock);
@@ -239,6 +246,12 @@ public sealed partial class PetWindow
         {
             Say(Lines.Pick(scene.End, _save.OwnerName), 3);
             LeaveScene();
+            return;
+        }
+
+        if (scene == Scenes.Wardrobe)
+        {
+            UpdateWardrobe(now);
             return;
         }
 

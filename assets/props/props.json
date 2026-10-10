@@ -113,6 +113,10 @@
       "file": "food_potatoes.png",
       "seat": 0
     },
+    "wardrobe": {
+      "file": "wardrobe.png",
+      "seat": 0
+    },
     "shop_easel": {
       "file": "shop_easel.png",
       "seat": 0

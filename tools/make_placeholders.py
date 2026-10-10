@@ -36,10 +36,50 @@ def oval(d, box, fill, outline=OUTLINE):
     d.ellipse(box, fill=fill, outline=outline)
 
 
+# Части от тялото за дрехите. Всеки кадър има и „карта“: кой пиксел е блуза,
+# панталон, обувки или ръкавици. От нея стават сивите шаблони <anim>_shirt.png
+# и т.н.; програмата ги оцветява в цвета на дрехата.
+OTHER, SHIRT, PANTS, SHOES, GLOVES, ARM = 1, 2, 3, 4, 5, 6
+SLOTS = {"shirt": SHIRT, "pants": PANTS, "shoes": SHOES, "gloves": GLOVES}
+
+
+class Dual:
+    """Рисува едновременно мечока и картата с частите (с цвета на текущата част)."""
+
+    def __init__(self, img):
+        self.img = img
+        self.ids = Image.new("L", img.size, 0)
+        self.d = ImageDraw.Draw(img)
+        self.m = ImageDraw.Draw(self.ids)
+        self.part = OTHER
+
+    def __getattr__(self, name):
+        real, ids = getattr(self.d, name), getattr(self.m, name)
+
+        def both(*args, **kw):
+            real(*args, **kw)
+            kw = {k: (self.part if k in ("fill", "outline") and v is not None else v) for k, v in kw.items()}
+            ids(*args, **kw)
+        return both
+
+    def relabel(self, src, dst, test):
+        """Пикселите от част src, за които test(x, y) е вярно, стават част dst."""
+        px = self.ids.load()
+        for yy in range(self.ids.height):
+            for xx in range(self.ids.width):
+                if px[xx, yy] == src and test(xx, yy):
+                    px[xx, yy] = dst
+
+
+def part(d, which):
+    if isinstance(d, Dual):
+        d.part = which
+
+
 def bear(eyes="open", mouth="none", arms="down", legs="stand", bob=0, ears="up", extra=None):
     """Мечок отпред. bob мести всичко без стъпалата нагоре/надолу."""
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
+    d = Dual(img)
     y = bob
 
     # крака
@@ -53,10 +93,12 @@ def bear(eyes="open", mouth="none", arms="down", legs="stand", bob=0, ears="up",
         feet = [(10, 26 + y, 13, 31), (18, 26 + y, 21, 31)]
     else:  # sit: краката напред, тялото ниско
         feet = [(6, 27, 12, 31), (19, 27, 25, 31)]
+    part(d, SHOES)
     for f in feet:
         oval(d, f, FUR)
 
     # уши
+    part(d, OTHER)
     if ears == "up":
         oval(d, (5, 1 + y, 11, 7 + y), FUR)
         oval(d, (20, 1 + y, 26, 7 + y), FUR)
@@ -66,9 +108,11 @@ def bear(eyes="open", mouth="none", arms="down", legs="stand", bob=0, ears="up",
         oval(d, (3, 4 + y, 9, 9 + y), FUR)
         oval(d, (22, 4 + y, 28, 9 + y), FUR)
 
-    # тяло и коремче
+    # тяло и коремче: горе блуза, долу панталон
+    part(d, SHIRT)
     oval(d, (8, 15 + y, 23, 29 + y), FUR)
     oval(d, (12, 19 + y, 19, 27 + y), LIGHT, outline=None)
+    d.relabel(SHIRT, PANTS, lambda xx, yy: yy >= 25 + y)
 
     # ръце
     left, right = {
@@ -78,10 +122,23 @@ def bear(eyes="open", mouth="none", arms="down", legs="stand", bob=0, ears="up",
         "right_up": ((5, 17, 9, 25), (23, 8, 27, 17)),
         "front": ((10, 18, 15, 23), (16, 18, 21, 23)),
     }[arms]
-    oval(d, (left[0], left[1] + y, left[2], left[3] + y), FUR)
-    oval(d, (right[0], right[1] + y, right[2], right[3] + y), FUR)
+    for a in (left, right):
+        part(d, ARM)
+        box = (a[0], a[1] + y, a[2], a[3] + y)
+        oval(d, box, FUR)
+        # Лапите (3 реда в края на ръката) са ръкавици, останалото е ръкав.
+        if arms == "front":
+            paw = lambda xx, yy: True
+        elif box[1] < 15 + y:   # вдигната ръка: лапата е горе
+            paw = lambda xx, yy, b=box: yy <= b[1] + 2
+        else:
+            paw = lambda xx, yy, b=box: yy >= b[3] - 2
+        d.relabel(ARM, GLOVES, paw)
+        d.relabel(ARM, SHIRT, lambda xx, yy: True)
 
     # глава и муцуна
+    part(d, OTHER)
+    img.head = (16, 5 + y)   # точката за шапката: средата на долния ѝ ръб
     oval(d, (6, 2 + y, 25, 19 + y), FUR)
     oval(d, (12, 11 + y, 19, 17 + y), MUZZLE, outline=None)
     d.rectangle((15, 12 + y, 16, 13 + y), fill=BLACK)
@@ -134,21 +191,27 @@ def bear(eyes="open", mouth="none", arms="down", legs="stand", bob=0, ears="up",
 
     if extra:
         extra(d, y)
+    img.ids = d.ids
     return img
 
 
 def sleeping(z):
     """Мечок, свит на кълбо, с Z-та над него."""
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
+    d = Dual(img)
     breathe = z % 2
+    part(d, SHIRT)
     oval(d, (3, 18 - breathe, 28, 31), FUR)
+    part(d, OTHER)
     oval(d, (4, 15, 10, 20), FUR)  # ухо
     oval(d, (3, 19, 15, 30), FUR)  # глава
+    img.head = (10, 21)
     oval(d, (4, 24, 10, 29), MUZZLE, outline=None)
     d.rectangle((4, 25, 5, 26), fill=BLACK)
     d.line((8, 22, 10, 22), fill=BLACK)  # затворено око
+    part(d, SHOES)
     oval(d, (20, 25, 27, 31), FUR)  # краче
+    part(d, OTHER)
     # мехурче от носа
     if z in (1, 2):
         r = z + 1
@@ -160,6 +223,7 @@ def sleeping(z):
         d.line((x, yy, x + s, yy), fill=WHITE)
         d.line((x + s, yy, x, yy + s), fill=WHITE)
         d.line((x, yy + s, x + s, yy + s), fill=WHITE)
+    img.ids = d.ids
     return img
 
 
@@ -659,6 +723,74 @@ def shop_cookbook(d):
     d.point((8, 6), fill=(230, 180, 70, 255))
 
 
+def wardrobe(d):
+    """Гардероб с отворени врати и дрешки вътре, 26 x 34."""
+    d.rectangle((5, 0, 20, 33), fill=(110, 70, 35, 255), outline=OUTLINE)   # корпус
+    d.rectangle((7, 2, 18, 29), fill=(60, 38, 22, 255))                     # вътре
+    d.line((7, 4, 18, 4), fill=GREY)                                        # лост
+    for x, c in [(8, RED), (12, (90, 140, 210, 255)), (15, (120, 180, 80, 255))]:
+        d.line((x + 1, 4, x + 1, 5), fill=GREY)
+        d.rectangle((x, 6, x + 2, 13), fill=c, outline=OUTLINE)             # закачени дрешки
+    d.rectangle((8, 22, 17, 27), fill=(255, 209, 102, 255), outline=OUTLINE)  # кутия с шапки
+    d.rectangle((0, 1, 5, 31), fill=(150, 95, 50, 255), outline=OUTLINE)    # лява врата
+    d.rectangle((20, 1, 25, 31), fill=(150, 95, 50, 255), outline=OUTLINE)  # дясна врата
+    d.point((4, 16), fill=(255, 209, 102, 255))
+    d.point((21, 16), fill=(255, 209, 102, 255))
+    d.rectangle((6, 31, 7, 33), fill=OUTLINE)
+    d.rectangle((18, 31, 19, 33), fill=OUTLINE)
+
+
+# Шапките: 16 широки, долният ред е там, където шапката сяда на главата
+# (точката от <anim>_head.png). Рисунката е assets/clothes/hat_<id>.png.
+def hat_beanie(d):
+    d.ellipse((6, 0, 9, 3), fill=WHITE, outline=OUTLINE)               # помпон
+    d.pieslice((2, 2, 13, 14), 180, 360, fill=RED, outline=OUTLINE)
+    d.rectangle((1, 7, 14, 9), fill=WHITE, outline=OUTLINE)            # подгъв
+    for x in (3, 6, 9, 12):
+        d.point((x, 5), fill=(250, 120, 110, 255))
+
+
+def hat_beret(d):
+    d.line((8, 2, 8, 3), fill=OUTLINE)                                 # опашчица
+    d.ellipse((1, 3, 15, 9), fill=(60, 60, 120, 255), outline=OUTLINE)
+    d.line((4, 5, 8, 4), fill=(110, 110, 180, 255))
+    d.rectangle((4, 8, 12, 9), fill=(45, 45, 90, 255), outline=OUTLINE)
+
+
+def hat_cap(d):
+    d.pieslice((3, 1, 13, 13), 180, 360, fill=(90, 140, 210, 255), outline=OUTLINE)
+    d.point((8, 1), fill=OUTLINE)
+    d.line((5, 4, 7, 3), fill=(150, 190, 240, 255))
+    d.rectangle((0, 7, 15, 9), fill=(60, 100, 170, 255), outline=OUTLINE)  # козирка
+
+
+def hat_party(d):
+    d.polygon([(8, 0), (3, 9), (12, 9)], fill=(240, 140, 150, 255), outline=OUTLINE)
+    d.line((5, 6, 11, 6), fill=(255, 209, 102, 255))
+    d.line((7, 3, 9, 3), fill=(90, 140, 210, 255))
+    d.ellipse((7, 0, 9, 1), fill=(255, 209, 102, 255))
+
+
+def hat_chef(d):
+    for box in [(2, 0, 8, 6), (7, 0, 13, 6), (4, 1, 11, 7)]:
+        d.ellipse(box, fill=WHITE, outline=OUTLINE)
+    d.ellipse((4, 1, 11, 7), fill=WHITE)
+    d.rectangle((3, 5, 12, 9), fill=WHITE, outline=OUTLINE)
+    d.line((4, 6, 11, 6), fill=(220, 220, 225, 255))
+
+
+def hat_crown(d):
+    gold, dark = (255, 209, 102, 255), (200, 150, 40, 255)
+    d.polygon([(2, 9), (2, 2), (5, 5), (8, 0), (11, 5), (14, 2), (14, 9)], fill=gold, outline=OUTLINE)
+    d.line((3, 8, 13, 8), fill=dark)
+    d.point((8, 5), fill=RED)
+    d.point((5, 7), fill=(90, 140, 210, 255))
+    d.point((11, 7), fill=(120, 180, 80, 255))
+
+
+HATS = {"beanie": hat_beanie, "beret": hat_beret, "cap": hat_cap, "party": hat_party, "chef": hat_chef, "crown": hat_crown}
+
+
 PROP_LIST = {
     # име: (рисунка, на колко пиксела от земята е седалката)
     "couch": (couch(), 10),
@@ -689,7 +821,51 @@ PROP_LIST = {
     "food_popcorn": (food_popcorn(), 0),
     "food_meatballs": (food_meatballs(), 0),
     "food_potatoes": (food_potatoes(), 0),
+    "wardrobe": (prop(26, 34, wardrobe), 0),
 }
+
+
+def save_clothes_layers(name, frames):
+    """Шаблоните за дрехите (сиви) и точката за шапката, по един на анимация."""
+    for slot, which in SLOTS.items():
+        strip = Image.new("RGBA", (SIZE * len(frames), SIZE), (0, 0, 0, 0))
+        any_pixel = False
+        for i, f in enumerate(frames):
+            ids = getattr(f, "ids", None)
+            if ids is None:
+                continue
+            for y in range(SIZE):
+                for x in range(SIZE):
+                    if ids.getpixel((x, y)) != which:
+                        continue
+                    c = f.getpixel((x, y))
+                    if c[3] == 0:
+                        continue
+                    # Три тона: контур, основен цвят, светло (коремчето).
+                    g = 60 if c == OUTLINE else 230 if c in (LIGHT, MUZZLE) else 160
+                    strip.putpixel((i * SIZE + x, y), (g, g, g, 255))
+                    any_pixel = True
+        path = os.path.join(OUT, f"{name}_{slot}.png")
+        if any_pixel:
+            strip.save(path)
+        elif os.path.exists(path):
+            os.remove(path)
+    strip = Image.new("RGBA", (SIZE * len(frames), SIZE), (0, 0, 0, 0))
+    for i, f in enumerate(frames):
+        if hasattr(f, "head"):
+            hx, hy = f.head
+            if 0 <= hy < SIZE:
+                strip.putpixel((i * SIZE + hx, hy), (255, 0, 255, 255))
+    strip.save(os.path.join(OUT, f"{name}_head.png"))
+
+
+def save_hats():
+    folder = os.path.join(os.path.dirname(__file__), "..", "assets", "clothes")
+    os.makedirs(folder, exist_ok=True)
+    for name, fn in HATS.items():
+        img = Image.new("RGBA", (16, 10), (0, 0, 0, 0))
+        fn(ImageDraw.Draw(img))
+        img.save(os.path.join(folder, f"hat_{name}.png"))
 
 
 def main():
@@ -703,6 +879,7 @@ def main():
             if i < 4:
                 preview.alpha_composite(f, (i * (SIZE + 1), row * (SIZE + 1)))
         strip.save(os.path.join(OUT, f"{name}.png"))
+        save_clothes_layers(name, frames)
         manifest["animations"][name] = {"file": f"{name}.png", "fps": fps, "loop": loop}
     with open(os.path.join(OUT, "anim.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2, ensure_ascii=False)
@@ -726,6 +903,7 @@ def main():
         json.dump(props, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
 
+    save_hats()
     preview.resize((preview.width * 4, preview.height * 4), Image.NEAREST).save(
         os.path.join(os.path.dirname(__file__), "placeholders_preview.png"))
 

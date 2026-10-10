@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -19,14 +20,14 @@ namespace Mecho;
 /// </summary>
 public sealed class MenuWindow : Window
 {
-    public const int BearTab = 0, FoodTab = 1, ShopTab = 2, TasksTab = 3, NotesTab = 4, PomodoroTab = 5, MoreTab = 6;
+    public const int BearTab = 0, FoodTab = 1, ShopTab = 2, WardrobeTab = 3, TasksTab = 4, NotesTab = 5, PomodoroTab = 6, MoreTab = 7;
 
     private const int Segments = 10; // деленца в лентите за ситост и енергия
 
     private readonly PetWindow _pet;
     private readonly DispatcherTimer _refresh;
-    private readonly Border[] _tabButtons = new Border[7];
-    private readonly UIElement[] _tabs = new UIElement[7];
+    private readonly Border[] _tabButtons = new Border[8];
+    private readonly UIElement[] _tabs = new UIElement[8];
 
     /// <summary>Мерна единица: всичко е пропорционално на големината на шрифта.</summary>
     private static double U => Body / 18;
@@ -41,6 +42,9 @@ public sealed class MenuWindow : Window
     private readonly UniformGrid _foodTiles = new() { Columns = 3 };
     private readonly StackPanel _shopTiles = new();   // раздели: кухня, за почивка, подобрения
     private TextBlock _foodInfo = null!, _shopInfo = null!;
+    private readonly StackPanel _wardrobeShelves = new();
+    private readonly StackPanel _wornList = new();
+    private Image _model = null!;
     private readonly StackPanel _taskList = new();
     private TextBlock _taskSummary = null!;
     private TextBox _taskInput = null!;
@@ -79,12 +83,13 @@ public sealed class MenuWindow : Window
         _tabs[BearTab] = BuildBearTab();
         _tabs[FoodTab] = BuildFoodTab();
         _tabs[ShopTab] = BuildShopTab();
+        _tabs[WardrobeTab] = BuildWardrobeTab();
         _tabs[TasksTab] = BuildTasksTab();
         _tabs[NotesTab] = BuildNotesTab();
         _tabs[PomodoroTab] = BuildPomodoroTab();
         _tabs[MoreTab] = BuildMoreTab();
 
-        var content = new Grid { Width = 680 * U, MinHeight = 380 * U };
+        var content = new Grid { Width = 740 * U, MinHeight = 380 * U };
         foreach (var t in _tabs) content.Children.Add(t);
 
         var root = new DockPanel();
@@ -125,6 +130,7 @@ public sealed class MenuWindow : Window
             else
             {
                 _refresh.Stop();
+                _pet.CloseWardrobe();
                 _pet.MenuClosed();
             }
         };
@@ -144,6 +150,7 @@ public sealed class MenuWindow : Window
     {
         SelectTab(tab);
         Show();
+        if (tab == WardrobeTab) _pet.OpenWardrobe();
         UpdateLayout();
 
         var s = _pet.Save;
@@ -177,6 +184,9 @@ public sealed class MenuWindow : Window
             _tabButtons[i].BorderThickness = on ? new Thickness(2, 2, 2, 0) : new Thickness(2, 2, 2, 2);
             _tabButtons[i].Margin = new Thickness(i == 0 ? 0 : 3, on ? 0 : 5 * U, 0, on ? -2 : 0);
         }
+        // Гардеробът стои до мечока, докато е отворен табът.
+        if (index == WardrobeTab && IsVisible) _pet.OpenWardrobe();
+        else if (index != WardrobeTab) _pet.CloseWardrobe();
         Refresh(rebuild: true);
         if (index == TasksTab) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
         if (index == NotesTab) Dispatcher.BeginInvoke(() => _noteInput.Focus(), DispatcherPriority.Input);
@@ -247,7 +257,7 @@ public sealed class MenuWindow : Window
         var grid = new Grid { Margin = new Thickness(2, 0, 2, 0) };
         (string Icon, string Name)[] tabs =
         {
-            ("bear", "Мечо"), ("food", "Храна"), ("shop", "Магазин"), ("tasks", "Задачи"), ("notes", "Бележки"), ("clock", "Време"), ("gear", "Още"),
+            ("bear", "Мечо"), ("food", "Храна"), ("shop", "Магазин"), ("wardrobe", "Гардероб"), ("tasks", "Задачи"), ("notes", "Бележки"), ("clock", "Време"), ("gear", "Още"),
         };
         for (int i = 0; i < tabs.Length; i++)
         {
@@ -582,9 +592,9 @@ public sealed class MenuWindow : Window
     /// в мрежата всички бутони стоят на една линия, колкото и дълги да са имената.
     /// why = подсказка при посочване (защо е заключено и т.н.).
     /// </summary>
-    private static Border MakeTile(BitmapSource art, string name, UIElement details, Button action, bool dim, string? why, bool owned = false)
+    private static Border MakeTile(BitmapSource art, string name, UIElement details, Button action, bool dim, string? why, bool owned = false, int artScale = 4)
     {
-        var image = Pixel(art, ArtScale(4));
+        var image = Pixel(art, ArtScale(artScale));
         image.HorizontalAlignment = HorizontalAlignment.Center;
         image.VerticalAlignment = VerticalAlignment.Center;
         if (dim) image.Opacity = 0.35;
@@ -653,6 +663,119 @@ public sealed class MenuWindow : Window
             ToolTipService.SetInitialShowDelay(tile, 200);
         }
         return tile;
+    }
+
+    // ───────────────────────── Гардероб ─────────────────────────
+
+    private UIElement BuildWardrobeTab()
+    {
+        var p = new StackPanel();
+        var top = new Grid { Margin = new Thickness(0, 0, 0, 6 * U) };
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        top.ColumnDefinitions.Add(new ColumnDefinition());
+
+        // Мечокът в цял ръст с облеклото, като в огледало.
+        _model = Pixel(_pet.Portrait, ArtScale(3));
+        _model.HorizontalAlignment = HorizontalAlignment.Center;
+        _model.VerticalAlignment = VerticalAlignment.Bottom;
+        _model.Margin = new Thickness(0, 0, 0, 6 * U);
+        top.Children.Add(new Border
+        {
+            Background = TileArt,
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(3, 3, 3, 5),
+            CornerRadius = new CornerRadius(6),
+            Width = 150 * U,
+            Height = 150 * U,
+            Child = _model,
+            VerticalAlignment = VerticalAlignment.Top,
+        });
+
+        var right = new StackPanel { Margin = new Thickness(16 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        right.Children.Add(new TextBlock { Text = "Облечено", FontSize = Ui.Title, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6 * U) });
+        right.Children.Add(_wornList);
+        right.Children.Add(new TextBlock
+        {
+            Text = "Дрехите се купуват с лешници. Облечи някоя и мечокът ще се преоблече зад вратата на гардероба.",
+            Foreground = Muted,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6 * U, 0, 0),
+        });
+        Grid.SetColumn(right, 1);
+        top.Children.Add(right);
+        p.Children.Add(top);
+        p.Children.Add(_wardrobeShelves);
+        return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+    }
+
+    private void BuildWardrobe()
+    {
+        var s = _pet.Save;
+        _model.Source = _pet.Portrait;
+
+        _wornList.Children.Clear();
+        foreach (var slot in Clothes.Shelves)
+        {
+            var g = Clothes.Worn(s, slot);
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
+            var icon = Icon(slot.Icon);
+            icon.Margin = new Thickness(0, 0, 6, 0);
+            icon.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(icon, Dock.Left);
+            row.Children.Add(icon);
+            if (g != null)
+            {
+                var off = Chip("✕", () => _pet.TakeOff(slot));
+                off.ToolTip = Tip("Свали");
+                off.VerticalAlignment = VerticalAlignment.Center;
+                DockPanel.SetDock(off, Dock.Right);
+                row.Children.Add(off);
+            }
+            row.Children.Add(new TextBlock
+            {
+                Text = g?.Name ?? "—",
+                Foreground = g == null ? Muted : Ink,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            _wornList.Children.Add(row);
+        }
+
+        _wardrobeShelves.Children.Clear();
+        foreach (var slot in Clothes.Shelves)
+        {
+            var ribbon = Ribbon(slot.Name, slot.Icon);
+            _wardrobeShelves.Children.Add(ribbon);
+            var grid = new UniformGrid { Columns = 3 };
+            _wardrobeShelves.Children.Add(grid);
+            foreach (var garment in Clothes.All.Where(g => g.SlotId == slot.Id))
+            {
+                var g = garment;
+                bool owned = Clothes.Owns(s, g), worn = Clothes.IsWorn(s, g);
+                string? why = null;
+                Button action;
+                if (worn) action = Button("Свали", () => _pet.TakeOff(slot));
+                else if (owned) action = Button("Облечи", () => _pet.Wear(g), primary: true);
+                else
+                {
+                    action = Button($"Купи  {g.Price}", () => _pet.BuyGarment(g), primary: true, icon: "nut");
+                    if (s.Hazelnuts < g.Price)
+                    {
+                        action.IsEnabled = false;
+                        why = $"Трябват {g.Price} лешника, а имаш {s.Hazelnuts}. Още {g.Price - s.Hazelnuts}!";
+                    }
+                }
+                // Плочката показва мечока с тази дреха и с всичко друго, което е облякъл.
+                var outfit = new Dictionary<string, string>(s.Outfit) { [g.SlotId] = g.Id };
+                var details = new TextBlock
+                {
+                    Text = worn ? "Облечено" : owned ? "В гардероба" : "",
+                    Foreground = Muted,
+                    TextAlignment = TextAlignment.Center,
+                };
+                grid.Children.Add(MakeTile(_pet.DressedPreview(outfit), g.Name, details, action, dim: false, why, owned: worn, artScale: 2));
+            }
+        }
     }
 
     // ───────────────────────── Задачи ─────────────────────────
@@ -1034,6 +1157,7 @@ public sealed class MenuWindow : Window
             BuildRelaxButtons();
             BuildFoodTiles();
             BuildShopTiles();
+            BuildWardrobe();
             BuildTaskList();
             BuildNoteList();
         }

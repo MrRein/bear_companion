@@ -31,6 +31,8 @@ public sealed class SaveData
     // Прогрес
     public int Hazelnuts { get; set; }
     public List<string> Owned { get; set; } = new();            // купени уреди и подобрения
+    public List<string> OwnedClothes { get; set; } = new();     // купени дрехи (виж Clothes)
+    public Dictionary<string, string> Outfit { get; set; } = new(); // слот → облечената дреха
     public double FocusMinutesBank { get; set; }                // минути фокус, още неизплатени в лешници
     public DateTime BerriesReadyAt { get; set; }
     public List<DateTime> CoffeeTimes { get; set; } = new();
