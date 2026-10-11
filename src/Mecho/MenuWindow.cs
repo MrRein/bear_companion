@@ -932,6 +932,38 @@ public sealed class MenuWindow : Window
         }
 
         _wardrobeShelves.Children.Clear();
+
+        // Два раздела: дрехи и фонове.
+        var bar = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 6 * U) };
+        foreach (var (name, icon, backdrops) in new[] { ("Дрехи", "shirt", false), ("Фонове", "picture", true) })
+        {
+            bool on = backdrops == _wardrobeBackdrops, b = backdrops;
+            var chip = new Border
+            {
+                Background = on ? Honey : PaperDark,
+                BorderBrush = Ink,
+                BorderThickness = new Thickness(2, 2, 2, on ? 2 : 4),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(4, 5 * U, 4, 5 * U),
+                Margin = new Thickness(0, on ? 2 : 0, 6, 0),
+                Cursor = Cursors.Hand,
+                Child = IconText(icon, name, bold: true),
+            };
+            ((FrameworkElement)chip.Child).HorizontalAlignment = HorizontalAlignment.Center;
+            chip.MouseLeftButtonUp += (_, _) =>
+            {
+                _wardrobeBackdrops = b;
+                BuildWardrobe();
+            };
+            bar.Children.Add(chip);
+        }
+        _wardrobeShelves.Children.Add(bar);
+        if (_wardrobeBackdrops)
+        {
+            BuildWardrobeBackdrops();
+            return;
+        }
+
         // Тук са само купените дрехи; новите се купуват в магазина („Дрехи“).
         bool any = false;
         foreach (var slot in Clothes.Shelves)
@@ -963,6 +995,47 @@ public sealed class MenuWindow : Window
         more.HorizontalAlignment = HorizontalAlignment.Center;
         more.Margin = new Thickness(0, 10 * U, 0, 0);
         _wardrobeShelves.Children.Add(more);
+    }
+
+    private bool _wardrobeBackdrops;
+
+    /// <summary>Разделът „Фонове“ в гардероба: купените фонове, „Сложи“ сменя портрета.</summary>
+    private void BuildWardrobeBackdrops()
+    {
+        var s = _pet.Save;
+        var grid = new UniformGrid { Columns = 3 };
+        _wardrobeShelves.Children.Add(grid);
+        foreach (var backdrop in Backdrops.All.Where(b => Backdrops.Owns(s, b)))
+        {
+            var b = backdrop;
+            bool used = s.Background == b.Id;
+            Button action;
+            if (used)
+            {
+                action = Button("Сложен", () => { });
+                action.IsEnabled = false;
+            }
+            else action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
+            grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, null, owned: used, artScale: 2));
+        }
+        bool all = Backdrops.All.All(b => Backdrops.Owns(s, b));
+        if (all) return;
+        var more = Button("Още фонове в магазина", () => OpenShop(BackdropCategory), icon: "shop");
+        more.HorizontalAlignment = HorizontalAlignment.Center;
+        more.Margin = new Thickness(0, 10 * U, 0, 0);
+        _wardrobeShelves.Children.Add(more);
+    }
+
+    /// <summary>Самопроверка: двата раздела на гардероба.</summary>
+    internal void SelfTestWardrobe()
+    {
+        SelectTab(WardrobeTab);
+        _wardrobeBackdrops = true;
+        BuildWardrobe();
+        UpdateLayout();
+        _wardrobeBackdrops = false;
+        BuildWardrobe();
+        UpdateLayout();
     }
 
     // ───────────────────────── Задачи ─────────────────────────

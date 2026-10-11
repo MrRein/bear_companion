@@ -133,7 +133,7 @@ public sealed partial class PetWindow
             await step("изчисти храната", DevClearFood, 300);
         }
 
-        await step("гардероб", () => { OpenMenu(MenuWindow.WardrobeTab); _menu!.UpdateLayout(); }, 800);
+        await step("гардероб", () => { OpenMenu(MenuWindow.WardrobeTab); _menu!.SelfTestWardrobe(); }, 800);
         foreach (var g in Clothes.All)
         {
             var garment = g;
