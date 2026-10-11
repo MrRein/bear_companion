@@ -72,6 +72,7 @@ public sealed partial class PetWindow : Window
     private double _bubbleUntil;
     private double _nextUpdateCheck;
     private Rect _bearRect;
+    private Rect _sideRect;   // предметът до мечока (в екранни DIP), за готвенето
     private int _announcedVersion;
 
     // Мишка
@@ -781,8 +782,9 @@ public sealed partial class PetWindow : Window
             // Предметът стои до мечока (отляво или отдясно), стъпил на същата земя.
             double overlap = 2 * PixelSize;
             double left = _scene!.SideDir < 0 ? bear.Left - _side.Width + overlap : bear.Right - overlap;
-            left += WardrobeShake;
+            left += WardrobeShake + CookShake;
             side = new Rect(left, ys - _side.Height, _side.Width, _side.Height);
+            _sideRect = side;
         }
 
         double above = bear.Top - 4 - (WearsHat ? 5 * PixelSize : 0);

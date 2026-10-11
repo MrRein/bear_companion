@@ -202,6 +202,8 @@ public sealed partial class PetWindow
 
     private void LeaveScene()
     {
+        // Прекъснат по средата на готвенето: храната пак излиза (платена е).
+        if (_cook != null) FlushCooking();
         _inScene = false;
         _scene = null;
         _sceneUntil = 0;
@@ -252,6 +254,12 @@ public sealed partial class PetWindow
         if (scene == Scenes.Wardrobe)
         {
             UpdateWardrobe(now);
+            return;
+        }
+
+        if (_cook != null && scene == _cook.Scene)
+        {
+            UpdateCooking(now);
             return;
         }
 

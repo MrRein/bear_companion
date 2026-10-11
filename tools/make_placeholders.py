@@ -356,6 +356,14 @@ def watering(pour):
     return f
 
 
+def spoon(tx, ty):
+    """Дървена лъжица от лапите до (tx, ty) (тенджерата е отдясно, извън кадъра)."""
+    def f(d, y):
+        d.line((19, 20 + y, tx, ty + y), fill=WOOD)
+        d.rectangle((tx - 1, ty + y, tx, ty + 1 + y), fill=(150, 95, 50, 255))
+    return f
+
+
 def prop(w, h, fn):
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     fn(ImageDraw.Draw(img))
@@ -571,6 +579,11 @@ ANIMS = {
                      bear(arms="front", legs="sit", bob=2, eyes="none", extra=lambda d, y: (droopy(d, y), serious(d, y)))], 1.5, True),
     "bounce": ([bear(arms="up", legs="dangle", eyes="happy", mouth="open"), bear(arms="up", legs="dangle", eyes="happy", mouth="smile", bob=-1),
                 bear(arms="left_up", legs="dangle", eyes="happy", mouth="open"), bear(arms="right_up", legs="dangle", eyes="happy", mouth="smile")], 6, True),
+    # готви: бърка с лъжица в тенджерата отдясно (уредът е до него)
+    "cook": ([bear(arms="front", mouth="smile", extra=spoon(30, 22)),
+              bear(arms="front", mouth="none", extra=spoon(31, 24)),
+              bear(arms="front", eyes="happy", mouth="smile", extra=spoon(30, 25)),
+              bear(arms="front", mouth="open", extra=spoon(29, 23))], 6, True),
     "juggle": ([bear(arms="left_up", mouth="open"), bear(arms="right_up", mouth="smile"),
                 bear(arms="left_up", eyes="happy"), bear(arms="right_up", mouth="open")], 6, True),
 }
@@ -745,6 +758,104 @@ def wardrobe(d):
     d.rectangle((18, 31, 19, 33), fill=OUTLINE)
 
 
+# Уредите, в които мечокът готви пред Тут (стоят отдясно до него, на земята).
+# Всеки има два кадъра (докато готви) и „open“ (капакът изхвръква).
+STEEL = (190, 190, 200, 255)
+FLAME = (240, 120, 40, 255)
+FLAME2 = (255, 209, 102, 255)
+
+
+def stove(d, frame):
+    """Котлон 20 x 9 най-отдолу на рисунката (височина 24)."""
+    d.rectangle((1, 15, 18, 23), fill=(200, 200, 210, 255), outline=OUTLINE)
+    d.rectangle((3, 17, 16, 21), fill=(60, 60, 70, 255))
+    d.point((5, 22), fill=OUTLINE)
+    d.point((14, 22), fill=OUTLINE)
+    for x in range(4, 16, 3):   # пламъчета
+        d.point((x + frame % 2, 14), fill=FLAME if (x + frame) % 2 else FLAME2)
+
+
+def cook_pot(frame):
+    def f(d):
+        stove(d, frame)
+        d.rectangle((3, 7, 16, 13), fill=STEEL, outline=OUTLINE)
+        d.line((1, 8, 3, 8), fill=OUTLINE)
+        d.line((16, 8, 18, 8), fill=OUTLINE)
+        if frame == 2:   # капакът хвръква, пуканки изскачат
+            d.rectangle((2, 0, 13, 2), fill=DARK, outline=OUTLINE)
+            d.rectangle((6, 0, 9, 0), fill=DARK)
+            for x, yy in [(5, 5), (9, 4), (12, 6)]:
+                oval(d, (x - 1, yy - 1, x + 1, yy + 1), (255, 245, 210, 255), outline=(200, 170, 90, 255))
+        else:
+            lift = frame   # капакът подскача
+            d.rectangle((2, 5 - lift, 17, 7 - lift), fill=DARK, outline=OUTLINE)
+            d.rectangle((8, 3 - lift, 11, 5 - lift), fill=DARK, outline=OUTLINE)
+    return f
+
+
+def cook_pan(frame):
+    def f(d):
+        stove(d, frame)
+        d.rectangle((2, 11, 15, 13), fill=DARK, outline=OUTLINE)
+        d.line((15, 12, 19, 10), fill=WOOD, width=2)
+        for x in (4, 8, 11):
+            oval(d, (x, 8 - (frame == 2) * 3 - (x == 8 and frame == 1), x + 3, 11 - (frame == 2) * 3), (130, 70, 40, 255))
+        for x in range(3, 15, 4):   # цвърчи
+            d.point((x + frame, 6 - frame), fill=(220, 220, 220, 255))
+    return f
+
+
+def cook_oven(frame):
+    def f(d):
+        d.rectangle((1, 2, 20, 23), fill=(200, 200, 210, 255), outline=OUTLINE)
+        for x in (4, 8, 12):
+            d.point((x, 4), fill=OUTLINE)
+        if frame == 2:   # вратата е отворена, тавата излиза
+            d.rectangle((3, 7, 18, 19), fill=(60, 40, 30, 255), outline=OUTLINE)
+            d.rectangle((0, 20, 21, 22), fill=(170, 170, 180, 255), outline=OUTLINE)
+            for x in (3, 8, 13):
+                oval(d, (x, 16, x + 4, 19), (230, 180, 70, 255), outline=(150, 100, 30, 255))
+        else:
+            d.rectangle((3, 7, 18, 19), fill=(60, 40, 30, 255), outline=OUTLINE)
+            d.rectangle((5, 9, 16, 17), fill=(240, 150, 60, 255) if frame else (220, 110, 40, 255))
+            for x in (6, 10, 13):
+                oval(d, (x, 13, x + 3, 15), (230, 180, 70, 255), outline=(150, 100, 30, 255))
+            d.line((5, 6, 16, 6), fill=OUTLINE)
+        d.line((6, 0, 6 + frame, 1), fill=(220, 220, 220, 255))   # мирише
+        d.line((14, 1, 15 - frame, 0), fill=(220, 220, 220, 255))
+    return f
+
+
+def cook_coffee(frame):
+    def f(d):
+        d.rectangle((3, 4, 16, 23), fill=(60, 60, 70, 255), outline=OUTLINE)
+        d.rectangle((5, 6, 14, 8), fill=(120, 200, 120, 255) if frame != 1 else (200, 240, 200, 255))
+        d.rectangle((8, 10, 11, 12), fill=GREY)
+        d.rectangle((6, 17, 13, 22), fill=WHITE, outline=OUTLINE)
+        if frame == 1:
+            d.line((9, 13, 9, 16), fill=(90, 55, 30, 255))
+        if frame == 2:
+            d.line((7, 18, 12, 18), fill=(90, 55, 30, 255))
+            d.line((8, 14, 7, 11), fill=(220, 220, 220, 255))
+            d.line((11, 15, 12, 12), fill=(220, 220, 220, 255))
+    return f
+
+
+def cook_kettle(frame):
+    def f(d):
+        stove(d, frame)
+        oval(d, (4, 5, 15, 14), (90, 160, 200, 255))
+        d.line((15, 8, 19, 5 - (frame == 2)), fill=OUTLINE)
+        d.arc((6, 1, 13, 7), 180, 360, fill=OUTLINE)
+        if frame:   # пара от чучура
+            d.line((19, 3, 18 + frame, 0), fill=(220, 220, 220, 255))
+            d.line((17, 2, 16 + frame, 0), fill=(220, 220, 220, 255))
+    return f
+
+
+COOKERS = {"pot": cook_pot, "pan": cook_pan, "oven": cook_oven, "coffee_machine": cook_coffee, "kettle": cook_kettle}
+
+
 # Шапките: 16 широки, долният ред е там, където шапката сяда на главата
 # (точката от <anim>_head.png). Рисунката е assets/clothes/hat_<id>.png.
 def hat_beanie(d):
@@ -828,6 +939,9 @@ PROP_LIST = {
     "food_potatoes": (food_potatoes(), 0),
     "wardrobe": (prop(26, 34, wardrobe), 0),
 }
+for _tool, _fn in COOKERS.items():
+    for _i, _suffix in enumerate(["", "_b", "_open"]):
+        PROP_LIST[f"cook_{_tool}{_suffix}"] = (prop(22, 24, _fn(_i)), 0)
 
 
 def save_clothes_layers(name, frames):

@@ -23,6 +23,11 @@ public sealed partial class PetWindow
             Say("Ззз… ще ям, като стана.", 3);
             return;
         }
+        if (Cooks)
+        {
+            Say("Чакай, още готвя!", 3);
+            return;
+        }
         if (_food.Count + food.Count > MaxFoodOnScreen)
         {
             Say("Първо ми донеси другата храна!", 4);
@@ -54,31 +59,50 @@ public sealed partial class PetWindow
         if (food.Cost == 0) _save.BerriesReadyAt = DateTime.Now.AddMinutes(Kitchen.BerryMinutes);
         if (food.Energy >= 30) _save.CoffeeTimes.Add(DateTime.Now);
 
-        var area = Area;
-        var prop = _lib.GetProp("food_" + food.Id, 16, 16, 0);
-        double fullness = Kitchen.FullnessOf(food, _save) / food.Count;
-        for (int i = 0; i < food.Count; i++)
+        double fullness = Kitchen.FullnessOf(food, _save) / food.Count, energy = food.Energy / food.Count;
+        NotifyCare();
+        Persist();
+        if (CanCookInFront(food))
         {
-            var w = new FoodWindow(this, food, fullness, food.Energy / food.Count, prop, PixelSize);
-            // Изскача от мечока и се разлита по екрана с инерция (без гравитация):
-            // плъзга се, отскача от ръбовете и спира на различни места.
-            w.Left = _x - w.Width / 2;
-            w.Top = _bearRect.Top + _bearRect.Height * 0.3 - w.Height / 2;
-            double angle = _rng.NextDouble() * Math.PI * 2;
-            double speed = 900 + _rng.NextDouble() * 900;
-            w.VelocityX = Math.Cos(angle) * speed;
-            w.VelocityY = Math.Sin(angle) * speed - 300; // повечето хвърчат нагоре
-            w.Closed += (_, _) => _food.Remove(w);
-            _food.Add(w);
-            w.Show();
+            // Готви пред Тут; храната излита от уреда (виж PetWindow.Cooking.cs).
+            StartCooking(food, fullness, energy);
+            return;
         }
+        var from = new Point(_x, _bearRect.Top + _bearRect.Height * 0.3);
+        for (int i = 0; i < food.Count; i++) SpawnFood(food, fullness, energy, from, fromCooker: false);
+        FoodReady(food);
+    }
+
+    /// <summary>
+    /// Едно парче храна изскача от точката и се разлита по екрана с инерция (без
+    /// гравитация): плъзга се, отскача от ръбовете и спира на различни места.
+    /// От уреда хвърчи нагоре като от тенджера.
+    /// </summary>
+    private void SpawnFood(Food food, double fullness, double energy, Point from, bool fromCooker)
+    {
+        var prop = _lib.GetProp("food_" + food.Id, 16, 16, 0);
+        var w = new FoodWindow(this, food, fullness, energy, prop, PixelSize);
+        w.Left = from.X - w.Width / 2;
+        w.Top = from.Y - w.Height / 2;
+        double angle = fromCooker
+            ? -Math.PI / 2 + (_rng.NextDouble() - 0.5) * 2.2
+            : _rng.NextDouble() * Math.PI * 2;
+        double speed = 900 + _rng.NextDouble() * 900;
+        w.VelocityX = Math.Cos(angle) * speed;
+        w.VelocityY = Math.Sin(angle) * speed - 300; // повечето хвърчат нагоре
+        w.Closed += (_, _) => _food.Remove(w);
+        _food.Add(w);
+        w.Show();
+    }
+
+    /// <summary>Храната е навън: мечокът моли да му я донесат.</summary>
+    private void FoodReady(Food food)
+    {
         Say(food.Count > 1
             ? $"{food.Icon} {food.Name}! Опа, разхвърчаха се! Донеси ми ги всичките!"
             : $"{food.Icon} {food.Name}! Донеси ми го тук, моля!", 5);
         _nextFoodReminder = Now + 15;
         if (_state is BearState.Walk or BearState.Chase or BearState.Busy) SetIdle();
-        NotifyCare();
-        Persist();
     }
 
     /// <summary>Купува уред или подобрение с лешници.</summary>

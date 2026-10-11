@@ -117,6 +117,66 @@
       "file": "wardrobe.png",
       "seat": 0
     },
+    "cook_pot": {
+      "file": "cook_pot.png",
+      "seat": 0
+    },
+    "cook_pot_b": {
+      "file": "cook_pot_b.png",
+      "seat": 0
+    },
+    "cook_pot_open": {
+      "file": "cook_pot_open.png",
+      "seat": 0
+    },
+    "cook_pan": {
+      "file": "cook_pan.png",
+      "seat": 0
+    },
+    "cook_pan_b": {
+      "file": "cook_pan_b.png",
+      "seat": 0
+    },
+    "cook_pan_open": {
+      "file": "cook_pan_open.png",
+      "seat": 0
+    },
+    "cook_oven": {
+      "file": "cook_oven.png",
+      "seat": 0
+    },
+    "cook_oven_b": {
+      "file": "cook_oven_b.png",
+      "seat": 0
+    },
+    "cook_oven_open": {
+      "file": "cook_oven_open.png",
+      "seat": 0
+    },
+    "cook_coffee_machine": {
+      "file": "cook_coffee_machine.png",
+      "seat": 0
+    },
+    "cook_coffee_machine_b": {
+      "file": "cook_coffee_machine_b.png",
+      "seat": 0
+    },
+    "cook_coffee_machine_open": {
+      "file": "cook_coffee_machine_open.png",
+      "seat": 0
+    },
+    "cook_kettle": {
+      "file": "cook_kettle.png",
+      "seat": 0
+    },
+    "cook_kettle_b": {
+      "file": "cook_kettle_b.png",
+      "seat": 0
+    },
+    "cook_kettle_open": {
+      "file": "cook_kettle_open.png",
+      "seat": 0
+    },
     "shop_easel": {
       "file": "shop_easel.png",
       "seat": 0
