@@ -83,6 +83,7 @@ public sealed class SpriteLibrary
     public static string Folder => Path.Combine(AppContext.BaseDirectory, "assets", "bear");
     public static string PropsFolder => Path.Combine(AppContext.BaseDirectory, "assets", "props");
     public static string ClothesFolder => Path.Combine(AppContext.BaseDirectory, "assets", "clothes");
+    public static string BackgroundsFolder => Path.Combine(AppContext.BaseDirectory, "assets", "backgrounds");
 
     public static SpriteLibrary Load()
     {
@@ -181,6 +182,16 @@ public sealed class SpriteLibrary
         frames = LoadStrip(Path.GetFileNameWithoutExtension(file) + "_" + layer + ".png");
         _layers[key] = frames;
         return frames;
+    }
+
+    /// <summary>Фон за портрета (assets/backgrounds/bg_&lt;id&gt;.png), или null.</summary>
+    public BitmapSource? Background(string id)
+    {
+        string key = "bg|" + id;
+        if (_clothes.TryGetValue(key, out var img)) return img;
+        img = LoadPng(Path.Combine(BackgroundsFolder, "bg_" + id + ".png"));
+        _clothes[key] = img;
+        return img;
     }
 
     /// <summary>Рисунка от assets/clothes (например шапка), или null.</summary>

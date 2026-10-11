@@ -987,6 +987,177 @@ def save_hats():
         img.save(os.path.join(folder, f"hat_{name}.png"))
 
 
+# Фонове за портрета в менюто (50 x 50; мечокът стои на реда 48, земята е долу).
+BG = 50
+GROUND = 42
+
+
+def bands(d, colors, top=0, bottom=GROUND):
+    h = (bottom - top) / len(colors)
+    for i, c in enumerate(colors):
+        d.rectangle((0, int(top + i * h), BG - 1, int(top + (i + 1) * h)), fill=c)
+
+
+def ground(d, fill, edge):
+    d.rectangle((0, GROUND, BG - 1, BG - 1), fill=fill)
+    d.line((0, GROUND, BG - 1, GROUND), fill=edge)
+
+
+def cloud(d, x, y, c=(255, 255, 255, 255)):
+    d.ellipse((x, y + 1, x + 6, y + 5), fill=c)
+    d.ellipse((x + 3, y, x + 10, y + 5), fill=c)
+    d.ellipse((x + 7, y + 2, x + 12, y + 5), fill=c)
+
+
+def stars(d, color, n, seed, bottom=GROUND):
+    import random
+    r = random.Random(seed)
+    for _ in range(n):
+        d.point((r.randrange(BG), r.randrange(bottom - 2)), fill=color)
+
+
+def bg_meadow(d):
+    bands(d, [(150, 210, 240, 255), (170, 220, 245, 255), (195, 232, 248, 255)])
+    cloud(d, 5, 6)
+    cloud(d, 30, 14)
+    ground(d, (120, 180, 80, 255), (80, 130, 60, 255))
+    for x in (4, 13, 27, 41):
+        d.point((x, GROUND + 3), fill=(250, 220, 90, 255))
+
+
+def bg_sunset(d):
+    bands(d, [(110, 70, 140, 255), (190, 90, 120, 255), (240, 140, 90, 255), (255, 200, 110, 255)])
+    d.pieslice((15, 30, 35, 50), 180, 360, fill=(255, 230, 140, 255))
+    d.polygon([(0, GROUND), (12, 34), (24, GROUND)], fill=(90, 60, 90, 255))
+    d.polygon([(22, GROUND), (38, 32), (BG, GROUND)], fill=(80, 50, 80, 255))
+    ground(d, (70, 60, 70, 255), (50, 40, 50, 255))
+
+
+def bg_night(d):
+    bands(d, [(20, 25, 60, 255), (30, 40, 85, 255), (45, 60, 110, 255)])
+    stars(d, (255, 255, 220, 255), 30, 1)
+    d.ellipse((36, 4, 45, 13), fill=(250, 240, 200, 255))
+    d.ellipse((39, 3, 47, 11), fill=(20, 25, 60, 255))
+    ground(d, (40, 70, 50, 255), (25, 45, 35, 255))
+
+
+def bg_beach(d):
+    bands(d, [(130, 200, 240, 255), (160, 215, 245, 255)], 0, 30)
+    d.ellipse((38, 4, 46, 12), fill=(255, 220, 90, 255))
+    bands(d, [(60, 140, 200, 255), (80, 170, 215, 255)], 30, GROUND)
+    for x in range(2, BG, 9):
+        d.line((x, 33, x + 3, 33), fill=(230, 245, 255, 255))
+    ground(d, (240, 215, 150, 255), (210, 180, 110, 255))
+    d.point((10, 46), fill=(230, 120, 100, 255))
+
+
+def bg_winter(d):
+    bands(d, [(190, 210, 235, 255), (210, 225, 240, 255)])
+    stars(d, (255, 255, 255, 255), 25, 2)
+    d.polygon([(40, 18), (34, 34), (46, 34)], fill=(60, 120, 80, 255))
+    d.polygon([(40, 24), (33, GROUND), (47, GROUND)], fill=(50, 105, 70, 255))
+    d.line((34, 34, 46, 34), fill=(255, 255, 255, 255))
+    ground(d, (245, 250, 255, 255), (200, 215, 235, 255))
+
+
+def bg_autumn(d):
+    bands(d, [(170, 205, 230, 255), (200, 220, 235, 255)])
+    for x, c in [(6, (220, 120, 50, 255)), (38, (200, 80, 50, 255))]:
+        d.rectangle((x + 4, 28, x + 6, GROUND), fill=(110, 70, 40, 255))
+        d.ellipse((x, 14, x + 11, 30), fill=c)
+    ground(d, (150, 110, 60, 255), (110, 80, 40, 255))
+    for x in (3, 15, 22, 31, 44):
+        d.point((x, GROUND + 2 + x % 4), fill=(230, 140, 50, 255))
+
+
+def bg_space(d):
+    bands(d, [(10, 10, 25, 255), (20, 15, 45, 255)])
+    stars(d, (255, 255, 255, 255), 40, 3)
+    d.ellipse((5, 6, 19, 20), fill=(220, 140, 90, 255))
+    d.line((2, 15, 22, 11), fill=(240, 200, 140, 255))
+    ground(d, (150, 150, 160, 255), (110, 110, 120, 255))
+    d.ellipse((30, 45, 35, 48), fill=(120, 120, 130, 255))
+
+
+def bg_underwater(d):
+    bands(d, [(40, 110, 170, 255), (30, 90, 150, 255), (25, 75, 130, 255)])
+    for x, y in [(8, 30), (10, 22), (9, 14), (40, 26), (41, 18)]:
+        d.ellipse((x, y, x + 2, y + 2), outline=(170, 220, 250, 255))
+    for x in (3, 44):
+        d.line((x, GROUND, x - 1, 30), fill=(70, 160, 90, 255))
+        d.line((x + 2, GROUND, x + 3, 33), fill=(70, 160, 90, 255))
+    ground(d, (220, 200, 140, 255), (180, 160, 100, 255))
+
+
+def bg_studio(d):
+    d.rectangle((0, 0, BG - 1, GROUND), fill=(250, 238, 215, 255))
+    d.rectangle((5, 8, 18, 20), fill=(255, 255, 255, 255), outline=OUTLINE)
+    d.ellipse((7, 10, 11, 14), fill=(255, 209, 102, 255))
+    d.polygon([(6, 19), (12, 13), (17, 19)], fill=(120, 180, 80, 255))
+    d.rectangle((32, 5, 44, 16), fill=(90, 140, 210, 255), outline=OUTLINE)
+    d.rectangle((34, 22, 42, 30), fill=(240, 140, 150, 255), outline=OUTLINE)
+    ground(d, (170, 120, 75, 255), (120, 80, 45, 255))
+    for x in range(0, BG, 10):
+        d.line((x, GROUND + 1, x, BG - 1), fill=(150, 100, 60, 255))
+
+
+def bg_library(d):
+    d.rectangle((0, 0, BG - 1, GROUND), fill=(120, 80, 50, 255))
+    colors = [(200, 60, 60, 255), (90, 140, 210, 255), (120, 180, 80, 255), (255, 209, 102, 255), (150, 100, 200, 255)]
+    for row, y in enumerate((4, 16, 28)):
+        d.line((0, y + 10, BG - 1, y + 10), fill=(80, 50, 30, 255))
+        x = 1 + row
+        i = row
+        while x < BG - 2:
+            w = 2 + (i % 2)
+            d.rectangle((x, y + 2 + i % 3, x + w - 1, y + 9), fill=colors[i % len(colors)])
+            x += w + 1
+            i += 1
+    ground(d, (150, 60, 60, 255), (110, 40, 40, 255))
+
+
+def bg_candy(d):
+    bands(d, [(250, 200, 220, 255), (255, 220, 235, 255)])
+    cloud(d, 4, 5, (255, 240, 250, 255))
+    cloud(d, 30, 12, (255, 240, 250, 255))
+    for x, c in [(10, (240, 120, 150, 255)), (38, (130, 200, 230, 255))]:
+        d.line((x, GROUND, x, 30), fill=(255, 255, 255, 255))
+        d.ellipse((x - 4, 22, x + 4, 30), fill=c)
+    ground(d, (255, 255, 255, 255), (240, 120, 150, 255))
+    for x in range(0, BG, 4):
+        d.line((x, GROUND + 1, x + 3, BG - 1), fill=(240, 120, 150, 255))
+
+
+BACKGROUNDS = {
+    "meadow": bg_meadow, "sunset": bg_sunset, "night": bg_night, "beach": bg_beach, "winter": bg_winter,
+    "autumn": bg_autumn, "space": bg_space, "underwater": bg_underwater, "studio": bg_studio,
+    "library": bg_library, "candy": bg_candy,
+}
+
+
+def mystery(d):
+    """Кутия с „?“: нещо, което ще дойде по-късно."""
+    d.rectangle((1, 2, 14, 15), fill=(200, 160, 100, 255), outline=OUTLINE)
+    d.line((1, 5, 14, 5), fill=OUTLINE)
+    q = [".###.", "#...#", "....#", "...#.", "..#..", ".....", "..#.."]
+    for y, row in enumerate(q):
+        for x, ch in enumerate(row):
+            if ch == "#":
+                d.point((5 + x, 7 + y), fill=WHITE)
+
+
+PROP_LIST["mystery"] = (prop(16, 16, mystery), 0)
+
+
+def save_backgrounds():
+    folder = os.path.join(os.path.dirname(__file__), "..", "assets", "backgrounds")
+    os.makedirs(folder, exist_ok=True)
+    for name, fn in BACKGROUNDS.items():
+        img = Image.new("RGBA", (BG, BG), (0, 0, 0, 255))
+        fn(ImageDraw.Draw(img))
+        img.save(os.path.join(folder, f"bg_{name}.png"))
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     manifest = {"frameWidth": SIZE, "frameHeight": SIZE, "scale": 3, "animations": {}}
@@ -1030,6 +1201,7 @@ def main():
         fh.write("\n")
 
     save_hats()
+    save_backgrounds()
     preview.resize((preview.width * 4, preview.height * 4), Image.NEAREST).save(
         os.path.join(os.path.dirname(__file__), "placeholders_preview.png"))
 

@@ -29,7 +29,7 @@ public static class Kitchen
     public const string Trampoline = "trampoline", Couch = "couch";
 
     // Раздели в магазина
-    public const string KitchenShelf = "Кухня", FunShelf = "За почивка", HelpShelf = "Подобрения";
+    public const string KitchenShelf = "Кухня", FunShelf = "Хобита", FurnitureShelf = "Мебели", HelpShelf = "Подобрения";
 
     /// <summary>Безплатните боровинки се берат най-много веднъж на толкова минути.</summary>
     public const int BerryMinutes = 30;
@@ -59,7 +59,7 @@ public static class Kitchen
         new(Oven, "Фурна", "🔥", 45, "За мечешки картофки (после купи рецептата в „Храна“)."),
 
         new(PlantPot, "Саксия с цвете", "🌱", 10, "Мечокът полива цветето.", FunShelf),
-        new(Couch, "Диван", "🛋️", 20, "Мечокът чете на мек диван (иначе седи на земята), а кацането е меко.", FunShelf),
+
         new(YogaMat, "Постелка за йога", "🧘", 15, "Мечокът прави йога.", FunShelf),
         new(Radio, "Радио", "📻", 20, "Мечокът слуша музика.", FunShelf),
         new(BoardGame, "Настолна игра", "🎲", 25, "Мечокът плейтества на масичка.", FunShelf),
@@ -68,7 +68,8 @@ public static class Kitchen
         new(Computer, "Компютър", "🎮", 50, "Мечокът играе игрички.", FunShelf),
 
         new(Headphones, "Слушалки", "🎧", 35, "+1 🌰 за всяко завършено мечо-доро.", HelpShelf),
-        new(Bed, "Меко легло", "🛏️", 40, "Мечокът се наспива два пъти по-бързо.", HelpShelf),
+        new(Couch, "Диван", "🛋️", 20, "Мечокът чете на мек диван (иначе седи на земята), а кацането е меко.", FurnitureShelf),
+        new(Bed, "Меко легло", "🛏️", 40, "Мечокът се наспива два пъти по-бързо.", FurnitureShelf),
         new(Fridge, "Хладилник", "🧊", 50, "Всяко ястие струва с 1 🌰 по-малко.", HelpShelf),
         new(Cookbook, "Готварска книга", "📖", 60, "Всяко ястие засища с 25% повече.", HelpShelf),
     };

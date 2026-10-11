@@ -27,6 +27,9 @@ public static class Ui
     // Pixeloid е нарисуван на мрежа от 9 пиксела: рязък е при 9, 18, 27… физически пиксела.
     // K е колко физически пиксела е една „точка“ от шрифта и от иконките.
     private static double _dpi = 1;
+
+    /// <summary>Мащабът на екрана (1 = 100%).</summary>
+    public static double Dpi => _dpi;
     private static int _k = 2;
 
     /// <summary>Обикновен текст (около 14 DIP, но на цели точки на шрифта).</summary>
@@ -72,6 +75,55 @@ public static class Ui
     public static readonly Brush Grass = Rgb(120, 170, 80);
 
     /// <summary>Хартия с едва видими точици, за да не е „суха“.</summary>
+    /// <summary>
+    /// Плъзгачът (scroll bar) в стила на менюто: дървен улей и меден палец, без
+    /// стрелки. Слага се като стил по подразбиране в ресурсите на прозореца.
+    /// </summary>
+    public static Style ScrollBarStyle()
+    {
+        const string xaml = @"
+<Style xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+       xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='ScrollBar'>
+  <Setter Property='Width' Value='16'/>
+  <Setter Property='MinWidth' Value='16'/>
+  <Setter Property='Margin' Value='6,0,0,0'/>
+  <Setter Property='Template'>
+    <Setter.Value>
+      <ControlTemplate TargetType='ScrollBar'>
+        <Border Background='#F0DDBA' BorderBrush='#3B2414' BorderThickness='2' CornerRadius='5' Padding='1'>
+          <Track x:Name='PART_Track' IsDirectionReversed='True'>
+            <Track.DecreaseRepeatButton>
+              <RepeatButton Command='ScrollBar.PageUpCommand' Focusable='False' Opacity='0'/>
+            </Track.DecreaseRepeatButton>
+            <Track.IncreaseRepeatButton>
+              <RepeatButton Command='ScrollBar.PageDownCommand' Focusable='False' Opacity='0'/>
+            </Track.IncreaseRepeatButton>
+            <Track.Thumb>
+              <Thumb Cursor='Hand'>
+                <Thumb.Template>
+                  <ControlTemplate TargetType='Thumb'>
+                    <Border x:Name='T' Background='#FFD166' BorderBrush='#3B2414' BorderThickness='2,2,2,3' CornerRadius='3' MinHeight='24'/>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property='IsMouseOver' Value='True'>
+                        <Setter TargetName='T' Property='Background' Value='#FFE29A'/>
+                      </Trigger>
+                      <Trigger Property='IsDragging' Value='True'>
+                        <Setter TargetName='T' Property='Background' Value='#F0AA3C'/>
+                      </Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Thumb.Template>
+              </Thumb>
+            </Track.Thumb>
+          </Track>
+        </Border>
+      </ControlTemplate>
+    </Setter.Value>
+  </Setter>
+</Style>";
+        return (Style)System.Windows.Markup.XamlReader.Parse(xaml);
+    }
+
     public static readonly Brush PaperTexture = MakePaper();
 
     /// <summary>Дърво с ивици (дъски) за рамката.</summary>

@@ -591,6 +591,32 @@ kwwkwwwwwk..
 ............
 ............
 ............""",
+    "picture": """
+kkkkkkkkkkkk
+kuuuuuuuyyuk
+kuuuuuuuyyuk
+kuuuuuuuuuuk
+kuuuuuguuuuk
+kuuuuggguuuk
+kuuugggggkuk
+kuugggggggkk
+kugggggggggk
+kggggggggggk
+kkkkkkkkkkkk
+............""",
+    "question": """
+...kkkkkk...
+..kyyyyyyk..
+.kyykkkkyyk.
+.kykk..kkyk.
+..kk...kyyk.
+......kyyk..
+.....kyyk...
+.....kyyk...
+......kk....
+.....kkkk...
+.....kyyk...
+.....kkkk...""",
     "check": """
 ............
 ..........kk

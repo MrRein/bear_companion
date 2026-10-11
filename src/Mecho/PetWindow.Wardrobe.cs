@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace Mecho;
 
@@ -53,7 +54,10 @@ public sealed partial class PetWindow
         }
         _save.Hazelnuts -= g.Price;
         _save.OwnedClothes.Add(g.Id);
-        Wear(g, Lines.Pick(Lines.NewClothes, _save.OwnerName));
+        // Купеното отива в гардероба; облича се оттам.
+        Say(Lines.Pick(Lines.NewClothes, _save.OwnerName), 3);
+        Persist();
+        NotifyCare();
     }
 
     public void Wear(Garment g, string? line = null)
@@ -110,5 +114,40 @@ public sealed partial class PetWindow
             _anim = Scenes.Wardrobe.Anim;
             _animTime = 0;
         }
+    }
+}
+
+// Фоновете на портрета: купуват се в магазина, сменят се с клик върху портрета.
+public sealed partial class PetWindow
+{
+    public System.Windows.Media.Imaging.BitmapSource BackdropImage(Backdrop b) =>
+        _lib.Background(b.Id) ?? _lib.Background(Backdrops.Default) ?? _lib.GetProp("bg_" + b.Id, 50, 50, 0).Image;
+
+    public Backdrop CurrentBackdrop => Backdrops.Find(_save.Background);
+
+    public void BuyBackdrop(Backdrop b)
+    {
+        if (Backdrops.Owns(_save, b) || _save.Hazelnuts < b.Price) return;
+        _save.Hazelnuts -= b.Price;
+        _save.Owned.Add("bg_" + b.Id);
+        _save.Background = b.Id;
+        Persist();
+        NotifyCare();
+    }
+
+    public void UseBackdrop(Backdrop b)
+    {
+        if (!Backdrops.Owns(_save, b)) return;
+        _save.Background = b.Id;
+        Persist();
+        NotifyCare();
+    }
+
+    /// <summary>Следващият купен фон (клик върху портрета).</summary>
+    public void NextBackdrop()
+    {
+        var owned = Backdrops.All.Where(b => Backdrops.Owns(_save, b)).ToList();
+        int i = owned.FindIndex(b => b.Id == _save.Background);
+        UseBackdrop(owned[(i + 1) % owned.Count]);
     }
 }

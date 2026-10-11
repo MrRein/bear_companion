@@ -78,7 +78,14 @@ public sealed partial class PetWindow
             _save.PomodoroDay = today;
             _save.PomodorosToday = 0;
         }
-        _save.Tasks.RemoveAll(t => t.Done && t.DoneAt?.Date < DateTime.Today);
+        // Свършените от минали дни отиват в историята (виж „Задачи“ → „История“).
+        var old = _save.Tasks.Where(t => t.Done && t.DoneAt?.Date < DateTime.Today).ToList();
+        if (old.Count > 0)
+        {
+            _save.TaskHistory.InsertRange(0, old.OrderByDescending(t => t.DoneAt));
+            if (_save.TaskHistory.Count > 2000) _save.TaskHistory.RemoveRange(2000, _save.TaskHistory.Count - 2000);
+            _save.Tasks.RemoveAll(old.Contains);
+        }
     }
 
     private bool IsResting => IsAsleep || _anim == "read_sleep";
