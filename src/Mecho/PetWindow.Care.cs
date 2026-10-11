@@ -550,7 +550,6 @@ public sealed partial class PetWindow
         var parts = new System.Collections.Generic.List<string>();
         if (_save.PomodoroPhase != PomodoroPhase.Off) parts.Add($"{(InFocus ? "🍯" : "☕")} {Clock(PomodoroLeft)}");
         if (TimerRunning) parts.Add($"⏰ {Clock(TimerLeft)}");
-        if (CookingLeft is { } cooking) parts.Add($"🍲 {Clock(cooking)}");
         UpdateTimerBadge(parts);
         if (parts.Count == 0)
         {

@@ -25,7 +25,7 @@ public sealed partial class PetWindow
     /// <summary>Вика се от ChooseActivity: време ли е за нов блок. true = зае се с нещо.</summary>
     private bool FreeCycleStep()
     {
-        if (Now < _freeUntil) return false;
+        if (Now < _freeUntil || Cooks) return false;   // докато се готви, не тръгва на хоби
 
         bool canHobby = Now - _lastHobbyAt > 45 * 60;
         var blocks = new (string Name, double Weight)[]

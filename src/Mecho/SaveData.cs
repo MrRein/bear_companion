@@ -34,6 +34,10 @@ public sealed class SaveData
     public string GiftDay { get; set; } = "";                  // за кой ден е решено дали има подарък
     public DateTime GiftAt { get; set; } = DateTime.MinValue;  // кога тръгва за подаръка (MinValue = днес няма)
     public bool GiftPending { get; set; }                      // подаръкът чака в средата на екрана
+    public string? CookFood { get; set; }                     // какво се готви (виж PetWindow.Cooking.cs)
+    public DateTime CookReadyAt { get; set; }
+    public int CookCost { get; set; }
+    public double CookX { get; set; } = double.NaN;
     public List<string> MealsDone { get; set; } = new();      // "lunch:2026-10-11", "lunch-thanks:…" (виж Meals)
     public string CouchSkin { get; set; } = "classic";
     public string BedSkin { get; set; } = "classic";

@@ -62,10 +62,10 @@ public sealed partial class PetWindow
         double fullness = Kitchen.FullnessOf(food, _save) / food.Count, energy = food.Energy / food.Count;
         NotifyCare();
         Persist();
-        if (CanCookInFront(food))
+        if (food.Tool != null)
         {
-            // Готви пред Тут; храната излита от уреда (виж PetWindow.Cooking.cs).
-            StartCooking(food, fullness, energy);
+            // Уредът се готви сам до мечока; храната излита от него (виж PetWindow.Cooking.cs).
+            StartCooking(food, fullness, energy, cost);
             return;
         }
         var from = new Point(_x, _bearRect.Top + _bearRect.Height * 0.3);

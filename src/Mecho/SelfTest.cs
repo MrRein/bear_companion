@@ -134,6 +134,21 @@ public sealed partial class PetWindow
             await step("изчисти храната", DevClearFood, 300);
         }
 
+        await step("готвене: спри", () =>
+        {
+            var pot = Kitchen.Foods.First(f => f.Tool == Kitchen.Pot);
+            Cook(pot);
+            AskStopCooking();
+            _chat?.Hide();
+            StopCooking();
+        }, 800);
+        await step("готвене и мечо-доро заедно", () =>
+        {
+            Cook(Kitchen.Foods.First(f => f.Tool == Kitchen.Oven));
+            StartFocus();
+        }, 1500);
+        await step("готово по време на работа", () => { DevFinishCooking(); }, 5000);
+        await step("спри мечо-дорото", () => { StopPomodoro(); DevClearFood(); }, 1000);
         await step("гардероб", () => { OpenMenu(MenuWindow.WardrobeTab); _menu!.SelfTestWardrobe(); }, 800);
         foreach (var g in Clothes.All)
         {

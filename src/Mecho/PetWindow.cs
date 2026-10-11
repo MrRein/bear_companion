@@ -189,6 +189,7 @@ public sealed partial class PetWindow : Window
         _nextChatter = Now + 120 + _rng.Next(180);
         _nextUpdateCheck = Now + 60;
         StartFreeCycle(sitNow: false);
+        ResumeCooking();
         if (_save.StayPut)
         {
             // Пак си е в кътчето, където го оставихме (или почива на случаен принцип).
@@ -233,6 +234,7 @@ public sealed partial class PetWindow : Window
         }
         UpdateCare(dt, now);
         UpdateFood(dt);
+        if (_cook != null) UpdateCooking(now);
         UpdateButterfly(dt);
         UpdateGifts(now);
         MaybeOfferWork(now);
@@ -282,7 +284,7 @@ public sealed partial class PetWindow : Window
     private void PaceTimer()
     {
         bool moving = _state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
-            || _bfActive || _peeking || _anim == "juggle" || Dressing || CookShake != 0
+            || _bfActive || _peeking || _anim == "juggle" || Dressing || CookShaking
             || _food.Exists(f => f.VelocityX != 0 || f.VelocityY != 0);
         int ms = moving ? 33
             : IsAsleep && _bubble.Visibility != Visibility.Visible && _food.Count == 0 ? 200
@@ -338,6 +340,9 @@ public sealed partial class PetWindow : Window
 
         // Време е за подаръка.
         if (TryStartGift()) return;
+
+        // Нещо се готви: от време на време го наглежда.
+        if (CookingStep()) return;
 
         // Тут го е оставила в кътче (и после са го вдигнали): връща се там.
         if (_save.StayPut && !_inScene && !_onTrampoline && !InFocus)
@@ -854,7 +859,7 @@ public sealed partial class PetWindow : Window
             // Предметът стои до мечока (отляво или отдясно), стъпил на същата земя.
             double overlap = 2 * PixelSize;
             double left = _scene!.SideDir < 0 ? bear.Left - _side.Width + overlap : bear.Right - overlap;
-            left += WardrobeShake + CookShake;
+            left += WardrobeShake;
             side = new Rect(left, ys - _side.Height, _side.Width, _side.Height);
             _sideRect = side;
         }
@@ -985,6 +990,13 @@ public sealed partial class PetWindow : Window
         if (!ChatIsOpen) NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
         _bubbleUntil = Now + seconds + text.Length * 0.04;
         _lastSpoke = Now;
+        // Спи, но казва нещо: надига сънено глава, докато говори, после пак ляга.
+        if (_state == BearState.Sleep)
+        {
+            if (_anim != "sleep_peek") _animTime = 0;
+            _anim = "sleep_peek";
+            _sleepPeekUntil = _bubbleUntil;
+        }
     }
 
     private double _lastSpoke = -1000;

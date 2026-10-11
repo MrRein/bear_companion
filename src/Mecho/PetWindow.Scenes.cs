@@ -129,11 +129,6 @@ public sealed partial class PetWindow
     /// </summary>
     public void Relax(Scene scene)
     {
-        if (Cooks)
-        {
-            Say("Първо да свърша с готвенето!", 3);
-            return;
-        }
         if (!Scenes.IsUnlocked(scene, _save))
         {
             var item = scene.Unlock == null ? null : Kitchen.Find(scene.Unlock);
@@ -164,11 +159,6 @@ public sealed partial class PetWindow
     /// <summary>„Почивай си“: прави различни неща за почивка едно след друго, докато не стане.</summary>
     public void RelaxRandom()
     {
-        if (Cooks)
-        {
-            Say("Първо да свърша с готвенето!", 3);
-            return;
-        }
         if (InFocus)
         {
             Say("Първо работата! После почивка.", 3);
@@ -207,11 +197,6 @@ public sealed partial class PetWindow
     /// <summary>Става от дивана и диванът изчезва.</summary>
     public void GetUp()
     {
-        if (Cooks)
-        {
-            Say("Не мога да оставя котлона! Още малко.", 3);
-            return;
-        }
         _save.StayPut = false;
         if (_onTrampoline) EndBounce(null);
         LeaveScene();
@@ -265,8 +250,6 @@ public sealed partial class PetWindow
 
     private void LeaveScene()
     {
-        // Прекъснат по средата на готвенето: храната пак излиза (платена е).
-        if (_cook != null) FlushCooking();
         if (_scene != null && Scenes.Fun.Contains(_scene)) _lastFun = _scene;
         bool wasAuto = _autoBlock;
         _autoBlock = false;
@@ -334,11 +317,6 @@ public sealed partial class PetWindow
             return;
         }
 
-        if (_cook != null && scene == _cook.Scene)
-        {
-            UpdateCooking(now);
-            return;
-        }
 
         if (scene == Scenes.Focus)
         {
