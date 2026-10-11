@@ -641,6 +641,9 @@ ANIMS = {
                      bear(arms="front", legs="sit", bob=2, eyes="none", extra=lambda d, y: (droopy(d, y), serious(d, y)))], 1.5, True),
     "bounce": ([bear(arms="up", legs="dangle", eyes="happy", mouth="open"), bear(arms="up", legs="dangle", eyes="happy", mouth="smile", bob=-1),
                 bear(arms="left_up", legs="dangle", eyes="happy", mouth="open"), bear(arms="right_up", legs="dangle", eyes="happy", mouth="smile")], 6, True),
+    # просто си седи (когато дълго няма какво да прави)
+    "sit": ([bear(legs="sit", bob=2), bear(legs="sit", bob=2), bear(legs="sit", bob=2, eyes="closed"),
+             bear(legs="sit", bob=2), bear(legs="sit", bob=3), bear(legs="sit", bob=2, mouth="smile")], 2, True),
     # готви: бърка с лъжица в тенджерата отдясно (уредът е до него)
     "cook": ([bear(arms="front", mouth="smile", extra=spoon(30, 22)),
               bear(arms="front", mouth="none", extra=spoon(31, 24)),

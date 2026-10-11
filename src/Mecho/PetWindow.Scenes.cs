@@ -31,7 +31,7 @@ public static class Scenes
 
     /// <summary>Батутът е особен: не седи, а подскача (виж PetWindow.Trampoline.cs).</summary>
     public static readonly Scene Trampoline = new("trampoline", null, null, 0, "bounce",
-        new[] { "Батут! Уиииии!", "*пуф* Батут! Да скачаме!", "Гледай колко високо!" },
+        new[] { "Ще поскачам малко!", "Батут! Уиииии!", "*пуф* Батут! Да скачаме!", "Гледай колко високо!" },
         new[] { "Уиии!", "По-високо!", "Виждам целия екран оттук!", "Хоп! Хоп! Хоп!" },
         new[] { "Уф, задъхах се. Стига скачане.", "Добре, слизам.", "Краката ми са като желе!" })
     { Name = "Скачай на батута", Icon = "trampoline", Unlock = Kitchen.Trampoline };
@@ -42,6 +42,13 @@ public static class Scenes
         Array.Empty<string>(),
         new[] { "*затваря гардероба* Готов съм!", "Как изглеждам?", "Модата е важна за мечките." })
     { Name = "Гардероб", Icon = "wardrobe" };
+
+    /// <summary>Просто си седи (когато дълго няма какво да прави).</summary>
+    public static readonly Scene Sit = new("sit", null, null, 0, "sit",
+        new[] { "*сяда* Ще си почина малко.", "*сяда* Ох, хубаво е да се седне.", "Ще поседя тук." },
+        new[] { "*гледа облаците*", "*подсвирква си*", "Тихо е днес.", "*клати крачета*" },
+        new[] { "Хайде, ставам.", "*протяга се* Стига седене." })
+    { Name = "Седни", Icon = "couch" };
 
     public static Scene ById(string? id) => Fun.FirstOrDefault(s => s.Id == id) ?? Reading;
 
@@ -58,43 +65,43 @@ public static class Scenes
         new[] { "*сваля очилата* Готово!", "Свършихме. Браво на нас!", "Уф, свършихме работа!" });
 
     public static readonly Scene Gaming = new("gaming", "stool", "computer", -1, "game",
-        new[] { "*включва компютъра* Само едно ниво!", "Време за игричка!", "Да видим дали ще мина босa." },
+        new[] { "Ще поиграя малко!", "*включва компютъра* Само едно ниво!", "Време за игричка!", "Да видим дали ще мина босa." },
         new[] { "Ееей! Почти!", "Още едно ниво…", "Кой е сложил тук този шип?!", "РЕКОРД! …а, не, сбърках.", "Пиу-пиу-пиу!", "Тази игра има нужда от повече мечки." },
         new[] { "Добре, стига игри. Очите ми са квадратни.", "Запазих играта. Ставам.", "Спечелих! Е, почти." })
     { Name = "Играй на компютър", Icon = "game", Unlock = Kitchen.Computer };
 
     public static readonly Scene Painting = new("painting", "stool", "easel", 1, "paint",
-        new[] { "Ще рисувам като {0}!", "Статив, четка, вдъхновение!", "Днес съм художник." },
+        new[] { "Отивам да порисувам малко.", "Ще рисувам като {0}!", "Статив, четка, вдъхновение!", "Днес съм художник." },
         new[] { "Малко синьо тук…", "Хмм, това облак ли е или овца?", "{0}, как правиш сенките?", "Шедьовър в процес на работа.", "*мацва с четката*" },
         new[] { "Готово! Ще го закача на хладилника.", "Нарисувах те! …прилича малко на мен.", "Изкуството е трудно. Ставам." })
     { Name = "Рисувай на статив", Icon = "easel", Unlock = Kitchen.Easel };
 
     public static readonly Scene Tea = new("tea", "stool", "table_tea", 1, "drink",
-        new[] { "Време за чай.", "*налива чай* Ммм.", "Малка почивка с чай." },
+        new[] { "Ще си направя чай.", "Време за чай.", "*налива чай* Ммм.", "Малка почивка с чай." },
         new[] { "*сърба*", "С мед е най-хубав.", "Горещо! *духа*", "{0}, искаш ли и ти чай?" },
         new[] { "Ах, стопли ме.", "Чашата е празна. Ставам.", "Хубав чай. Да си почина пак после." })
     { Name = "Пий чай", Icon = "tea", Unlock = Kitchen.Kettle };
 
     public static readonly Scene Yoga = new("yoga", "mat", null, 0, "yoga",
-        new[] { "Малко йога!", "Разтягане! Пробвай и ти, {0}.", "*постила постелка*" },
+        new[] { "Ще се поразтегна малко.", "Малко йога!", "Разтягане! Пробвай и ти, {0}.", "*постила постелка*" },
         new[] { "Вдишай… издишай…", "Поза „дърво“. Аз съм дърво.", "Олеле, не ме бутай!", "{0}, протегни се и ти." },
         new[] { "Намасте!", "Чувствам се като ново мече.", "Готово. Гъвкав съм като макарона." })
     { Name = "Прави йога", Icon = "yoga", Unlock = Kitchen.YogaMat };
 
     public static readonly Scene Plant = new("plant", null, "plant", 1, "water",
-        new[] { "Да полея цветето.", "Цветенцето е жадно!", "*взима лейката*" },
+        new[] { "Ще погледна цветето.", "Да полея цветето.", "Цветенцето е жадно!", "*взима лейката*" },
         new[] { "Расти, расти!", "Пораснало е с един лист!", "*шшш*" },
         new[] { "Готово. Ще порасне голямо.", "Цветето каза „мерси“. Шегувам се. Или?" })
     { Name = "Полей цветето", Icon = "plant", Unlock = Kitchen.PlantPot };
 
     public static readonly Scene Music = new("music", null, "radio", -1, "music",
-        new[] { "*пуска музика*", "Малко музика!", "Това е любимата ми песен!" },
+        new[] { "Ще послушам малко музика.", "*пуска музика*", "Малко музика!", "Това е любимата ми песен!" },
         new[] { "♪ ла-ла-ла ♪", "*клати глава*", "Туц-туц-туц.", "{0}, чуваш ли? Супер е!" },
         new[] { "Песента свърши.", "*спира музиката* Пак после.", "Хубаво беше." })
     { Name = "Слушай музика", Icon = "music", Unlock = Kitchen.Radio };
 
     public static readonly Scene Board = new("board", "stool", "table_board", 1, "work",
-        new[] { "Да пробвам новия си прототип!", "Масичка, карти, зарове. Готово.", "Играя срещу себе си. Ще спечеля!" },
+        new[] { "Ще поиграя на настолна игра.", "Да пробвам новия си прототип!", "Масичка, карти, зарове. Готово.", "Играя срещу себе си. Ще спечеля!" },
         new[] { "Хмм, тази карта е твърде силна.", "Записвам: по-малко правила!", "Ход на мечока. После пак ход на мечока.", "Нова механика! …не, стара е." },
         new[] { "Плейтестът мина. Почти.", "Победих. Мен си.", "Прибирам картите." })
     { Name = "Играй настолна игра", Icon = "board", Unlock = Kitchen.BoardGame };
@@ -136,7 +143,7 @@ public sealed partial class PetWindow
         _save.StayPut = true;
         _save.StayScene = scene.Id;
         _save.SleepingByChoice = false;
-        if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) StartScene(scene, quiet: true);
+        if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) StartScene(scene, quiet: false);
         _sceneUntil = 0;
         _idleSince = Now;
         Persist();
@@ -173,10 +180,10 @@ public sealed partial class PetWindow
     {
         var options = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save) && f != last).ToList();
         var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Reading;
-        if (scene == Scenes.Trampoline) StartTrampoline(180 + _rng.Next(180), quiet: true);
+        if (scene == Scenes.Trampoline) StartTrampoline(180 + _rng.Next(180));
         else
         {
-            StartScene(scene, quiet: true);
+            StartScene(scene, quiet: false);
             _sceneUntil = Now + 180 + _rng.Next(180);
         }
     }
@@ -224,7 +231,7 @@ public sealed partial class PetWindow
         _facingLeft = false;
         SetState(BearState.Couch, scene.Anim);
         ClampX();
-        if (!quiet) Mutter(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
+        if (!quiet) Announce(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
     }
 
     /// <summary>След като е бил вдигнат и пуснат: сяда пак в същото кътче.</summary>
@@ -246,10 +253,14 @@ public sealed partial class PetWindow
         // Прекъснат по средата на готвенето: храната пак излиза (платена е).
         if (_cook != null) FlushCooking();
         if (_scene != null && Scenes.Fun.Contains(_scene)) _lastFun = _scene;
+        bool wasAuto = _autoHobby, wasSitting = _scene == Scenes.Sit;
+        _autoHobby = false;
         _inScene = false;
         _scene = null;
         _sceneUntil = 0;
-        _idleSince = Now;
+        // След хоби, което си е избрал сам, пак сяда; иначе почва отначало.
+        if (wasAuto) StartFreeCycle(sitNow: true);
+        else if (!wasSitting) _idleSince = Now;
         if (_state is BearState.Couch) SetIdle();
     }
 
@@ -290,7 +301,7 @@ public sealed partial class PetWindow
         bool stay = _save.StayPut && scene.Id == _save.StayScene;
         if (!stay && _sceneUntil > 0 && now > _sceneUntil)
         {
-            Mutter(Lines.Pick(scene.End, _save.OwnerName), 3);
+            Announce(Lines.Pick(scene.End, _save.OwnerName), 3);
             LeaveScene();
             return;
         }
@@ -298,6 +309,12 @@ public sealed partial class PetWindow
         if (scene == Scenes.Wardrobe)
         {
             UpdateWardrobe(now);
+            return;
+        }
+
+        if (scene == Scenes.Sit)
+        {
+            UpdateSitting(now);
             return;
         }
 

@@ -516,10 +516,13 @@ public sealed class MenuWindow : Window
             var f = food;
             int cost = Kitchen.CostOf(f, s);
 
-            // Какво дава: значки с иконки на един ред.
-            var effects = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            if (f.Fullness >= 5) effects.Children.Add(Stat("honey", $"+{Kitchen.FullnessOf(f, s):0}", "ситост"));
-            if (f.Energy > 0) effects.Children.Add(Stat("energy", $"+{f.Energy:0}", "енергия"));
+            // Какво дава: барчета – сегашното и (в мед) колко ще добави.
+            var effects = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            double full = Kitchen.FullnessOf(f, s);
+            if (f.Fullness >= 5) effects.Children.Add(GainBar("honey", s.Fullness, Math.Min(100, s.Fullness + full), "ситост"));
+            if (f.Energy > 0)
+                effects.Children.Add(GainBar("energy", s.Energy, Kitchen.EnergyAfter(s.Energy, f.Energy), "енергия",
+                    s.Energy >= Kitchen.FoodEnergyCap ? "Над половината енергия се трупа само със сън." : "Храната дава енергия до половината; догоре само със сън."));
 
             Button action;
             string? why = null;
@@ -570,6 +573,40 @@ public sealed class MenuWindow : Window
     }
 
     /// <summary>Значка: иконка и число (например мед +24).</summary>
+    /// <summary>
+    /// Малко барче от 10 деленца: колкото има сега (в цвят) и колкото ще добави
+    /// храната (в мед).
+    /// </summary>
+    private static UIElement GainBar(string icon, double now, double after, string what, string? note = null)
+    {
+        const int segments = 10;
+        int have = (int)Math.Ceiling(Math.Clamp(now, 0, 100) / 100 * segments - 0.01);
+        int will = (int)Math.Ceiling(Math.Clamp(after, 0, 100) / 100 * segments - 0.01);
+        var colour = now >= 50 ? Good : now >= 25 ? Okay : Bad;
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 1) };
+        var i0 = Icon(icon);
+        i0.Margin = new Thickness(0, 0, 4, 0);
+        i0.VerticalAlignment = VerticalAlignment.Center;
+        row.Children.Add(i0);
+        for (int i = 0; i < segments; i++)
+        {
+            row.Children.Add(new Border
+            {
+                Width = 7 * U,
+                Height = 10 * U,
+                Margin = new Thickness(0, 0, 1, 0),
+                Background = i < have ? colour : i < will ? Honey : Empty,
+                BorderBrush = i >= have && i < will ? WoodDark : Brushes.Transparent,
+                BorderThickness = new Thickness(i >= have && i < will ? 1 : 0),
+            });
+        }
+        int gain = (int)Math.Round(after - now);
+        row.ToolTip = Tip(gain > 0
+            ? $"+{gain} {what} ({now:0} → {after:0})" + (note != null ? ". " + note : "")
+            : $"Няма да добави {what}" + (note != null ? ". " + note : ""));
+        return row;
+    }
+
     private static Border Stat(string icon, string value, string what) => new()
     {
         Background = Cream,

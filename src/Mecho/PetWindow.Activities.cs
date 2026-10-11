@@ -54,7 +54,6 @@ public sealed partial class PetWindow
 
     private string _lastActivity = "";
     private double _idleSince;          // откога се скита без работа и без кътче
-    private double _boredAfter = 240;   // след колко секунди скитане решава сам какво да прави
 
     /// <summary>
     /// Поведението е на три нива:
@@ -68,19 +67,8 @@ public sealed partial class PetWindow
     /// </summary>
     private void ChooseActivity()
     {
-        if (_idleSince <= 0) _idleSince = Now;
-        if (Now - _idleSince > _boredAfter)
-        {
-            _idleSince = Now;
-            _boredAfter = 180 + _rng.Next(180);
-            if (_save.Energy < 45)
-            {
-                TakeNap(Lines.Pick(Lines.BoredNap, _save.OwnerName));
-                return;
-            }
-            StartFun();
-            return;
-        }
+        // Дълго без работа: сяда, а после прави някое хоби (виж PetWindow.Free.cs).
+        if (FreeCycleStep()) return;
 
         bool tired = IsExhausted; // уморен: не му се играе, по-скоро се прозява
         var choices = new (string Name, double Weight, Action Do)[]
@@ -93,27 +81,27 @@ public sealed partial class PetWindow
             }),
             ("wonder", 10, Wonder),
             ("climb", tired || !HasPlatforms ? 0 : 8, Climb),
-            ("sketch", tired ? 1 : 5, () => Play("work", length: 8 + _rng.Next(8), after: () => Mutter(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
+            ("sketch", tired ? 1 : 5, () => Play("work", length: 8 + _rng.Next(8), after: () => Announce(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
             ("dice", tired ? 0 : 4, () =>
             {
                 int n = _rng.Next(1, 7);
-                Play("dice", after: () => Mutter(Lines.DiceRoll(n) + " " + Lines.Pick(Lines.Playtest, _save.OwnerName), 5));
+                Play("dice", after: () => Announce(Lines.DiceRoll(n) + " " + Lines.Pick(Lines.Playtest, _save.OwnerName), 5));
             }),
             ("dance", tired ? 0 : 3, () =>
             {
                 Play("dance", length: 3);
-                Mutter(Lines.Pick(Lines.Dancing, _save.OwnerName), 3);
+                Announce(Lines.Pick(Lines.Dancing, _save.OwnerName), 3);
             }),
             ("snack", _save.Fullness < 90 ? 2 : 0, () =>
             {
                 Play("eat");
-                Mutter(Lines.Pick(Lines.Snack, _save.OwnerName), 3);
+                Announce(Lines.Pick(Lines.Snack, _save.OwnerName), 3);
                 _save.Fullness = Math.Min(100, _save.Fullness + 1);
             }),
             ("stretch", tired ? 10 : _save.Energy < 70 ? 3 : 1, () =>
             {
                 Play("yawn");
-                Mutter(tired ? Lines.Pick(Lines.Sleepy, _save.OwnerName) : "*протяга се* Ааах.", 3);
+                Announce(tired ? Lines.Pick(Lines.Sleepy, _save.OwnerName) : "*протяга се* Ааах.", 3);
             }),
             ("cursor", tired ? 0 : 5, FollowCursor),
             ("butterfly", tired ? 0 : 5, StartChase),
@@ -192,7 +180,7 @@ public sealed partial class PetWindow
         string line = missing.Count > 0 && _rng.Next(3) == 0
             ? $"Ех, да имах {missing[_rng.Next(missing.Count)].Name.ToLowerInvariant()}…"
             : Lines.Pick(Lines.Wondering, _save.OwnerName);
-        Mutter(line, 4);
+        Announce(line, 4);
         Play(_rng.Next(2) == 0 ? "think" : "idle", length: 3 + _rng.Next(3));
     }
 
@@ -216,7 +204,7 @@ public sealed partial class PetWindow
                 _facingLeft = dir > 0;
                 Play("idle", length: 2.5 + _rng.NextDouble() * 2, after: () =>
                 {
-                    Mutter(Lines.Pick(Lines.Peekaboo, _save.OwnerName), 3);
+                    Announce(Lines.Pick(Lines.Peekaboo, _save.OwnerName), 3);
                     Play("happy", after: () => WalkTo(inside, () => _peeking = false));
                 });
             });
@@ -232,8 +220,8 @@ public sealed partial class PetWindow
     {
         _juggleStart = Now;
         _juggleUntil = Now + 6 + _rng.NextDouble() * 4;
-        Mutter(Lines.Pick(Lines.JuggleStart, _save.OwnerName), 3);
-        Play("juggle", length: _juggleUntil - Now, after: () => Mutter(Lines.Pick(Lines.JuggleEnd, _save.OwnerName), 3));
+        Announce(Lines.Pick(Lines.JuggleStart, _save.OwnerName), 3);
+        Play("juggle", length: _juggleUntil - Now, after: () => Announce(Lines.Pick(Lines.JuggleEnd, _save.OwnerName), 3));
     }
 
     /// <summary>Лешниците летят в кръг над главата му, докато жонглира.</summary>
@@ -282,7 +270,7 @@ public sealed partial class PetWindow
         double half = HalfWidth;
         WalkTo(Math.Clamp(cx, area.Left + half, area.Right - half), () =>
         {
-            Mutter(Lines.Pick(Lines.CursorFound, _save.OwnerName), 4);
+            Announce(Lines.Pick(Lines.CursorFound, _save.OwnerName), 4);
             Play("happy");
         });
     }
@@ -303,7 +291,7 @@ public sealed partial class PetWindow
         _bfTargetX = _x;
         _bfVx = 0;
         _bfVy = 0;
-        Mutter(Lines.Pick(Lines.ButterflySeen, _save.OwnerName), 3);
+        Announce(Lines.Pick(Lines.ButterflySeen, _save.OwnerName), 3);
         SetState(BearState.Chase, "walk");
     }
 
@@ -312,7 +300,7 @@ public sealed partial class PetWindow
         if (!_bfActive)
         {
             // Пеперудата отлетя.
-            Mutter(Lines.Pick(_rng.Next(3) == 0 ? Lines.ButterflyCaught : Lines.ButterflyGone, _save.OwnerName), 4);
+            Announce(Lines.Pick(_rng.Next(3) == 0 ? Lines.ButterflyCaught : Lines.ButterflyGone, _save.OwnerName), 4);
             Play(_rng.Next(2) == 0 ? "happy" : "sad", length: 2);
             return;
         }

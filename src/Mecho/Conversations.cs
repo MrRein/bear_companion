@@ -17,6 +17,14 @@ public static class Conversations
 
     private static string Pick(params string[] lines) => lines[Rng.Next(lines.Length)];
 
+    /// <summary>„Няма ли да правим нещо?“: мечо-доро, таймер, задача, бележка.</summary>
+    public static ChatQuestion WorkOffer(PetWindow pet) => new($"Какво ще правим, {pet.Save.OwnerName}?",
+        new ChatOption("Мечо-доро (25 мин)", p => p.StartFocus()),
+        new ChatOption("Таймер", p => p.OpenMenu(MenuWindow.PomodoroTab)),
+        new ChatOption("Ще запиша задача", p => p.OpenMenu(MenuWindow.TasksTab)),
+        new ChatOption("Ще запиша бележка", p => p.OpenMenu(MenuWindow.NotesTab)),
+        new ChatOption("Не сега", p => p.Cheer("Добре! Тук съм, ако потрябвам.")));
+
     public static ChatQuestion Next(PetWindow pet)
     {
         var s = pet.Save;

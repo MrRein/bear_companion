@@ -55,7 +55,7 @@ public static class Kitchen
         new(Pot, "Тенджера", "🍲", 10, "За пуканки (после купи рецептата в „Храна“)."),
         new(Kettle, "Чайник", "🫖", 15, "Кътче за чай; с рецепта и чай с мед за енергия."),
         new(Pan, "Тиган", "🍳", 25, "За кюфтенца (после купи рецептата в „Храна“)."),
-        new(CoffeeMachine, "Кафе машина", "☕", 30, "За кафе, което вдига енергията много (с рецепта; най-много 2 на половин час)."),
+        new(CoffeeMachine, "Кафе машина", "☕", 30, "За кафе: енергия до половината (с рецепта; най-много 2 на половин час)."),
         new(Oven, "Фурна", "🔥", 45, "За мечешки картофки (после купи рецептата в „Храна“)."),
 
         new(PlantPot, "Саксия с цвете", "🌱", 10, "Мечокът полива цветето.", FunShelf),
@@ -102,6 +102,13 @@ public static class Kitchen
 
     public static int CostOf(Food food, SaveData save) =>
         food.Cost == 0 ? 0 : Math.Max(1, food.Cost - (Owns(save, Fridge) ? 1 : 0));
+
+    /// <summary>Храната (кафе, чай) вдига енергията най-много до половината; догоре само със сън.</summary>
+    public const double FoodEnergyCap = 50;
+
+    /// <summary>Енергията след храна с толкова енергия.</summary>
+    public static double EnergyAfter(double energy, double gain) =>
+        gain <= 0 || energy >= FoodEnergyCap ? energy : Math.Min(FoodEnergyCap, energy + gain);
 
     public static double FullnessOf(Food food, SaveData save) => food.Fullness * (Owns(save, Cookbook) ? 1.25 : 1);
 

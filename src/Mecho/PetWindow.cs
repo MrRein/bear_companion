@@ -187,6 +187,7 @@ public sealed partial class PetWindow : Window
         _lastTime = Now;
         _nextChatter = Now + 120 + _rng.Next(180);
         _nextUpdateCheck = Now + 60;
+        StartFreeCycle(sitNow: false);
         if (_save.StayPut)
         {
             // Пак си е в кътчето, където го оставихме (или почива на случаен принцип).
@@ -233,6 +234,7 @@ public sealed partial class PetWindow : Window
         UpdateFood(dt);
         UpdateButterfly(dt);
         UpdateGifts(now);
+        MaybeOfferWork(now);
         UpdatePajamas();
 
         if (_state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
@@ -293,6 +295,14 @@ public sealed partial class PetWindow : Window
         {
             Say(Lines.Pick(Lines.GoingToSleep, _save.OwnerName));
             Play("yawn", then: "sleep", away: true);
+            return;
+        }
+
+        // Късно вечер и уморен: сам си ляга (за дълго, до сутринта).
+        if (LateNight && _save.Energy < 35 && !InFocus && !TimerRunning)
+        {
+            Say(Lines.Pick(Lines.GoodNight, _save.OwnerName));
+            Play("yawn", then: "sleep");
             return;
         }
 
@@ -379,8 +389,8 @@ public sealed partial class PetWindow : Window
             Say(Lines.Pick(Lines.WelcomeBack, _save.OwnerName));
             Play("happy");
         }
-        // Дрямка: става сам, щом се наспи.
-        else if (!_sleepIsAway && _save.Energy >= 100)
+        // Дрямка: става сам, щом се наспи. Нощем (22–7 ч.) спи до сутринта.
+        else if (!_sleepIsAway && _save.Energy >= 100 && !NightSleep)
         {
             _save.SleepingByChoice = false;
             Say(Lines.Pick(Lines.WokeUp, _save.OwnerName));
@@ -645,6 +655,7 @@ public sealed partial class PetWindow : Window
             return;
         }
         if (_chatOpenAtPress) return;
+        if (!InFocus && TakeOffer()) return;
 
         if (InFocus)
         {
@@ -941,6 +952,19 @@ public sealed partial class PetWindow : Window
         // Балончето не бива да остава под панела, храната или друг прозорец „винаги отгоре“.
         if (!ChatIsOpen) NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
         _bubbleUntil = Now + seconds + text.Length * 0.04;
+        _lastSpoke = Now;
+    }
+
+    private double _lastSpoke = -1000;
+
+    /// <summary>
+    /// Казва какво почва (или свършва) да прави: „Ще поиграя малко!“. Мълчи само в
+    /// тих режим или ако току-що е казал нещо (под 25 с), за да не дудне.
+    /// </summary>
+    private void Announce(string text, double seconds = 4)
+    {
+        if (IsQuiet || Now - _lastSpoke < 25) return;
+        Say(text, seconds);
     }
 
     /// <summary>

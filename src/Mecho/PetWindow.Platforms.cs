@@ -105,7 +105,7 @@ public sealed partial class PetWindow
         _x = _jumpToX;
         _y = _jumpToY;
         SetIdle();
-        Mutter(Lines.Pick(Lines.Climbed, _save.OwnerName), 3);
+        Announce(Lines.Pick(Lines.Climbed, _save.OwnerName), 3);
     }
 
     /// <summary>Къде да се разходи: ако е на платформа, най-често остава на нея.</summary>

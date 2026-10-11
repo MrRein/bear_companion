@@ -163,12 +163,12 @@ public sealed partial class PetWindow
         }
 
         _save.Fullness = Math.Min(100, _save.Fullness + food.Fullness);
-        _save.Energy = Math.Min(100, _save.Energy + food.Energy);
+        _save.Energy = Kitchen.EnergyAfter(_save.Energy, food.Energy);
         food.Close();
         _food.Remove(food);
         if (_food.Count == 0)
         {
-            Say(Lines.Pick(Lines.AllFoodEaten, _save.OwnerName), 4);
+            if (!ThankForMeal()) Say(Lines.Pick(Lines.AllFoodEaten, _save.OwnerName), 4);
             if (CanAnimateFreely) Play("dance", length: 3);
         }
         else

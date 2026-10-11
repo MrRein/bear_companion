@@ -94,11 +94,12 @@ public sealed partial class PetWindow
     {
         double h = dt / 3600;
         _save.Fullness = Math.Clamp(_save.Fullness - (IsResting ? HungerAsleep : HungerAwake) * h, 0, 100);
-        double tiring = _scene == Scenes.Focus ? TiredWorking : TiredAwake;
+        double tiring = (_scene == Scenes.Focus ? TiredWorking : TiredAwake) * NightTiredness;
         _save.Energy = Math.Clamp(_save.Energy + (IsResting ? RestRate : -tiring) * h, 0, 100);
 
         UpdatePomodoro();
         UpdateTimer();
+        UpdateMeals();
 
         // Казва, че е гладен или сънлив, но не по-често от веднъж на няколко минути.
         if (!IsResting && !IsQuiet && !InFocus && now > _nextNeedLine && _state != BearState.Drag)
@@ -106,7 +107,13 @@ public sealed partial class PetWindow
             if (_save.Fullness < 25)
             {
                 _nextNeedLine = now + 600 + _rng.Next(300);
-                Say(Lines.Pick(Lines.Hungry, _save.OwnerName), 5);
+                var meal = CurrentMeal;
+                Say(Lines.Pick(meal == "lunch" ? Lines.LunchTime : meal == "dinner" ? Lines.DinnerTime : Lines.Hungry, _save.OwnerName), 5);
+            }
+            else if (LateNight && _save.Energy < 50)
+            {
+                _nextNeedLine = now + 420 + _rng.Next(240);
+                Say(Lines.Pick(Lines.Bedtime, _save.OwnerName), 5);
             }
             else if (_save.Energy < 25)
             {
@@ -115,6 +122,72 @@ public sealed partial class PetWindow
                 Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 5);
             }
         }
+    }
+
+    // ───────────────────────── Нощ ─────────────────────────
+
+    /// <summary>След 22:00 се уморява по-бързо, след 22:30 – много бързо (до сутринта).</summary>
+    private static double NightTiredness
+    {
+        get
+        {
+            var t = DateTime.Now.TimeOfDay;
+            if (t >= new TimeSpan(22, 30, 0) || t < new TimeSpan(6, 0, 0)) return 4;
+            if (t >= new TimeSpan(22, 0, 0)) return 2;
+            return 1;
+        }
+    }
+
+    /// <summary>Късно е (след 22:00): иска да спи.</summary>
+    private static bool LateNight => DateTime.Now.Hour >= 22 || DateTime.Now.Hour < 6;
+
+    /// <summary>Нощен сън (22:00–7:00): не е дрямка, спи до сутринта.</summary>
+    private static bool NightSleep => DateTime.Now.Hour >= 22 || DateTime.Now.Hour < 7;
+
+    // ───────────────────────── Обяд и вечеря ─────────────────────────
+
+    /// <summary>Обяд 11:40–13:30, вечеря 18:30–20:00 (иначе null).</summary>
+    private static string? CurrentMeal
+    {
+        get
+        {
+            var t = DateTime.Now.TimeOfDay;
+            if (t >= new TimeSpan(11, 40, 0) && t <= new TimeSpan(13, 30, 0)) return "lunch";
+            if (t >= new TimeSpan(18, 30, 0) && t <= new TimeSpan(20, 0, 0)) return "dinner";
+            return null;
+        }
+    }
+
+    private bool MealDone(string key) => _save.MealsDone.Contains($"{key}:{DateTime.Today:yyyy-MM-dd}");
+
+    private void MarkMeal(string key)
+    {
+        string today = DateTime.Today.ToString("yyyy-MM-dd");
+        _save.MealsDone.RemoveAll(m => !m.EndsWith(today));
+        _save.MealsDone.Add($"{key}:{today}");
+    }
+
+    /// <summary>Стане ли време за обяд или вечеря, огладнява рязко (веднъж на ден всяко).</summary>
+    private void UpdateMeals()
+    {
+        var meal = CurrentMeal;
+        if (meal == null || MealDone(meal)) return;
+        MarkMeal(meal);
+        _save.Fullness = Math.Min(_save.Fullness, 22);
+        _nextNeedLine = Now + 600 + _rng.Next(300);
+        if (!IsResting && !InFocus && !IsQuiet)
+            Say(Lines.Pick(meal == "lunch" ? Lines.LunchTime : Lines.DinnerTime, _save.OwnerName), 5);
+        NotifyCare();
+    }
+
+    /// <summary>След като е ял по време на обяд/вечеря: благодари (веднъж на ден за всяко).</summary>
+    private bool ThankForMeal()
+    {
+        var meal = CurrentMeal;
+        if (meal == null || MealDone(meal + "-thanks")) return false;
+        MarkMeal(meal + "-thanks");
+        Say(Lines.Pick(meal == "lunch" ? Lines.LunchThanks : Lines.DinnerThanks, _save.OwnerName), 5);
+        return true;
     }
 
     /// <summary>Сам ли иска да дремне (вика се, когато стои без работа).</summary>

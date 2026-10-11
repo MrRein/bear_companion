@@ -194,6 +194,11 @@ public sealed partial class PetWindow
             _chat?.UpdateLayout();
         }, 800);
         await step("SOS: друго", () => { Sos(); _chat?.Hide(); }, 500);
+        await step("седи", () => { if (_inScene) LeaveScene(); StartScene(Scenes.Sit, quiet: false); }, 800);
+        await step("хоби само", () => { LeaveScene(); StartAutoHobby(); }, 1000);
+        await step("след хобито пак седи", () => { if (_onTrampoline) EndBounce(null); else LeaveScene(); }, 500);
+        await step("предложение за работа", () => { Ask(Conversations.WorkOffer(this)); _chat?.UpdateLayout(); _chat?.Hide(); }, 500);
+        await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);
         await step("сън в леглото", GoToSleep, 1500);
         await step("събуди", WakeUp, 1000);
     }

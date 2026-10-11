@@ -100,7 +100,7 @@ public sealed partial class PetWindow
         _onTrampoline = true;
         _streak = 0;
         _bounceUntil = seconds > 0 ? Now + seconds : 0;
-        if (!quiet) Mutter(Lines.Pick(Scenes.Trampoline.Start, _save.OwnerName), 3);
+        if (!quiet) Announce(Lines.Pick(Scenes.Trampoline.Start, _save.OwnerName), 3);
         PlaceTrampoline(_x);
         BeginBounce();
     }
