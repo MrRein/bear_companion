@@ -206,6 +206,13 @@ Sans / Bold / Mono (GGBotNet, SIL Open Font License) в `src/Mecho/fonts/`.
 анимации (`read`, `read_sleep`) се рисуват така, сякаш мечокът стои на земята;
 програмата сама го вдига на седалката.
 
+### Нарисуваните от Тут
+
+Готовите рисунки се качват в папка `done_art/` в GitHub (Add file → Upload
+files). Оттам се копират в `assets/bear/`, името им се добавя в `HAND_DRAWN` в
+`tools/make_placeholders.py` (за да не ги презапише), а шаблоните за дрехите се
+правят с `python tools/auto_clothes.py <анимации>`.
+
 ### Дрехите
 
 Мечокът не се реже на части: дрехите са **слоеве** върху цялата рисунка, със

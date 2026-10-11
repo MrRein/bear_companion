@@ -17,15 +17,15 @@ PROPS = os.path.join(os.path.dirname(__file__), "..", "assets", "props")
 
 # Анимациите, които вече са нарисувани на ръка: скриптът не ги пипа (нито
 # шаблоните им за дрехи; тях ги прави tools/auto_clothes.py или Тут).
-HAND_DRAWN = {"idle"}
+HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "dice", "bounce"}
 
 # Цветовете са от мечока на Тут (assets/bear/idle.png).
-OUTLINE = (88, 29, 8, 255)
-FUR = (180, 108, 65, 255)
-LIGHT = (208, 154, 104, 255)
-MUZZLE = (251, 232, 195, 255)
+OUTLINE = (68, 20, 8, 255)
+FUR = (161, 87, 48, 255)
+LIGHT = (194, 135, 83, 255)
+MUZZLE = (249, 227, 180, 255)
 BLACK = (0, 0, 0, 255)
-PINK = (199, 122, 102, 255)
+PINK = (182, 101, 82, 255)
 WHITE = (255, 255, 255, 255)
 NUT = (150, 95, 40, 255)
 PAPER = (245, 240, 225, 255)
