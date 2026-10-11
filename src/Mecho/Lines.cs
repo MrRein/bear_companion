@@ -203,6 +203,22 @@ public static class Lines
         _ => $"Хвърлих {n}!",
     };
 
+    // Подаръци
+    public static readonly string[] GiftBrought =
+    {
+        "Донесох ти подарък, {0}! Отвори го! 🎁", "Изненада! Намерих нещо за теб! 🎁", "*пъхти* Носих го от гората! Отвори го! 🎁",
+    };
+
+    public static readonly string[] GiftWaiting =
+    {
+        "Пссст… подаръкът още те чака! 🎁", "Няма ли да си отвориш подаръка? 🎁", "Любопитно ми е какво има вътре! Отвори го! 🎁",
+    };
+
+    public static readonly string[] GiftOpened =
+    {
+        "Ура! Харесва ли ти?", "Знаех си, че ще ти хареса!", "Йееей! Подаръци!",
+    };
+
     // Гардероб
     public static readonly string[] NewClothes =
     {

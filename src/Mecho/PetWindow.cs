@@ -142,6 +142,7 @@ public sealed partial class PetWindow : Window
         _root.Children.Add(_side);
         _root.Children.Add(_seat);
         _root.Children.Add(_sprite);
+        _root.Children.Add(_carry);
         _root.Children.Add(_bubble);
         Content = _root;
         InitCare();
@@ -230,6 +231,7 @@ public sealed partial class PetWindow : Window
         UpdateCare(dt, now);
         UpdateFood(dt);
         UpdateButterfly(dt);
+        UpdateGifts(now);
 
         if (_state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
         {
@@ -320,6 +322,9 @@ public sealed partial class PetWindow : Window
             WaitForFood(now);
             return;
         }
+
+        // Време е за подаръка.
+        if (TryStartGift()) return;
 
         // Тут го е оставила в кътче (и после са го вдигнали): връща се там.
         if (_save.StayPut && !_inScene && !_onTrampoline && !InFocus)
@@ -759,7 +764,7 @@ public sealed partial class PetWindow : Window
     {
         var frame = _dresser.Frame(_lib, _anim, _lib.Get(_anim).IndexAt(_animTime), _save.Outfit);
         // Докато се преоблича, е скрит зад вратата на гардероба.
-        _sprite.Visibility = Dressing ? Visibility.Hidden : Visibility.Visible;
+        _sprite.Visibility = Dressing || GiftAway ? Visibility.Hidden : Visibility.Visible;
         if (!ReferenceEquals(frame, _shownFrame))
         {
             _shownFrame = frame;
@@ -842,12 +847,14 @@ public sealed partial class PetWindow : Window
 
         Rect butterfly = ButterflyRect;
         var nuts = JuggleRects(bear);
+        var carry = CarryRect(bear);
 
         Place(_sprite, new Rect(bear.Left, bear.Top - Dresser.HatRoom * PixelSize, bear.Width, _sprite.Height), _window.Left, _window.Top, dpi);
         if (hasSeat) Place(_seat, seat, _window.Left, _window.Top, dpi);
         if (hasSide) Place(_side, side, _window.Left, _window.Top, dpi);
         if (!bubble.IsEmpty) Place(_bubble, bubble, _window.Left, _window.Top, dpi);
         if (!tag.IsEmpty) Place(_timerTag, tag, _window.Left, _window.Top, dpi);
+        if (!carry.IsEmpty) Place(_carry, carry, _window.Left, _window.Top, dpi);
         if (!butterfly.IsEmpty) Place(_butterfly, butterfly, _window.Left, _window.Top, dpi);
         for (int i = 0; i < nuts.Length; i++)
             if (_juggleNuts[i].Visibility == Visibility.Visible) Place(_juggleNuts[i], nuts[i], _window.Left, _window.Top, dpi);

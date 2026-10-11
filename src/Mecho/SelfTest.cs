@@ -151,6 +151,18 @@ public sealed partial class PetWindow
         }, 200);
         await step("съблечи", Undress, 1200);
         await step("затвори менюто", () => _menu!.Hide(), 500);
+        await step("подарък: тръгва", DevGiftNow, 3000);
+        await step("подарък: в средата", DevGiftDrop, 1500);
+        await step("подарък: отваряне", () => OpenGift(_giftWindow!), 1500);
+        await step("подарък: още един", () => { DevGiftDrop(); OpenGift(_giftWindow!); }, 1000);
+        await step("подарък: нов ден", DevGiftNewDay, 500);
+        await step("developer панел", () =>
+        {
+            var dev = new DevWindow(this);
+            dev.Show();
+            dev.UpdateLayout();
+            dev.Close();
+        }, 500);
         await step("сън", GoToSleep, 1500);
         await step("събуди", WakeUp, 1000);
     }

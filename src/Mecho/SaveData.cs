@@ -31,6 +31,9 @@ public sealed class SaveData
     // Прогрес
     public int Hazelnuts { get; set; }
     public List<string> Owned { get; set; } = new();            // купени уреди и подобрения
+    public string GiftDay { get; set; } = "";                  // за кой ден е решено дали има подарък
+    public DateTime GiftAt { get; set; } = DateTime.MinValue;  // кога тръгва за подаръка (MinValue = днес няма)
+    public bool GiftPending { get; set; }                      // подаръкът чака в средата на екрана
     public string Background { get; set; } = "meadow";         // фонът на портрета (виж Backdrops)
     public List<string> OwnedClothes { get; set; } = new();     // купени дрехи (виж Clothes)
     public Dictionary<string, string> Outfit { get; set; } = new(); // слот → облечената дреха

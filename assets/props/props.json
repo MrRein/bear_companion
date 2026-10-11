@@ -181,6 +181,14 @@
       "file": "mystery.png",
       "seat": 0
     },
+    "gift": {
+      "file": "gift.png",
+      "seat": 0
+    },
+    "gift_open": {
+      "file": "gift_open.png",
+      "seat": 0
+    },
     "shop_easel": {
       "file": "shop_easel.png",
       "seat": 0

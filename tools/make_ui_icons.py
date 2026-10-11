@@ -617,6 +617,19 @@ kkkkkkkkkkkk
 .....kkkk...
 .....kyyk...
 .....kkkk...""",
+    "gift": """
+...rr..rr...
+..r..rr..r..
+...rrrrrr...
+kkkkkrrkkkkk
+kuuuurruuuuk
+kkkkkrrkkkkk
+.kuuurruuuk.
+.kuuurruuuk.
+.kuuurruuuk.
+.kuuurruuuk.
+.kkkkkkkkkk.
+............""",
     "check": """
 ............
 ..........kk

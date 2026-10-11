@@ -76,6 +76,9 @@ public sealed class SpriteLibrary
     private readonly Dictionary<string, BitmapSource[]?> _layers = new();
     private readonly Dictionary<string, BitmapSource?> _clothes = new();
 
+    /// <summary>Имената на всички анимации от anim.json (за Developer панела).</summary>
+    public System.Collections.Generic.IEnumerable<string> AnimationNames => _files.Keys;
+
     public int FrameWidth { get; private set; } = 32;
     public int FrameHeight { get; private set; } = 32;
     public int Scale { get; private set; } = 3;

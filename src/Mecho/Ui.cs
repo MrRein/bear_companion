@@ -222,7 +222,7 @@ public static class Ui
         ["🍲"] = "shop_pot", ["🫖"] = "shop_kettle", ["🍳"] = "shop_pan", ["🔥"] = "shop_oven", ["🎧"] = "shop_headphones",
         ["🛏"] = "shop_bed", ["🧊"] = "shop_fridge", ["📖"] = "shop_cookbook", ["🌱"] = "shop_plant", ["🧘"] = "shop_yoga_mat",
         ["📻"] = "shop_radio", ["🎲"] = "dice", ["🎨"] = "shop_easel", ["🎮"] = "shop_computer", ["🤸"] = "shop_trampoline",
-        ["💡"] = "pencil", ["📝"] = "notes", ["📋"] = "tasks", ["🛋"] = "couch", ["🚶"] = "walk", ["🔒"] = "lock",
+        ["💡"] = "pencil", ["📝"] = "notes", ["📋"] = "tasks", ["🛋"] = "couch", ["🎁"] = "gift", ["🚶"] = "walk", ["🔒"] = "lock",
         ["💤"] = "moon", ["🌙"] = "moon", ["☀"] = "sun", ["❤"] = "heart", ["♪"] = "music",
     };
 

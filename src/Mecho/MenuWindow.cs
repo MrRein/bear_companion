@@ -1319,6 +1319,8 @@ public sealed class MenuWindow : Window
 
     // ───────────────────────── Още ─────────────────────────
 
+    private DevWindow? _dev;
+
     private UIElement BuildMoreTab()
     {
         var p = new StackPanel();
@@ -1340,7 +1342,15 @@ public sealed class MenuWindow : Window
             Hide();
             _pet.Hide();
         }, icon: "hide");
-        foreach (var b in new[] { _updateButton, reset, hide })
+        var dev = Button("Developer: тествай всичко", () =>
+        {
+            Hide();
+            _dev ??= new DevWindow(_pet);
+            _dev.Closed += (_, _) => _dev = null;
+            _dev.Show();
+            _dev.Activate();
+        }, icon: "gear");
+        foreach (var b in new[] { _updateButton, reset, hide, dev })
         {
             b.HorizontalAlignment = HorizontalAlignment.Stretch;
             b.HorizontalContentAlignment = HorizontalAlignment.Left;

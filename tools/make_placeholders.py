@@ -1149,6 +1149,31 @@ def mystery(d):
 PROP_LIST["mystery"] = (prop(16, 16, mystery), 0)
 
 
+def gift(opened):
+    """Подаръкът, който мечокът носи (затворен или с отворен капак)."""
+    def f(d):
+        box, dark, ribbon = (120, 180, 230, 255), (80, 130, 190, 255), (240, 90, 110, 255)
+        d.rectangle((2, 7, 13, 15), fill=box, outline=OUTLINE)
+        d.rectangle((3, 13, 12, 14), fill=dark)
+        d.rectangle((7, 7, 8, 15), fill=ribbon)
+        if opened:
+            # Капакът е отхвръкнал наляво, отвътре блести.
+            d.rectangle((0, 1, 9, 4), fill=box, outline=OUTLINE)
+            d.rectangle((4, 1, 5, 4), fill=ribbon)
+            for x, y in [(6, 5), (10, 4), (13, 6), (8, 3)]:
+                d.point((x, y), fill=(255, 230, 120, 255))
+        else:
+            d.rectangle((1, 4, 14, 7), fill=box, outline=OUTLINE)
+            d.rectangle((7, 4, 8, 7), fill=ribbon)
+            d.ellipse((3, 0, 7, 4), outline=ribbon)   # панделка
+            d.ellipse((8, 0, 12, 4), outline=ribbon)
+    return f
+
+
+PROP_LIST["gift"] = (prop(16, 16, gift(False)), 0)
+PROP_LIST["gift_open"] = (prop(16, 16, gift(True)), 0)
+
+
 def save_backgrounds():
     folder = os.path.join(os.path.dirname(__file__), "..", "assets", "backgrounds")
     os.makedirs(folder, exist_ok=True)
