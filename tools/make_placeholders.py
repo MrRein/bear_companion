@@ -17,7 +17,7 @@ PROPS = os.path.join(os.path.dirname(__file__), "..", "assets", "props")
 
 # Анимациите, които вече са нарисувани на ръка: скриптът не ги пипа (нито
 # шаблоните им за дрехи; тях ги прави tools/auto_clothes.py или Тут).
-HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "dice", "bounce"}
+HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "dice", "bounce", "eat"}
 
 # Цветовете са от мечока на Тут (assets/bear/idle.png).
 OUTLINE = (68, 20, 8, 255)
