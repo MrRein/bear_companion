@@ -101,8 +101,22 @@ public sealed partial class PetWindow
         Say(food.Count > 1
             ? $"{food.Icon} {food.Name}! Опа, разхвърчаха се! Донеси ми ги всичките!"
             : $"{food.Icon} {food.Name}! Донеси ми го тук, моля!", 5);
-        _nextFoodReminder = Now + 15;
+        _nextFoodReminder = Now + 40;
         if (_state is BearState.Walk or BearState.Chase or BearState.Busy) SetIdle();
+    }
+
+    /// <summary>Купува рецепта: ястието се отключва завинаги.</summary>
+    public void BuyRecipe(Food food)
+    {
+        if (Kitchen.HasRecipe(food, _save) || !Kitchen.HasTool(food, _save)) return;
+        int price = Kitchen.RecipePrice(food);
+        if (_save.Hazelnuts < price) return;
+        _save.Hazelnuts -= price;
+        _save.Owned.Add(Kitchen.RecipeId(food));
+        Say($"Нова рецепта: {food.Name}! Сега мога да я готвя.", 4);
+        if (CanAnimateFreely) Play("happy");
+        NotifyCare();
+        Persist();
     }
 
     /// <summary>Купува уред или подобрение с лешници.</summary>
@@ -181,7 +195,7 @@ public sealed partial class PetWindow
             if (_anim != "idle") SetIdle();
             return;
         }
-        _nextFoodReminder = now + 12 + _rng.Next(10);
+        _nextFoodReminder = now + 45 + _rng.Next(30);
         var nearest = _food.OrderBy(f => Math.Abs(f.Left + f.Width / 2 - _x)).First();
         _facingLeft = nearest.Left + nearest.Width / 2 < _x;
         var line = Lines.WantFood[_rng.Next(Lines.WantFood.Length)];

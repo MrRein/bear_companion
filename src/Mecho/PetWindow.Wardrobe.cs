@@ -32,7 +32,7 @@ public sealed partial class PetWindow
         if (AtWardrobe || IsAsleep || InFocus || _onTrampoline) return;
         if (_state is BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce) return;
         if (_inScene) LeaveScene();
-        StartScene(Scenes.Wardrobe, quiet: false);
+        StartScene(Scenes.Wardrobe, quiet: true);
     }
 
     /// <summary>Табът е затворен: гардеробът изчезва (ако Тут го е оставила в кътче, се връща там).</summary>
@@ -40,7 +40,6 @@ public sealed partial class PetWindow
     {
         if (!AtWardrobe) return;
         _dressUntil = _twirlUntil = 0;
-        Say(Lines.Pick(Scenes.Wardrobe.End, _save.OwnerName), 3);
         LeaveScene();
     }
 

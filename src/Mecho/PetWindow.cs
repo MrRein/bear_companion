@@ -301,8 +301,8 @@ public sealed partial class PetWindow : Window
 
         if (!IsQuiet && !InFocus && !WaitingForFood && now > _nextChatter)
         {
-            _nextChatter = now + 240 + _rng.Next(240);
-            Say(Lines.Pick(Lines.Chatter, _save.OwnerName), 6);
+            _nextChatter = now + 600 + _rng.Next(600);
+            Mutter(Lines.Pick(Lines.Chatter, _save.OwnerName), 6);
         }
 
         if (_stateTime < _stateLength) return;
@@ -659,15 +659,9 @@ public sealed partial class PetWindow : Window
     /// <summary>Десен бутон: гъделичкане и панелът „Мечо“.</summary>
     private void OnRightClick()
     {
+        // Само отваря панела: без реплика (Тут го цъка често), само се усмихва.
         if (!ToggleMenu(fromClick: true)) return;
-
-        if (IsAsleep || _anim == "read_sleep")
-            Say(Lines.Pick(Lines.PokedAsleep, _save.OwnerName), 3);
-        else
-        {
-            Say(Lines.Pick(Lines.Tickled, _save.OwnerName), 3);
-            if (CanAnimateFreely && _state != BearState.Busy) Play("happy");
-        }
+        if (!IsAsleep && _anim != "read_sleep" && CanAnimateFreely && _state != BearState.Busy) Play("happy");
     }
 
     // ───────────────────────── Разговор ─────────────────────────
@@ -935,6 +929,20 @@ public sealed partial class PetWindow : Window
         if (!ChatIsOpen) NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
         _bubbleUntil = Now + seconds + text.Length * 0.04;
     }
+
+    /// <summary>
+    /// Казано от само себе си (не в отговор на Тут): мълчи в тих режим и не
+    /// приказва по-често от веднъж на няколко минути, за да не досажда.
+    /// </summary>
+    private void Mutter(string text, double seconds = 4)
+    {
+        if (IsQuiet || Now - _lastMutter < MutterGap) return;
+        _lastMutter = Now;
+        Say(text, seconds);
+    }
+
+    private const double MutterGap = 180;
+    private double _lastMutter = -1000;
 
     private void HideBubble() => _bubble.Visibility = Visibility.Collapsed;
 }

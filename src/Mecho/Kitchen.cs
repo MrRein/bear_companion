@@ -52,11 +52,11 @@ public static class Kitchen
 
     public static readonly Upgrade[] Upgrades =
     {
-        new(Pot, "Тенджера", "🍲", 10, "Мечокът може да пука пуканки."),
-        new(Kettle, "Чайник", "🫖", 15, "Чай с мед и кътче за чай."),
-        new(Pan, "Тиган", "🍳", 25, "Мечокът може да пържи кюфтенца."),
-        new(CoffeeMachine, "Кафе машина", "☕", 30, "Кафе: вдига енергията много (най-много 2 на половин час)."),
-        new(Oven, "Фурна", "🔥", 45, "Мечокът може да пече мечешки картофки."),
+        new(Pot, "Тенджера", "🍲", 10, "За пуканки (после купи рецептата в „Храна“)."),
+        new(Kettle, "Чайник", "🫖", 15, "Кътче за чай; с рецепта и чай с мед за енергия."),
+        new(Pan, "Тиган", "🍳", 25, "За кюфтенца (после купи рецептата в „Храна“)."),
+        new(CoffeeMachine, "Кафе машина", "☕", 30, "За кафе, което вдига енергията много (с рецепта; най-много 2 на половин час)."),
+        new(Oven, "Фурна", "🔥", 45, "За мечешки картофки (после купи рецептата в „Храна“)."),
 
         new(PlantPot, "Саксия с цвете", "🌱", 10, "Мечокът полива цветето.", FunShelf),
         new(Couch, "Диван", "🛋️", 20, "Мечокът чете на мек диван (иначе седи на земята), а кацането е меко.", FunShelf),
@@ -77,7 +77,27 @@ public static class Kitchen
 
     public static bool Owns(SaveData save, string id) => save.Owned.Contains(id);
 
-    public static bool CanCook(Food food, SaveData save) => food.Tool == null || Owns(save, food.Tool);
+    public static bool HasTool(Food food, SaveData save) => food.Tool == null || Owns(save, food.Tool);
+
+    /// <summary>
+    /// Рецептата се купува веднъж (освен за боровинките); после ястието се готви
+    /// колкото пъти искаш. Пази се в Owned като „recipe_&lt;храна&gt;“.
+    /// </summary>
+    public static bool HasRecipe(Food food, SaveData save) => food.Cost == 0 || Owns(save, RecipeId(food));
+
+    public static string RecipeId(Food food) => "recipe_" + food.Id;
+
+    public static int RecipePrice(Food food) => food.Id switch
+    {
+        "popcorn" => 5,
+        "tea" => 4,
+        "coffee" => 6,
+        "meatballs" => 10,
+        "potatoes" => 12,
+        _ => 5,
+    };
+
+    public static bool CanCook(Food food, SaveData save) => HasTool(food, save) && HasRecipe(food, save);
 
     public static int CostOf(Food food, SaveData save) =>
         food.Cost == 0 ? 0 : Math.Max(1, food.Cost - (Owns(save, Fridge) ? 1 : 0));

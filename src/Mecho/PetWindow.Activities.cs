@@ -93,27 +93,27 @@ public sealed partial class PetWindow
             }),
             ("wonder", 10, Wonder),
             ("climb", tired || !HasPlatforms ? 0 : 8, Climb),
-            ("sketch", tired ? 1 : 5, () => Play("work", length: 8 + _rng.Next(8), after: () => Say(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
+            ("sketch", tired ? 1 : 5, () => Play("work", length: 8 + _rng.Next(8), after: () => Mutter(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
             ("dice", tired ? 0 : 4, () =>
             {
                 int n = _rng.Next(1, 7);
-                Play("dice", after: () => Say(Lines.DiceRoll(n) + " " + Lines.Pick(Lines.Playtest, _save.OwnerName), 5));
+                Play("dice", after: () => Mutter(Lines.DiceRoll(n) + " " + Lines.Pick(Lines.Playtest, _save.OwnerName), 5));
             }),
             ("dance", tired ? 0 : 3, () =>
             {
                 Play("dance", length: 3);
-                Say(Lines.Pick(Lines.Dancing, _save.OwnerName), 3);
+                Mutter(Lines.Pick(Lines.Dancing, _save.OwnerName), 3);
             }),
             ("snack", _save.Fullness < 90 ? 2 : 0, () =>
             {
                 Play("eat");
-                Say(Lines.Pick(Lines.Snack, _save.OwnerName), 3);
+                Mutter(Lines.Pick(Lines.Snack, _save.OwnerName), 3);
                 _save.Fullness = Math.Min(100, _save.Fullness + 1);
             }),
             ("stretch", tired ? 10 : _save.Energy < 70 ? 3 : 1, () =>
             {
                 Play("yawn");
-                Say(tired ? Lines.Pick(Lines.Sleepy, _save.OwnerName) : "*протяга се* Ааах.", 3);
+                Mutter(tired ? Lines.Pick(Lines.Sleepy, _save.OwnerName) : "*протяга се* Ааах.", 3);
             }),
             ("cursor", tired ? 0 : 5, FollowCursor),
             ("butterfly", tired ? 0 : 5, StartChase),
@@ -192,7 +192,7 @@ public sealed partial class PetWindow
         string line = missing.Count > 0 && _rng.Next(3) == 0
             ? $"Ех, да имах {missing[_rng.Next(missing.Count)].Name.ToLowerInvariant()}…"
             : Lines.Pick(Lines.Wondering, _save.OwnerName);
-        Say(line, 4);
+        Mutter(line, 4);
         Play(_rng.Next(2) == 0 ? "think" : "idle", length: 3 + _rng.Next(3));
     }
 
@@ -216,7 +216,7 @@ public sealed partial class PetWindow
                 _facingLeft = dir > 0;
                 Play("idle", length: 2.5 + _rng.NextDouble() * 2, after: () =>
                 {
-                    Say(Lines.Pick(Lines.Peekaboo, _save.OwnerName), 3);
+                    Mutter(Lines.Pick(Lines.Peekaboo, _save.OwnerName), 3);
                     Play("happy", after: () => WalkTo(inside, () => _peeking = false));
                 });
             });
@@ -232,8 +232,8 @@ public sealed partial class PetWindow
     {
         _juggleStart = Now;
         _juggleUntil = Now + 6 + _rng.NextDouble() * 4;
-        Say(Lines.Pick(Lines.JuggleStart, _save.OwnerName), 3);
-        Play("juggle", length: _juggleUntil - Now, after: () => Say(Lines.Pick(Lines.JuggleEnd, _save.OwnerName), 3));
+        Mutter(Lines.Pick(Lines.JuggleStart, _save.OwnerName), 3);
+        Play("juggle", length: _juggleUntil - Now, after: () => Mutter(Lines.Pick(Lines.JuggleEnd, _save.OwnerName), 3));
     }
 
     /// <summary>Лешниците летят в кръг над главата му, докато жонглира.</summary>
@@ -282,7 +282,7 @@ public sealed partial class PetWindow
         double half = HalfWidth;
         WalkTo(Math.Clamp(cx, area.Left + half, area.Right - half), () =>
         {
-            Say(Lines.Pick(Lines.CursorFound, _save.OwnerName), 4);
+            Mutter(Lines.Pick(Lines.CursorFound, _save.OwnerName), 4);
             Play("happy");
         });
     }
@@ -303,7 +303,7 @@ public sealed partial class PetWindow
         _bfTargetX = _x;
         _bfVx = 0;
         _bfVy = 0;
-        Say(Lines.Pick(Lines.ButterflySeen, _save.OwnerName), 3);
+        Mutter(Lines.Pick(Lines.ButterflySeen, _save.OwnerName), 3);
         SetState(BearState.Chase, "walk");
     }
 
@@ -312,7 +312,7 @@ public sealed partial class PetWindow
         if (!_bfActive)
         {
             // Пеперудата отлетя.
-            Say(Lines.Pick(_rng.Next(3) == 0 ? Lines.ButterflyCaught : Lines.ButterflyGone, _save.OwnerName), 4);
+            Mutter(Lines.Pick(_rng.Next(3) == 0 ? Lines.ButterflyCaught : Lines.ButterflyGone, _save.OwnerName), 4);
             Play(_rng.Next(2) == 0 ? "happy" : "sad", length: 2);
             return;
         }

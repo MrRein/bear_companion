@@ -136,7 +136,7 @@ public sealed partial class PetWindow
         _save.StayPut = true;
         _save.StayScene = scene.Id;
         _save.SleepingByChoice = false;
-        if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) StartScene(scene, quiet: false);
+        if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) StartScene(scene, quiet: true);
         _sceneUntil = 0;
         _idleSince = Now;
         Persist();
@@ -173,7 +173,12 @@ public sealed partial class PetWindow
     {
         var options = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save) && f != last).ToList();
         var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Reading;
-        StartScene(scene, 180 + _rng.Next(180));
+        if (scene == Scenes.Trampoline) StartTrampoline(180 + _rng.Next(180), quiet: true);
+        else
+        {
+            StartScene(scene, quiet: true);
+            _sceneUntil = Now + 180 + _rng.Next(180);
+        }
     }
 
     /// <summary>Забавлението, което прави в момента (избрано от Тут или само), или null.</summary>
@@ -186,8 +191,7 @@ public sealed partial class PetWindow
     public void GetUp()
     {
         _save.StayPut = false;
-        if (_inScene) Say(Lines.Pick(Lines.StandUp, _save.OwnerName));
-        if (_onTrampoline) EndBounce(Lines.Pick(Scenes.Trampoline.End, _save.OwnerName));
+        if (_onTrampoline) EndBounce(null);
         LeaveScene();
         Persist();
     }
@@ -220,7 +224,7 @@ public sealed partial class PetWindow
         _facingLeft = false;
         SetState(BearState.Couch, scene.Anim);
         ClampX();
-        if (!quiet) Say(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
+        if (!quiet) Mutter(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
     }
 
     /// <summary>След като е бил вдигнат и пуснат: сяда пак в същото кътче.</summary>
@@ -285,7 +289,7 @@ public sealed partial class PetWindow
         bool stay = _save.StayPut && scene.Id == _save.StayScene;
         if (!stay && _sceneUntil > 0 && now > _sceneUntil)
         {
-            Say(Lines.Pick(scene.End, _save.OwnerName), 3);
+            Mutter(Lines.Pick(scene.End, _save.OwnerName), 3);
             LeaveScene();
             return;
         }
@@ -336,8 +340,8 @@ public sealed partial class PetWindow
 
         if (!away && !IsQuiet && !InFocus && scene.During.Length > 0 && now > _nextChatter)
         {
-            _nextChatter = now + (stay ? 180 : 25) + _rng.Next(stay ? 180 : 20);
-            Say(Lines.Pick(scene.During, _save.OwnerName), 5);
+            _nextChatter = now + (stay ? 600 : 120) + _rng.Next(stay ? 600 : 120);
+            Mutter(Lines.Pick(scene.During, _save.OwnerName), 5);
         }
     }
 }

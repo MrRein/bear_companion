@@ -92,7 +92,7 @@ public sealed partial class PetWindow
         _jumpT = 0;
         _facingLeft = x < _x;
         SetState(BearState.Jump, "happy");
-        Say("Хоп!", 1.5);
+        Mutter("Хоп!", 1.5);
     }
 
     private void UpdateJump(double dt)
@@ -105,7 +105,7 @@ public sealed partial class PetWindow
         _x = _jumpToX;
         _y = _jumpToY;
         SetIdle();
-        Say(Lines.Pick(Lines.Climbed, _save.OwnerName), 3);
+        Mutter(Lines.Pick(Lines.Climbed, _save.OwnerName), 3);
     }
 
     /// <summary>Къде да се разходи: ако е на платформа, най-често остава на нея.</summary>

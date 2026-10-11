@@ -100,7 +100,7 @@ public sealed partial class PetWindow
         _onTrampoline = true;
         _streak = 0;
         _bounceUntil = seconds > 0 ? Now + seconds : 0;
-        if (!quiet) Say(Lines.Pick(Scenes.Trampoline.Start, _save.OwnerName), 3);
+        if (!quiet) Mutter(Lines.Pick(Scenes.Trampoline.Start, _save.OwnerName), 3);
         PlaceTrampoline(_x);
         BeginBounce();
     }
@@ -188,7 +188,7 @@ public sealed partial class PetWindow
                 EndBounce(Lines.Pick(Scenes.Trampoline.End, _save.OwnerName));
                 return;
             }
-            if (!IsQuiet && _rng.Next(5) == 0) Say(Lines.Pick(Scenes.Trampoline.During, _save.OwnerName), 2);
+            if (_rng.Next(5) == 0) Mutter(Lines.Pick(Scenes.Trampoline.During, _save.OwnerName), 2);
             LaunchFromTrampoline(Math.Clamp(offset, -1, 1));
             return;
         }

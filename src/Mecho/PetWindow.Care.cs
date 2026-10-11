@@ -98,13 +98,13 @@ public sealed partial class PetWindow
         {
             if (_save.Fullness < 25)
             {
-                _nextNeedLine = now + 240 + _rng.Next(120);
+                _nextNeedLine = now + 600 + _rng.Next(300);
                 Say(Lines.Pick(Lines.Hungry, _save.OwnerName), 5);
             }
             else if (_save.Energy < 25)
             {
                 // Колкото е по-уморен, толкова по-често го казва.
-                _nextNeedLine = now + (_save.Energy < 12 ? 90 : 200) + _rng.Next(90);
+                _nextNeedLine = now + (_save.Energy < 12 ? 300 : 600) + _rng.Next(300);
                 Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 5);
             }
         }

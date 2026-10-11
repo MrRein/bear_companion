@@ -504,12 +504,24 @@ public sealed class MenuWindow : Window
             Button action;
             string? why = null;
             bool locked = !Kitchen.CanCook(f, s);
-            if (locked)
+            if (Kitchen.HasTool(f, s) && !Kitchen.HasRecipe(f, s))
+            {
+                // Уредът е купен: остава само рецептата.
+                int price = Kitchen.RecipePrice(f);
+                action = Button($"Рецепта  {price}", () => _pet.BuyRecipe(f), primary: true, icon: "nut");
+                why = $"Купи рецептата веднъж и после го готви колкото искаш: {price} лешника (имаш {s.Hazelnuts}).";
+                if (s.Hazelnuts < price)
+                {
+                    action.IsEnabled = false;
+                    why = $"Рецептата струва {price} лешника, а имаш {s.Hazelnuts}. Още {price - s.Hazelnuts}!";
+                }
+            }
+            else if (locked)
             {
                 var tool = Kitchen.Find(f.Tool!);
                 action = Button(tool?.Name ?? "Заключено", () => SelectTab(ShopTab), icon: "lock");
-                why = $"Заключено. Трябва ти „{tool?.Name}“ от магазина: {tool?.Price} лешника (имаш {s.Hazelnuts}). " +
-                      "Цъкни бутона, за да отидеш в магазина.";
+                why = $"Заключено. Трябва ти „{tool?.Name}“ от магазина: {tool?.Price} лешника (имаш {s.Hazelnuts}), " +
+                      $"после и рецептата ({Kitchen.RecipePrice(f)}). Цъкни бутона, за да отидеш в магазина.";
             }
             else if (cost == 0 && Kitchen.BerriesIn(s) > 0)
             {
