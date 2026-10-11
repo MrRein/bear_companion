@@ -524,6 +524,18 @@ public sealed class MenuWindow : Window
                 effects.Children.Add(GainBar("energy", s.Energy, Kitchen.EnergyAfter(s.Energy, f.Energy), "енергия",
                     s.Energy >= Kitchen.FoodEnergyCap ? "Над половината енергия се трупа само със сън." : "Храната дава енергия до половината; догоре само със сън."));
 
+            if (f.Tool != null)
+            {
+                double secs = PetWindow.CookSeconds(f.Tool);
+                effects.Children.Add(new TextBlock
+                {
+                    Text = secs >= 60 ? $"готви се {secs / 60:0} мин" : $"готви се {secs:0} с",
+                    Foreground = Muted,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 2, 0, 0),
+                });
+            }
+
             Button action;
             string? why = null;
             bool locked = !Kitchen.CanCook(f, s);

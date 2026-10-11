@@ -129,6 +129,11 @@ public sealed partial class PetWindow
     /// </summary>
     public void Relax(Scene scene)
     {
+        if (Cooks)
+        {
+            Say("Първо да свърша с готвенето!", 3);
+            return;
+        }
         if (!Scenes.IsUnlocked(scene, _save))
         {
             var item = scene.Unlock == null ? null : Kitchen.Find(scene.Unlock);
@@ -159,6 +164,11 @@ public sealed partial class PetWindow
     /// <summary>„Почивай си“: прави различни неща за почивка едно след друго, докато не стане.</summary>
     public void RelaxRandom()
     {
+        if (Cooks)
+        {
+            Say("Първо да свърша с готвенето!", 3);
+            return;
+        }
         if (InFocus)
         {
             Say("Първо работата! После почивка.", 3);
@@ -197,6 +207,11 @@ public sealed partial class PetWindow
     /// <summary>Става от дивана и диванът изчезва.</summary>
     public void GetUp()
     {
+        if (Cooks)
+        {
+            Say("Не мога да оставя котлона! Още малко.", 3);
+            return;
+        }
         _save.StayPut = false;
         if (_onTrampoline) EndBounce(null);
         LeaveScene();
@@ -253,14 +268,15 @@ public sealed partial class PetWindow
         // Прекъснат по средата на готвенето: храната пак излиза (платена е).
         if (_cook != null) FlushCooking();
         if (_scene != null && Scenes.Fun.Contains(_scene)) _lastFun = _scene;
-        bool wasAuto = _autoHobby, wasSitting = _scene == Scenes.Sit;
-        _autoHobby = false;
+        bool wasAuto = _autoBlock;
+        _autoBlock = false;
         _inScene = false;
         _scene = null;
         _sceneUntil = 0;
-        // След хоби, което си е избрал сам, пак сяда; иначе почва отначало.
-        if (wasAuto) StartFreeCycle(sitNow: true);
-        else if (!wasSitting) _idleSince = Now;
+        _idleSince = Now;
+        // След блок, който си е избрал сам (седене, хоби): кратка разходка и пак
+        // избира; след нещо, избрано от Тут, свободата почва отначало.
+        StartFreeCycle(sitNow: wasAuto);
         if (_state is BearState.Couch) SetIdle();
     }
 

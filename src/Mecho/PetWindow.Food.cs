@@ -164,22 +164,45 @@ public sealed partial class PetWindow
 
         _save.Fullness = Math.Min(100, _save.Fullness + food.Fullness);
         _save.Energy = Kitchen.EnergyAfter(_save.Energy, food.Energy);
+        var bite = _lib.GetProp("food_" + food.Food.Id, 16, 16, 0).Image;
         food.Close();
         _food.Remove(food);
-        if (_food.Count == 0)
+        bool last = _food.Count == 0;
+        if (last)
         {
             if (!ThankForMeal()) Say(Lines.Pick(Lines.AllFoodEaten, _save.OwnerName), 4);
-            if (CanAnimateFreely) Play("dance", length: 3);
         }
         else
         {
             var lines = food.Food.Lines;
             Say($"{lines[_rng.Next(lines.Length)]} Още {_food.Count}!", 3);
-            if (CanAnimateFreely) Play("eat");
+        }
+        // Държи храната в лапите и яде бавно (няколко секунди), после танцува.
+        if (CanAnimateFreely)
+        {
+            _held.Source = bite;
+            Play("eat", length: EatTime, after: last ? () => Play("dance", length: 3) : null);
         }
         NotifyCare();
         Persist();
         return true;
+    }
+
+    private const double EatTime = 4.5;
+    private readonly System.Windows.Controls.Image _held = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+
+    /// <summary>Храната в лапите, докато яде (пред корема, малко по-малка).</summary>
+    private Rect HeldRect(Rect bear)
+    {
+        bool on = _anim == "eat" && _held.Source != null && _state == BearState.Busy;
+        _held.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (!on) return Rect.Empty;
+        System.Windows.Media.RenderOptions.SetBitmapScalingMode(_held, System.Windows.Media.BitmapScalingMode.NearestNeighbor);
+        var img = (System.Windows.Media.Imaging.BitmapSource)_held.Source!;
+        double w = img.PixelWidth * PixelSize * 0.6, h = img.PixelHeight * PixelSize * 0.6;
+        _held.Width = w;
+        _held.Height = h;
+        return new Rect(bear.Left + bear.Width / 2 - w / 2, bear.Top + bear.Height * 0.68 - h / 2, w, h);
     }
 
     /// <summary>Има храна из екрана, която още не му е донесена.</summary>

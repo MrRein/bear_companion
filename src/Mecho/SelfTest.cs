@@ -129,7 +129,8 @@ public sealed partial class PetWindow
                 _save.BerriesReadyAt = DateTime.MinValue;
                 _save.CoffeeTimes.Clear();
                 Cook(f);
-            }, 7000);
+            }, 1500);
+            await step($"готово: {f.Id}", DevFinishCooking, 5000);
             await step("изчисти храната", DevClearFood, 300);
         }
 

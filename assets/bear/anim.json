@@ -25,8 +25,8 @@
     },
     "eat": {
       "file": "eat.png",
-      "fps": 4,
-      "loop": false
+      "fps": 3,
+      "loop": true
     },
     "happy": {
       "file": "happy.png",
@@ -152,6 +152,11 @@
       "file": "juggle.png",
       "fps": 6,
       "loop": true
+    },
+    "sleep_peek": {
+      "file": "sleep_peek.png",
+      "fps": 3,
+      "loop": false
     }
   }
 }

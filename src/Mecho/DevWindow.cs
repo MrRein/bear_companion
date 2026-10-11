@@ -196,6 +196,7 @@ public sealed partial class PetWindow
                 Cook(dish);
             });
         }
+        yield return (food, "Готово веднага", DevFinishCooking);
         yield return (food, "Изчисти храната", DevClearFood);
 
         yield return (clothes, "Гардероб", () => OpenMenu(MenuWindow.WardrobeTab));

@@ -579,7 +579,7 @@ ANIMS = {
     "yawn": ([bear(eyes="closed", mouth="open"), bear(eyes="closed", mouth="big", arms="up"),
               bear(eyes="closed", mouth="big", arms="up"), bear(eyes="closed", mouth="open")], 3, False),
     "eat": ([bear(arms="front", mouth="open", extra=nut), bear(arms="front", mouth="none", extra=nut),
-             bear(arms="front", mouth="open", extra=lambda d, y: nut(d, y, True)), bear(eyes="happy", mouth="smile")], 4, False),
+             bear(arms="front", mouth="open", extra=lambda d, y: nut(d, y, True)), bear(eyes="happy", mouth="smile")], 3, True),
     "happy": ([bear(eyes="happy", mouth="smile", arms="up", bob=-3, legs="dangle"),
                bear(eyes="happy", mouth="smile", arms="up", bob=-1),
                bear(eyes="happy", mouth="smile")], 6, False),
@@ -1025,6 +1025,32 @@ for _tool, _fn in COOKERS.items():
         PROP_LIST[f"cook_{_tool}{_suffix}"] = (prop(22, 24, _fn(_i)), 0)
 
 
+def derive_sleep_peek():
+    """
+    „Сънливо надига глава“ от нарисувания sleep.png на Тут: главата (лявата
+    половина) се вдига с 1–2 пиксела, без Z-тата. Временно, докато не се нарисува.
+    """
+    path = os.path.join(OUT, "sleep.png")
+    src = Image.open(path).convert("RGBA").crop((0, 0, SIZE, SIZE))
+    body = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    head = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    for y in range(SIZE):
+        for x in range(SIZE):
+            p = src.getpixel((x, y))
+            if p[3] == 0 or (p[:3] == (255, 255, 255) and y < 15):
+                continue   # прозрачно или Z
+            (head if x <= 16 and y >= 14 else body).putpixel((x, y), p)
+    frames = []
+    for lift in (1, 2, 2, 1):
+        f = body.copy()
+        f.alpha_composite(head, (0, -lift))
+        frames.append(f)
+    strip = Image.new("RGBA", (SIZE * len(frames), SIZE), (0, 0, 0, 0))
+    for i, f in enumerate(frames):
+        strip.paste(f, (i * SIZE, 0))
+    strip.save(os.path.join(OUT, "sleep_peek.png"))
+
+
 def save_clothes_layers(name, frames):
     """Шаблоните за дрехите (сиви) и точката за шапката, по един на анимация."""
     for slot, which in SLOTS.items():
@@ -1362,6 +1388,8 @@ def main():
         strip.save(os.path.join(OUT, f"{name}.png"))
         save_clothes_layers(name, frames)
         manifest["animations"][name] = {"file": f"{name}.png", "fps": fps, "loop": loop}
+    derive_sleep_peek()
+    manifest["animations"]["sleep_peek"] = {"file": "sleep_peek.png", "fps": 3, "loop": False}
     with open(os.path.join(OUT, "anim.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2, ensure_ascii=False)
         fh.write("\n")

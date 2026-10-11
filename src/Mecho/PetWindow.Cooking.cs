@@ -17,7 +17,7 @@ public sealed partial class PetWindow
         public double Fullness { get; init; }
         public double Energy { get; init; }
         public int Left { get; set; }
-        public double PopAt { get; init; }
+        public double PopAt { get; set; }
         public double NextPieceAt { get; set; }
         public double DoneAt { get; set; }
         public bool Popped { get; set; }
@@ -41,13 +41,9 @@ public sealed partial class PetWindow
     private void StartCooking(Food food, double fullnessEach, double energyEach)
     {
         string tool = food.Tool!;
-        double seconds = tool switch
-        {
-            Kitchen.Oven => 5,
-            Kitchen.Pan => 4,
-            Kitchen.Pot => 3.5,
-            _ => 3,
-        };
+        // Готвенето отнема време (той е с Тут цял ден): чай и кафе по минута,
+        // пуканки 3, кюфтенца 6, картофки на фурна 10 минути.
+        double seconds = CookSeconds(tool);
         // Тенджерата и тигана ги бърка; фурната, чайника и кафето ги чака.
         string anim = tool is Kitchen.Pot or Kitchen.Pan ? "cook" : "idle";
         var scene = new Scene("cooking", null, "cook_" + tool, 1, anim,
@@ -66,6 +62,28 @@ public sealed partial class PetWindow
         };
         StartScene(scene, quiet: true);
         Say(Lines.Pick(CookStartLines(tool), _save.OwnerName), seconds);
+    }
+
+    public static double CookSeconds(string tool) => tool switch
+    {
+        Kitchen.Oven => 10 * 60,
+        Kitchen.Pan => 6 * 60,
+        Kitchen.Pot => 3 * 60,
+        _ => 60,
+    };
+
+    /// <summary>Колко остава, докато капакът хвръкне (за табелката над него).</summary>
+    public TimeSpan? CookingLeft => _cook is { Popped: false } c ? TimeSpan.FromSeconds(Math.Max(0, c.PopAt - Now)) : null;
+
+    private static readonly string[] CookingDuring =
+    {
+        "*бърка*", "Мирише вкусно!", "Още малко…", "*опитва* Мм, почти.", "Не надничай, {0}! Изненада е.", "*тананика си, докато готви*",
+    };
+
+    /// <summary>Developer: готово веднага.</summary>
+    internal void DevFinishCooking()
+    {
+        if (_cook is { Popped: false } c) c.PopAt = Now;
     }
 
     private static string[] CookStartLines(string tool) => tool switch
@@ -87,6 +105,11 @@ public sealed partial class PetWindow
                 // Два кадъра: къкри, цвърчи, свети.
                 string frame = (int)(now / 0.3) % 2 == 0 ? "" : "_b";
                 _side.Source = _lib.GetProp("cook_" + c.Tool + frame, 22, 24, 0).Image;
+                if (now > _nextChatter)
+                {
+                    _nextChatter = now + 120 + _rng.Next(120);
+                    Mutter(Lines.Pick(CookingDuring, _save.OwnerName), 3);
+                }
                 return;
             }
             c.Popped = true;

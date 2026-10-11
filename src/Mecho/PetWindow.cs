@@ -144,6 +144,7 @@ public sealed partial class PetWindow : Window
         _root.Children.Add(_seat);
         _root.Children.Add(_sprite);
         _root.Children.Add(_carry);
+        _root.Children.Add(_held);
         _root.Children.Add(_bubble);
         Content = _root;
         InitCare();
@@ -381,8 +382,16 @@ public sealed partial class PetWindow : Window
         else FinishThen();
     }
 
+    private double _sleepPeekUntil;
+
     private void UpdateSleep()
     {
+        // Надигна глава (цъкнаха го): пак ляга.
+        if (_anim == "sleep_peek" && Now > _sleepPeekUntil)
+        {
+            _anim = "sleep";
+            _animTime = 0;
+        }
         // Заспал, защото Тут я нямаше. Щом се върне, се събужда.
         if (_sleepIsAway && NativeMethods.IdleSeconds() < 2)
         {
@@ -446,7 +455,8 @@ public sealed partial class PetWindow : Window
         _anim = anim;
     }
 
-    private void SetIdle() => SetState(BearState.Idle, IsExhausted ? "tired" : "idle", 3 + _rng.NextDouble() * 6);
+    // Стои по-дълго между нещата (8–20 с), за да не прави твърде много сам.
+    private void SetIdle() => SetState(BearState.Idle, IsExhausted ? "tired" : "idle", 8 + _rng.NextDouble() * 12);
 
     /// <summary>Уморен: всичко му върви по-бавно.</summary>
     private double AnimSpeed => IsExhausted && !IsResting ? 0.6 : 1;
@@ -657,6 +667,26 @@ public sealed partial class PetWindow : Window
         if (_chatOpenAtPress) return;
         if (!InFocus && TakeOffer()) return;
 
+        // Задрямал по време на мечо-доро или таймер: сънливо надига глава. Второ
+        // цъкане скоро след това пита дали да спрат.
+        if (IsAsleep && (InFocus || TimerRunning))
+        {
+            _sleepPeekUntil = Now + 2.5;
+            _anim = "sleep_peek";
+            _animTime = 0;
+            if (Now - _lastFocusPoke < 20)
+            {
+                _lastFocusPoke = -100;
+                Ask(Conversations.StopFocus(this));
+            }
+            else
+            {
+                _lastFocusPoke = Now;
+                Say(Lines.Pick(Lines.SleepyPoke, _save.OwnerName), 3);
+            }
+            return;
+        }
+
         if (InFocus)
         {
             if (Now - _lastFocusPoke < 20)
@@ -863,6 +893,7 @@ public sealed partial class PetWindow : Window
         Rect butterfly = ButterflyRect;
         var nuts = JuggleRects(bear);
         var carry = CarryRect(bear);
+        var held = HeldRect(bear);
 
         Place(_sprite, new Rect(bear.Left, bear.Top - Dresser.HatRoom * PixelSize, bear.Width, _sprite.Height), _window.Left, _window.Top, dpi);
         if (hasSeat) Place(_seat, seat, _window.Left, _window.Top, dpi);
@@ -871,6 +902,7 @@ public sealed partial class PetWindow : Window
         if (!bubble.IsEmpty) Place(_bubble, bubble, _window.Left, _window.Top, dpi);
         if (!tag.IsEmpty) Place(_timerTag, tag, _window.Left, _window.Top, dpi);
         if (!carry.IsEmpty) Place(_carry, carry, _window.Left, _window.Top, dpi);
+        if (!held.IsEmpty) Place(_held, held, _window.Left, _window.Top, dpi);
         if (!butterfly.IsEmpty) Place(_butterfly, butterfly, _window.Left, _window.Top, dpi);
         for (int i = 0; i < nuts.Length; i++)
             if (_juggleNuts[i].Visibility == Visibility.Visible) Place(_juggleNuts[i], nuts[i], _window.Left, _window.Top, dpi);

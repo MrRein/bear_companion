@@ -94,7 +94,8 @@ public sealed partial class PetWindow
             }),
             ("snack", _save.Fullness < 90 ? 2 : 0, () =>
             {
-                Play("eat");
+                _held.Source = null;   // трохичка: нищо в лапите
+                Play("eat", length: 2.5);
                 Announce(Lines.Pick(Lines.Snack, _save.OwnerName), 3);
                 _save.Fullness = Math.Min(100, _save.Fullness + 1);
             }),
