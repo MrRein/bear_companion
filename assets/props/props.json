@@ -204,6 +204,10 @@
     "shop_trampoline": {
       "file": "shop_trampoline.png",
       "seat": 0
+    },
+    "shop_couch": {
+      "file": "shop_couch.png",
+      "seat": 0
     }
   }
 }

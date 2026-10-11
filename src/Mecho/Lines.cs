@@ -75,6 +75,8 @@ public static class Lines
 
     public static readonly string[] SatDown = { "*пуф!* Диван! Време за книжка.", "*пуф!* Ааах, удобно. Докъде бях стигнал…", "*пуф!* Диван + книжка = щастие." };
 
+    public static readonly string[] SatOnFloor = { "*сяда на земята* Време за книжка.", "Нямам диван, но и тук е уютно.", "*кръстосва крака* Докъде бях стигнал…" };
+
     public static readonly string[] FlyingCouch = { "Уиии! Летим с дивана!", "Дръж ме здраво! И дивана!", "Летящ диван, ура!" };
 
     public static readonly string[] LiftedInScene = { "Ей! Вдигнаха ме!", "Уиии! Ама продължавам!", "Леко, леко, зает съм!", "Къде ме носиш? Тъкмо почнах!" };
@@ -87,7 +89,7 @@ public static class Lines
 
     public static readonly string[] DoneReading = { "Добре, стига четене за сега.", "Отбелязах си страницата!", "Глава прочетена. Ставам!" };
 
-    public static readonly string[] StandUp = { "Добре, ставам.", "Ще прибера дивана.", "Отбелязах си страницата!" };
+    public static readonly string[] StandUp = { "Добре, ставам.", "Отбелязах си страницата!" };
 
     public static readonly string[] Reading =
     {

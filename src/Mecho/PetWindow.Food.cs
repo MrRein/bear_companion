@@ -117,6 +117,8 @@ public sealed partial class PetWindow
         _save.Hazelnuts -= upgrade.Price;
         _save.Owned.Add(upgrade.Id);
         Say($"Ура! {upgrade.Icon} {upgrade.Name}! {upgrade.Description}", 6);
+        // Диванът идва веднага, ако тъкмо чете на земята.
+        if (upgrade.Id == Kitchen.Couch && _inScene && _scene == Scenes.Reading) LoadSceneArt(Scenes.Reading);
         // Ново нещо за почивка: веднага го пробва (ако не работите).
         var scene = Scenes.Fun.FirstOrDefault(f => f.Unlock == upgrade.Id);
         if (scene != null && !InFocus && !_save.StayPut && !IsAsleep && _state is not (BearState.Drag or BearState.Falling))

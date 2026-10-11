@@ -187,8 +187,8 @@ public sealed partial class PetWindow : Window
         _nextUpdateCheck = Now + 60;
         if (_save.StayPut)
         {
-            // Пак си е на дивана, където го оставихме.
-            StartScene(Scenes.ById(_save.StayScene), quiet: true);
+            // Пак си е в кътчето, където го оставихме (или почива на случаен принцип).
+            if (!RelaxesRandomly) StartScene(Scenes.ById(_save.StayScene), quiet: true);
             Say(Lines.Greeting(_save.OwnerName));
         }
         else if (_save.SleepingByChoice)
@@ -264,6 +264,23 @@ public sealed partial class PetWindow : Window
             StartNewDay();
             Persist();
         }
+        PaceTimer();
+    }
+
+    /// <summary>
+    /// Колко често върви цикълът: 30 пъти в секунда, докато нещо се движи; 15,
+    /// докато само се анимира на място; 5, докато спи. Така спокойният мечок
+    /// почти не товари процесора.
+    /// </summary>
+    private void PaceTimer()
+    {
+        bool moving = _state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
+            || _bfActive || _peeking || _anim == "juggle" || Dressing || CookShake != 0
+            || _food.Exists(f => f.VelocityX != 0 || f.VelocityY != 0);
+        int ms = moving ? 33
+            : IsAsleep && _bubble.Visibility != Visibility.Visible && _food.Count == 0 ? 200
+            : 66;
+        if ((int)_timer.Interval.TotalMilliseconds != ms) _timer.Interval = TimeSpan.FromMilliseconds(ms);
     }
 
     private void UpdateIdle(double now)
@@ -307,7 +324,8 @@ public sealed partial class PetWindow : Window
         // Тут го е оставила в кътче (и после са го вдигнали): връща се там.
         if (_save.StayPut && !_inScene && !_onTrampoline && !InFocus)
         {
-            StartScene(Scenes.ById(_save.StayScene), quiet: true);
+            if (RelaxesRandomly) StartRandomRelax(_lastFun);
+            else StartScene(Scenes.ById(_save.StayScene), quiet: true);
             return;
         }
 
@@ -379,7 +397,7 @@ public sealed partial class PetWindow : Window
         if (_inScene)
         {
             // С дивана (или столчето) кацането е меко.
-            if (hard) Say(Lines.Pick(_scene == Scenes.Reading ? Lines.CouchLanded : Lines.LandedInScene, _save.OwnerName));
+            if (hard) Say(Lines.Pick(_scene == Scenes.Reading && HasCouch ? Lines.CouchLanded : Lines.LandedInScene, _save.OwnerName));
             ResumeScene();
         }
         else if (hard)
@@ -557,7 +575,7 @@ public sealed partial class PetWindow : Window
             _save.SleepingByChoice = false;
             if (_inScene)
                 // Продължава да прави същото; само коментира, че са го вдигнали.
-                Say(Lines.Pick(_scene == Scenes.Reading ? Lines.FlyingCouch : _scene == Scenes.Focus ? Lines.LiftedAtWork : Lines.LiftedInScene, _save.OwnerName), 3);
+                Say(Lines.Pick(_scene == Scenes.Reading && HasCouch ? Lines.FlyingCouch : _scene == Scenes.Focus ? Lines.LiftedAtWork : Lines.LiftedInScene, _save.OwnerName), 3);
             else if (IsAsleep || goingToSleep)
                 Say(Lines.Pick(Lines.WokenByDrag, _save.OwnerName));
             else
@@ -565,7 +583,7 @@ public sealed partial class PetWindow : Window
 
             // Ако седи на дивана, носиш го заедно с дивана и той си чете.
             _grabOffset = new Point(_x, _y) - _pressScreen;
-            SetState(BearState.Drag, _inScene ? "read" : "drag");
+            SetState(BearState.Drag, _inScene ? _anim : "drag");
         }
 
         // Може да се мести и на друг екран: пазим го в екрана под мишката.
@@ -735,6 +753,14 @@ public sealed partial class PetWindow : Window
         SizeSceneArt();
     }
 
+    private static readonly Transform FlipLeft = Freeze(new ScaleTransform(-1, 1));
+
+    private static Transform Freeze(Transform t)
+    {
+        t.Freeze();
+        return t;
+    }
+
     private void UpdateFrame()
     {
         var frame = _dresser.Frame(_lib, _anim, _lib.Get(_anim).IndexAt(_animTime), _save.Outfit);
@@ -745,7 +771,9 @@ public sealed partial class PetWindow : Window
             _shownFrame = frame;
             _sprite.Source = frame;
         }
-        _sprite.RenderTransform = _facingLeft ? new ScaleTransform(-1, 1) : Transform.Identity;
+        // Нов обект всеки кадър караше прозореца да се прерисува 30 пъти в секунда.
+        var flip = _facingLeft ? FlipLeft : Transform.Identity;
+        if (!ReferenceEquals(_sprite.RenderTransform, flip)) _sprite.RenderTransform = flip;
     }
 
     // Прозорецът на мечока е с постоянен размер и върви точно с мечока. Ако се
@@ -861,9 +889,20 @@ public sealed partial class PetWindow : Window
         double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
         if (double.IsNaN(x) || double.IsNaN(y)) return SystemParameters.WorkArea;
         var px = new System.Drawing.Point((int)Math.Round(x * dpi), (int)Math.Round(y * dpi));
+        // Пита Windows много пъти в кадъра за едно и също: пазим отговора за секунда
+        // (за да се усети, ако включат или махнат екран).
+        double now = Now;
+        if (px == _areaPoint && now < _areaUntil) return _areaCache;
         var wa = System.Windows.Forms.Screen.FromPoint(px).WorkingArea;
-        return new Rect(wa.Left / dpi, wa.Top / dpi, wa.Width / dpi, wa.Height / dpi);
+        _areaPoint = px;
+        _areaUntil = now + 1;
+        _areaCache = new Rect(wa.Left / dpi, wa.Top / dpi, wa.Width / dpi, wa.Height / dpi);
+        return _areaCache;
     }
+
+    private System.Drawing.Point _areaPoint = new(int.MinValue, int.MinValue);
+    private double _areaUntil;
+    private Rect _areaCache;
 
     /// <summary>Половината ширина на мечока (или на дивана, ако седи на него).</summary>
     private double HalfWidth

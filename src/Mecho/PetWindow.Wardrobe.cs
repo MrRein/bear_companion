@@ -23,8 +23,8 @@ public sealed partial class PetWindow
     private double WardrobeShake => Dressing ? Math.Round(Math.Sin(Now * 45)) * PixelSize : 0;
 
     /// <summary>Мечокът с това облекло (за плочките в гардероба).</summary>
-    public System.Windows.Media.Imaging.BitmapSource DressedPreview(System.Collections.Generic.IReadOnlyDictionary<string, string> outfit) =>
-        Dresser.Preview(_lib, outfit);
+    public System.Windows.Media.Imaging.BitmapSource GarmentPreview(Garment g) =>
+        _dresser.Preview(_lib, g) ?? _lib.GetProp("garment_" + g.Id, 16, 16, 0).Image;
 
     /// <summary>Табът „Гардероб“ е отворен: гардеробът идва до мечока.</summary>
     public void OpenWardrobe()

@@ -94,6 +94,7 @@ public sealed class Dresser
     public BitmapSource Frame(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit)
     {
         string key = string.Join(",", Clothes.Slots.Select(s => outfit.TryGetValue(s.Id, out var id) ? id : ""));
+        if (!ReferenceEquals(lib, _lib)) _previews.Clear();
         if (!ReferenceEquals(lib, _lib) || key != _key)
         {
             _cache.Clear();
@@ -107,9 +108,55 @@ public sealed class Dresser
         return done;
     }
 
-    /// <summary>Една дреха върху мечока (за плочките в гардероба).</summary>
-    public static BitmapSource Preview(SpriteLibrary lib, IReadOnlyDictionary<string, string> outfit) =>
-        Dress(lib, "idle", 0, outfit);
+    private readonly Dictionary<string, BitmapSource?> _previews = new();
+
+    /// <summary>
+    /// Само дрехата, без мечока (за гардероба): шапката е нейната рисунка, а
+    /// другите са оцветеният шаблон от първия кадър на „стои“, изрязан плътно.
+    /// </summary>
+    public BitmapSource? Preview(SpriteLibrary lib, Garment g)
+    {
+        if (!ReferenceEquals(lib, _lib))
+        {
+            _cache.Clear();
+            _previews.Clear();
+            _lib = lib;
+        }
+        if (_previews.TryGetValue(g.Id, out var done)) return done;
+        done = MakePreview(lib, g);
+        _previews[g.Id] = done;
+        return done;
+    }
+
+    private static BitmapSource? MakePreview(SpriteLibrary lib, Garment g)
+    {
+        if (g.SlotId == Clothes.Hat.Id) return lib.Clothes("hat_" + g.Id);
+        var slot = g.Slot;
+        var own = Pick(lib.Layer("idle", slot.Layer + "_" + g.Id), 0);
+        var mask = own ?? Pick(lib.Layer("idle", slot.Layer), 0);
+        if (mask == null) return null;
+        int w = mask.PixelWidth, h = mask.PixelHeight;
+        var px = new uint[w * (h + HatRoom)];
+        if (own != null) Blit(px, w, h + HatRoom, Pixels(own), w, h, 0, HatRoom);
+        else Paint(px, w, Pixels(mask), w, h, g);
+
+        // Плътно изрязване около дрехата.
+        int minX = w, minY = h + HatRoom, maxX = -1, maxY = -1;
+        for (int i = 0; i < px.Length; i++)
+        {
+            if (px[i] >> 24 == 0) continue;
+            int x = i % w, y = i / w;
+            minX = Math.Min(minX, x);
+            maxX = Math.Max(maxX, x);
+            minY = Math.Min(minY, y);
+            maxY = Math.Max(maxY, y);
+        }
+        if (maxX < 0) return null;
+        var full = BitmapSource.Create(w, h + HatRoom, 96, 96, PixelFormats.Bgra32, null, px, w * 4);
+        var crop = new CroppedBitmap(full, new System.Windows.Int32Rect(minX, minY, maxX - minX + 1, maxY - minY + 1));
+        crop.Freeze();
+        return crop;
+    }
 
     private static BitmapSource Dress(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit)
     {

@@ -353,7 +353,6 @@ public sealed class MenuWindow : Window
         }));
         actions.Children.Add(_quietButton);
         actions.Children.Add(Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil")));
-        actions.Children.Add(Wide(Button("Поговори", () => { Hide(); _pet.Ask(Conversations.Next(_pet)); }, icon: "bear")));
         _couchButton = Wide(Button("Стани", () =>
         {
             _pet.GetUp();
@@ -363,27 +362,46 @@ public sealed class MenuWindow : Window
         actions.Children.Add(_couchButton);
         p.Children.Add(actions);
 
-        // „Почивай си“: Тут избира какво да прави мечокът. Стои там до „Стани“.
-        p.Children.Add(Ribbon("Почивай си", "couch"));
+        // „Почивай си“: мечокът сменя кътчетата сам. С ☰ се отваря списъкът и
+        // Тут избира нещо конкретно. И в двата случая стои така до „Стани“.
+        var relax = new DockPanel { Margin = new Thickness(0, 6 * U, 0, 0) };
+        _relaxMore = Button("", () =>
+        {
+            _relaxOpen = !_relaxOpen;
+            Refresh(true);
+        }, icon: "menu");
+        _relaxMore.ToolTip = Tip("Избери какво точно да прави");
+        _relaxMore.Margin = new Thickness(0, 0, 6, 6);
+        DockPanel.SetDock(_relaxMore, Dock.Right);
+        relax.Children.Add(_relaxMore);
+        _relaxButton = Wide(Button("Почивай си", () =>
+        {
+            if (_pet.RelaxesRandomly) _pet.GetUp();
+            else _pet.RelaxRandom();
+            Refresh(true);
+        }, icon: "couch"));
+        relax.Children.Add(_relaxButton);
+        p.Children.Add(relax);
         p.Children.Add(_relaxGrid);
         return new ScrollViewer { Content = p, MaxHeight = 600 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 
     private readonly UniformGrid _relaxGrid = new() { Columns = 2 };
+    private Button _relaxButton = null!, _relaxMore = null!;
+    private bool _relaxOpen;
 
     private void BuildRelaxButtons()
     {
         var s = _pet.Save;
         var chosen = _pet.CurrentFun;
         _relaxGrid.Children.Clear();
-        var random = Wide(Button("Случайно", () =>
-        {
-            _pet.Relax(_pet.RandomUnlockedFun());
-            Refresh(true);
-        }, icon: "dice"));
-        random.HorizontalContentAlignment = HorizontalAlignment.Left;
-        random.ToolTip = Tip("Мечокът сам избира едно от отключените кътчета.");
-        _relaxGrid.Children.Add(random);
+        bool random = _pet.RelaxesRandomly;
+        _relaxButton.Background = random ? Honey : PaperDark;
+        _relaxButton.ToolTip = Tip(random
+            ? "Почива си и сменя заниманията сам. Цъкни пак, за да спре."
+            : "Мечокът почива и сам сменя заниманията (четене, чай, музика…).");
+        _relaxMore.Background = _relaxOpen ? Honey : PaperDark;
+        _relaxGrid.Visibility = _relaxOpen ? Visibility.Visible : Visibility.Collapsed;
         foreach (var scene in Scenes.Fun)
         {
             var sc = scene;
@@ -394,7 +412,7 @@ public sealed class MenuWindow : Window
                 if (_pet.CurrentFun == sc) _pet.GetUp();
                 else _pet.Relax(sc);
                 Refresh(true);
-            }, primary: chosen == sc, icon: unlocked ? sc.Icon : "lock"));
+            }, primary: chosen == sc && !random, icon: unlocked ? sc.Icon : "lock"));
             b.HorizontalContentAlignment = HorizontalAlignment.Left;
             if (!unlocked)
             {
@@ -403,7 +421,7 @@ public sealed class MenuWindow : Window
                 b.ToolTip = Tip($"Заключено. Трябва „{item?.Name}“ от магазина ({item?.Price} лешника).");
                 ToolTipService.SetShowOnDisabled(b, true);
             }
-            else if (chosen == sc) b.ToolTip = Tip("Сега прави това. Цъкни пак, за да спре.");
+            else if (chosen == sc && !random) b.ToolTip = Tip("Сега прави това. Цъкни пак, за да спре.");
             _relaxGrid.Children.Add(b);
         }
     }
@@ -718,7 +736,17 @@ public sealed class MenuWindow : Window
         {
             var g = Clothes.Worn(s, slot);
             var row = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
-            var icon = Icon(slot.Icon);
+            // Облечената дреха като малка картинка (или иконката на слота, ако няма).
+            FrameworkElement icon;
+            if (g != null)
+            {
+                var art = _pet.GarmentPreview(g);
+                var image = Pixel(art, ArtScale(Math.Clamp(24 / Math.Max(art.PixelWidth, art.PixelHeight), 1, 3)));
+                image.HorizontalAlignment = HorizontalAlignment.Center;
+                image.VerticalAlignment = VerticalAlignment.Center;
+                icon = new Grid { Width = 52 * U, Children = { image } };
+            }
+            else icon = new Grid { Width = 52 * U, Children = { Icon(slot.Icon) } };
             icon.Margin = new Thickness(0, 0, 6, 0);
             icon.VerticalAlignment = VerticalAlignment.Center;
             DockPanel.SetDock(icon, Dock.Left);
@@ -765,15 +793,16 @@ public sealed class MenuWindow : Window
                         why = $"Трябват {g.Price} лешника, а имаш {s.Hazelnuts}. Още {g.Price - s.Hazelnuts}!";
                     }
                 }
-                // Плочката показва мечока с тази дреха и с всичко друго, което е облякъл.
-                var outfit = new Dictionary<string, string>(s.Outfit) { [g.SlotId] = g.Id };
+                // Плочката показва самата дреха; по-малките са по-увеличени.
+                var art = _pet.GarmentPreview(g);
+                int scale = Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 3, 8);
                 var details = new TextBlock
                 {
                     Text = worn ? "Облечено" : owned ? "В гардероба" : "",
                     Foreground = Muted,
                     TextAlignment = TextAlignment.Center,
                 };
-                grid.Children.Add(MakeTile(_pet.DressedPreview(outfit), g.Name, details, action, dim: false, why, owned: worn, artScale: 2));
+                grid.Children.Add(MakeTile(art, g.Name, details, action, dim: false, why, owned: worn, artScale: scale));
             }
         }
     }

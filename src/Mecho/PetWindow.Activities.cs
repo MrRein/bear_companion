@@ -178,7 +178,7 @@ public sealed partial class PetWindow
         StartFun();
     }
 
-    /// <summary>Случайно отключено кътче (за „Почивай си → Случайно“).</summary>
+    /// <summary>Случайно отключено кътче.</summary>
     public Scene RandomUnlockedFun()
     {
         var owned = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save)).ToList();

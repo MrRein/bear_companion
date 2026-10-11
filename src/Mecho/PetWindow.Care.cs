@@ -454,7 +454,6 @@ public sealed partial class PetWindow
             Ui.SetRichText(_timerBadgeText!, text);
         }
         if (!_timerBadge.IsVisible) _timerBadge.Show();
-        _timerBadge.UpdateLayout();
         // Над часовника: долният десен ъгъл на главния екран (над лентата със задачите).
         var area = SystemParameters.WorkArea;
         _timerBadge.Left = area.Right - _timerBadge.ActualWidth - 8;
@@ -463,6 +462,8 @@ public sealed partial class PetWindow
 
     private static string Clock(TimeSpan t) =>
         t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
+
+    private string? _timerTagShown;
 
     private void UpdateTimerTag()
     {
@@ -475,7 +476,13 @@ public sealed partial class PetWindow
             _timerTag.Visibility = Visibility.Collapsed;
             return;
         }
-        Ui.SetRichText(_timerText, string.Join("   ", parts));
+        // Текстът се сменя веднъж в секунда; иначе табелката се прерисуваше всеки кадър.
+        string text = string.Join("   ", parts);
+        if (text != _timerTagShown)
+        {
+            _timerTagShown = text;
+            Ui.SetRichText(_timerText, text);
+        }
         _timerTag.Visibility = Visibility.Visible;
     }
 }

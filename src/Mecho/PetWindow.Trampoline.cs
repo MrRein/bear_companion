@@ -216,6 +216,7 @@ public sealed partial class PetWindow
 
     private void EndBounce(string? line)
     {
+        if (_onTrampoline) _lastFun = Scenes.Trampoline;
         _onTrampoline = false;
         _streak = 0;
         _trampWindow?.Hide();

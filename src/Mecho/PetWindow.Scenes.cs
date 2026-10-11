@@ -110,6 +110,9 @@ public sealed partial class PetWindow
 
     private double SeatHeight => _seatProp == null ? 0 : _seatProp.Seat * PixelSize;
 
+    /// <summary>Диванът се купува; без него чете седнал на земята.</summary>
+    private bool HasCouch => Kitchen.Owns(_save, Kitchen.Couch);
+
     /// <summary>„Седни“: сяда на дивана и чете, докато не го вдигнеш.</summary>
     public void StayHere() => Relax(Scenes.Reading);
 
@@ -139,11 +142,45 @@ public sealed partial class PetWindow
         Persist();
     }
 
+    /// <summary>„Почивай си“ без избор: сменя кътчетата на случаен принцип.</summary>
+    public const string RandomRelax = "random";
+
+    private Scene? _lastFun;   // за да не повтаря същото кътче подред
+
+    public bool RelaxesRandomly => _save.StayPut && _save.StayScene == RandomRelax;
+
+    /// <summary>„Почивай си“: прави различни неща за почивка едно след друго, докато не стане.</summary>
+    public void RelaxRandom()
+    {
+        if (InFocus)
+        {
+            Say("Първо работата! После почивка.", 3);
+            return;
+        }
+        _save.StayPut = true;
+        _save.StayScene = RandomRelax;
+        _save.SleepingByChoice = false;
+        var last = CurrentFun;
+        if (_onTrampoline) EndBounce(null);
+        if (_inScene) LeaveScene();
+        StartRandomRelax(last);
+        _idleSince = Now;
+        Persist();
+    }
+
+    /// <summary>Следващото случайно кътче (по възможност различно от предното), за 3–6 минути.</summary>
+    private void StartRandomRelax(Scene? last)
+    {
+        var options = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save) && f != last).ToList();
+        var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Reading;
+        StartScene(scene, 180 + _rng.Next(180));
+    }
+
     /// <summary>Забавлението, което прави в момента (избрано от Тут или само), или null.</summary>
     public Scene? CurrentFun => _onTrampoline ? Scenes.Trampoline : _inScene && _scene != null && Scenes.Fun.Contains(_scene) ? _scene : null;
 
     /// <summary>Кътчето, в което Тут го е оставила (или null).</summary>
-    public Scene? ChosenScene => _save.StayPut ? Scenes.ById(_save.StayScene) : null;
+    public Scene? ChosenScene => _save.StayPut && !RelaxesRandomly ? Scenes.ById(_save.StayScene) : null;
 
     /// <summary>Става от дивана и диванът изчезва.</summary>
     public void GetUp()
@@ -183,7 +220,7 @@ public sealed partial class PetWindow
         _facingLeft = false;
         SetState(BearState.Couch, scene.Anim);
         ClampX();
-        if (!quiet) Say(Lines.Pick(scene.Start, _save.OwnerName));
+        if (!quiet) Say(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
     }
 
     /// <summary>След като е бил вдигнат и пуснат: сяда пак в същото кътче.</summary>
@@ -204,6 +241,7 @@ public sealed partial class PetWindow
     {
         // Прекъснат по средата на готвенето: храната пак излиза (платена е).
         if (_cook != null) FlushCooking();
+        if (_scene != null && Scenes.Fun.Contains(_scene)) _lastFun = _scene;
         _inScene = false;
         _scene = null;
         _sceneUntil = 0;
@@ -213,7 +251,8 @@ public sealed partial class PetWindow
 
     private void LoadSceneArt(Scene scene)
     {
-        _seatProp = scene.Seat == null ? null : _lib.GetProp(scene.Seat, 16, 8, 6);
+        string? seat = scene.Seat == "couch" && !HasCouch ? null : scene.Seat;
+        _seatProp = seat == null ? null : _lib.GetProp(seat, 16, 8, 6);
         _sideProp = scene.Side == null ? null : _lib.GetProp(scene.Side, 16, 16, 0);
         SizeSceneArt();
     }

@@ -172,7 +172,7 @@ public static class Conversations
         Reply("😅 Ой, не", "Хайде, една чаша! Аз ще чакам тук."));
 
     private static ChatQuestion Couch(PetWindow pet) => pet.StaysPut
-        ? new ChatQuestion("Тук ми е много удобно. Да остана ли на дивана?",
+        ? new ChatQuestion("Тук ми е много удобно. Да остана ли да чета?",
             Reply("🛋️ Остани", "Ура! Още една глава."),
             new ChatOption("🚶 Разходи се", p => p.GetUp()))
         : new ChatQuestion("Искаш ли да седна да почета малко?",
