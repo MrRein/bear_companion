@@ -393,6 +393,16 @@ public sealed class MenuWindow : Window
         relax.Children.Add(_relaxButton);
         p.Children.Add(relax);
         p.Children.Add(_relaxGrid);
+
+        // SOS: мечокът дава нещо за мотивация (листът е motivation.md в GitHub).
+        var sos = Wide(Button("SOS: мотивация", () =>
+        {
+            Hide();
+            _pet.Sos();
+        }, icon: "heart"));
+        sos.Margin = new Thickness(0, 0, 6, 6);
+        sos.ToolTip = Tip("Когато не ти се работи: мечокът ти дава идея за мотивация (сайт, видео или мисъл).");
+        p.Children.Add(sos);
         return new ScrollViewer { Content = p, MaxHeight = 600 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 

@@ -163,6 +163,15 @@ public sealed partial class PetWindow
             dev.UpdateLayout();
             dev.Close();
         }, 500);
+        await step("SOS", () =>
+        {
+            var list = Motivations.Parse("- https://example.com Пример\n- [Име](https://example.org)\n- Текст\nдруго");
+            if (list.Count != 3 || list[0].Name != "Пример" || list[1].Link != "https://example.org" || list[2].Link != null)
+                throw new Exception("Motivations.Parse");
+            Sos();
+            _chat?.UpdateLayout();
+        }, 800);
+        await step("SOS: друго", () => { Sos(); _chat?.Hide(); }, 500);
         await step("сън", GoToSleep, 1500);
         await step("събуди", WakeUp, 1000);
     }

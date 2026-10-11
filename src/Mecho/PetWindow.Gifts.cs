@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -197,5 +198,64 @@ public sealed partial class PetWindow
         _giftWindow?.Close();
         PlanGift();
         Say(_save.GiftAt == DateTime.MinValue ? "Днес няма подарък (тест)." : $"Подарък в {_save.GiftAt:HH:mm}.", 3);
+    }
+}
+
+// SOS: мечокът дава нещо за мотивация от листа в GitHub (motivation.md).
+public sealed partial class PetWindow
+{
+    private List<Motivation> _motivations = new();
+    private readonly List<Motivation> _motivationBag = new();
+    private Motivation? _lastMotivation;
+
+    public void Sos()
+    {
+        if (_motivations.Count == 0) _motivations = Motivations.Load();
+        // Обновява листа на заден план; следващият SOS ще го ползва.
+        _ = RefreshMotivations();
+
+        // „Торба“: всичко се показва веднъж, преди да почне пак.
+        if (_motivationBag.Count == 0)
+            _motivationBag.AddRange(_motivations.OrderBy(_ => _rng.Next()).Where(m => m != _lastMotivation || _motivations.Count == 1));
+        var m = _motivationBag[0];
+        _motivationBag.RemoveAt(0);
+        _lastMotivation = m;
+
+        string intro = Lines.Pick(Lines.SosIntro, _save.OwnerName);
+        var more = new ChatOption("Друго", p => p.Sos());
+        var thanks = new ChatOption("Благодаря, Мечо!", p => p.Cheer(Lines.Pick(Lines.SosThanks, p.Save.OwnerName)));
+        if (m.Link != null)
+        {
+            Ask(new ChatQuestion(intro,
+                new ChatOption(m.Name, p => p.OpenLink(m.Link)),
+                more, thanks));
+        }
+        else
+        {
+            Ask(new ChatQuestion($"{intro}\n\n„{m.Name}“", more, thanks));
+        }
+        if (CanAnimateFreely && _state != BearState.Busy) Play("happy");
+    }
+
+    private async System.Threading.Tasks.Task RefreshMotivations()
+    {
+        if (await Motivations.RefreshAsync())
+        {
+            _motivations = Motivations.Load();
+            _motivationBag.Clear();
+        }
+    }
+
+    public void OpenLink(string link)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(link) { UseShellExecute = true });
+            Cheer(Lines.Pick(Lines.SosOpened, _save.OwnerName));
+        }
+        catch (Exception)
+        {
+            Say("Не успях да го отворя…", 3);
+        }
     }
 }

@@ -203,6 +203,16 @@ public static class Lines
         _ => $"Хвърлих {n}!",
     };
 
+    // SOS
+    public static readonly string[] SosIntro =
+    {
+        "SOS прието! Ето нещо за теб:", "Дръж се, {0}! Пробвай това:", "Когато на мен ми е трудно, гледам това:", "*подава ти лапа* Ето:",
+    };
+
+    public static readonly string[] SosOpened = { "Ще чакам тук. Успех!", "Пази се от скролване! 10 минути и обратно.", "Ура, да видим!" };
+
+    public static readonly string[] SosThanks = { "Винаги, {0}!", "Мечешка прегръдка! Можеш!", "Аз съм тук, ако пак потрябва." };
+
     // Подаръци
     public static readonly string[] GiftBrought =
     {
