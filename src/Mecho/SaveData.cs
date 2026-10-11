@@ -34,6 +34,10 @@ public sealed class SaveData
     public string GiftDay { get; set; } = "";                  // за кой ден е решено дали има подарък
     public DateTime GiftAt { get; set; } = DateTime.MinValue;  // кога тръгва за подаръка (MinValue = днес няма)
     public bool GiftPending { get; set; }                      // подаръкът чака в средата на екрана
+    public string CouchSkin { get; set; } = "classic";
+    public string BedSkin { get; set; } = "classic";
+    public bool PajamasAtNight { get; set; } = true;            // пижама вечер (виж PetWindow.Wardrobe.cs)
+    public int BearScale { get; set; }                          // размер на мечока (0 = по подразбиране)
     public string Background { get; set; } = "meadow";         // фонът на портрета (виж Backdrops)
     public List<string> OwnedClothes { get; set; } = new();     // купени дрехи (виж Clothes)
     public Dictionary<string, string> Outfit { get; set; } = new(); // слот → облечената дреха

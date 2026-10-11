@@ -117,6 +117,54 @@
       "file": "wardrobe.png",
       "seat": 0
     },
+    "couch_velvet": {
+      "file": "couch_velvet.png",
+      "seat": 10
+    },
+    "couch_forest": {
+      "file": "couch_forest.png",
+      "seat": 10
+    },
+    "couch_dots": {
+      "file": "couch_dots.png",
+      "seat": 10
+    },
+    "couch_leather": {
+      "file": "couch_leather.png",
+      "seat": 10
+    },
+    "couch_mint": {
+      "file": "couch_mint.png",
+      "seat": 10
+    },
+    "couch_honey": {
+      "file": "couch_honey.png",
+      "seat": 10
+    },
+    "bed": {
+      "file": "bed.png",
+      "seat": 7
+    },
+    "bed_classic": {
+      "file": "bed_classic.png",
+      "seat": 7
+    },
+    "bed_stars": {
+      "file": "bed_stars.png",
+      "seat": 7
+    },
+    "bed_pink": {
+      "file": "bed_pink.png",
+      "seat": 7
+    },
+    "bed_forest": {
+      "file": "bed_forest.png",
+      "seat": 7
+    },
+    "bed_honey": {
+      "file": "bed_honey.png",
+      "seat": 7
+    },
     "cook_pot": {
       "file": "cook_pot.png",
       "seat": 0
@@ -219,6 +267,10 @@
     },
     "shop_couch": {
       "file": "shop_couch.png",
+      "seat": 0
+    },
+    "shop_bed_real": {
+      "file": "shop_bed_real.png",
       "seat": 0
     }
   }

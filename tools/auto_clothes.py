@@ -127,7 +127,7 @@ def segment(frame, lying):
         for c in body - head_set:
             if k[c] == "f":
                 parts[c] = SHIRT
-        anchor = None
+        anchor = {}
     else:
         # Тялото: ред по ред от средата навън, докато средата е козина.
         cx, bottom, started = 16, -1, False
@@ -203,14 +203,18 @@ def segment(frame, lying):
             for c in g:
                 parts[c] = GLOVES if far(c, shoulder) >= reach - 2 else SHIRT
 
-        # Шапката: над средата на муцуната, 3 реда под темето.
+        # Точките: шапката над средата на муцуната, 3 реда под темето; очилата
+        # на реда на очите; шалът под брадичката.
         muzzle = [x for (x, y) in head if k[(x, y)] == "c"]
-        anchor = None
+        anchor = {}
         if muzzle:
             hx = round(sum(muzzle) / len(muzzle))
             tops = [y for y in range(SIZE) if k[(hx, y)] in "kf"]
             if tops:
-                anchor = (hx, tops[0] + 3)
+                anchor["head"] = (hx, tops[0] + 3)
+            if eyes >= 0:
+                anchor["face"] = (hx, eyes + 1)
+            anchor["neck"] = (hx, min(SIZE - 1, chin + 1))
 
     # Контурите: частта до тях (по 4 съседа, после по 8); дрехата пред главата.
     for (x, y), v in k.items():
@@ -232,7 +236,7 @@ def segment(frame, lying):
 def main(anim):
     strip = Image.open(os.path.join(BEAR, f"{anim}.png")).convert("RGBA")
     frames = strip.width // SIZE
-    layers = {name: Image.new("RGBA", strip.size, (0, 0, 0, 0)) for name in list(LAYER.values()) + ["head"]}
+    layers = {name: Image.new("RGBA", strip.size, (0, 0, 0, 0)) for name in list(LAYER.values()) + ["head", "face", "neck"]}
     for f in range(frames):
         frame = strip.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE))
         parts, anchor = segment(frame, anim in LYING)
@@ -240,8 +244,8 @@ def main(anim):
             if part in LAYER:
                 g = tone(frame.getpixel((x, y)))
                 layers[LAYER[part]].putpixel((f * SIZE + x, y), (g, g, g, 255))
-        if anchor:
-            layers["head"].putpixel((f * SIZE + anchor[0], anchor[1]), (255, 0, 255, 255))
+        for name, (ax, ay) in anchor.items():
+            layers[name].putpixel((f * SIZE + ax, ay), (255, 0, 255, 255))
     for name, img in layers.items():
         img.save(os.path.join(BEAR, f"{anim}_{name}.png"))
 

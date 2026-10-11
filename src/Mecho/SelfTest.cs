@@ -149,6 +149,28 @@ public sealed partial class PetWindow
             foreach (var anim in new[] { "idle", "walk", "sleep", "eat", "happy", "dance", "read", "focus", "cook", "bounce" })
                 for (int i = 0; i < 8; i++) _dresser.Frame(_lib, anim, i, _save.Outfit);
         }, 200);
+        await step("аксесоари", () =>
+        {
+            foreach (var g in Clothes.All.Where(g => g.SlotId is "glasses" or "neck")) Wear(g);
+            foreach (var anim in new[] { "idle", "walk", "read", "dance", "sleep" })
+                for (int i = 0; i < 4; i++) _dresser.Frame(_lib, anim, i, _save.Outfit);
+        }, 800);
+        await step("пижама", () =>
+        {
+            var night = new Dictionary<string, string>(_save.Outfit);
+            foreach (var (slot, id) in Clothes.Pajamas) night[slot] = id;
+            foreach (var anim in new[] { "idle", "sleep", "read_sleep" })
+                for (int i = 0; i < 4; i++) _dresser.Frame(_lib, anim, i, night);
+            SetPajamas(false);
+            SetPajamas(true);
+        }, 300);
+        await step("скинове", () =>
+        {
+            foreach (var skin in Furniture.CouchSkins) UseSkin(skin);
+            Relax(Scenes.Reading);
+            foreach (var skin in Furniture.BedSkins) UseSkin(skin);
+        }, 1000);
+        await step("размер", () => { SetBearScale(5); SetBearScale(1); SetBearScale(3); }, 800);
         await step("съблечи", Undress, 1200);
         await step("затвори менюто", () => _menu!.Hide(), 500);
         await step("подарък: тръгва", DevGiftNow, 3000);
@@ -172,7 +194,7 @@ public sealed partial class PetWindow
             _chat?.UpdateLayout();
         }, 800);
         await step("SOS: друго", () => { Sos(); _chat?.Hide(); }, 500);
-        await step("сън", GoToSleep, 1500);
+        await step("сън в леглото", GoToSleep, 1500);
         await step("събуди", WakeUp, 1000);
     }
 

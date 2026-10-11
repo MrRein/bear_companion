@@ -679,7 +679,7 @@ public sealed class MenuWindow : Window
             {
                 _shopTiles.Children.Add(Ribbon(slot.Name, slot.Icon));
                 var grid = NewShopGrid();
-                foreach (var g in Clothes.All.Where(g => g.SlotId == slot.Id)) grid.Children.Add(GarmentShopTile(g));
+                foreach (var g in Clothes.All.Where(g => g.SlotId == slot.Id && !g.Hidden)) grid.Children.Add(GarmentShopTile(g));
                 for (int i = 0; i < mystery; i++) grid.Children.Add(MysteryTile());
             }
             return;
@@ -691,6 +691,19 @@ public sealed class MenuWindow : Window
         else
             foreach (var u in Kitchen.Upgrades.Where(u => u.Shelf == shelf)) tiles.Children.Add(UpgradeTile(u));
         for (int i = 0; i < mystery; i++) tiles.Children.Add(MysteryTile());
+
+        // Мебели: и скинове за дивана и леглото.
+        if (shelf == Kitchen.FurnitureShelf)
+        {
+            foreach (var (item, title) in new[] { (Kitchen.Couch, "Скинове за дивана"), (Kitchen.Bed, "Скинове за леглото") })
+            {
+                var ribbon = Ribbon(title, item == Kitchen.Bed ? "bed" : "couch");
+                ribbon.Margin = new Thickness(0, 10 * U, 0, 8);
+                _shopTiles.Children.Add(ribbon);
+                var grid = NewShopGrid();
+                foreach (var skin in Furniture.SkinsFor(item).Where(k => k.Price > 0)) grid.Children.Add(SkinTile(skin, shop: true));
+            }
+        }
     }
 
     private UniformGrid NewShopGrid()
@@ -763,6 +776,33 @@ public sealed class MenuWindow : Window
         else if (owned) action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
         else action = BuyButton(b.Price, () => _pet.BuyBackdrop(b), out why);
         return MakeTile(_pet.BackdropImage(b), b.Name, Description("Фон за портрета на Мечо."), action, dim: false, why, owned, 2);
+    }
+
+    /// <summary>Скин за диван/легло: в магазина се купува, в гардероба се слага.</summary>
+    private Border SkinTile(Skin skin, bool shop)
+    {
+        var s = _pet.Save;
+        bool owned = Furniture.Owns(s, skin), used = Furniture.Current(s, skin.Item) == skin;
+        bool hasItem = Kitchen.Owns(s, skin.Item);
+        string? why = null;
+        Button action;
+        if (used)
+        {
+            action = Button("Сложен", () => { });
+            action.IsEnabled = false;
+        }
+        else if (owned) action = Button("Сложи", () => _pet.UseSkin(skin), primary: true);
+        else
+        {
+            action = BuyButton(skin.Price, () => _pet.BuySkin(skin), out why);
+            if (!hasItem)
+            {
+                action.IsEnabled = false;
+                why = skin.Item == Kitchen.Bed ? "Първо купи леглото (Мебели)." : "Първо купи дивана (Мебели).";
+            }
+        }
+        string note = shop ? (skin.Item == Kitchen.Bed ? "Скин за леглото." : "Скин за дивана.") : "";
+        return MakeTile(_pet.SkinImage(skin), skin.Name, Description(note), action, dim: false, why, owned && (used || !shop), 2);
     }
 
     /// <summary>Кутия „?“: нещо ново, което ще дойде с обновление.</summary>
@@ -874,6 +914,11 @@ public sealed class MenuWindow : Window
         var right = new StackPanel { Margin = new Thickness(16 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         right.Children.Add(new TextBlock { Text = "Облечено", FontSize = Ui.Title, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6 * U) });
         right.Children.Add(_wornList);
+        _pajamaChip = Chip("", () => _pet.SetPajamas(!_pet.Save.PajamasAtNight));
+        _pajamaChip.HorizontalAlignment = HorizontalAlignment.Left;
+        _pajamaChip.Margin = new Thickness(0, 6 * U, 0, 0);
+        _pajamaChip.ToolTip = Tip("Вечер (22:00–7:00) и когато заспи вечер, Мечо сам облича пижама и нощна шапка.");
+        right.Children.Add(_pajamaChip);
         right.Children.Add(new TextBlock
         {
             Text = "Дрехите се купуват в магазина и идват тук. Облечи някоя и мечокът ще се преоблече зад вратата на гардероба.",
@@ -888,9 +933,15 @@ public sealed class MenuWindow : Window
         return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 
+    private Border _pajamaChip = null!;
+
     private void BuildWardrobe()
     {
         var s = _pet.Save;
+        _pajamaChip.Child = IconText("moon", s.PajamasAtNight
+            ? (_pet.PajamaTime ? "Пижама вечер: вкл. (сега е с пижама)" : "Пижама вечер: вкл.")
+            : "Пижама вечер: изкл.");
+        _pajamaChip.Background = s.PajamasAtNight ? Honey : PaperDark;
         _model.Source = _pet.Portrait;
 
         _wornList.Children.Clear();
@@ -937,7 +988,7 @@ public sealed class MenuWindow : Window
         bool any = false;
         foreach (var slot in Clothes.Shelves)
         {
-            var owned = Clothes.All.Where(g => g.SlotId == slot.Id && Clothes.Owns(s, g)).ToList();
+            var owned = Clothes.All.Where(g => g.SlotId == slot.Id && !g.Hidden && Clothes.Owns(s, g)).ToList();
             if (owned.Count == 0) continue;
             any = true;
             _wardrobeShelves.Children.Add(Ribbon(slot.Name, slot.Icon));
@@ -989,12 +1040,32 @@ public sealed class MenuWindow : Window
             else action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
             grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, null, owned: used, artScale: 2));
         }
-        bool all = Backdrops.All.All(b => Backdrops.Owns(s, b));
-        if (all) return;
-        var more = Button("Още фонове в магазина", () => OpenShop(BackdropCategory), icon: "shop");
-        more.HorizontalAlignment = HorizontalAlignment.Center;
-        more.Margin = new Thickness(0, 10 * U, 0, 0);
-        _wardrobeShelves.Children.Add(more);
+        if (!Backdrops.All.All(b => Backdrops.Owns(s, b)))
+        {
+            var more = Button("Още фонове в магазина", () => OpenShop(BackdropCategory), icon: "shop");
+            more.HorizontalAlignment = HorizontalAlignment.Center;
+            more.Margin = new Thickness(0, 10 * U, 0, 0);
+            _wardrobeShelves.Children.Add(more);
+        }
+
+        // Мебелите: скинове на дивана и леглото (ако са купени).
+        foreach (var (item, title) in new[] { (Kitchen.Couch, "Диван"), (Kitchen.Bed, "Легло") })
+        {
+            if (!Kitchen.Owns(s, item)) continue;
+            var ribbon2 = Ribbon(title, item == Kitchen.Bed ? "bed" : "couch");
+            ribbon2.Margin = new Thickness(0, 14 * U, 0, 8);
+            _wardrobeShelves.Children.Add(ribbon2);
+            var skins = new UniformGrid { Columns = 3 };
+            _wardrobeShelves.Children.Add(skins);
+            foreach (var skin in Furniture.SkinsFor(item).Where(k => Furniture.Owns(s, k))) skins.Children.Add(SkinTile(skin, shop: false));
+            if (Furniture.SkinsFor(item).Any(k => !Furniture.Owns(s, k)))
+            {
+                var moreSkins = Button("Още скинове в магазина", () => OpenShop(2), icon: "shop");
+                moreSkins.HorizontalAlignment = HorizontalAlignment.Center;
+                moreSkins.Margin = new Thickness(0, 10 * U, 0, 0);
+                _wardrobeShelves.Children.Add(moreSkins);
+            }
+        }
     }
 
     /// <summary>Самопроверка: гардеробът с дрехите и фоновете.</summary>
@@ -1407,6 +1478,37 @@ public sealed class MenuWindow : Window
             b.Margin = new Thickness(0, 0, 0, 8);
             p.Children.Add(b);
         }
+        // Размерът на мечока на екрана (колко пиксела на екрана е един пиксел от рисунката).
+        var sizeLabel = new TextBlock { FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6, 0, 4) };
+        var slider = new Slider
+        {
+            Minimum = 1,
+            Maximum = 6,
+            TickFrequency = 1,
+            IsSnapToTickEnabled = true,
+            TickPlacement = System.Windows.Controls.Primitives.TickPlacement.BottomRight,
+            Value = _pet.BearScale,
+            Margin = new Thickness(0, 0, 0, 10),
+            Cursor = Cursors.Hand,
+        };
+        void ShowSize() => sizeLabel.Text = $"Размер на Мечо: {(int)slider.Value}× " + ((int)slider.Value switch
+        {
+            1 => "(мъничък)",
+            2 => "(малък)",
+            3 => "(нормален)",
+            4 => "(голям)",
+            5 => "(много голям)",
+            _ => "(огромен)",
+        });
+        ShowSize();
+        slider.ValueChanged += (_, _) =>
+        {
+            ShowSize();
+            _pet.SetBearScale((int)slider.Value);
+        };
+        p.Children.Add(sizeLabel);
+        p.Children.Add(slider);
+
         p.Children.Add(MutedText($"Мечо, версия {Updater.CurrentVersion}. Шрифт Pixeloid (GGBotNet, SIL OFL)."));
         return p;
     }

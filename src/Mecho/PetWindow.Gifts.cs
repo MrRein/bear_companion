@@ -103,7 +103,7 @@ public sealed partial class PetWindow
     internal void OpenGift(GiftWindow window)
     {
         _save.GiftPending = false;
-        var clothes = Clothes.All.Where(g => !Clothes.Owns(_save, g)).Select(g => (object)g);
+        var clothes = Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(_save, g)).Select(g => (object)g);
         var backdrops = Backdrops.All.Where(b => !Backdrops.Owns(_save, b)).Select(b => (object)b);
         var prizes = clothes.Concat(backdrops).ToList();
         if (prizes.Count == 0)

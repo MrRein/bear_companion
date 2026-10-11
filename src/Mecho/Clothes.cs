@@ -6,8 +6,15 @@ using System.Windows.Media.Imaging;
 
 namespace Mecho;
 
-/// <summary>Къде се облича дрехата. Name е и името на слоя в assets/bear (idle_shirt.png…).</summary>
-public sealed record Slot(string Id, string Name, string Icon, string Layer);
+/// <summary>
+/// Къде се облича дрехата. Layer е името на слоя в assets/bear (idle_shirt.png…).
+/// Ако има Sprite, дрехата е рисунка assets/clothes/&lt;Sprite&gt;_&lt;Id&gt;.png, която се
+/// слага на точката от слоя Layer (шапка, очила, шал); иначе слоят е сив шаблон.
+/// </summary>
+public sealed record Slot(string Id, string Name, string Icon, string Layer, string? Sprite = null, Anchor Anchor = Anchor.Bottom);
+
+/// <summary>Коя точка на рисунката сяда на точката от слоя: долу (шапка), среда (очила), горе (шал).</summary>
+public enum Anchor { Bottom, Center, Top }
 
 public enum Pattern { None, Stripes, Dots, Checks }
 
@@ -19,22 +26,27 @@ public enum Pattern { None, Stripes, Dots, Checks }
 /// </summary>
 public sealed record Garment(string Id, string Name, string SlotId, int Price, Color Main, Color Alt, Pattern Pattern = Pattern.None)
 {
+    /// <summary>Не се продава и не стои в гардероба (пижамата).</summary>
+    public bool Hidden { get; init; }
+
     public Slot Slot => Clothes.SlotById(SlotId);
 }
 
 public static class Clothes
 {
-    public static readonly Slot Hat = new("hat", "Шапки", "hat", "head");
+    public static readonly Slot Hat = new("hat", "Шапки", "hat", "head", "hat", Anchor.Bottom);
+    public static readonly Slot Glasses = new("glasses", "Очила", "glasses", "face", "glasses", Anchor.Center);
+    public static readonly Slot Neck = new("neck", "Шалове и папийонки", "scarf", "neck", "neck", Anchor.Top);
     public static readonly Slot Shirt = new("shirt", "Блузи", "shirt", "shirt");
     public static readonly Slot Pants = new("pants", "Панталони", "pants", "pants");
     public static readonly Slot Shoes = new("shoes", "Обувки", "shoe", "shoes");
     public static readonly Slot Gloves = new("gloves", "Ръкавици", "glove", "gloves");
 
     /// <summary>В този ред се рисуват (шапката е най-отгоре).</summary>
-    public static readonly Slot[] Slots = { Shoes, Pants, Shirt, Gloves, Hat };
+    public static readonly Slot[] Slots = { Shoes, Pants, Shirt, Gloves, Neck, Glasses, Hat };
 
     /// <summary>В този ред са в гардероба.</summary>
-    public static readonly Slot[] Shelves = { Hat, Shirt, Pants, Shoes, Gloves };
+    public static readonly Slot[] Shelves = { Hat, Glasses, Neck, Shirt, Pants, Shoes, Gloves };
 
     public static Slot SlotById(string id) => Slots.First(s => s.Id == id);
 
@@ -66,6 +78,27 @@ public static class Clothes
         new("white", "Бели ръкавички", "gloves", 8, C(250, 250, 250), C(250, 250, 250)),
         new("winter", "Зимни на райета", "gloves", 12, C(90, 140, 210), C(250, 250, 250), Pattern.Stripes),
         new("garden", "Градинарски", "gloves", 10, C(120, 180, 80), C(120, 180, 80)),
+
+        // Аксесоари (рисунки на точка): очила при очите, шал/папийонка под брадичката.
+        new("round", "Кръгли очила", "glasses", 10, default, default),
+        new("sun", "Слънчеви очила", "glasses", 14, default, default),
+        new("heart", "Очила сърчица", "glasses", 18, default, default),
+        new("artist", "Очила на художник", "glasses", 22, default, default),
+        new("scarf_red", "Червен шал", "neck", 10, default, default),
+        new("scarf_stripes", "Шал на райета", "neck", 14, default, default),
+        new("bowtie", "Папийонка", "neck", 12, default, default),
+        new("nut_necklace", "Колие с лешник", "neck", 25, default, default),
+
+        // Пижамата: облича се сама вечер (виж PetWindow.Wardrobe.cs), не се продава.
+        new("pj_top", "Пижама", "shirt", 0, C(150, 190, 235), C(250, 250, 255), Pattern.Dots) { Hidden = true },
+        new("pj_pants", "Пижама", "pants", 0, C(150, 190, 235), C(250, 250, 255), Pattern.Stripes) { Hidden = true },
+        new("nightcap", "Нощна шапка", "hat", 0, default, default) { Hidden = true },
+    };
+
+    /// <summary>Пижамата (слот → дреха), която сменя облеклото вечер.</summary>
+    public static readonly Dictionary<string, string> Pajamas = new()
+    {
+        ["shirt"] = "pj_top", ["pants"] = "pj_pants", ["hat"] = "nightcap", ["shoes"] = "slippers",
     };
 
     public static Garment? Find(string? id) => id == null ? null : All.FirstOrDefault(g => g.Id == id);
@@ -130,8 +163,8 @@ public sealed class Dresser
 
     private static BitmapSource? MakePreview(SpriteLibrary lib, Garment g)
     {
-        if (g.SlotId == Clothes.Hat.Id) return lib.Clothes("hat_" + g.Id);
         var slot = g.Slot;
+        if (slot.Sprite != null) return lib.Clothes(slot.Sprite + "_" + g.Id);
         var own = Pick(lib.Layer("idle", slot.Layer + "_" + g.Id), 0);
         var mask = own ?? Pick(lib.Layer("idle", slot.Layer), 0);
         if (mask == null) return null;
@@ -169,17 +202,23 @@ public sealed class Dresser
         foreach (var slot in Clothes.Slots)
         {
             if (!outfit.TryGetValue(slot.Id, out var id) || Clothes.Find(id) is not { } g || g.SlotId != slot.Id) continue;
-            if (slot == Clothes.Hat)
+            if (slot.Sprite != null)
             {
-                var hat = lib.Clothes("hat_" + g.Id);
-                var head = Pick(lib.Layer(anim, slot.Layer), index);
-                if (hat == null || head == null) continue;
-                var anchor = FirstPixel(Pixels(head), head.PixelWidth, head.PixelHeight);
+                // Рисунка на точка: шапка (долният ѝ ред на точката), очила (средата),
+                // шал (горният ред). Без точка в тази анимация (сън) не се слага.
+                var art = lib.Clothes(slot.Sprite + "_" + g.Id);
+                var point = Pick(lib.Layer(anim, slot.Layer), index);
+                if (art == null || point == null) continue;
+                var anchor = FirstPixel(Pixels(point), point.PixelWidth, point.PixelHeight);
                 if (anchor == null) continue;
                 var (ax, ay) = anchor.Value;
-                // Средата на долния ред на шапката сяда на точката.
-                Blit(px, w, H, Pixels(hat), hat.PixelWidth, hat.PixelHeight,
-                    ax - hat.PixelWidth / 2, ay + HatRoom - hat.PixelHeight + 1);
+                int top = slot.Anchor switch
+                {
+                    Anchor.Bottom => ay - art.PixelHeight + 1,
+                    Anchor.Center => ay - art.PixelHeight / 2,
+                    _ => ay,
+                };
+                Blit(px, w, H, Pixels(art), art.PixelWidth, art.PixelHeight, ax - art.PixelWidth / 2, top + HatRoom);
                 continue;
             }
 

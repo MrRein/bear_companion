@@ -144,6 +144,8 @@ def bear(eyes="open", mouth="none", arms="down", legs="stand", bob=0, ears="up",
     # глава и муцуна
     part(d, OTHER)
     img.head = (16, 5 + y)   # точката за шапката: средата на долния ѝ ръб
+    img.face = (16, 10 + y)  # очилата: средата им е на реда на очите
+    img.neck = (16, 19 + y)  # шалът: горният му ред е под брадичката
     oval(d, (6, 2 + y, 25, 19 + y), FUR)
     oval(d, (12, 11 + y, 19, 17 + y), MUZZLE, outline=None)
     d.rectangle((15, 12 + y, 16, 13 + y), fill=BLACK)
@@ -285,20 +287,80 @@ def reading_sleep(z):
     return bear(eyes="closed", arms="front", legs="sit", bob=2, extra=f)
 
 
-def couch():
-    """Диван отпред, 48x24. Седалката е на 10 пиксела от земята."""
+def couch(main=None, dark=None, light=None, pattern=None, accent=None, legs=None):
+    """Диван отпред, 48x24. Седалката е на 10 пиксела от земята. Цветовете са скинът."""
+    main, dark, light = main or COUCH, dark or COUCH_DARK, light or COUCH_LIGHT
+    legs = legs or WOOD
     img = Image.new("RGBA", (48, 24), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rectangle((4, 21, 6, 23), fill=WOOD)  # крачета
-    d.rectangle((41, 21, 43, 23), fill=WOOD)
-    d.rounded_rectangle((4, 0, 43, 15), 4, fill=COUCH_DARK, outline=OUTLINE)  # облегалка
-    d.rounded_rectangle((5, 12, 42, 21), 2, fill=COUCH, outline=OUTLINE)  # седалка
+    d.rectangle((4, 21, 6, 23), fill=legs)  # крачета
+    d.rectangle((41, 21, 43, 23), fill=legs)
+    d.rounded_rectangle((4, 0, 43, 15), 4, fill=dark, outline=OUTLINE)  # облегалка
+    if pattern == "dots":
+        for x in range(8, 41, 5):
+            for yy in (3, 8):
+                d.point((x + (yy // 5) * 2, yy), fill=accent)
+    elif pattern == "stripes":
+        for x in range(8, 41, 4):
+            d.line((x, 2, x, 12), fill=accent)
+    elif pattern == "buttons":   # капитоне (кожа)
+        for x in range(9, 41, 7):
+            for yy in (4, 9):
+                d.point((x, yy), fill=accent)
+    d.rounded_rectangle((5, 12, 42, 21), 2, fill=main, outline=OUTLINE)  # седалка
     d.line((24, 13, 24, 20), fill=OUTLINE)
-    d.line((7, 13, 22, 13), fill=COUCH_LIGHT)
-    d.line((26, 13, 40, 13), fill=COUCH_LIGHT)
-    d.rounded_rectangle((0, 8, 7, 21), 3, fill=COUCH, outline=OUTLINE)  # облегалки за ръце
-    d.rounded_rectangle((40, 8, 47, 21), 3, fill=COUCH, outline=OUTLINE)
+    d.line((7, 13, 22, 13), fill=light)
+    d.line((26, 13, 40, 13), fill=light)
+    d.rounded_rectangle((0, 8, 7, 21), 3, fill=main, outline=OUTLINE)  # облегалки за ръце
+    d.rounded_rectangle((40, 8, 47, 21), 3, fill=main, outline=OUTLINE)
+    if pattern == "dots":
+        for x in range(9, 40, 6):
+            d.point((x, 17), fill=accent)
     return img
+
+
+# Скиновете на дивана: id → (основен, тъмен, светъл, шарка, акцент, крачета)
+COUCH_SKINS = {
+    "velvet": ((70, 90, 170, 255), (45, 60, 130, 255), (110, 130, 210, 255), None, None, None),
+    "forest": ((90, 150, 80, 255), (60, 110, 60, 255), (130, 190, 110, 255), None, None, None),
+    "dots": ((240, 150, 170, 255), (215, 110, 140, 255), (255, 200, 210, 255), "dots", (255, 255, 255, 255), None),
+    "leather": ((120, 70, 40, 255), (90, 50, 30, 255), (160, 100, 60, 255), "buttons", (60, 35, 20, 255), (40, 30, 25, 255)),
+    "mint": ((150, 215, 190, 255), (110, 180, 160, 255), (200, 240, 225, 255), "stripes", (255, 255, 255, 255), None),
+    "honey": ((250, 200, 80, 255), (220, 160, 50, 255), (255, 230, 140, 255), None, None, None),
+}
+
+
+def bed(blanket, dark, pillow=(255, 255, 255, 255), pattern=None, accent=None, frame=None):
+    """Легло отстрани, 46 x 16: табла отляво, дюшек, одеяло. Лежи на 7 пиксела от земята."""
+    frame = frame or WOOD
+    img = Image.new("RGBA", (46, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle((0, 0, 3, 15), fill=frame, outline=OUTLINE)        # табла
+    d.rectangle((42, 6, 45, 15), fill=frame, outline=OUTLINE)      # долна табла
+    d.rectangle((2, 12, 43, 13), fill=frame, outline=OUTLINE)      # рамка
+    d.rectangle((3, 7, 42, 11), fill=(245, 240, 230, 255), outline=OUTLINE)  # дюшек
+    d.rectangle((4, 4, 12, 8), fill=pillow, outline=OUTLINE)       # възглавница
+    d.rectangle((13, 7, 42, 11), fill=blanket, outline=OUTLINE)    # одеяло
+    d.line((14, 8, 41, 8), fill=dark)
+    if pattern == "stars":
+        for x, yy in [(17, 10), (23, 9), (29, 10), (35, 9), (40, 10)]:
+            d.point((x, yy), fill=accent)
+    elif pattern == "checks":
+        for x in range(14, 42, 4):
+            d.rectangle((x, 9, x + 1, 10), fill=accent)
+    d.rectangle((3, 14, 4, 15), fill=OUTLINE)
+    d.rectangle((41, 14, 42, 15), fill=OUTLINE)
+    return img
+
+
+# Скиновете на леглото: id → (одеяло, тъмно, възглавница, шарка, акцент, рамка)
+BED_SKINS = {
+    "classic": ((110, 140, 220, 255), (80, 105, 180, 255), (255, 255, 255, 255), None, None, None),
+    "stars": ((50, 60, 120, 255), (35, 40, 90, 255), (255, 240, 200, 255), "stars", (255, 220, 100, 255), None),
+    "pink": ((245, 160, 185, 255), (220, 120, 150, 255), (255, 240, 245, 255), None, None, (240, 240, 240, 255)),
+    "forest": ((100, 160, 90, 255), (70, 120, 65, 255), (240, 230, 200, 255), "checks", (60, 100, 55, 255), None),
+    "honey": ((250, 205, 90, 255), (220, 165, 60, 255), (255, 250, 230, 255), "checks", (240, 150, 60, 255), None),
+}
 
 
 def controller(blink):
@@ -904,7 +966,18 @@ def hat_crown(d):
     d.point((11, 7), fill=(120, 180, 80, 255))
 
 
-HATS = {"beanie": hat_beanie, "beret": hat_beret, "cap": hat_cap, "party": hat_party, "chef": hat_chef, "crown": hat_crown}
+def hat_nightcap(d):
+    """Нощна шапка: синя, клюмнала надясно, с бял помпон и звездички."""
+    blue, dark = (70, 90, 170, 255), (45, 60, 130, 255)
+    d.polygon([(2, 9), (4, 3), (9, 1), (14, 4), (15, 7), (13, 6), (12, 9)], fill=blue, outline=OUTLINE)
+    d.ellipse((13, 5, 15, 8), fill=WHITE, outline=OUTLINE)       # помпон
+    d.rectangle((1, 8, 13, 9), fill=WHITE, outline=OUTLINE)       # подгъв
+    d.point((6, 4), fill=(255, 220, 100, 255))
+    d.point((9, 6), fill=(255, 220, 100, 255))
+    d.line((5, 7, 10, 7), fill=dark)
+
+
+HATS = {"beanie": hat_beanie, "beret": hat_beret, "cap": hat_cap, "party": hat_party, "chef": hat_chef, "crown": hat_crown, "nightcap": hat_nightcap}
 
 
 PROP_LIST = {
@@ -939,6 +1012,11 @@ PROP_LIST = {
     "food_potatoes": (food_potatoes(), 0),
     "wardrobe": (prop(26, 34, wardrobe), 0),
 }
+for _skin, _args in COUCH_SKINS.items():
+    PROP_LIST[f"couch_{_skin}"] = (couch(*_args), 10)
+PROP_LIST["bed"] = (bed(*BED_SKINS["classic"]), 7)
+for _skin, _args in BED_SKINS.items():
+    PROP_LIST[f"bed_{_skin}"] = (bed(*_args), 7)
 for _tool, _fn in COOKERS.items():
     for _i, _suffix in enumerate(["", "_b", "_open"]):
         PROP_LIST[f"cook_{_tool}{_suffix}"] = (prop(22, 24, _fn(_i)), 0)
@@ -969,13 +1047,90 @@ def save_clothes_layers(name, frames):
             strip.save(path)
         elif os.path.exists(path):
             os.remove(path)
-    strip = Image.new("RGBA", (SIZE * len(frames), SIZE), (0, 0, 0, 0))
-    for i, f in enumerate(frames):
-        if hasattr(f, "head"):
-            hx, hy = f.head
-            if 0 <= hy < SIZE:
-                strip.putpixel((i * SIZE + hx, hy), (255, 0, 255, 255))
-    strip.save(os.path.join(OUT, f"{name}_head.png"))
+    for point in ("head", "face", "neck"):
+        strip = Image.new("RGBA", (SIZE * len(frames), SIZE), (0, 0, 0, 0))
+        for i, f in enumerate(frames):
+            if hasattr(f, point):
+                hx, hy = getattr(f, point)
+                if 0 <= hy < SIZE:
+                    strip.putpixel((i * SIZE + hx, hy), (255, 0, 255, 255))
+        strip.save(os.path.join(OUT, f"{name}_{point}.png"))
+
+
+# Аксесоари: очила (16 x 4, средата на реда на очите) и неща за шията (16 широки,
+# горният ред е под брадичката). Стъклата са центрирани на 3.5 и 11.5, т.е. точно
+# пред очите на мечока (очите са на 4 пиксела от средата).
+def glasses(frame, lens=None, shape="round"):
+    img = Image.new("RGBA", (16, 4), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    for x0 in (2, 10):
+        if shape == "heart":
+            d.polygon([(x0, 0), (x0 + 1, 0), (x0 + 2, 1), (x0 + 3, 0), (x0 + 3, 1), (x0 + 2, 3), (x0 + 1, 3), (x0, 1)], fill=lens, outline=frame)
+        elif lens:
+            d.rectangle((x0, 0, x0 + 3, 3), fill=lens, outline=frame)
+        else:
+            d.rectangle((x0, 0, x0 + 3, 3), outline=frame)
+    d.line((6, 1, 9, 1), fill=frame)          # мостче
+    d.point((0, 1), fill=frame)               # дръжки
+    d.point((1, 1), fill=frame)
+    d.point((14, 1), fill=frame)
+    d.point((15, 1), fill=frame)
+    return img
+
+
+def glasses_artist():
+    img = glasses((60, 60, 70, 255), None)
+    d = ImageDraw.Draw(img)
+    d.point((12, 0), fill=(90, 140, 210, 255))   # петънца боя по рамката
+    d.point((3, 3), fill=(220, 90, 80, 255))
+    d.point((7, 1), fill=(255, 209, 102, 255))
+    return img
+
+
+def neck_scarf(main, alt=None):
+    img = Image.new("RGBA", (16, 8), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((2, 0, 13, 2), 1, fill=main, outline=OUTLINE)
+    d.rectangle((9, 2, 12, 7), fill=main, outline=OUTLINE)       # опашката виси
+    if alt:
+        for yy in (0, 4, 6):
+            d.line((10, yy, 11, yy) if yy else (4, 1, 8, 1), fill=alt)
+    d.line((10, 7, 11, 7), fill=OUTLINE)
+    return img
+
+
+def neck_bowtie():
+    img = Image.new("RGBA", (16, 5), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    red = (200, 50, 60, 255)
+    d.polygon([(4, 0), (7, 1), (7, 3), (4, 4)], fill=red, outline=OUTLINE)
+    d.polygon([(11, 0), (8, 1), (8, 3), (11, 4)], fill=red, outline=OUTLINE)
+    d.rectangle((7, 1, 8, 3), fill=(150, 30, 40, 255), outline=OUTLINE)
+    return img
+
+
+def neck_necklace():
+    img = Image.new("RGBA", (16, 8), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    gold = (230, 190, 80, 255)
+    d.line((3, 0, 6, 2), fill=gold)
+    d.line((12, 0, 9, 2), fill=gold)
+    d.line((6, 2, 9, 2), fill=gold)
+    oval(d, (5, 3, 10, 7), NUT)                                   # лешник
+    d.rectangle((6, 2, 9, 4), fill=(110, 70, 30, 255), outline=OUTLINE)
+    return img
+
+
+ACCESSORIES = {
+    "glasses_round": glasses((60, 60, 70, 255)),
+    "glasses_sun": glasses((30, 30, 35, 255), (40, 40, 50, 255)),
+    "glasses_heart": glasses((200, 40, 80, 255), (240, 90, 130, 255), "heart"),
+    "glasses_artist": glasses_artist(),
+    "neck_scarf_red": neck_scarf((214, 74, 70, 255)),
+    "neck_scarf_stripes": neck_scarf((90, 140, 210, 255), (250, 250, 250, 255)),
+    "neck_bowtie": neck_bowtie(),
+    "neck_nut_necklace": neck_necklace(),
+}
 
 
 def save_hats():
@@ -985,6 +1140,8 @@ def save_hats():
         img = Image.new("RGBA", (16, 10), (0, 0, 0, 0))
         fn(ImageDraw.Draw(img))
         img.save(os.path.join(folder, f"hat_{name}.png"))
+    for name, img in ACCESSORIES.items():
+        img.save(os.path.join(folder, f"{name}.png"))
 
 
 # Фонове за портрета в менюто (50 x 50; мечокът стои на реда 48, земята е долу).
@@ -1208,7 +1365,7 @@ def main():
     # Иконки за магазина от предметите за почивка: смалени до 16 x 16.
     for shop, src in [("shop_easel", "easel"), ("shop_computer", "computer"), ("shop_yoga_mat", "mat"),
                       ("shop_plant", "plant"), ("shop_radio", "radio"), ("shop_board_game", "table_board"), ("shop_trampoline", "trampoline"),
-                      ("shop_couch", "couch")]:
+                      ("shop_couch", "couch"), ("shop_bed_real", "bed")]:
         img, _ = PROP_LIST[src]
         icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
         scale = min(1.0, 16 / img.width, 16 / img.height)

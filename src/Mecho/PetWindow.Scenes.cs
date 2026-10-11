@@ -256,6 +256,7 @@ public sealed partial class PetWindow
     private void LoadSceneArt(Scene scene)
     {
         string? seat = scene.Seat == "couch" && !HasCouch ? null : scene.Seat;
+        if (seat == "couch") seat = Furniture.Current(_save, Kitchen.Couch).Prop;   // скинът на дивана
         _seatProp = seat == null ? null : _lib.GetProp(seat, 16, 8, 6);
         _sideProp = scene.Side == null ? null : _lib.GetProp(scene.Side, 16, 16, 0);
         SizeSceneArt();

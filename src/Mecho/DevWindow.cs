@@ -203,7 +203,7 @@ public sealed partial class PetWindow
         {
             foreach (var slot in Clothes.Slots)
             {
-                var options = Clothes.All.Where(g => g.SlotId == slot.Id).ToList();
+                var options = Clothes.All.Where(g => g.SlotId == slot.Id && !g.Hidden).ToList();
                 var g = options[_rng.Next(options.Count)];
                 if (!Clothes.Owns(_save, g)) _save.OwnedClothes.Add(g.Id);
                 _save.Outfit[slot.Id] = g.Id;

@@ -139,6 +139,7 @@ public sealed partial class PetWindow : Window
             IsHitTestVisible = false,
         };
 
+        _root.Children.Add(_bed);
         _root.Children.Add(_side);
         _root.Children.Add(_seat);
         _root.Children.Add(_sprite);
@@ -232,6 +233,7 @@ public sealed partial class PetWindow : Window
         UpdateFood(dt);
         UpdateButterfly(dt);
         UpdateGifts(now);
+        UpdatePajamas();
 
         if (_state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
         {
@@ -745,7 +747,7 @@ public sealed partial class PetWindow : Window
     private void ApplySpriteSize()
     {
         double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
-        int pixelScale = Math.Max(1, (int)Math.Round(_lib.Scale * dpi));
+        int pixelScale = Math.Max(1, (int)Math.Round(BearScale * dpi));
         PixelSize = pixelScale / dpi;
         _sprite.Width = _lib.FrameWidth * PixelSize;
         _sprite.Height = (_lib.FrameHeight + Dresser.HatRoom) * PixelSize;
@@ -762,7 +764,7 @@ public sealed partial class PetWindow : Window
 
     private void UpdateFrame()
     {
-        var frame = _dresser.Frame(_lib, _anim, _lib.Get(_anim).IndexAt(_animTime), _save.Outfit);
+        var frame = _dresser.Frame(_lib, _anim, _lib.Get(_anim).IndexAt(_animTime), EffectiveOutfit);
         // Докато се преоблича, е скрит зад вратата на гардероба.
         _sprite.Visibility = Dressing || GiftAway ? Visibility.Hidden : Visibility.Visible;
         if (!ReferenceEquals(frame, _shownFrame))
@@ -779,8 +781,9 @@ public sealed partial class PetWindow : Window
     // разтягаше и следеше пеперудата или балончето, Windows понякога местеше или
     // оразмеряваше прозореца кадър по-рано от рисунката: мечокът трепереше, а
     // балончето се отрязваше.
-    private const double WindowW = 600;
-    private const double WindowH = 340;
+    // По-голям мечок иска по-голям прозорец (за балончето и пеперудата).
+    private double WindowW => 600 * Math.Max(1, BearScale / 3.0);
+    private double WindowH => 340 * Math.Max(1, BearScale / 3.0);
     private Rect _window;
 
     /// <summary>Нарежда мечока, дивана, табелката, балончето и пеперудата в прозореца.</summary>
@@ -796,7 +799,8 @@ public sealed partial class PetWindow : Window
         double xs = ax / dpi, ys = ay / dpi;
         _window = new Rect((ax - wpx / 2) / dpi, (ay + 4 - hpx) / dpi, wpx / dpi, hpx / dpi);
 
-        var bear = new Rect(xs - SpriteWidth / 2, ys - SpriteHeight - (_inScene ? SeatHeight : 0), SpriteWidth, SpriteHeight);
+        var bear = new Rect(xs - SpriteWidth / 2, ys - SpriteHeight - (_inScene ? SeatHeight : 0) - BedLift, SpriteWidth, SpriteHeight);
+        var bed = BedRect(xs, ys);
         _bearRect = bear;
 
         Rect seat = Rect.Empty, side = Rect.Empty;
@@ -851,6 +855,7 @@ public sealed partial class PetWindow : Window
 
         Place(_sprite, new Rect(bear.Left, bear.Top - Dresser.HatRoom * PixelSize, bear.Width, _sprite.Height), _window.Left, _window.Top, dpi);
         if (hasSeat) Place(_seat, seat, _window.Left, _window.Top, dpi);
+        if (!bed.IsEmpty) Place(_bed, bed, _window.Left, _window.Top, dpi);
         if (hasSide) Place(_side, side, _window.Left, _window.Top, dpi);
         if (!bubble.IsEmpty) Place(_bubble, bubble, _window.Left, _window.Top, dpi);
         if (!tag.IsEmpty) Place(_timerTag, tag, _window.Left, _window.Top, dpi);
@@ -913,6 +918,7 @@ public sealed partial class PetWindow : Window
             double w = SpriteWidth;
             if (double.IsNaN(w) || w <= 0) w = 96;
             if (_inScene && _seatProp != null) w = Math.Max(w, _seat.Width);
+            if (BedOn) w = Math.Max(w, _bed.Width);
             // Предметът отстрани трябва също да е на екрана.
             if (_inScene && _sideProp != null) w = Math.Max(w, SpriteWidth + 2 * _side.Width);
             return w / 2;
