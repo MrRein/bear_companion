@@ -594,6 +594,30 @@ public sealed class MenuWindow : Window
     private const int ClothesCategory = 3, BackdropCategory = 4;
     private int _shopCategory;
 
+    /// <summary>Самопроверка: строи всеки раздел на магазина.</summary>
+    internal void SelfTestShop()
+    {
+        SelectTab(ShopTab);
+        for (int i = 0; i < ShopCategories.Length; i++)
+        {
+            _shopCategory = i;
+            BuildShopTiles();
+            UpdateLayout();
+        }
+        _shopCategory = 0;
+    }
+
+    /// <summary>Самопроверка: историята на задачите.</summary>
+    internal void SelfTestHistory()
+    {
+        SelectTab(TasksTab);
+        _showHistory = true;
+        Refresh(true);
+        UpdateLayout();
+        _showHistory = false;
+        Refresh(true);
+    }
+
     /// <summary>Отваря магазина на даден раздел (например „Дрехи“ от гардероба).</summary>
     private void OpenShop(int category)
     {
@@ -781,8 +805,12 @@ public sealed class MenuWindow : Window
         action.Margin = new Thickness(0, 8 * U, 0, 0);
         action.HorizontalAlignment = HorizontalAlignment.Stretch;
         // Дълъг надпис („Рецепта 10“) в тясна плочка: смалява се, вместо да излезе от кутията.
+        // Надписът първо се откача от бутона: WPF не позволява два „родителя“.
         if (action.Content is UIElement content)
+        {
+            action.Content = null;
             action.Content = new Viewbox { Child = content, StretchDirection = StretchDirection.DownOnly };
+        }
         DockPanel.SetDock(action, Dock.Bottom);
         dock.Children.Add(action);
 

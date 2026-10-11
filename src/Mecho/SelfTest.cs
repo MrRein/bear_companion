@@ -1,0 +1,175 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Threading;
+
+namespace Mecho;
+
+/// <summary>
+/// „Mecho.exe --selftest“: пуска мечока с всичко отключено и минава през менюто,
+/// магазина, кътчетата, готвенето и гардероба. Всяка грешка се записва в
+/// selftest.log и изходният код е 1. GitHub Actions го пуска преди всяка нова
+/// версия, за да не излезе версия, която пада.
+/// </summary>
+public static class SelfTest
+{
+    public static string LogPath => Path.Combine(SaveData.Folder, "selftest.log");
+
+    public static int Run()
+    {
+        Directory.CreateDirectory(SaveData.Folder);
+        File.WriteAllText(LogPath, "");
+        var errors = new List<string>();
+        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        app.DispatcherUnhandledException += (_, e) =>
+        {
+            errors.Add(e.Exception.ToString());
+            Log("ГРЕШКА: " + e.Exception);
+            e.Handled = true;
+        };
+        app.Dispatcher.BeginInvoke(async () =>
+        {
+            try
+            {
+                await Steps(errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add(ex.ToString());
+                Log("ГРЕШКА: " + ex);
+            }
+            Log(errors.Count == 0 ? "OK" : $"{errors.Count} грешки");
+            app.Shutdown(errors.Count == 0 ? 0 : 1);
+        });
+        // Ако нещо увисне, след 4 минути спираме с грешка.
+        var watchdog = new DispatcherTimer { Interval = TimeSpan.FromMinutes(4) };
+        watchdog.Tick += (_, _) =>
+        {
+            Log("ГРЕШКА: тестът увисна");
+            app.Shutdown(2);
+        };
+        watchdog.Start();
+        return app.Run();
+    }
+
+    public static void Log(string line)
+    {
+        Console.WriteLine(line);
+        try { File.AppendAllText(LogPath, line + Environment.NewLine); }
+        catch (Exception) { }
+    }
+
+    private static async Task Steps(List<string> errors)
+    {
+        var save = new SaveData { Hazelnuts = 10000, FirstRunDone = true, StartWithWindows = false };
+        var pet = new PetWindow(save);
+        pet.Show();
+        await Step("старт", () => { }, 1500);
+        await pet.SelfTestSteps(Step);
+
+        async Task Step(string name, Action action, int waitMs)
+        {
+            Log("• " + name);
+            int before = errors.Count;
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                errors.Add(ex.ToString());
+                Log($"ГРЕШКА в „{name}“: {ex}");
+            }
+            await Task.Delay(waitMs);
+            if (errors.Count > before) Log($"  ↑ грешка по време на „{name}“");
+        }
+    }
+}
+
+public sealed partial class PetWindow
+{
+    /// <summary>Стъпките на самопроверката (имат достъп до всичко вътре в мечока).</summary>
+    internal async Task SelfTestSteps(Func<string, Action, int, Task> step)
+    {
+        await step("отключи всичко", DevUnlockAll, 200);
+        for (int tab = 0; tab <= MenuWindow.MoreTab; tab++)
+        {
+            int t = tab;
+            await step($"меню, таб {t}", () =>
+            {
+                OpenMenu(t);
+                _menu!.UpdateLayout();
+            }, 400);
+        }
+        await step("магазин: всички раздели", () => _menu!.SelfTestShop(), 400);
+        await step("задачи и история", () =>
+        {
+            AddTask("Тестова задача", 2);
+            SetTaskDone(_save.Tasks[^1], true);
+            _menu!.SelfTestHistory();
+        }, 400);
+        await step("затвори менюто", () => _menu!.Hide(), 300);
+
+        foreach (var scene in Scenes.Fun)
+        {
+            var sc = scene;
+            await step($"кътче {sc.Id}", () => Relax(sc), 1200);
+        }
+        await step("почивай си на случаен принцип", RelaxRandom, 800);
+        await step("стани", GetUp, 500);
+
+        foreach (var food in Kitchen.Foods)
+        {
+            var f = food;
+            await step($"готви {f.Id}", () =>
+            {
+                _save.BerriesReadyAt = DateTime.MinValue;
+                _save.CoffeeTimes.Clear();
+                Cook(f);
+            }, 7000);
+            await step("изчисти храната", DevClearFood, 300);
+        }
+
+        await step("гардероб", () => { OpenMenu(MenuWindow.WardrobeTab); _menu!.UpdateLayout(); }, 800);
+        foreach (var g in Clothes.All)
+        {
+            var garment = g;
+            await step($"облечи {garment.Id}", () => Wear(garment), 1200);
+        }
+        foreach (var b in Backdrops.All)
+        {
+            var backdrop = b;
+            await step($"фон {backdrop.Id}", () => UseBackdrop(backdrop), 150);
+        }
+        await step("всички анимации облечен", () =>
+        {
+            foreach (var anim in new[] { "idle", "walk", "sleep", "eat", "happy", "dance", "read", "focus", "cook", "bounce" })
+                for (int i = 0; i < 8; i++) _dresser.Frame(_lib, anim, i, _save.Outfit);
+        }, 200);
+        await step("съблечи", Undress, 1200);
+        await step("затвори менюто", () => _menu!.Hide(), 500);
+        await step("сън", GoToSleep, 1500);
+        await step("събуди", WakeUp, 1000);
+    }
+
+    /// <summary>Developer: всичко купено (уреди, рецепти, дрехи, фонове).</summary>
+    internal void DevUnlockAll()
+    {
+        foreach (var u in Kitchen.Upgrades) if (!_save.Owned.Contains(u.Id)) _save.Owned.Add(u.Id);
+        foreach (var f in Kitchen.Foods) if (!_save.Owned.Contains(Kitchen.RecipeId(f))) _save.Owned.Add(Kitchen.RecipeId(f));
+        foreach (var b in Backdrops.All) if (!_save.Owned.Contains("bg_" + b.Id)) _save.Owned.Add("bg_" + b.Id);
+        foreach (var g in Clothes.All) if (!_save.OwnedClothes.Contains(g.Id)) _save.OwnedClothes.Add(g.Id);
+        Persist();
+        NotifyCare();
+    }
+
+    /// <summary>Developer: махни храната от екрана.</summary>
+    internal void DevClearFood()
+    {
+        foreach (var f in _food.ToList()) f.Close();
+        _food.Clear();
+    }
+}
