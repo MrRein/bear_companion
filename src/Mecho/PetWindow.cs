@@ -34,7 +34,6 @@ public sealed partial class PetWindow : Window
     private const double BubbleZone = 140;     // половината от най-широкото балонче
     private const double WalkSpeed = 45;       // DIP в секунда
     private const double Gravity = 2200;       // DIP/s²
-    private const double AwayToSleep = 5 * 60; // секунди без мишка и клавиатура
 
     private readonly SaveData _save;
     private readonly Random _rng = new();
@@ -297,32 +296,19 @@ public sealed partial class PetWindow : Window
 
     private void UpdateIdle(double now)
     {
-        if (NativeMethods.IdleSeconds() > AwayToSleep && !SleepHeldOff())
-        {
-            Say(Lines.Pick(Lines.GoingToSleep, _save.OwnerName));
-            Play("yawn", then: "sleep", away: true);
-            return;
-        }
-
-        // Късно вечер и уморен: сам си ляга (за дълго, до сутринта).
-        if (LateNight && _save.Energy < 35 && !InFocus && !TimerRunning && !SleepHeldOff())
-        {
-            Say(Lines.Pick(Lines.GoodNight, _save.OwnerName));
-            Play("yawn", then: "sleep");
-            return;
-        }
-
-        if (WantsNap && !SleepHeldOff())
-        {
-            Say(Lines.Pick(Lines.Sleepy, _save.OwnerName));
-            Play("yawn", then: "sleep");
-            return;
-        }
+        // Сам не ляга (като тамагочи): Тут го слага да спи. Уморен само казва, че му се спи.
 
         if (!IsQuiet && !InFocus && !WaitingForFood && now > _nextChatter)
         {
             _nextChatter = now + 600 + _rng.Next(600);
             Mutter(Lines.Pick(Lines.Chatter, _save.OwnerName), 6);
+        }
+
+        // Работим (мечо-доро или таймер), а го бяха вдигнали: веднага се връща на бюрото.
+        if (InFocus && !WaitingForFood && !MenuIsOpen && !ChatIsOpen && _stateTime > 1.5)
+        {
+            EnterWorkMode();
+            return;
         }
 
         if (_stateTime < _stateLength) return;
@@ -606,19 +592,8 @@ public sealed partial class PetWindow : Window
         if (_state != BearState.Drag)
         {
             if ((p - _pressScreen).Length < 5) return;
-            bool goingToSleep = _afterBusy == "sleep";
-            _save.SleepingByChoice = false;
-            if (_inScene)
-                // Продължава да прави същото; само коментира, че са го вдигнали.
-                Say(Lines.Pick(_scene == Scenes.Reading && HasCouch ? Lines.FlyingCouch : _scene == Scenes.Focus ? Lines.LiftedAtWork : Lines.LiftedInScene, _save.OwnerName), 3);
-            else if (IsAsleep || goingToSleep)
-                Say(Lines.Pick(Lines.WokenByDrag, _save.OwnerName));
-            else
-                Say(Lines.Pick(Lines.Dragged, _save.OwnerName), 2);
-
-            // Ако седи на дивана, носиш го заедно с дивана и той си чете.
             _grabOffset = new Point(_x, _y) - _pressScreen;
-            SetState(BearState.Drag, _inScene ? _anim : "drag");
+            LiftUp();
         }
 
         // Може да се мести и на друг екран: пазим го в екрана под мишката.
@@ -626,6 +601,27 @@ public sealed partial class PetWindow : Window
         double half = HalfWidth;
         _x = Math.Clamp(p.X + _grabOffset.X, area.Left + half, Math.Max(area.Left + half, area.Right - half));
         _y = Math.Clamp(p.Y + _grabOffset.Y, area.Top + SpriteHeight + (_inScene ? SeatHeight : 0), area.Bottom);
+    }
+
+    /// <summary>Тут го вдигна: казва нещо и спира каквото прави.</summary>
+    private void LiftUp()
+    {
+        bool goingToSleep = _afterBusy == "sleep";
+        _save.SleepingByChoice = false;
+        if (IsAsleep || goingToSleep || _anim == "read_sleep")
+            Say(Lines.Pick(Lines.WokenByDrag, _save.OwnerName));
+        else if (_inScene && _scene == Scenes.Focus)
+            Say(Lines.Pick(Lines.LiftedAtWork, _save.OwnerName), 3);
+        else
+            Say(Lines.Pick(Lines.Dragged, _save.OwnerName), 2);
+
+        // Вдигнат спира каквото прави (кътче, ядене, сън). Мечо-дорото и
+        // таймерът текат: като го пуснеш, пак сяда да работи.
+        if (_inScene) LeaveScene();
+        _save.StayPut = false;
+        _eating = null;
+        _held.Source = null;
+        SetState(BearState.Drag, "drag");
     }
 
     private void OnMouseUp(object sender, MouseButtonEventArgs e)
@@ -674,6 +670,7 @@ public sealed partial class PetWindow : Window
         }
         if (_chatOpenAtPress) return;
         if (!InFocus && TakeOffer()) return;
+        if (StartleFromDoze()) return;
 
         // Задрямал по време на мечо-доро или таймер: сънливо надига глава. Второ
         // цъкане скоро след това пита дали да спрат.

@@ -237,7 +237,8 @@ public sealed partial class PetWindow
         _facingLeft = false;
         SetState(BearState.Couch, scene.Anim);
         ClampX();
-        if (!quiet) Announce(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
+        if (IsExhausted && scene != Scenes.Focus && _rng.Next(2) == 0) Announce(Lines.Pick(Lines.SleepyDoing, _save.OwnerName), 3);
+        else if (!quiet) Announce(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
     }
 
     /// <summary>След като е бил вдигнат и пуснат: сяда пак в същото кътче.</summary>
@@ -345,29 +346,40 @@ public sealed partial class PetWindow
             return;
         }
 
-        bool away = NativeMethods.IdleSeconds() > AwayToSleep;
+        bool dozing = false;
         if (scene == Scenes.Reading)
         {
-            // Ако Тут я няма, задрямва с книжката на корема.
-            string anim = away ? "read_sleep" : "read";
+            // Капнал е: задрямва над книжката (енергията от това не се вдига).
+            dozing = _save.Energy < DozeEnergy && now > _readAwakeUntil;
+            string anim = dozing ? "read_sleep" : "read";
             if (anim != _anim)
             {
                 _anim = anim;
                 _animTime = 0;
-                if (!away) Say(Lines.Pick(Lines.WelcomeBack, _save.OwnerName));
             }
         }
-        else if (away && !stay)
-        {
-            // Тут я няма: прибира кътчето и отива да дремне.
-            LeaveScene();
-            return;
-        }
 
-        if (!away && !IsQuiet && !InFocus && scene.During.Length > 0 && now > _nextChatter)
+        if (!dozing && !IsQuiet && !InFocus && scene.During.Length > 0 && now > _nextChatter)
         {
             _nextChatter = now + (stay ? 600 : 120) + _rng.Next(stay ? 600 : 120);
             Mutter(Lines.Pick(scene.During, _save.OwnerName), 5);
         }
+    }
+
+    /// <summary>Под толкова енергия задрямва над книжката.</summary>
+    private const double DozeEnergy = 15;
+
+    /// <summary>Цъкнаха го, докато дреме над книжката: известно време пак чете.</summary>
+    private double _readAwakeUntil;
+
+    /// <summary>Дреме над книжката и Тут го цъкна: стряска се и пак чете (3 минути).</summary>
+    private bool StartleFromDoze()
+    {
+        if (_anim != "read_sleep") return false;
+        _readAwakeUntil = Now + 180;
+        _anim = "read";
+        _animTime = 0;
+        Say(Lines.Pick(Lines.DozeStartled, _save.OwnerName), 3);
+        return true;
     }
 }

@@ -31,9 +31,8 @@ public sealed partial class PetWindow
         var blocks = new (string Name, double Weight)[]
         {
             ("wander", 3),
-            ("sit", 4),
+            ("sit", IsExhausted ? 8 : 4),   // уморен: по-често сяда (но сам не ляга)
             ("hobby", canHobby ? 2.5 : 0),
-            ("nap", _save.Energy < 45 ? 5 : _save.Energy < 65 ? 1 : 0),
         };
         double roll = _rng.NextDouble() * blocks.Sum(b => b.Weight);
         string pick = blocks[^1].Name;
@@ -57,10 +56,6 @@ public sealed partial class PetWindow
             case "hobby":
                 StartAutoHobby();
                 return true;
-            case "nap":
-                TakeNap(Lines.Pick(Lines.BoredNap, _save.OwnerName));
-                StartFreeCycle(sitNow: true);
-                return true;
             default:
                 _freeUntil = Now + Minutes(15, 40);
                 return false;
@@ -70,12 +65,7 @@ public sealed partial class PetWindow
     private void UpdateSitting(double now)
     {
         // Работа, храна, подарък, умора: става (и после пак избира).
-        if (InFocus || WaitingForFood || _save.Energy < 20 || (_save.GiftAt != DateTime.MinValue && DateTime.Now >= _save.GiftAt && !_save.GiftPending))
-        {
-            LeaveScene();
-            return;
-        }
-        if (NativeMethods.IdleSeconds() > AwayToSleep)
+        if (InFocus || WaitingForFood || (_save.GiftAt != DateTime.MinValue && DateTime.Now >= _save.GiftAt && !_save.GiftPending))
         {
             LeaveScene();
             return;

@@ -122,6 +122,9 @@ public sealed partial class PetWindow
             {
                 _lastActivity = c.Name;
                 c.Do();
+                // Уморен е: прави го, но казва, че му се спи.
+                if (tired && c.Name is "walk" or "wonder" or "sketch" or "dice" && _rng.Next(3) == 0)
+                    Announce(Lines.Pick(Lines.SleepyDoing, _save.OwnerName), 3);
                 return;
             }
             roll -= c.Weight;

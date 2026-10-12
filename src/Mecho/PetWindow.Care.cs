@@ -12,8 +12,8 @@ public sealed partial class PetWindow
     // Колко бързо се променят нуждите (точки на час).
     private const double HungerAwake = 22;     // сит → гладен за ~3,5 часа
     private const double HungerAsleep = 4;
-    private const double TiredAwake = 35;      // бодър → уморен за ~2 часа: трябва да спи
-    private const double TiredWorking = 56;    // докато работи: ~23 енергия за едно мечо-доро
+    private const double TiredAwake = 8;       // от 100 сутрин до ~40 следобед: уморен е рядко
+    private const double TiredWorking = 12;    // докато работи: ~5 енергия за едно мечо-доро
     private const double RestAsleep = 240;     // от 20 до 100 за ~20 минути дрямка (с легло: 10)
 
     private double RestRate => RestAsleep * (Kitchen.Owns(_save, Kitchen.Bed) ? 2 : 1);
@@ -53,6 +53,7 @@ public sealed partial class PetWindow
         _root.Children.Add(_timerTag);
 
         ApplyOfflineTime();
+        MorningRefresh(fromStart: true);
         StartNewDay();
     }
 
@@ -65,8 +66,24 @@ public sealed partial class PetWindow
         if (_save.LastSeen == default) return;
         double hours = Math.Max(0, (DateTime.Now - _save.LastSeen).TotalHours);
         if (hours < 0.05) return;
-        _save.Energy = Math.Min(100, _save.Energy + hours * RestRate);
+        // Компютърът е бил спрян поне 2 часа: наспал се е.
+        if (hours >= 2) _save.Energy = Math.Min(100, _save.Energy + hours * RestRate);
         _save.Fullness = Math.Max(Math.Min(_save.Fullness, 30), _save.Fullness - hours * HungerAsleep);
+    }
+
+    /// <summary>
+    /// Сутрин (5–12 ч.) е бодър, все едно е спал: веднъж на ден енергията е 100.
+    /// При пускане на програмата – веднага; ако е стояла пусната цяла нощ – само
+    /// ако компютърът не е пипан поне 3 часа (иначе Тут е будувала с него).
+    /// </summary>
+    private void MorningRefresh(bool fromStart)
+    {
+        var now = DateTime.Now;
+        string today = now.ToString("yyyy-MM-dd");
+        if (_save.MorningRefill == today || now.Hour < 5 || now.Hour >= 12) return;
+        if (!fromStart && NativeMethods.IdleSeconds() < 3 * 3600) return;
+        _save.MorningRefill = today;
+        _save.Energy = 100;
     }
 
     /// <summary>Нов ден: свършените вчера задачи се махат, броячът на мечо-дора се нулира.</summary>
@@ -93,9 +110,12 @@ public sealed partial class PetWindow
     private void UpdateCare(double dt, double now)
     {
         double h = dt / 3600;
-        _save.Fullness = Math.Clamp(_save.Fullness - (IsResting ? HungerAsleep : HungerAwake) * h, 0, 100);
+        _save.Fullness = Math.Clamp(_save.Fullness - (IsAsleep ? HungerAsleep : HungerAwake) * h, 0, 100);
+        // Спи (Тут го е сложила): почива. Дреме над книжката: енергията стои.
         double tiring = (_scene == Scenes.Focus ? TiredWorking : TiredAwake) * NightTiredness;
-        _save.Energy = Math.Clamp(_save.Energy + (IsResting ? RestRate : -tiring) * h, 0, 100);
+        double change = IsAsleep ? RestRate : _anim == "read_sleep" ? 0 : -tiring;
+        _save.Energy = Math.Clamp(_save.Energy + change * h, 0, 100);
+        MorningRefresh(fromStart: false);
 
         UpdatePomodoro();
         UpdateTimer();
@@ -189,28 +209,6 @@ public sealed partial class PetWindow
         Say(Lines.Pick(meal == "lunch" ? Lines.LunchThanks : Lines.DinnerThanks, _save.OwnerName), 5);
         return true;
     }
-
-    private double _nextHoldLine;
-
-    /// <summary>
-    /// Нещо се готви (или току-що е сготвено и чака да му го дадат – до 5 мин):
-    /// не ляга, колкото и да му се спи; само казва, че му се спи.
-    /// </summary>
-    private bool SleepHeldOff()
-    {
-        bool cooking = Cooks, food = WaitingForFood && Now - _foodReadyAt < 300;
-        if (!cooking && !food) return false;
-        if (Now > _nextHoldLine && !IsQuiet)
-        {
-            _nextHoldLine = Now + 150 + _rng.Next(90);
-            Say(Lines.Pick(cooking ? Lines.SleepyButCooking : Lines.SleepyButFood, _save.OwnerName), 4);
-        }
-        return true;
-    }
-
-    /// <summary>Сам ли иска да дремне (вика се, когато стои без работа).</summary>
-    /// <summary>Капнал е: заспива сам, каквото и да става (иначе чака Тут да го приспи).</summary>
-    private bool WantsNap => _save.Energy < 5;
 
     // ───────────────────────── Храна ─────────────────────────
 
@@ -307,15 +305,10 @@ public sealed partial class PetWindow
     private void EnterWorkMode()
     {
         if (_scene == Scenes.Focus || IsAsleep || _state is BearState.Drag or BearState.Falling or BearState.Jump) return;
-        if (IsExhausted)
-        {
-            // Твърде уморен е да работи: ще дремне, а като се наспи, ще дойде да работи.
-            TakeNap(Lines.Pick(Lines.WorkNap, _save.OwnerName));
-            return;
-        }
         _save.SleepingByChoice = false;
         _save.StayPut = false;
         StartScene(Scenes.Focus, quiet: false);
+        if (IsExhausted) Say(Lines.Pick(Lines.WorkTired, _save.OwnerName), 4);
         _nextFocusSwitch = Now + 15 + _rng.Next(15);
     }
 
@@ -327,27 +320,12 @@ public sealed partial class PetWindow
 
     private double _nextFocusSwitch;
 
-    /// <summary>Дрямка: прозява се и заспива; става сам, когато се наспи.</summary>
-    private void TakeNap(string line)
-    {
-        if (IsAsleep || SleepHeldOff()) return;
-        if (_inScene) LeaveScene();
-        _save.SleepingByChoice = true;
-        Say(line, 5);
-        Play("yawn", then: "sleep");
-    }
-
     /// <summary>
     /// В работния режим сменя заниманията си: пише, мисли, записва. Ако се умори,
     /// клюма над лаптопа, а ако съвсем капне, отива да дремне.
     /// </summary>
     private void UpdateFocusScene(double now)
     {
-        if (_save.Energy < 8)
-        {
-            TakeNap(Lines.Pick(Lines.WorkNap, _save.OwnerName));
-            return;
-        }
         if (IsExhausted)
         {
             if (_anim != "focus_tired")

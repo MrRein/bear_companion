@@ -292,6 +292,65 @@ public sealed partial class PetWindow
         await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);
         await step("сън в леглото", GoToSleep, 1500);
         await step("събуди", WakeUp, 1000);
+        await step("не заспива сам", () =>
+        {
+            if (IsAsleep) throw new Exception("още спи");
+            _save.Energy = 2;
+            SetIdle();
+        }, 2500);
+        await step("уморен, но буден", () =>
+        {
+            if (IsAsleep) throw new Exception("заспа сам");
+        }, 200);
+        await step("дреме над книжката", () =>
+        {
+            Relax(Scenes.Reading);
+            _save.Energy = 10;
+        }, 1200);
+        double dozeEnergy = 0;
+        await step("дреме: енергията не се вдига", () =>
+        {
+            if (_anim != "read_sleep") throw new Exception("не дреме над книжката, а " + _anim);
+            dozeEnergy = _save.Energy;
+        }, 1500);
+        await step("дреме: стряска се", () =>
+        {
+            if (_save.Energy > dozeEnergy + 0.001) throw new Exception("енергията се вдига от дрямката");
+            if (!StartleFromDoze() || _anim != "read") throw new Exception("не се стресна");
+        }, 500);
+        await step("вдигнат спира кътчето", () =>
+        {
+            LiftUp();
+            if (_inScene || _save.StayPut) throw new Exception("продължава да чете");
+            _vy = 0;
+            SetState(BearState.Falling, "drag");
+        }, 1500);
+        await step("сутрешна енергия", () =>
+        {
+            _save.MorningRefill = "";
+            _save.Energy = 10;
+            MorningRefresh(fromStart: true);
+            int hour = DateTime.Now.Hour;
+            if (hour is >= 5 and < 12 ? _save.Energy != 100 : _save.Energy != 10) throw new Exception("сутрешната енергия е " + _save.Energy);
+            _save.Energy = 80;
+        }, 200);
+        await step("вдигнат по време на работа", () =>
+        {
+            StartFocus();
+        }, 2500);
+        await step("вдигнат: работата тече", () =>
+        {
+            if (_scene != Scenes.Focus) throw new Exception("не работи");
+            LiftUp();
+            if (_inScene || !InFocus) throw new Exception("вдигането спря работата");
+            _vy = 0;
+            SetState(BearState.Falling, "drag");
+        }, 8000);
+        await step("пуснат: пак работи", () =>
+        {
+            if (_scene != Scenes.Focus) throw new Exception("не се върна на бюрото");
+            StopPomodoro();
+        }, 1000);
     }
 
     /// <summary>Developer: всичко купено (уреди, рецепти, дрехи, фонове).</summary>

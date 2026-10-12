@@ -52,6 +52,9 @@ public sealed class SaveData
     public int TasksDoneTotal { get; set; }
     public int PomodorosTotal { get; set; }
     public string PomodoroDay { get; set; } = "";
+
+    /// <summary>Денят, в който сутринта се е събудил бодър (енергия 100).</summary>
+    public string MorningRefill { get; set; } = "";
     public int PomodorosToday { get; set; }
 
     // Мечо-доро, което тече в момента (за да продължи след рестарт)
