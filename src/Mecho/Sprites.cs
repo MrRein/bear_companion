@@ -86,6 +86,9 @@ public sealed class SpriteLibrary
     public static string Folder => Path.Combine(AppContext.BaseDirectory, "assets", "bear");
     public static string PropsFolder => Path.Combine(AppContext.BaseDirectory, "assets", "props");
     public static string ClothesFolder => Path.Combine(AppContext.BaseDirectory, "assets", "clothes");
+
+    /// <summary>Шаблоните за дрехите към анимациите (&lt;анимация&gt;_shirt.png, _head.png…).</summary>
+    public static string LayersFolder => Path.Combine(ClothesFolder, "layers");
     public static string BackgroundsFolder => Path.Combine(AppContext.BaseDirectory, "assets", "backgrounds");
 
     public static SpriteLibrary Load()
@@ -180,7 +183,7 @@ public sealed class SpriteLibrary
     }
 
     /// <summary>
-    /// Слой към анимация: лентата &lt;файл&gt;_&lt;layer&gt;.png до нея (шаблон за блуза,
+    /// Слой към анимация: лентата &lt;файл&gt;_&lt;layer&gt;.png в assets/clothes/layers (шаблон за блуза,
     /// точката за шапката…), или null, ако го няма.
     /// </summary>
     public BitmapSource[]? Layer(string anim, string layer)
@@ -188,7 +191,7 @@ public sealed class SpriteLibrary
         string key = anim + "|" + layer;
         if (_layers.TryGetValue(key, out var frames)) return frames;
         string file = _files.TryGetValue(anim, out var f) ? f : anim + ".png";
-        frames = LoadStrip(Path.GetFileNameWithoutExtension(file) + "_" + layer + ".png");
+        frames = LoadStrip(Path.GetFileNameWithoutExtension(file) + "_" + layer + ".png", LayersFolder);
         _layers[key] = frames;
         return frames;
     }
@@ -212,11 +215,11 @@ public sealed class SpriteLibrary
         return img;
     }
 
-    private BitmapSource[]? LoadStrip(string file)
+    private BitmapSource[]? LoadStrip(string file, string? folder = null)
     {
         try
         {
-            var img = LoadPng(Path.Combine(Folder, file));
+            var img = LoadPng(Path.Combine(folder ?? Folder, file));
             if (img == null) return null;
 
             int count = Math.Max(1, img.PixelWidth / FrameWidth);

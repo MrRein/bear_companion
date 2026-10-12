@@ -14,10 +14,12 @@ from PIL import Image, ImageDraw
 SIZE = 32
 OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "bear")
 PROPS = os.path.join(os.path.dirname(__file__), "..", "assets", "props")
+LAYERS = os.path.join(os.path.dirname(__file__), "..", "assets", "clothes", "layers")
 
 # Анимациите, които вече са нарисувани на ръка: скриптът не ги пипа (нито
 # шаблоните им за дрехи; тях ги прави tools/auto_clothes.py или Тут).
-HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "dice", "bounce", "eat", "fall"}
+HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "dice", "bounce", "eat", "fall",
+              "happy", "sad", "think", "tired", "walk_tired", "sleep_peek"}
 
 # Нарисувани от Тут анимации, които нямат placeholder: име → (кадри в секунда, повтаря ли се).
 EXTRA_DRAWN = {"sit_drinking": (10, True), "sit_drinking_sip": (10, False), "sit_drinking_blow": (10, False)}
@@ -1108,7 +1110,7 @@ def save_clothes_layers(name, frames):
                     g = 60 if c == OUTLINE else 230 if c in (LIGHT, MUZZLE) else 160
                     strip.putpixel((i * SIZE + x, y), (g, g, g, 255))
                     any_pixel = True
-        path = os.path.join(OUT, f"{name}_{slot}.png")
+        path = os.path.join(LAYERS, f"{name}_{slot}.png")
         if any_pixel:
             strip.save(path)
         elif os.path.exists(path):
@@ -1120,7 +1122,7 @@ def save_clothes_layers(name, frames):
                 hx, hy = getattr(f, point)
                 if 0 <= hy < SIZE:
                     strip.putpixel((i * SIZE + hx, hy), (255, 0, 255, 255))
-        strip.save(os.path.join(OUT, f"{name}_{point}.png"))
+        strip.save(os.path.join(LAYERS, f"{name}_{point}.png"))
 
 
 # Аксесоари: очила (16 x 4, средата на реда на очите) и неща за шията (16 широки,
@@ -1536,7 +1538,8 @@ def main():
         manifest["animations"][name] = {"file": f"{name}.png", "fps": fps, "loop": loop}
     for name, (fps, loop) in EXTRA_DRAWN.items():
         manifest["animations"][name] = {"file": f"{name}.png", "fps": fps, "loop": loop}
-    derive_sleep_peek()
+    if "sleep_peek" not in HAND_DRAWN:
+        derive_sleep_peek()
     derive_eat_hold()
     manifest["animations"]["eat_hold"] = {"file": "eat_hold.png", "fps": 1, "loop": True}
     manifest["animations"]["sleep_peek"] = {"file": "sleep_peek.png", "fps": 3, "loop": False}

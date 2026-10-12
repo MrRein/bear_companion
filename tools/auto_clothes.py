@@ -2,8 +2,8 @@
 
     python tools/auto_clothes.py idle walk read ...
 
-Чете assets/bear/<anim>.png и записва <anim>_shirt.png, _pants.png, _shoes.png,
-_gloves.png и _head.png (сиви шаблони и точката за шапката).
+Чете assets/bear/<anim>.png и записва в assets/clothes/layers/ <anim>_shirt.png,
+_pants.png, _shoes.png, _gloves.png и _head.png (сиви шаблони и точката за шапката).
 
 Мечокът се разделя на части по контурите, кадър по кадър:
 * **глава** – парчето козина с муцуната (ушите са към нея);
@@ -24,6 +24,7 @@ from collections import deque
 from PIL import Image
 
 BEAR = os.path.join(os.path.dirname(__file__), "..", "assets", "bear")
+LAYERS = os.path.join(os.path.dirname(__file__), "..", "assets", "clothes", "layers")
 SIZE = 32
 
 # Цветовете (новата палитра на Тут и старата).
@@ -35,7 +36,7 @@ FACE = {(249, 227, 180), (239, 217, 169), (182, 101, 82), (199, 122, 102), (0, 0
 MUZZLE = {(249, 227, 180), (239, 217, 169), (251, 232, 195), (243, 224, 185)}
 
 # Анимации, в които лежи: само тялото е с дреха, шапката се сваля.
-LYING = {"sleep"}
+LYING = {"sleep", "sleep_peek"}
 
 NONE, HEAD, SHIRT, PANTS, SHOES, GLOVES = range(6)
 LAYER = {SHIRT: "shirt", PANTS: "pants", SHOES: "shoes", GLOVES: "gloves"}
@@ -322,13 +323,13 @@ def main(anim):
         for name, (ax, ay) in anchor.items():
             layers[name].putpixel((f * SIZE + ax, ay), (255, 0, 255, 255))
     for name, img in layers.items():
-        img.save(os.path.join(BEAR, f"{anim}_{name}.png"))
+        img.save(os.path.join(LAYERS, f"{anim}_{name}.png"))
     if anim.startswith("sit_drinking") or anim in ("eat", "eat_hold"):
         cup = Image.new("RGBA", strip.size, (0, 0, 0, 0))
         points = eat_anchors(strip) if anim.startswith("eat") else cup_anchors(strip, anim)
         for f, (cx, cy) in enumerate(points):
             cup.putpixel((f * SIZE + cx, min(SIZE - 1, cy)), (255, 0, 255, 255))
-        cup.save(os.path.join(BEAR, f"{anim}_cup.png"))
+        cup.save(os.path.join(LAYERS, f"{anim}_cup.png"))
 
 
 if __name__ == "__main__":

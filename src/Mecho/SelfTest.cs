@@ -233,8 +233,12 @@ public sealed partial class PetWindow
         }
         await step("всички анимации облечен", () =>
         {
-            foreach (var anim in new[] { "idle", "walk", "sleep", "eat", "happy", "dance", "read", "focus", "cook", "bounce" })
+            foreach (var anim in new[] { "idle", "walk", "sleep", "eat", "happy", "dance", "read", "focus", "cook", "bounce",
+                                         "sad", "think", "tired", "walk_tired", "sleep_peek", "drag", "fall", "eat_hold" })
+            {
+                if (_lib.Layer(anim, "shirt") == null) throw new Exception($"няма шаблон за блуза: {anim} (assets/clothes/layers)");
                 for (int i = 0; i < 8; i++) _dresser.Frame(_lib, anim, i, _save.Outfit);
+            }
         }, 200);
         await step("аксесоари", () =>
         {
