@@ -24,6 +24,14 @@ public sealed class CookerWindow : Window
     /// <summary>Тут цъкна уреда.</summary>
     public event Action? Clicked;
 
+    /// <summary>Тут премести уреда (нова среда x и дъно y в DIP, преди да кацне на земята).</summary>
+    public event Action<double, double>? Dropped;
+
+    private bool _pressed, _dragging;
+    private Point _pressScreen, _pressWindow;
+
+    public bool IsDragging => _dragging;
+
     public CookerWindow()
     {
         Title = "Готвене";
@@ -50,13 +58,38 @@ public sealed class CookerWindow : Window
         stack.Children.Add(_tag);
         stack.Children.Add(_image);
         Content = stack;
-        _image.ToolTip = Tip("Готви се. Цъкни, ако искаш да го спреш.");
+        _image.ToolTip = Tip("Готви се. Хвани го, за да го преместиш; цъкни, ако искаш да го спреш.");
 
         SourceInitialized += (_, _) => NativeMethods.MakeToolWindow(new WindowInteropHelper(this).Handle);
+        // Хващаш го и го местиш (таймерът е с него); кратко цъкване пита дали да спре.
+        _image.MouseLeftButtonDown += (_, e) =>
+        {
+            _pressed = true;
+            _dragging = false;
+            _pressScreen = PointToScreen(e.GetPosition(this));
+            _pressWindow = new Point(Left, Top);
+            _image.CaptureMouse();
+            e.Handled = true;
+        };
+        _image.MouseMove += (_, e) =>
+        {
+            if (!_pressed) return;
+            var now = PointToScreen(e.GetPosition(this));
+            var dpi = VisualTreeHelper.GetDpi(this);
+            double dx = (now.X - _pressScreen.X) / dpi.DpiScaleX, dy = (now.Y - _pressScreen.Y) / dpi.DpiScaleY;
+            if (!_dragging && Math.Abs(dx) + Math.Abs(dy) < 5) return;
+            _dragging = true;
+            Left = _pressWindow.X + dx;
+            Top = _pressWindow.Y + dy;
+        };
         _image.MouseLeftButtonUp += (_, e) =>
         {
             e.Handled = true;
-            Clicked?.Invoke();
+            _image.ReleaseMouseCapture();
+            bool dragged = _dragging;
+            _pressed = _dragging = false;
+            if (dragged) Dropped?.Invoke(Left + ActualWidth / 2 - _shake, Top + ActualHeight);
+            else Clicked?.Invoke();
         };
     }
 

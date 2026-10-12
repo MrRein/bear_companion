@@ -239,7 +239,7 @@ CUP_BASE = (17, 26)
 PAW_BOX = (16, 18, 26, 28)   # къде е лапата с чашата (x0, y0, x1, y1)
 
 
-def cup_anchors(strip):
+def cup_anchors(strip, name):
     base = Image.open(os.path.join(BEAR, "sit_drinking.png")).convert("RGBA").crop((0, 0, SIZE, SIZE))
     x0, y0, x1, y1 = PAW_BOX
     out = []
@@ -258,7 +258,18 @@ def cup_anchors(strip):
                             bad += 1
                 if best is None or bad < best or (bad == best and abs(dx) + abs(dy) < abs(shift[0]) + abs(shift[1])):
                     best, shift = bad, (dx, dy)
-        out.append((CUP_BASE[0] + shift[0], CUP_BASE[1] + shift[1]))
+        # Лапата е вдигната (кадърът се различава от основния около лапата):
+        # чашата отива към устата – при отпиване до устата, при духане наполовина.
+        changed = 0
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                a, b = base.getpixel((x, y)), frame.getpixel((x, y))
+                if (a[3] > 0) != (b[3] > 0) or (a[3] and a[:3] != b[:3]):
+                    changed += 1
+        full = 4 if "sip" in name else 2
+        lift = 0 if changed < 20 else (full if changed >= 45 or "blow" in name else full // 2 + 1)
+        lean = -1 if lift >= 3 else 0
+        out.append((CUP_BASE[0] + lean, CUP_BASE[1] - lift))
     return out
 
 
@@ -279,7 +290,7 @@ def main(anim):
         img.save(os.path.join(BEAR, f"{anim}_{name}.png"))
     if anim.startswith("sit_drinking"):
         cup = Image.new("RGBA", strip.size, (0, 0, 0, 0))
-        for f, (cx, cy) in enumerate(cup_anchors(strip)):
+        for f, (cx, cy) in enumerate(cup_anchors(strip, anim)):
             cup.putpixel((f * SIZE + cx, min(SIZE - 1, cy)), (255, 0, 255, 255))
         cup.save(os.path.join(BEAR, f"{anim}_cup.png"))
 

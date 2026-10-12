@@ -294,7 +294,7 @@ public sealed partial class PetWindow : Window
 
     private void UpdateIdle(double now)
     {
-        if (NativeMethods.IdleSeconds() > AwayToSleep)
+        if (NativeMethods.IdleSeconds() > AwayToSleep && !SleepHeldOff())
         {
             Say(Lines.Pick(Lines.GoingToSleep, _save.OwnerName));
             Play("yawn", then: "sleep", away: true);
@@ -302,14 +302,14 @@ public sealed partial class PetWindow : Window
         }
 
         // Късно вечер и уморен: сам си ляга (за дълго, до сутринта).
-        if (LateNight && _save.Energy < 35 && !InFocus && !TimerRunning)
+        if (LateNight && _save.Energy < 35 && !InFocus && !TimerRunning && !SleepHeldOff())
         {
             Say(Lines.Pick(Lines.GoodNight, _save.OwnerName));
             Play("yawn", then: "sleep");
             return;
         }
 
-        if (WantsNap)
+        if (WantsNap && !SleepHeldOff())
         {
             Say(Lines.Pick(Lines.Sleepy, _save.OwnerName));
             Play("yawn", then: "sleep");

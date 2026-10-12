@@ -1208,6 +1208,66 @@ def food_juice(color):
     return img
 
 
+# Храната на парчета: всяка пуканка, кюфтенце и картофка е отделна (и в няколко
+# вида), за да се разлитат по екрана. Първият вид е и картинката в менюто.
+POP = (255, 245, 210, 255)
+POP_EDGE = (205, 170, 95, 255)
+
+
+def popcorn_piece(variant):
+    img = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    blobs = [
+        [(1, 3, 5, 7), (4, 1, 8, 5), (4, 4, 8, 8)],
+        [(2, 1, 6, 5), (1, 4, 5, 8), (5, 3, 9, 7)],
+        [(1, 2, 5, 6), (5, 2, 9, 6), (3, 5, 7, 9)],
+        [(2, 2, 7, 7), (5, 0, 8, 3), (0, 5, 3, 8)],
+    ][variant]
+    for b in blobs:
+        d.ellipse(b, fill=POP, outline=POP_EDGE)
+    for b in blobs:   # вътрешните ръбове се махат, за да е един пухкав облак
+        d.ellipse((b[0] + 1, b[1] + 1, b[2] - 1, b[3] - 1), fill=POP)
+    d.point((4 + variant % 2, 6), fill=(230, 180, 90, 255))   # люспичка
+    return img
+
+
+def meatball_piece(variant):
+    img = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    box = [(1, 2, 8, 8), (1, 1, 8, 8), (2, 2, 8, 9), (1, 2, 9, 8)][variant]
+    oval(d, box, (130, 70, 40, 255))
+    d.point((box[0] + 2, box[1] + 2), fill=(175, 105, 65, 255))   # отблясък
+    d.point((box[0] + 3, box[1] + 2), fill=(175, 105, 65, 255))
+    if variant % 2:
+        d.point((box[0] + 4, box[1] + 4), fill=(90, 140, 60, 255))  # магданоз
+    d.line((3 + variant, 0, 3 + variant, 1), fill=(225, 225, 225, 200))   # пара
+    return img
+
+
+def potato_piece(variant):
+    img = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    gold, crust = (235, 185, 75, 255), (175, 115, 40, 255)
+    shapes = [
+        [(1, 7), (4, 1), (8, 3), (6, 8)],
+        [(1, 4), (6, 1), (9, 5), (3, 8)],
+        [(2, 8), (2, 2), (7, 1), (8, 7)],
+    ][variant]
+    d.polygon(shapes, fill=gold, outline=crust)
+    d.point((4, 4), fill=(255, 225, 140, 255))
+    d.point((5, 5), fill=crust)
+    return img
+
+
+for _i in range(4):
+    PROP_LIST[f"food_popcorn_{_i + 1}"] = (popcorn_piece(_i), 0)
+    PROP_LIST[f"food_meatballs_{_i + 1}"] = (meatball_piece(_i), 0)
+for _i in range(3):
+    PROP_LIST[f"food_potatoes_{_i + 1}"] = (potato_piece(_i), 0)
+PROP_LIST["food_popcorn"] = (popcorn_piece(0), 0)
+PROP_LIST["food_meatballs"] = (meatball_piece(0), 0)
+PROP_LIST["food_potatoes"] = (potato_piece(0), 0)
+
 PROP_LIST["food_juice_orange"] = (food_juice((250, 160, 40, 255)), 0)
 PROP_LIST["food_juice_berry"] = (food_juice((150, 60, 140, 255)), 0)
 

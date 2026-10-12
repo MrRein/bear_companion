@@ -190,6 +190,24 @@ public sealed partial class PetWindow
         return true;
     }
 
+    private double _nextHoldLine;
+
+    /// <summary>
+    /// Нещо се готви (или току-що е сготвено и чака да му го дадат – до 5 мин):
+    /// не ляга, колкото и да му се спи; само казва, че му се спи.
+    /// </summary>
+    private bool SleepHeldOff()
+    {
+        bool cooking = Cooks, food = WaitingForFood && Now - _foodReadyAt < 300;
+        if (!cooking && !food) return false;
+        if (Now > _nextHoldLine && !IsQuiet)
+        {
+            _nextHoldLine = Now + 150 + _rng.Next(90);
+            Say(Lines.Pick(cooking ? Lines.SleepyButCooking : Lines.SleepyButFood, _save.OwnerName), 4);
+        }
+        return true;
+    }
+
     /// <summary>Сам ли иска да дремне (вика се, когато стои без работа).</summary>
     /// <summary>Капнал е: заспива сам, каквото и да става (иначе чака Тут да го приспи).</summary>
     private bool WantsNap => _save.Energy < 5;
@@ -312,7 +330,7 @@ public sealed partial class PetWindow
     /// <summary>Дрямка: прозява се и заспива; става сам, когато се наспи.</summary>
     private void TakeNap(string line)
     {
-        if (IsAsleep) return;
+        if (IsAsleep || SleepHeldOff()) return;
         if (_inScene) LeaveScene();
         _save.SleepingByChoice = true;
         Say(line, 5);

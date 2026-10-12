@@ -80,7 +80,10 @@ public sealed partial class PetWindow
     /// </summary>
     private void SpawnFood(Food food, double fullness, double energy, Point from, bool fromCooker)
     {
-        var prop = _lib.GetProp("food_" + food.Id, 16, 16, 0);
+        // Парчетата са в няколко вида (food_popcorn_1, _2…), ако има такива рисунки.
+        int kinds = 0;
+        while (_lib.HasProp($"food_{food.Id}_{kinds + 1}")) kinds++;
+        var prop = _lib.GetProp(kinds > 0 ? $"food_{food.Id}_{1 + _rng.Next(kinds)}" : "food_" + food.Id, 16, 16, 0);
         var w = new FoodWindow(this, food, fullness, energy, prop, PixelSize);
         w.Left = from.X - w.Width / 2;
         w.Top = from.Y - w.Height / 2;
@@ -95,9 +98,12 @@ public sealed partial class PetWindow
         w.Show();
     }
 
+    private double _foodReadyAt = -1000;
+
     /// <summary>Храната е навън: мечокът моли да му я донесат.</summary>
     private void FoodReady(Food food)
     {
+        _foodReadyAt = Now;
         Say(food.Count > 1
             ? $"{food.Icon} {food.Name}! Опа, разхвърчаха се! Донеси ми ги всичките!"
             : $"{food.Icon} {food.Name}! Донеси ми го тук, моля!", 5);

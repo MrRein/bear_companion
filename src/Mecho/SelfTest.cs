@@ -134,6 +134,13 @@ public sealed partial class PetWindow
             await step("изчисти храната", DevClearFood, 300);
         }
 
+        await step("готвене: идва за края", () =>
+        {
+            DevClearFood();
+            Cook(Kitchen.Foods.First(f => f.Tool == Kitchen.Pan));
+            _cook!.PopAt = Now + 3;
+        }, 6000);
+        await step("храната на парчета", () => { foreach (var f in _food) f.UpdateLayout(); DevClearFood(); }, 300);
         await step("готвене: спри", () =>
         {
             var pot = Kitchen.Foods.First(f => f.Tool == Kitchen.Pot);

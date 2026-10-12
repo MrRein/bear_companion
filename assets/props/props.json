@@ -225,6 +225,50 @@
       "file": "cook_kettle_open.png",
       "seat": 0
     },
+    "food_popcorn_1": {
+      "file": "food_popcorn_1.png",
+      "seat": 0
+    },
+    "food_meatballs_1": {
+      "file": "food_meatballs_1.png",
+      "seat": 0
+    },
+    "food_popcorn_2": {
+      "file": "food_popcorn_2.png",
+      "seat": 0
+    },
+    "food_meatballs_2": {
+      "file": "food_meatballs_2.png",
+      "seat": 0
+    },
+    "food_popcorn_3": {
+      "file": "food_popcorn_3.png",
+      "seat": 0
+    },
+    "food_meatballs_3": {
+      "file": "food_meatballs_3.png",
+      "seat": 0
+    },
+    "food_popcorn_4": {
+      "file": "food_popcorn_4.png",
+      "seat": 0
+    },
+    "food_meatballs_4": {
+      "file": "food_meatballs_4.png",
+      "seat": 0
+    },
+    "food_potatoes_1": {
+      "file": "food_potatoes_1.png",
+      "seat": 0
+    },
+    "food_potatoes_2": {
+      "file": "food_potatoes_2.png",
+      "seat": 0
+    },
+    "food_potatoes_3": {
+      "file": "food_potatoes_3.png",
+      "seat": 0
+    },
     "food_juice_orange": {
       "file": "food_juice_orange.png",
       "seat": 0

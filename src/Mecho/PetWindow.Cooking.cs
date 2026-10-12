@@ -27,6 +27,7 @@ public sealed partial class PetWindow
         public double NextPieceAt { get; set; }
         public double DoneAt { get; set; }
         public bool Popped { get; set; }
+        public bool Finale { get; set; }    // дошъл е за края
     }
 
     private Cooking? _cook;
@@ -55,6 +56,8 @@ public sealed partial class PetWindow
         "Да видя как върви готвенето…", "*бърка* Мм, ухае.", "Само да разбъркам.", "*наднича* Още не е готово.",
     };
 
+    private static readonly string[] CookingAlmost = { "Почти е готово! Отивам да видя.", "Още малко… *тича към котлона*", "Ще стане всеки момент!" };
+
     private static readonly string[] CookingSit = { "*сяда до котлона* Ще го пазя.", "Ще поседя тук, да не изгори.", "*сяда* Чакаме…" };
 
     private void StartCooking(Food food, double fullnessEach, double energyEach, int cost, double seconds = -1)
@@ -62,11 +65,15 @@ public sealed partial class PetWindow
         string tool = food.Tool!;
         if (seconds < 0) seconds = CookSeconds(tool);
 
-        // Уредът застава до мечока, от страната с повече място (или където е бил).
+        // Уредът застава точно пред мечока (накъдето гледа; ако там няма място –
+        // от другата страна). След рестарт – където е бил.
         var area = Area;
-        double x = !double.IsNaN(_save.CookX) && _save.CookFood == food.Id ? _save.CookX
-            : _x + (_x - area.Left < area.Right - _x ? 1 : -1) * (SpriteWidth / 2 + 24 * PixelSize);
-        x = Math.Clamp(x, area.Left + 20 * PixelSize, area.Right - 20 * PixelSize);
+        double reach = SpriteWidth / 2 + CookerHalf + 2 * PixelSize;
+        int dir = _facingLeft ? -1 : 1;
+        if (_x + dir * (reach + CookerHalf) > area.Right || _x + dir * (reach + CookerHalf) < area.Left) dir = -dir;
+        double x = !double.IsNaN(_save.CookX) && _save.CookFood == food.Id ? _save.CookX : _x + dir * reach;
+        x = Math.Clamp(x, area.Left + CookerHalf, area.Right - CookerHalf);
+        if (_state is BearState.Idle or BearState.Walk) _facingLeft = x < _x;
 
         var window = new CookerWindow();
         _cook = new Cooking
@@ -81,6 +88,15 @@ public sealed partial class PetWindow
             PopAt = Now + seconds,
         };
         window.Clicked += AskStopCooking;
+        window.Dropped += (cx, _) =>
+        {
+            // Тут го премести: каца на земята там, където го пусна.
+            var a = AreaAt(cx, window.Top + window.ActualHeight / 2);
+            double nx = Math.Clamp(cx, a.Left + CookerHalf, a.Right - CookerHalf);
+            window.Place(CookerArt(_cook is { Popped: true } ? "_open" : ""), PixelSize, nx, a.Bottom);
+            _save.CookX = nx;
+            Persist();
+        };
         window.Place(CookerArt(""), PixelSize, x, area.Bottom);
         UpdateCookingTag();
 
@@ -108,6 +124,24 @@ public sealed partial class PetWindow
         StartCooking(food, Kitchen.FullnessOf(food, _save) / food.Count, food.Energy / food.Count, _save.CookCost, left);
     }
 
+    /// <summary>Половината ширина на уреда (рисунките са 22 пиксела).</summary>
+    private double CookerHalf => 11 * PixelSize;
+
+    /// <summary>
+    /// Къде застава до уреда (не върху него): от страната, откъдето идва (или
+    /// където има място), гледайки към уреда. extra отдалечава (за сядане).
+    /// </summary>
+    private (double X, bool FaceLeft) CookerSpot(double extra = 0)
+    {
+        var c = _cook!;
+        var area = AreaAt(c.Window.CenterX, c.Window.Bottom - 1);
+        double off = CookerHalf + SpriteWidth / 2 + 2 * PixelSize + extra;
+        double left = c.Window.CenterX - off, right = c.Window.CenterX + off;
+        bool leftOk = left - HalfWidth >= area.Left, rightOk = right + HalfWidth <= area.Right;
+        bool useLeft = leftOk && (!rightOk || _x <= c.Window.CenterX);
+        return useLeft ? (left, false) : (right, true);
+    }
+
     private System.Windows.Media.Imaging.BitmapSource CookerArt(string frame) =>
         _lib.GetProp("cook_" + _cook!.Tool + frame, 22, 24, 0).Image;
 
@@ -124,6 +158,22 @@ public sealed partial class PetWindow
         if (!c.Popped)
         {
             UpdateCookingTag();
+            // Към края отива при уреда и чака там капакът да хвръкне.
+            if (!c.Finale && c.PopAt - now < 25 && !InFocus && !IsAsleep && !c.Window.IsDragging &&
+                _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
+            {
+                c.Finale = true;
+                if (_onTrampoline) EndBounce(null);
+                if (_inScene && !InFocus) LeaveScene();
+                var (spot, faceLeft) = CookerSpot();
+                Announce(Lines.Pick(CookingAlmost, _save.OwnerName), 3);
+                WalkTo(spot, () =>
+                {
+                    _facingLeft = faceLeft;
+                    if (_cook is { Popped: false } cc)
+                        Play(cc.Tool is Kitchen.Pot or Kitchen.Pan ? "cook" : "idle", length: Math.Max(2, cc.PopAt - Now + 2));
+                });
+            }
             c.Window.Shake(CookShaking ? Math.Round(Math.Sin(now * 50)) * PixelSize : 0);
             if (now < c.PopAt)
             {
@@ -177,16 +227,14 @@ public sealed partial class PetWindow
         if (_cook is not { Popped: false } c || InFocus || Now < _nextCookCheck) return false;
         _nextCookCheck = Now + 40 + _rng.Next(80);
 
-        var area = Area;
-        double cookerHalf = 11 * PixelSize;
-        double stand = Math.Clamp(c.Window.CenterX - cookerHalf - SpriteWidth / 2 + 3 * PixelSize, area.Left + HalfWidth, area.Right - HalfWidth);
+        var (stand, faceLeft) = CookerSpot();
         int roll = _rng.Next(10);
         if (roll < 5)
         {
             // Бърка (тенджера, тиган) или наднича (фурна, кафе, чайник).
             WalkTo(stand, () =>
             {
-                _facingLeft = false;
+                _facingLeft = faceLeft;
                 Announce(Lines.Pick(CookingCheck, _save.OwnerName), 3);
                 Play(c.Tool is Kitchen.Pot or Kitchen.Pan ? "cook" : "idle", length: 6 + _rng.Next(7));
             });
@@ -194,11 +242,12 @@ public sealed partial class PetWindow
         }
         if (roll < 8)
         {
-            // Сяда до уреда за минута-две.
-            WalkTo(stand - SpriteWidth * 0.3, () =>
+            // Сяда до уреда за минута-две (малко по-настрани, не върху него).
+            var (seat, seatFace) = CookerSpot(SpriteWidth * 0.3);
+            WalkTo(seat, () =>
             {
-                _facingLeft = false;
                 StartScene(Scenes.Sit, quiet: true);
+                _facingLeft = seatFace;
                 _sceneUntil = Now + 60 + _rng.Next(90);
                 Announce(Lines.Pick(CookingSit, _save.OwnerName), 3);
             });

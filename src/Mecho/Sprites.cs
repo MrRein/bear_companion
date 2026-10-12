@@ -135,12 +135,18 @@ public sealed class SpriteLibrary
         return lib;
     }
 
+    /// <summary>Има ли такава рисунка в assets/props (без placeholder).</summary>
+    public bool HasProp(string name) => _props.ContainsKey(name) && !_placeholders.Contains(name);
+
+    private readonly HashSet<string> _placeholders = new();
+
     /// <summary>Предмет по име. Ако го няма, връща кафяв правоъгълник с размерите по подразбиране.</summary>
     public Prop GetProp(string name, int width, int height, int seat)
     {
         if (_props.TryGetValue(name, out var p)) return p;
         p = new Prop { Image = Placeholder(name, width, height), Seat = seat };
         _props[name] = p;
+        _placeholders.Add(name);
         return p;
     }
 
