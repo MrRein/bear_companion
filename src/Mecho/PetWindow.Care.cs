@@ -122,6 +122,7 @@ public sealed partial class PetWindow
 
         UpdatePomodoro();
         UpdateTimer();
+        TellLearnedRecipe();
         UpdateMeals();
 
         // Казва, че е гладен или сънлив, но не по-често от веднъж на няколко минути.
@@ -259,9 +260,16 @@ public sealed partial class PetWindow
 
         _save.Hazelnuts += task.Reward;
         _save.TasksDoneTotal++;
+        // Трудна задача: малък шанс за страница (веднъж на задача).
+        string page = "";
+        if (task.Size >= 3 && !task.PageRolled)
+        {
+            task.PageRolled = true;
+            if (_rng.Next(4) == 0) page = FindRecipePage();
+        }
 
         Say(Lines.Pick(task.Size switch { 3 => Lines.BigTaskDone, 2 => Lines.TaskDone, _ => Lines.SmallTaskDone }, _save.OwnerName) +
-            $" +{task.Reward} 🌰", 4);
+            $" +{task.Reward} 🌰" + page, 4);
 
         if (CanAnimateFreely) Play(task.Size >= 3 ? "dance" : "happy", length: task.Size >= 3 ? 3 : 0);
         NotifyCare();
@@ -411,7 +419,9 @@ public sealed partial class PetWindow
             }
             _save.PomodoroPhase = PomodoroPhase.Break;
             _save.PomodoroEndsAt = DateTime.Now + BreakLength;
-            Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts), 8);
+            // Понякога (1 на 5) – страница от готварската книга.
+            string page = _rng.Next(5) == 0 ? FindRecipePage() : "";
+            Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts) + page, 8);
             if (!InFocus) RelaxAfterWork();
         }
         else

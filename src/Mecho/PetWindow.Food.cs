@@ -153,18 +153,40 @@ public sealed partial class PetWindow
         if (_state is BearState.Walk or BearState.Chase or BearState.Busy) SetIdle();
     }
 
-    /// <summary>Купува рецепта: ястието се отключва завинаги.</summary>
-    public void BuyRecipe(Food food)
+    private Food? _learnedWhileWorking;
+
+    /// <summary>
+    /// Намерена страница от готварската книга (тихо: само лентата в „Храна“
+    /// расте). Ако довърши рецептата, мечокът казва коя е – но не по време на
+    /// работа: тогава чака почивката. Връщa надпис за наградата (" +📖").
+    /// </summary>
+    internal string FindRecipePage()
     {
-        if (Kitchen.HasRecipe(food, _save) || !Kitchen.HasTool(food, _save)) return;
-        int price = Kitchen.RecipePrice(food);
-        if (_save.Hazelnuts < price) return;
-        _save.Hazelnuts -= price;
-        _save.Owned.Add(Kitchen.RecipeId(food));
-        Say($"Нова рецепта: {food.Name}! Сега мога да я готвя.", 4);
-        if (CanAnimateFreely) Play("happy");
+        if (Recipes.Next(_save) == null) return "";
+        var learned = Recipes.AddPage(_save);
+        if (learned != null)
+        {
+            if (InFocus) _learnedWhileWorking = learned;
+            else AnnounceRecipe(learned);
+        }
         NotifyCare();
         Persist();
+        return " +📖";
+    }
+
+    private void AnnounceRecipe(Food food)
+    {
+        Say($"Научих нова рецепта… {food.Icon} {food.Name}! Виж в „Храна“.", 6);
+        if (CanAnimateFreely) Play("happy");
+    }
+
+    /// <summary>Рецепта, научена по време на работа: казва я, щом работата свърши.</summary>
+    private void TellLearnedRecipe()
+    {
+        if (_learnedWhileWorking == null || InFocus || IsAsleep) return;
+        var food = _learnedWhileWorking;
+        _learnedWhileWorking = null;
+        AnnounceRecipe(food);
     }
 
     /// <summary>Купува уред или подобрение с лешници.</summary>

@@ -48,6 +48,10 @@ public sealed class SaveData
 
     /// <summary>Офертата на деня в магазина: за кой ден е и какво има (виж DailyOffer).</summary>
     public string OfferDay { get; set; } = "";
+
+    /// <summary>Рецептата, която се събира в момента (тайна), и колко страници има от нея.</summary>
+    public string? NextRecipe { get; set; }
+    public int RecipePages { get; set; }
     public List<string> OfferItems { get; set; } = new();
     public Dictionary<string, string> Outfit { get; set; } = new(); // слот → облечената дреха
     public double FocusMinutesBank { get; set; }                // минути фокус, още неизплатени в лешници
@@ -133,6 +137,9 @@ public sealed class TaskItem
 
     public bool Done { get; set; }
     public DateTime? DoneAt { get; set; }
+
+    /// <summary>Вече е дала шанс за страница (отмяна и пак „свършено“ не дава втори).</summary>
+    public bool PageRolled { get; set; }
 
     public int Reward => Size switch { 3 => 5, 2 => 3, _ => 1 };
 }

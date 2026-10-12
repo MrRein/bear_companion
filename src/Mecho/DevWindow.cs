@@ -213,6 +213,13 @@ public sealed partial class PetWindow
             NotifyCare();
         });
         yield return (clothes, "Съблечи", Undress);
+        yield return (food, "+1 страница рецепта", () => FindRecipePage());
+        yield return (food, "Научи следващата рецепта", () =>
+        {
+            var next = Recipes.Next(_save);
+            if (next == null) return;
+            while (!Kitchen.HasRecipe(next, _save)) FindRecipePage();
+        });
         yield return (clothes, "Нова оферта на деня", () =>
         {
             DailyOffer.Today(_save, force: true);

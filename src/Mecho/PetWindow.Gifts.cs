@@ -108,7 +108,18 @@ public sealed partial class PetWindow
         var clothes = Clothes.All.Where(g => wardrobe && !g.Hidden && !Clothes.Owns(_save, g)).Select(g => (object)g);
         var backdrops = Backdrops.All.Where(b => wardrobe && !Backdrops.Owns(_save, b)).Select(b => (object)b);
         var prizes = clothes.Concat(backdrops).ToList();
-        if (prizes.Count == 0)
+        // Понякога (по-често, ако няма какво друго) – страница от готварската книга.
+        if (Recipes.Next(_save) != null && _rng.Next(100) < (prizes.Count == 0 ? 60 : 25))
+        {
+            var before = Recipes.Next(_save)!;
+            FindRecipePage();
+            int need = Recipes.PagesFor(before);
+            bool learned = Kitchen.HasRecipe(before, _save);
+            window.Reveal(_lib.GetProp("shop_cookbook", 16, 16, 0).Image, 5, "Страница от готварска книга!",
+                learned ? $"Научи {before.Name}!" : $"Следваща рецепта: {_save.RecipePages}/{need} страници.");
+            if (!learned) Say(Lines.Pick(Lines.GiftOpened, _save.OwnerName), 4);
+        }
+        else if (prizes.Count == 0)
         {
             int nuts = 5 + _rng.Next(11);
             _save.Hazelnuts += nuts;

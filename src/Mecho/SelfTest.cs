@@ -124,6 +124,30 @@ public sealed partial class PetWindow
             if (DailyOffer.Today(t).Any(k => k.StartsWith("skin:"))) throw new Exception("скин без диван/легло");
             _menu!.Hide();
         }, 400);
+        await step("рецепти от страници", () =>
+        {
+            var t = new SaveData();
+            int learned = 0, pages = 0;
+            while (Recipes.Next(t) is { } next)
+            {
+                int need = Recipes.PagesFor(next), got = 0;
+                Food? done = null;
+                while (done == null)
+                {
+                    done = Recipes.AddPage(t);
+                    got++;
+                    pages++;
+                    if (got > need) throw new Exception($"{next.Id}: повече от {need} страници");
+                }
+                if (done != next || got != need || !Kitchen.HasRecipe(next, t)) throw new Exception($"{next.Id}: грешно отключване");
+                learned++;
+            }
+            if (learned != Kitchen.Foods.Count(f => f.Cost > 0)) throw new Exception("не всички рецепти се научиха");
+            if (Recipes.AddPage(t) != null) throw new Exception("страница след всичко");
+            FindRecipePage();
+            OpenMenu(MenuWindow.FoodTab);
+            _menu!.UpdateLayout();
+        }, 400);
         await step("отключи всичко", DevUnlockAll, 200);
         for (int tab = 0; tab <= MenuWindow.MoreTab; tab++)
         {

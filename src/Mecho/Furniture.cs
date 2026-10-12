@@ -19,21 +19,21 @@ public static class Furniture
     public static readonly Skin[] CouchSkins =
     {
         new(Kitchen.Couch, Classic, "Червен диван", 0),
-        new(Kitchen.Couch, "velvet", "Син кадифен", 12),
-        new(Kitchen.Couch, "forest", "Горско зелен", 12),
-        new(Kitchen.Couch, "dots", "Розов на точки", 15),
-        new(Kitchen.Couch, "mint", "Мента на райе", 15),
-        new(Kitchen.Couch, "honey", "Меден", 15),
-        new(Kitchen.Couch, "leather", "Кожен капитоне", 20),
+        new(Kitchen.Couch, "velvet", "Син кадифен", 20),
+        new(Kitchen.Couch, "forest", "Горско зелен", 20),
+        new(Kitchen.Couch, "dots", "Розов на точки", 25),
+        new(Kitchen.Couch, "mint", "Мента на райе", 25),
+        new(Kitchen.Couch, "honey", "Меден", 25),
+        new(Kitchen.Couch, "leather", "Кожен капитоне", 35),
     };
 
     public static readonly Skin[] BedSkins =
     {
         new(Kitchen.Bed, Classic, "Синьо одеяло", 0),
-        new(Kitchen.Bed, "pink", "Розово", 12),
-        new(Kitchen.Bed, "forest", "Горско каре", 12),
-        new(Kitchen.Bed, "honey", "Медено каре", 15),
-        new(Kitchen.Bed, "stars", "Звездна нощ", 15),
+        new(Kitchen.Bed, "pink", "Розово", 20),
+        new(Kitchen.Bed, "forest", "Горско каре", 20),
+        new(Kitchen.Bed, "honey", "Медено каре", 25),
+        new(Kitchen.Bed, "stars", "Звездна нощ", 25),
     };
 
     public static Skin[] SkinsFor(string item) => item == Kitchen.Bed ? BedSkins : CouchSkins;

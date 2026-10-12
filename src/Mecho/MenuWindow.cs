@@ -566,6 +566,7 @@ public sealed class MenuWindow : Window
         _foodInfo = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 10) };
         p.Children.Add(_foodInfo);
         p.Children.Add(_foodTiles);
+        p.Children.Add(_recipeProgress);
         return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 
@@ -574,7 +575,8 @@ public sealed class MenuWindow : Window
     {
         var s = _pet.Save;
         _foodTiles.Children.Clear();
-        foreach (var food in Kitchen.Foods)
+        // Само научените рецепти (боровинките винаги); новите идват от страници.
+        foreach (var food in Kitchen.Foods.Where(f => Kitchen.HasRecipe(f, s)))
         {
             var f = food;
             int cost = Kitchen.CostOf(f, s);
@@ -602,24 +604,12 @@ public sealed class MenuWindow : Window
             Button action;
             string? why = null;
             bool locked = !Kitchen.CanCook(f, s);
-            if (Kitchen.HasTool(f, s) && !Kitchen.HasRecipe(f, s))
+            if (locked)
             {
-                // Уредът е купен: остава само рецептата.
-                int price = Kitchen.RecipePrice(f);
-                action = Button($"Рецепта {price}", () => _pet.BuyRecipe(f), primary: true, icon: "nut");
-                why = $"Купи рецептата веднъж и после го готви колкото искаш: {price} лешника (имаш {s.Hazelnuts}).";
-                if (s.Hazelnuts < price)
-                {
-                    action.IsEnabled = false;
-                    why = $"Рецептата струва {price} лешника, а имаш {s.Hazelnuts}. Още {price - s.Hazelnuts}!";
-                }
-            }
-            else if (locked)
-            {
+                // Рецептата я знае, но уредът го няма.
                 var tool = Kitchen.Find(f.Tool!);
-                action = Button(tool?.Name ?? "Заключено", () => SelectTab(ShopTab), icon: "lock");
-                why = $"Заключено. Трябва ти „{tool?.Name}“ от магазина: {tool?.Price} лешника (имаш {s.Hazelnuts}), " +
-                      $"после и рецептата ({Kitchen.RecipePrice(f)}). Цъкни бутона, за да отидеш в магазина.";
+                action = Button(tool?.Name ?? "Заключено", () => OpenShop(0), icon: "lock");
+                why = $"Знаеш рецептата, но трябва „{tool?.Name}“ от магазина (Кухня): {tool?.Price} лешника. Цъкни, за да отидеш там.";
             }
             else if (cost == 0 && Kitchen.BerriesIn(s) > 0)
             {
@@ -643,8 +633,51 @@ public sealed class MenuWindow : Window
             }
             _foodTiles.Children.Add(MakeTile(_pet.PropImage("food_" + f.Id), f.Name, effects, action, locked, why));
         }
-        // Тайни ястия: ще се отключат по-късно.
-        for (int i = 0; i < 2; i++) _foodTiles.Children.Add(MysteryTile());
+        BuildRecipeProgress();
+    }
+
+    private readonly StackPanel _recipeProgress = new() { Margin = new Thickness(0, 12, 0, 0) };
+
+    /// <summary>„Следваща рецепта (лесна): ▮▮▯ 2/3 страници“ – коя е, е тайна.</summary>
+    private void BuildRecipeProgress()
+    {
+        var s = _pet.Save;
+        _recipeProgress.Children.Clear();
+        var next = Recipes.Next(s);
+        if (next == null)
+        {
+            _recipeProgress.Children.Add(MutedText("Знаеш всички рецепти! Нови ще дойдат с обновление."));
+            return;
+        }
+        int need = Recipes.PagesFor(next);
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(Icon("book", 2));
+        row.Children.Add(new TextBlock
+        {
+            Text = $"  Следваща рецепта ({Recipes.Difficulty(need)}): ",
+            FontWeight = FontWeights.Bold,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        for (int i = 0; i < need; i++)
+            row.Children.Add(new Border
+            {
+                Width = 10 * U,
+                Height = 14 * U,
+                Margin = new Thickness(0, 0, 3, 0),
+                Background = i < s.RecipePages ? Honey : Empty,
+                BorderBrush = Ink,
+                BorderThickness = new Thickness(2),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+        row.Children.Add(new TextBlock { Text = $"  {s.RecipePages}/{need} страници", VerticalAlignment = VerticalAlignment.Center });
+        _recipeProgress.Children.Add(row);
+        _recipeProgress.Children.Add(new TextBlock
+        {
+            Text = "Коя е – изненада. Страници се намират след мечо-доро, понякога след трудна задача или в подаръка.",
+            Foreground = Muted,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(2, 4, 0, 0),
+        });
     }
 
     /// <summary>Значка: иконка и число (например мед +24).</summary>
