@@ -413,6 +413,42 @@ def layers_from(anim, strip, paint):
         img.save(os.path.join(LAYERS, f"{anim}_{name}.png"))
 
 
+# Книгата (рисунката на Тут, done_art/book.png → assets/clothes/book_1.png): където
+# я има в кадъра, програмата рисува най-отгоре една от 6-те книги (над шала).
+# Търси се по формата, с цветовете на новата рисунка или на старата в read.png.
+BOOK = os.path.join(os.path.dirname(__file__), "..", "assets", "clothes", "book_1.png")
+OLD_BOOK_COLORS = {(49, 21, 4): (36, 16, 5), (233, 218, 189): (227, 210, 174), (139, 139, 157): (120, 120, 140)}
+
+
+def book_layer(anim, strip):
+    if not os.path.exists(BOOK):
+        return
+    book = Image.open(BOOK).convert("RGBA")
+    pix = [(x, y, book.getpixel((x, y))[:3]) for y in range(book.height) for x in range(book.width) if book.getpixel((x, y))[3]]
+    layer = Image.new("RGBA", strip.size, (0, 0, 0, 0))
+    found = False
+    for f in range(strip.width // SIZE):
+        frame = strip.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE))
+        best = (0, 0, 0)
+        for oy in range(SIZE - book.height + 1):
+            for ox in range(SIZE - book.width + 1):
+                hit = 0
+                for x, y, c in pix:
+                    p = frame.getpixel((ox + x, oy + y))
+                    if p[3] and (p[:3] == c or p[:3] == OLD_BOOK_COLORS.get(c)):
+                        hit += 1
+                if hit > best[0]:
+                    best = (hit, ox, oy)
+        if best[0] >= 0.8 * len(pix):
+            layer.putpixel((f * SIZE + best[1], best[2]), (255, 0, 255, 255))
+            found = True
+    path = os.path.join(LAYERS, f"{anim}_book.png")
+    if found:
+        layer.save(path)
+    elif os.path.exists(path):
+        os.remove(path)
+
+
 def main(anim, redo=False):
     strip = Image.open(os.path.join(BEAR, f"{anim}.png")).convert("RGBA")
     os.makedirs(PAINT, exist_ok=True)
@@ -425,6 +461,7 @@ def main(anim, redo=False):
         print(f"{anim}: нова чернова на картата")
     paint = Image.open(path).convert("RGBA")
     layers_from(anim, strip, paint)
+    book_layer(anim, strip)
 
 
 def all_anims():

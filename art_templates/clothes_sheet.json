@@ -1,0 +1,107 @@
+[
+ {
+  "anim": "bounce",
+  "y": 2,
+  "frames": 4
+ },
+ {
+  "anim": "dance",
+  "y": 36,
+  "frames": 4
+ },
+ {
+  "anim": "dice",
+  "y": 70,
+  "frames": 3
+ },
+ {
+  "anim": "drag",
+  "y": 104,
+  "frames": 4
+ },
+ {
+  "anim": "eat",
+  "y": 138,
+  "frames": 2
+ },
+ {
+  "anim": "eat_hold",
+  "y": 172,
+  "frames": 1
+ },
+ {
+  "anim": "fall",
+  "y": 206,
+  "frames": 3
+ },
+ {
+  "anim": "happy",
+  "y": 240,
+  "frames": 3
+ },
+ {
+  "anim": "idle",
+  "y": 274,
+  "frames": 4
+ },
+ {
+  "anim": "read",
+  "y": 308,
+  "frames": 17
+ },
+ {
+  "anim": "read_sleep",
+  "y": 342,
+  "frames": 2
+ },
+ {
+  "anim": "sad",
+  "y": 376,
+  "frames": 2
+ },
+ {
+  "anim": "sit_drinking",
+  "y": 410,
+  "frames": 42
+ },
+ {
+  "anim": "sit_drinking_blow",
+  "y": 444,
+  "frames": 20
+ },
+ {
+  "anim": "sit_drinking_sip",
+  "y": 478,
+  "frames": 21
+ },
+ {
+  "anim": "sleep",
+  "y": 512,
+  "frames": 4
+ },
+ {
+  "anim": "sleep_peek",
+  "y": 546,
+  "frames": 3
+ },
+ {
+  "anim": "think",
+  "y": 580,
+  "frames": 2
+ },
+ {
+  "anim": "tired",
+  "y": 614,
+  "frames": 4
+ },
+ {
+  "anim": "walk",
+  "y": 648,
+  "frames": 4
+ },
+ {
+  "anim": "walk_tired",
+  "y": 682,
+  "frames": 4
+ }
+]

@@ -184,7 +184,7 @@ public sealed class Dresser
 
     public BitmapSource Frame(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit)
     {
-        string key = string.Join(",", Clothes.Slots.Select(s => outfit.TryGetValue(s.Id, out var id) ? id : ""));
+        string key = string.Join(",", Clothes.Slots.Select(s => outfit.TryGetValue(s.Id, out var id) ? id : "")) + "|" + Book;
         if (!ReferenceEquals(lib, _lib)) _previews.Clear();
         if (!ReferenceEquals(lib, _lib) || key != _key)
         {
@@ -193,7 +193,7 @@ public sealed class Dresser
             _key = key;
         }
         if (_cache.TryGetValue((anim, index), out var done)) return done;
-        done = Dress(lib, anim, index, outfit);
+        done = Dress(lib, anim, index, outfit, Book);
         if (_cache.Count > 400) _cache.Clear();
         _cache[(anim, index)] = done;
         return done;
@@ -249,7 +249,13 @@ public sealed class Dresser
         return crop;
     }
 
-    private static BitmapSource Dress(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit)
+    /// <summary>
+    /// Книгата, която чете (book_1 … book_6 в assets/clothes): рисува се най-отгоре,
+    /// над шала и дрехите, където я има в кадъра (точката &lt;anim&gt;_book.png).
+    /// </summary>
+    public string? Book { get; set; }
+
+    private static BitmapSource Dress(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit, string? book)
     {
         var frames = lib.Get(anim).Frames;
         var baseFrame = frames[index % frames.Length];
@@ -305,6 +311,10 @@ public sealed class Dresser
             if (mask == null) continue;
             Paint(px, w, Pixels(mask), mask.PixelWidth, mask.PixelHeight, g);
         }
+
+        if (book != null && lib.Clothes(book) is { } bookArt && Pick(lib.Layer(anim, "book"), index) is { } bookPoint
+            && FirstPixel(Pixels(bookPoint), bookPoint.PixelWidth, bookPoint.PixelHeight) is var (bx, by))
+            Blit(px, w, H, Pixels(bookArt), bookArt.PixelWidth, bookArt.PixelHeight, bx, by + HatRoom);
 
         var bmp = BitmapSource.Create(w, H, 96, 96, PixelFormats.Bgra32, null, px, w * 4);
         bmp.Freeze();

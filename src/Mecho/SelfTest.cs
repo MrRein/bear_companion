@@ -285,6 +285,12 @@ public sealed partial class PetWindow
         {
             if (Clothes.Find("tee_navy") == null) throw new Exception("clothes.json не се зареди");
             if (_lib.Layer("eat", "front") == null) throw new Exception("няма слой front за eat");
+            if (_lib.Layer("read", "book") == null || _lib.Clothes("book_6") == null) throw new Exception("няма книгите");
+            foreach (var book in new[] { "book_1", "book_6" })
+            {
+                _dresser.Book = book;
+                _dresser.Frame(_lib, "read", 0, _save.Outfit);
+            }
             _save.OwnedClothes.Add("tee_navy");
             _save.Outfit["neck"] = "scarf_red";
             for (int i = 0; i < 4; i++) _dresser.Frame(_lib, "eat", i, _save.Outfit);

@@ -808,8 +808,31 @@ public sealed partial class PetWindow : Window
         return t;
     }
 
+    private static int _bookCount = -1;
+
+    /// <summary>
+    /// Книгата за днес: сменя се на всеки 2–3 дни (2, 3, 2, 3…) и обикаля всички
+    /// book_N.png в assets/clothes.
+    /// </summary>
+    private string? TodaysBook
+    {
+        get
+        {
+            if (_bookCount < 0)
+            {
+                _bookCount = 0;
+                while (_bookCount < 50 && _lib.Clothes($"book_{_bookCount + 1}") != null) _bookCount++;
+            }
+            if (_bookCount == 0) return null;
+            int day = (int)(DateTime.Today - new DateTime(2024, 1, 1)).TotalDays;
+            int turn = day / 5 * 2 + (day % 5 >= 2 ? 1 : 0);
+            return $"book_{turn % _bookCount + 1}";
+        }
+    }
+
     private void UpdateFrame()
     {
+        _dresser.Book = TodaysBook;
         var frame = _dresser.Frame(_lib, _anim, _lib.Get(_anim).IndexAt(_animTime), EffectiveOutfit);
         // Докато се преоблича, е скрит зад вратата на гардероба.
         _sprite.Visibility = Dressing || GiftAway ? Visibility.Hidden : Visibility.Visible;
