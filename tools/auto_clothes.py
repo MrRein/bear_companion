@@ -233,6 +233,35 @@ def segment(frame, lying):
     return parts, anchor
 
 
+# Чашата (при пиене): долната ѝ среда е тук в първия кадър на sit_drinking;
+# в другите кадри се мести с дясната лапа (търси се изместването на лапата).
+CUP_BASE = (17, 26)
+PAW_BOX = (16, 18, 26, 28)   # къде е лапата с чашата (x0, y0, x1, y1)
+
+
+def cup_anchors(strip):
+    base = Image.open(os.path.join(BEAR, "sit_drinking.png")).convert("RGBA").crop((0, 0, SIZE, SIZE))
+    x0, y0, x1, y1 = PAW_BOX
+    out = []
+    for f in range(strip.width // SIZE):
+        frame = strip.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE))
+        best, shift = None, (0, 0)
+        for dy in range(-4, 3):
+            for dx in range(-3, 4):
+                bad = 0
+                for y in range(y0, y1):
+                    for x in range(x0, x1):
+                        a = base.getpixel((x, y))
+                        xx, yy = x + dx, y + dy
+                        b = frame.getpixel((xx, yy)) if 0 <= xx < SIZE and 0 <= yy < SIZE else (0, 0, 0, 0)
+                        if (a[3] > 0) != (b[3] > 0) or (a[3] and a[:3] != b[:3]):
+                            bad += 1
+                if best is None or bad < best or (bad == best and abs(dx) + abs(dy) < abs(shift[0]) + abs(shift[1])):
+                    best, shift = bad, (dx, dy)
+        out.append((CUP_BASE[0] + shift[0], CUP_BASE[1] + shift[1]))
+    return out
+
+
 def main(anim):
     strip = Image.open(os.path.join(BEAR, f"{anim}.png")).convert("RGBA")
     frames = strip.width // SIZE
@@ -248,6 +277,11 @@ def main(anim):
             layers[name].putpixel((f * SIZE + ax, ay), (255, 0, 255, 255))
     for name, img in layers.items():
         img.save(os.path.join(BEAR, f"{anim}_{name}.png"))
+    if anim.startswith("sit_drinking"):
+        cup = Image.new("RGBA", strip.size, (0, 0, 0, 0))
+        for f, (cx, cy) in enumerate(cup_anchors(strip)):
+            cup.putpixel((f * SIZE + cx, min(SIZE - 1, cy)), (255, 0, 255, 255))
+        cup.save(os.path.join(BEAR, f"{anim}_cup.png"))
 
 
 if __name__ == "__main__":

@@ -43,6 +43,12 @@ public static class Scenes
         new[] { "*затваря гардероба* Готов съм!", "Как изглеждам?", "Модата е важна за мечките." })
     { Name = "Гардероб", Icon = "wardrobe" };
 
+    /// <summary>Седи на земята и пие напитката, която му дадоха (чай, кафе, сок).</summary>
+    public static readonly Scene Drink = new("drink", null, null, 0, "sit_drinking",
+        Array.Empty<string>(), Array.Empty<string>(),
+        new[] { "Ах, хубаво беше!", "*оставя чашата* Мм, благодаря!", "Изпих го до дъно." })
+    { Name = "Пие", Icon = "tea" };
+
     /// <summary>Просто си седи (когато дълго няма какво да прави).</summary>
     public static readonly Scene Sit = new("sit", null, null, 0, "sit",
         new[] { "*сяда* Ще си почина малко.", "*сяда* Ох, хубаво е да се седне.", "Ще поседя тук." },
@@ -76,7 +82,7 @@ public static class Scenes
         new[] { "Готово! Ще го закача на хладилника.", "Нарисувах те! …прилича малко на мен.", "Изкуството е трудно. Ставам." })
     { Name = "Рисувай на статив", Icon = "easel", Unlock = Kitchen.Easel };
 
-    public static readonly Scene Tea = new("tea", "stool", "table_tea", 1, "drink",
+    public static readonly Scene Tea = new("tea", "stool", "table_tea", 1, "sit_drinking",
         new[] { "Ще си направя чай.", "Време за чай.", "*налива чай* Ммм.", "Малка почивка с чай." },
         new[] { "*сърба*", "С мед е най-хубав.", "Горещо! *духа*", "{0}, искаш ли и ти чай?" },
         new[] { "Ах, стопли ме.", "Чашата е празна. Ставам.", "Хубав чай. Да си почина пак после." })
@@ -252,6 +258,7 @@ public sealed partial class PetWindow
     {
         if (_scene != null && Scenes.Fun.Contains(_scene)) _lastFun = _scene;
         bool wasAuto = _autoBlock;
+        _cup = null;
         _autoBlock = false;
         _inScene = false;
         _scene = null;
@@ -316,6 +323,13 @@ public sealed partial class PetWindow
             UpdateSitting(now);
             return;
         }
+
+        if (scene == Scenes.Drink)
+        {
+            UpdateDrinking(now);
+            return;
+        }
+        if (scene == Scenes.Tea) UpdateDrinking(now);
 
 
         if (scene == Scenes.Focus)

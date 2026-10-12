@@ -149,6 +149,16 @@ public sealed partial class PetWindow
         }, 1500);
         await step("готово по време на работа", () => { DevFinishCooking(); }, 5000);
         await step("спри мечо-дорото", () => { StopPomodoro(); DevClearFood(); }, 1000);
+        await step("пие чай", () => { DevClearFood(); StartDrinking(Kitchen.Foods.First(f => f.Id == "tea")); }, 6000);
+        await step("пие сок", () => StartDrinking(Kitchen.Foods.First(f => f.Id == "juice_orange")), 6000);
+        await step("пиене: всички кадри с чаша", () =>
+        {
+            foreach (var cup in new[] { "tea", "coffee", "juice_orange", "juice_berry" })
+                foreach (var anim in new[] { "sit_drinking", "sit_drinking_sip", "sit_drinking_blow" })
+                    for (int i = 0; i < 42; i++)
+                        _dresser.Frame(_lib, anim, i, new Dictionary<string, string>(_save.Outfit) { ["cup"] = cup });
+            LeaveScene();
+        }, 300);
         await step("гардероб", () => { OpenMenu(MenuWindow.WardrobeTab); _menu!.SelfTestWardrobe(); }, 800);
         foreach (var g in Clothes.All)
         {

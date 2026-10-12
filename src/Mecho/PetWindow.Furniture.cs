@@ -84,13 +84,13 @@ public sealed partial class PetWindow
     {
         get
         {
-            if (!PajamaTime) return _save.Outfit;
+            if (!PajamaTime) return WithCup(_save.Outfit);
             var night = new Dictionary<string, string>(_save.Outfit);
             night.Remove(Clothes.Glasses.Id);
             night.Remove(Clothes.Neck.Id);
             night.Remove(Clothes.Gloves.Id);
             foreach (var (slot, id) in Clothes.Pajamas) night[slot] = id;
-            return night;
+            return WithCup(night);
         }
     }
 

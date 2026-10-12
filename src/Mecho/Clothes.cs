@@ -37,13 +37,16 @@ public static class Clothes
     public static readonly Slot Hat = new("hat", "Шапки", "hat", "head", "hat", Anchor.Bottom);
     public static readonly Slot Glasses = new("glasses", "Очила", "glasses", "face", "glasses", Anchor.Center);
     public static readonly Slot Neck = new("neck", "Шалове и папийонки", "scarf", "neck", "neck", Anchor.Top);
+
+    /// <summary>Напитката в лапата, докато пие (не е дреха; рисунка drink_&lt;id&gt;.png на точката _cup).</summary>
+    public static readonly Slot Cup = new("cup", "Напитка", "tea", "cup", "drink", Anchor.Bottom);
     public static readonly Slot Shirt = new("shirt", "Блузи", "shirt", "shirt");
     public static readonly Slot Pants = new("pants", "Панталони", "pants", "pants");
     public static readonly Slot Shoes = new("shoes", "Обувки", "shoe", "shoes");
     public static readonly Slot Gloves = new("gloves", "Ръкавици", "glove", "gloves");
 
     /// <summary>В този ред се рисуват (шапката е най-отгоре).</summary>
-    public static readonly Slot[] Slots = { Shoes, Pants, Shirt, Gloves, Neck, Glasses, Hat };
+    public static readonly Slot[] Slots = { Shoes, Pants, Shirt, Gloves, Cup, Neck, Glasses, Hat };
 
     /// <summary>В този ред са в гардероба.</summary>
     public static readonly Slot[] Shelves = { Hat, Glasses, Neck, Shirt, Pants, Shoes, Gloves };
@@ -93,6 +96,12 @@ public static class Clothes
         new("pj_top", "Пижама", "shirt", 0, C(150, 190, 235), C(250, 250, 255), Pattern.Dots) { Hidden = true },
         new("pj_pants", "Пижама", "pants", 0, C(150, 190, 235), C(250, 250, 255), Pattern.Stripes) { Hidden = true },
         new("nightcap", "Нощна шапка", "hat", 0, default, default) { Hidden = true },
+
+        // Напитките в лапата (виж PetWindow.Drinking.cs).
+        new("tea", "Чай", "cup", 0, default, default) { Hidden = true },
+        new("coffee", "Кафе", "cup", 0, default, default) { Hidden = true },
+        new("juice_orange", "Портокалов сок", "cup", 0, default, default) { Hidden = true },
+        new("juice_berry", "Боровинков сок", "cup", 0, default, default) { Hidden = true },
     };
 
     /// <summary>Пижамата (слот → дреха), която сменя облеклото вечер.</summary>

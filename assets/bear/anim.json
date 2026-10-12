@@ -153,6 +153,21 @@
       "fps": 6,
       "loop": true
     },
+    "sit_drinking": {
+      "file": "sit_drinking.png",
+      "fps": 10,
+      "loop": true
+    },
+    "sit_drinking_sip": {
+      "file": "sit_drinking_sip.png",
+      "fps": 10,
+      "loop": false
+    },
+    "sit_drinking_blow": {
+      "file": "sit_drinking_blow.png",
+      "fps": 10,
+      "loop": false
+    },
     "sleep_peek": {
       "file": "sleep_peek.png",
       "fps": 3,

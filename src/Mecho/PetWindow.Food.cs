@@ -177,8 +177,13 @@ public sealed partial class PetWindow
             var lines = food.Food.Lines;
             Say($"{lines[_rng.Next(lines.Length)]} Още {_food.Count}!", 3);
         }
+        // Напитка: сяда и я пие бавно, с чашата в лапата.
+        if (IsDrink(food.Food) && CanAnimateFreely && !InFocus)
+        {
+            StartDrinking(food.Food);
+        }
         // Държи храната в лапите и яде бавно (няколко секунди), после танцува.
-        if (CanAnimateFreely)
+        else if (CanAnimateFreely)
         {
             _held.Source = bite;
             Play("eat", length: EatTime, after: last ? () => Play("dance", length: 3) : null);

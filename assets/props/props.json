@@ -225,6 +225,14 @@
       "file": "cook_kettle_open.png",
       "seat": 0
     },
+    "food_juice_orange": {
+      "file": "food_juice_orange.png",
+      "seat": 0
+    },
+    "food_juice_berry": {
+      "file": "food_juice_berry.png",
+      "seat": 0
+    },
     "mystery": {
       "file": "mystery.png",
       "seat": 0

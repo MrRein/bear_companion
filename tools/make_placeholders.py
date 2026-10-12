@@ -17,7 +17,10 @@ PROPS = os.path.join(os.path.dirname(__file__), "..", "assets", "props")
 
 # Анимациите, които вече са нарисувани на ръка: скриптът не ги пипа (нито
 # шаблоните им за дрехи; тях ги прави tools/auto_clothes.py или Тут).
-HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "dice", "bounce", "eat"}
+HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "dice", "bounce", "eat", "fall"}
+
+# Нарисувани от Тут анимации, които нямат placeholder: име → (кадри в секунда, повтаря ли се).
+EXTRA_DRAWN = {"sit_drinking": (10, True), "sit_drinking_sip": (10, False), "sit_drinking_blow": (10, False)}
 
 # Цветовете са от мечока на Тут (assets/bear/idle.png).
 OUTLINE = (68, 20, 8, 255)
@@ -1162,6 +1165,53 @@ ACCESSORIES = {
 }
 
 
+# Напитките в лапата (при пиене): рисунка 7 x 8, долната среда сяда на точката
+# <anim>_cup.png. Горещите (чай, кафе) имат пара; соковете – сламка.
+def drink_mug(cup, liquid, steam=True):
+    img = Image.new("RGBA", (7, 8), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    if steam:
+        d.point((1, 0), fill=(235, 235, 240, 200))
+        d.point((2, 1), fill=(235, 235, 240, 200))
+        d.point((3, 0), fill=(235, 235, 240, 200))
+    d.rectangle((0, 3, 4, 7), fill=cup, outline=OUTLINE)
+    d.line((1, 3, 3, 3), fill=liquid)
+    d.rectangle((5, 4, 6, 6), outline=OUTLINE)          # дръжка (към лапата)
+    return img
+
+
+def drink_glass(juice):
+    img = Image.new("RGBA", (7, 8), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.line((4, 0, 3, 3), fill=(240, 90, 110, 255))      # сламка
+    d.rectangle((0, 2, 5, 7), fill=(225, 240, 250, 255), outline=OUTLINE)
+    d.rectangle((1, 4, 4, 6), fill=juice)
+    d.point((1, 3), fill=(255, 255, 255, 255))
+    return img
+
+
+DRINKS = {
+    "drink_tea": drink_mug((255, 255, 255, 255), (200, 140, 60, 255)),
+    "drink_coffee": drink_mug((235, 225, 210, 255), (90, 55, 30, 255)),
+    "drink_juice_orange": drink_glass((250, 160, 40, 255)),
+    "drink_juice_berry": drink_glass((150, 60, 140, 255)),
+}
+
+
+def food_juice(color):
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.line((10, 0, 8, 5), fill=(240, 90, 110, 255))
+    d.polygon([(3, 4), (12, 4), (11, 15), (4, 15)], fill=(225, 240, 250, 255), outline=OUTLINE)
+    d.polygon([(4, 7), (11, 7), (10, 14), (5, 14)], fill=color)
+    d.line((5, 5, 5, 6), fill=(255, 255, 255, 255))
+    return img
+
+
+PROP_LIST["food_juice_orange"] = (food_juice((250, 160, 40, 255)), 0)
+PROP_LIST["food_juice_berry"] = (food_juice((150, 60, 140, 255)), 0)
+
+
 def save_hats():
     folder = os.path.join(os.path.dirname(__file__), "..", "assets", "clothes")
     os.makedirs(folder, exist_ok=True)
@@ -1170,6 +1220,8 @@ def save_hats():
         fn(ImageDraw.Draw(img))
         img.save(os.path.join(folder, f"hat_{name}.png"))
     for name, img in ACCESSORIES.items():
+        img.save(os.path.join(folder, f"{name}.png"))
+    for name, img in DRINKS.items():
         img.save(os.path.join(folder, f"{name}.png"))
 
 
@@ -1387,6 +1439,8 @@ def main():
                 preview.alpha_composite(f, (i * (SIZE + 1), row * (SIZE + 1)))
         strip.save(os.path.join(OUT, f"{name}.png"))
         save_clothes_layers(name, frames)
+        manifest["animations"][name] = {"file": f"{name}.png", "fps": fps, "loop": loop}
+    for name, (fps, loop) in EXTRA_DRAWN.items():
         manifest["animations"][name] = {"file": f"{name}.png", "fps": fps, "loop": loop}
     derive_sleep_peek()
     manifest["animations"]["sleep_peek"] = {"file": "sleep_peek.png", "fps": 3, "loop": False}
