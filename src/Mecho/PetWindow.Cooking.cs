@@ -121,7 +121,7 @@ public sealed partial class PetWindow
 
     /// <summary>
     /// Мечокът до уреда: средите им са на толкова – видимата част на уреда
-    /// откъм мечока плюс видимата половина на мечока и един пиксел (рисунките
+    /// откъм мечока плюс видимата половина на мечока и малко празно място (CookerSpace) (рисунките
     /// имат празни ръбове). Така лапата почти докосва уреда, но никога не е в него.
     /// dir: от коя страна е уредът спрямо мечока (1 = вдясно от мечока).
     /// </summary>
@@ -131,7 +131,7 @@ public sealed partial class PetWindow
     {
         var (left, right) = Visible(art);
         var bear = Visible(_lib.Get("idle").Frames[0]);
-        return ((dir > 0 ? left : right) + Math.Max(bear.Left, bear.Right) + 1) * PixelSize;
+        return ((dir > 0 ? left : right) + Math.Max(bear.Left, bear.Right) + CookerSpace) * PixelSize;
     }
 
     private readonly System.Collections.Generic.Dictionary<System.Windows.Media.Imaging.BitmapSource, (int, int)> _visible = new();
@@ -158,7 +158,10 @@ public sealed partial class PetWindow
 
     /// <summary>Стои върху уреда (видимите им части се застъпват).</summary>
     private bool OverlapsCooker(Cooking c, double x) =>
-        Math.Abs(x - c.Window.CenterX) < CookerGap(x < c.Window.CenterX ? 1 : -1) - PixelSize;
+        Math.Abs(x - c.Window.CenterX) < CookerGap(x < c.Window.CenterX ? 1 : -1) - (CookerSpace - 1) * PixelSize;
+
+    /// <summary>Празни пиксели между мечока и уреда: уредът е пред него, а не върху него.</summary>
+    private const int CookerSpace = 6;
 
     /// <summary>
     /// Къде застава до уреда (не върху него): от страната, откъдето идва (или
