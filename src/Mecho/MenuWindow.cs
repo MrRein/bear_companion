@@ -149,7 +149,11 @@ public sealed class MenuWindow : Window
             Child = root,
         };
 
-        _pet.CareChanged += (_, _) => { if (IsVisible) Refresh(rebuild: true); };
+        _pet.CareChanged += (_, _) =>
+        {
+            if (IsOpen) Refresh(rebuild: true);
+            else Array.Fill(_dirty, true);   // строи се наново, като се отвори
+        };
         _refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _refresh.Tick += (_, _) => Refresh(rebuild: false);
 
@@ -181,6 +185,7 @@ public sealed class MenuWindow : Window
         _hideToken++;            // отваря се пак, докато се скриваше: не го крий
         _hiding = false;
         Opacity = 1;
+        _dirty[tab] = true;      // винаги свежо (офертата може да е сменена от Developer)
         SelectTab(tab);
         // Размерът и мястото се смятат преди показването, за да не подскача.
         if (Content is UIElement content) content.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -796,17 +801,27 @@ public sealed class MenuWindow : Window
     {
         var s = _pet.Save;
         var left = DailyOffer.Left;
-        var ribbon = Ribbon("Оферта на деня", "gift");
-        _shopTiles.Children.Add(ribbon);
-        _shopTiles.Children.Add(new TextBlock
+        // Офертата е на по-тъмна подложка, за да се отделя от разделите отдолу.
+        var box = new StackPanel();
+        _shopTiles.Children.Add(new Border
+        {
+            Background = Empty,
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(8 * U, 6 * U, 8 * U, 8 * U),
+            Child = box,
+        });
+        box.Children.Add(Ribbon("Оферта на деня", "gift"));
+        box.Children.Add(new TextBlock
         {
             Text = $"Нови неща след {(int)left.TotalHours} ч {left.Minutes} мин (в 00:00).",
-            Foreground = Muted,
+            Foreground = Ink,
             Margin = new Thickness(2, 0, 0, 6 * U),
         });
 
         var offer = DailyOffer.Today(s);
-        var grid = NewShopGrid();
+        var grid = new UniformGrid { Columns = 3 };
         foreach (var key in offer)
         {
             switch (DailyOffer.Resolve(key))
@@ -816,19 +831,18 @@ public sealed class MenuWindow : Window
                 case Skin k: grid.Children.Add(SkinTile(k, shop: true)); break;
             }
         }
-        if (offer.Count == 0)
+        if (grid.Children.Count > 0) box.Children.Add(grid);
+        if (!DailyOffer.HasWardrobe(s) || offer.Count == 0)
         {
-            var note = new TextBlock
+            box.Children.Add(new TextBlock
             {
                 Text = DailyOffer.HasWardrobe(s)
                     ? "Днес няма нищо ново: имаш всичко! Утре пак погледни."
                     : "Купи гардероб от „Мебели“: тогава тук всеки ден ще има дрехи, аксесоари и тапети.",
-                Foreground = Muted,
+                Foreground = Ink,
                 TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(2, 0, 0, 0),
-            };
-            _shopTiles.Children.Remove(grid);
-            _shopTiles.Children.Add(note);
+                Margin = new Thickness(2, 6 * U, 0, 0),
+            });
         }
     }
 

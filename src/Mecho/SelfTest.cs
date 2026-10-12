@@ -109,6 +109,12 @@ public sealed partial class PetWindow
             if (first.Count != DailyOffer.Count || first.Distinct().Count() != first.Count || first.Any(k => DailyOffer.Resolve(k) == null))
                 throw new Exception("офертата е грешна: " + string.Join(",", first));
             if (!DailyOffer.Today(t).SequenceEqual(first)) throw new Exception("офертата се смени в същия ден");
+            if (first.Select(DailyOffer.GroupOf).Distinct().Count() != first.Count) throw new Exception("две неща от един вид: " + string.Join(",", first));
+            t.Owned.Add(Kitchen.Couch);
+            for (int i = 0; i < 20; i++)
+                if (DailyOffer.Today(t, force: true).Count(k => k.StartsWith("skin:couch")) > 1) throw new Exception("повече от един диван");
+            t.Owned.Remove(Kitchen.Couch);
+            t.OfferItems = first.ToList();
             foreach (var k in first)
                 if (DailyOffer.Resolve(k) is Garment g) t.OwnedClothes.Add(g.Id);
                 else if (DailyOffer.Resolve(k) is Backdrop b) t.Owned.Add("bg_" + b.Id);

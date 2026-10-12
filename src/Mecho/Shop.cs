@@ -19,48 +19,76 @@ public static class DailyOffer
     /// <summary>Купен ли е гардеробът (иначе няма дрехи и тапети).</summary>
     public static bool HasWardrobe(SaveData s) => Kitchen.Owns(s, Kitchen.Wardrobe);
 
-    /// <summary>Всичко, което може да излезе (още не е купено): ключ и тежест.</summary>
-    private static IEnumerable<(string Key, double Weight)> Pool(SaveData s)
+    /// <summary>
+    /// Всичко, което може да излезе (още не е купено), по групи: всеки вид дреха
+    /// (шапки, очила…), тапетите, скиновете за дивана и тези за леглото.
+    /// </summary>
+    private static Dictionary<string, List<string>> Pool(SaveData s)
     {
+        var groups = new Dictionary<string, List<string>>();
+        void Add(string group, string key)
+        {
+            if (!groups.TryGetValue(group, out var list)) groups[group] = list = new List<string>();
+            list.Add(key);
+        }
         if (HasWardrobe(s))
         {
-            foreach (var g in Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(s, g))) yield return ("g:" + g.Id, 3);
-            foreach (var b in Backdrops.All.Where(b => b.Price > 0 && !Backdrops.Owns(s, b))) yield return ("bg:" + b.Id, 1);
+            foreach (var g in Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(s, g))) Add("g:" + g.SlotId, "g:" + g.Id);
+            foreach (var b in Backdrops.All.Where(b => b.Price > 0 && !Backdrops.Owns(s, b))) Add("bg", "bg:" + b.Id);
         }
         foreach (var item in new[] { Kitchen.Couch, Kitchen.Bed })
         {
             if (!Kitchen.Owns(s, item)) continue;
-            foreach (var k in Furniture.SkinsFor(item).Where(k => k.Price > 0 && !Furniture.Owns(s, k))) yield return ($"skin:{item}:{k.Id}", 1);
+            foreach (var k in Furniture.SkinsFor(item).Where(k => k.Price > 0 && !Furniture.Owns(s, k))) Add("skin:" + item, $"skin:{item}:{k.Id}");
         }
+        return groups;
+    }
+
+    /// <summary>Групата на нещо от офертата (от един вид има най-много едно).</summary>
+    internal static string GroupOf(string key)
+    {
+        var parts = key.Split(':');
+        return parts[0] switch
+        {
+            "g" => "g:" + (Clothes.Find(parts[1])?.SlotId ?? ""),
+            "skin" => "skin:" + parts[1],
+            _ => parts[0],
+        };
     }
 
     /// <summary>
-    /// Днешните неща. Нов ден (или force) – нови 3. Ако днес са излезли по-малко
-    /// (например гардеробът тъкмо е купен), се допълват до 3.
+    /// Днешните неща. Нов ден (или force) – нови 3, всяко от различен вид (не три
+    /// дивана или три шапки), случайни. Ако днес са излезли по-малко (например
+    /// гардеробът тъкмо е купен), се допълват.
     /// </summary>
     public static IReadOnlyList<string> Today(SaveData s, bool force = false)
     {
         string today = DateTime.Today.ToString("yyyy-MM-dd");
-        if (force || s.OfferDay != today)
+        // Отпреди разнообразието: три неща от един вид (три дивана) – наново.
+        bool same = s.OfferItems.Select(GroupOf).Distinct().Count() < s.OfferItems.Count;
+        if (force || same || s.OfferDay != today)
         {
             s.OfferDay = today;
             s.OfferItems.Clear();
         }
-        if (s.OfferItems.Count < Count)
+        // Купено или вече невалидно (без гардероб и т.н.) от днешните не се пипа;
+        // попълва се с групи, които още ги няма.
+        var used = s.OfferItems.Select(GroupOf).ToHashSet();
+        var groups = Pool(s).Where(g => !used.Contains(g.Key)).ToList();
+        while (s.OfferItems.Count < Count && groups.Count > 0)
         {
-            var pool = Pool(s).Where(p => !s.OfferItems.Contains(p.Key)).ToList();
-            while (s.OfferItems.Count < Count && pool.Count > 0)
+            // Дрехите са по-често (много видове), но тапет и скин също имат шанс.
+            double Weight(string group) => group.StartsWith("g:") ? 1 : 1.5;
+            double roll = Rng.NextDouble() * groups.Sum(g => Weight(g.Key));
+            int i = 0;
+            for (; i < groups.Count - 1; i++)
             {
-                double roll = Rng.NextDouble() * pool.Sum(p => p.Weight);
-                int i = 0;
-                for (; i < pool.Count - 1; i++)
-                {
-                    if (roll < pool[i].Weight) break;
-                    roll -= pool[i].Weight;
-                }
-                s.OfferItems.Add(pool[i].Key);
-                pool.RemoveAt(i);
+                if (roll < Weight(groups[i].Key)) break;
+                roll -= Weight(groups[i].Key);
             }
+            var items = groups[i].Value;
+            s.OfferItems.Add(items[Rng.Next(items.Count)]);
+            groups.RemoveAt(i);
         }
         return s.OfferItems;
     }
