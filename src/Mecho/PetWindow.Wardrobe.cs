@@ -30,7 +30,7 @@ public sealed partial class PetWindow
     /// <summary>Табът „Гардероб“ е отворен: гардеробът идва до мечока.</summary>
     public void OpenWardrobe()
     {
-        if (AtWardrobe || IsAsleep || InFocus || _onTrampoline) return;
+        if (AtWardrobe || IsAsleep || InFocus || _onTrampoline || !DailyOffer.HasWardrobe(_save)) return;
         if (_state is BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce) return;
         if (_inScene) LeaveScene();
         StartScene(Scenes.Wardrobe, quiet: true);

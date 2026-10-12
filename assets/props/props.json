@@ -348,6 +348,10 @@
     "shop_bed_real": {
       "file": "shop_bed_real.png",
       "seat": 0
+    },
+    "shop_wardrobe": {
+      "file": "shop_wardrobe.png",
+      "seat": 0
     }
   }
 }

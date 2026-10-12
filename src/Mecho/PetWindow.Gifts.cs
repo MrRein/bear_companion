@@ -103,14 +103,16 @@ public sealed partial class PetWindow
     internal void OpenGift(GiftWindow window)
     {
         _save.GiftPending = false;
-        var clothes = Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(_save, g)).Select(g => (object)g);
-        var backdrops = Backdrops.All.Where(b => !Backdrops.Owns(_save, b)).Select(b => (object)b);
+        // Дрехи, аксесоари и тапети – само ако има гардероб.
+        bool wardrobe = DailyOffer.HasWardrobe(_save);
+        var clothes = Clothes.All.Where(g => wardrobe && !g.Hidden && !Clothes.Owns(_save, g)).Select(g => (object)g);
+        var backdrops = Backdrops.All.Where(b => wardrobe && !Backdrops.Owns(_save, b)).Select(b => (object)b);
         var prizes = clothes.Concat(backdrops).ToList();
         if (prizes.Count == 0)
         {
             int nuts = 5 + _rng.Next(11);
             _save.Hazelnuts += nuts;
-            window.Reveal(_lib.GetProp("nut", 5, 6, 0).Image, 8, $"{nuts} лешника!", "Имаш вече всичко, затова лешници.");
+            window.Reveal(_lib.GetProp("nut", 5, 6, 0).Image, 8, $"{nuts} лешника!", wardrobe ? "Имаш вече всичко, затова лешници." : "С гардероб тук може да има и дрехи.");
             Say($"Изненада! {nuts} лешника 🌰", 4);
         }
         else
@@ -125,7 +127,7 @@ public sealed partial class PetWindow
                     break;
                 case Backdrop b:
                     _save.Owned.Add("bg_" + b.Id);
-                    window.Reveal(BackdropImage(b), 2, $"Фон: {b.Name}", "Цъкни портрета в менюто, за да го сложиш.");
+                    window.Reveal(BackdropImage(b), 2, $"Тапет: {b.Name}", "Сложи го от гардероба (Тапети) или с клик на портрета.");
                     Say(Lines.Pick(Lines.GiftOpened, _save.OwnerName), 4);
                     break;
             }

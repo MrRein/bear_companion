@@ -123,7 +123,7 @@ public sealed partial class PetWindow
     internal IEnumerable<(string Group, string Label, Action Act)> DevCommands()
     {
         const string nuts = "Лешници", needs = "Нужди", gifts = "Подаръци", unlock = "Отключване и прогрес";
-        const string bear = "Мечо прави…", scenes = "Кътчета и работа", food = "Храна", clothes = "Гардероб и фонове";
+        const string bear = "Мечо прави…", scenes = "Кътчета и работа", food = "Храна", clothes = "Гардероб, тапети и магазин";
         const string anims = "Анимации", files = "Файлове";
 
         yield return (nuts, "+10", () => AddNuts(10));
@@ -213,7 +213,19 @@ public sealed partial class PetWindow
             NotifyCare();
         });
         yield return (clothes, "Съблечи", Undress);
-        yield return (clothes, "Следващ фон", () =>
+        yield return (clothes, "Нова оферта на деня", () =>
+        {
+            DailyOffer.Today(_save, force: true);
+            Persist();
+            NotifyCare();
+        });
+        yield return (clothes, "Гардеробът: има/няма", () =>
+        {
+            if (!_save.Owned.Remove(Kitchen.Wardrobe)) _save.Owned.Add(Kitchen.Wardrobe);
+            Persist();
+            NotifyCare();
+        });
+        yield return (clothes, "Следващ тапет", () =>
         {
             foreach (var b in Backdrops.All) if (!Backdrops.Owns(_save, b)) _save.Owned.Add("bg_" + b.Id);
             NextBackdrop();

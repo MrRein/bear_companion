@@ -94,6 +94,30 @@ public sealed partial class PetWindow
     /// <summary>Стъпките на самопроверката (имат достъп до всичко вътре в мечока).</summary>
     internal async Task SelfTestSteps(Func<string, Action, int, Task> step)
     {
+        await step("гардеробът е заключен", () =>
+        {
+            OpenMenu(MenuWindow.WardrobeTab);
+            _menu!.UpdateLayout();
+            if (AtWardrobe) throw new Exception("гардеробът дойде, без да е купен");
+        }, 400);
+        await step("оферта на деня", () =>
+        {
+            var t = new SaveData();
+            if (DailyOffer.Today(t).Any(k => k.StartsWith("g:") || k.StartsWith("bg:"))) throw new Exception("дрехи без гардероб");
+            t.Owned.Add(Kitchen.Wardrobe);
+            var first = DailyOffer.Today(t).ToList();
+            if (first.Count != DailyOffer.Count || first.Distinct().Count() != first.Count || first.Any(k => DailyOffer.Resolve(k) == null))
+                throw new Exception("офертата е грешна: " + string.Join(",", first));
+            if (!DailyOffer.Today(t).SequenceEqual(first)) throw new Exception("офертата се смени в същия ден");
+            foreach (var k in first)
+                if (DailyOffer.Resolve(k) is Garment g) t.OwnedClothes.Add(g.Id);
+                else if (DailyOffer.Resolve(k) is Backdrop b) t.Owned.Add("bg_" + b.Id);
+            t.OfferDay = "2000-01-01";
+            var next = DailyOffer.Today(t);
+            if (next.Any(first.Contains)) throw new Exception("купено излезе пак");
+            if (DailyOffer.Today(t).Any(k => k.StartsWith("skin:"))) throw new Exception("скин без диван/легло");
+            _menu!.Hide();
+        }, 400);
         await step("отключи всичко", DevUnlockAll, 200);
         for (int tab = 0; tab <= MenuWindow.MoreTab; tab++)
         {

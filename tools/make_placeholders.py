@@ -1549,7 +1549,7 @@ def main():
     # Иконки за магазина от предметите за почивка: смалени до 16 x 16.
     for shop, src in [("shop_easel", "easel"), ("shop_computer", "computer"), ("shop_yoga_mat", "mat"),
                       ("shop_plant", "plant"), ("shop_radio", "radio"), ("shop_board_game", "table_board"), ("shop_trampoline", "trampoline"),
-                      ("shop_couch", "couch"), ("shop_bed_real", "bed")]:
+                      ("shop_couch", "couch"), ("shop_bed_real", "bed"), ("shop_wardrobe", "wardrobe")]:
         img, _ = PROP_LIST[src]
         icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
         scale = min(1.0, 16 / img.width, 16 / img.height)

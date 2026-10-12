@@ -751,7 +751,7 @@ public sealed partial class PetWindow : Window
     private double _menuClosedAt = -10;
     private bool _menuOpenAtPress;
 
-    public bool MenuIsOpen => _menu is { IsVisible: true };
+    public bool MenuIsOpen => _menu is { IsOpen: true };
 
     /// <summary>Отваря панела или го затваря. Връща true, ако го е отворил.</summary>
     public bool ToggleMenu(bool fromClick = false)

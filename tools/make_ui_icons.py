@@ -58,6 +58,19 @@ kuccoocccuck
 ..kuuuuuuk..
 ...kkkkkk...
 ............""",
+    "pot": """
+.....kk.....
+...kkkkkk...
+..kddddddk..
+kkkkkkkkkkkk
+.kssssssssk.
+kkswssssssk.
+.kswsssssskk
+.ksssssssssk
+.kssssssssk.
+..kssssssk..
+...kkkkkk...
+............""",
     "shop": """
 ....kkkk....
 ...k....k...

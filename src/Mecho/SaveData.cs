@@ -45,6 +45,10 @@ public sealed class SaveData
     public int BearScale { get; set; }                          // размер на мечока (0 = по подразбиране)
     public string Background { get; set; } = "meadow";         // фонът на портрета (виж Backdrops)
     public List<string> OwnedClothes { get; set; } = new();     // купени дрехи (виж Clothes)
+
+    /// <summary>Офертата на деня в магазина: за кой ден е и какво има (виж DailyOffer).</summary>
+    public string OfferDay { get; set; } = "";
+    public List<string> OfferItems { get; set; } = new();
     public Dictionary<string, string> Outfit { get; set; } = new(); // слот → облечената дреха
     public double FocusMinutesBank { get; set; }                // минути фокус, още неизплатени в лешници
     public DateTime BerriesReadyAt { get; set; }

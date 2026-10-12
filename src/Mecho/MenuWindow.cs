@@ -59,7 +59,7 @@ public sealed class MenuWindow : Window
             Child = grid,
             VerticalAlignment = VerticalAlignment.Top,
             Cursor = Cursors.Hand,
-            ToolTip = Tip("Цъкни, за да смениш фона (още фонове има в магазина)"),
+            ToolTip = Tip("Цъкни, за да смениш тапета (нови тапети излизат в офертата на деня)"),
         };
         box.MouseLeftButtonUp += (_, _) => _pet.NextBackdrop();
         return box;
@@ -178,10 +178,23 @@ public sealed class MenuWindow : Window
     /// </summary>
     public void ShowNear(Rect bear, Rect area, int tab)
     {
+        _hideToken++;            // отваря се пак, докато се скриваше: не го крий
+        _hiding = false;
+        Opacity = 1;
         SelectTab(tab);
+        // Размерът и мястото се смятат преди показването, за да не подскача.
+        if (Content is UIElement content) content.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var size = Content is UIElement c ? c.DesiredSize : new Size(ActualWidth, ActualHeight);
+        PlaceNear(bear, area, size);
         Show();
         if (tab == WardrobeTab) _pet.OpenWardrobe();
         UpdateLayout();
+        PlaceNear(bear, area, new Size(ActualWidth, ActualHeight));
+        Activate();
+    }
+
+    private void PlaceNear(Rect bear, Rect area, Size size)
+    {
 
         var s = _pet.Save;
         if (!double.IsNaN(s.MenuLeft) && !double.IsNaN(s.MenuTop))
@@ -189,22 +202,66 @@ public sealed class MenuWindow : Window
             var home = _pet.AreaAt(s.MenuLeft + 20, s.MenuTop + 20);
             if (home.Contains(new Point(s.MenuLeft + 20, s.MenuTop + 20)))
             {
-                Left = Math.Clamp(s.MenuLeft, home.Left, Math.Max(home.Left, home.Right - ActualWidth));
-                Top = Math.Clamp(s.MenuTop, home.Top, Math.Max(home.Top, home.Bottom - ActualHeight));
-                Activate();
+                Left = Math.Clamp(s.MenuLeft, home.Left, Math.Max(home.Left, home.Right - size.Width));
+                Top = Math.Clamp(s.MenuTop, home.Top, Math.Max(home.Top, home.Bottom - size.Height));
                 return;
             }
         }
 
         double left = bear.Right + 8;
-        if (left + ActualWidth > area.Right - 4) left = bear.Left - ActualWidth - 8;
-        Left = Math.Clamp(left, area.Left + 4, Math.Max(area.Left + 4, area.Right - ActualWidth - 4));
-        Top = Math.Max(area.Top + 4, area.Bottom - ActualHeight - 4);
-        Activate();
+        if (left + size.Width > area.Right - 4) left = bear.Left - size.Width - 8;
+        Left = Math.Clamp(left, area.Left + 4, Math.Max(area.Left + 4, area.Right - size.Width - 4));
+        Top = Math.Max(area.Top + 4, area.Bottom - size.Height - 4);
+    }
+
+    private bool _hiding;
+    private int _hideToken;
+
+    /// <summary>Скрива се (или вече се скрива).</summary>
+    public bool IsOpen => IsVisible && !_hiding;
+
+    /// <summary>
+    /// Скрива панела. Прозрачният прозорец помни последния си кадър и при
+    /// следващото отваряне за миг показваше стария таб: затова първо става
+    /// невидим (рисува се празен) и чак тогава се скрива.
+    /// </summary>
+    public new void Hide()
+    {
+        if (!IsVisible || _hiding) return;
+        _hiding = true;
+        _pet.MenuClosed();   // цъкане по мечока точно сега не бива да го отвори пак
+        Opacity = 0;
+        int token = ++_hideToken;
+        _ = System.Threading.Tasks.Task.Delay(40).ContinueWith(_ => Dispatcher.BeginInvoke(() =>
+        {
+            if (token != _hideToken) return;
+            base.Hide();
+            _hiding = false;
+            Opacity = 1;
+        }));
+    }
+
+    private int _tab;
+    private readonly bool[] _dirty = Enumerable.Repeat(true, 8).ToArray();
+
+    private void BuildTab(int index)
+    {
+        if (!_dirty[index]) return;
+        _dirty[index] = false;
+        switch (index)
+        {
+            case BearTab: BuildRelaxButtons(); break;
+            case FoodTab: BuildFoodTiles(); break;
+            case ShopTab: BuildShopTiles(); break;
+            case WardrobeTab: BuildWardrobe(); break;
+            case TasksTab: BuildTaskList(); break;
+            case NotesTab: BuildNoteList(); break;
+        }
     }
 
     private void SelectTab(int index)
     {
+        _tab = index;
         for (int i = 0; i < _tabs.Length; i++)
         {
             bool on = i == index;
@@ -217,7 +274,8 @@ public sealed class MenuWindow : Window
         // Гардеробът стои до мечока, докато е отворен табът.
         if (index == WardrobeTab && IsVisible) _pet.OpenWardrobe();
         else if (index != WardrobeTab) _pet.CloseWardrobe();
-        Refresh(rebuild: true);
+        Refresh(rebuild: false);
+        BuildTab(index);
         if (index == TasksTab) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
         if (index == NotesTab) Dispatcher.BeginInvoke(() => _noteInput.Focus(), DispatcherPriority.Input);
     }
@@ -644,13 +702,13 @@ public sealed class MenuWindow : Window
 
     // Разделите на магазина: всеки е бутон горе; в него са плочките (и кутии „?“
     // за неща, които ще дойдат по-късно).
+    // Дрехите, тапетите и скиновете не са в раздел: те са в офертата на деня отгоре.
     private static readonly (string Name, string Icon, int Mystery)[] ShopCategories =
     {
-        (Kitchen.KitchenShelf, "food", 2), (Kitchen.FunShelf, "easel", 2), (Kitchen.FurnitureShelf, "couch", 3),
-        ("Дрехи", "shirt", 1), ("Фонове", "picture", 2), (Kitchen.HelpShelf, "plus", 1),
+        (Kitchen.KitchenShelf, "pot", 2), (Kitchen.FunShelf, "easel", 2), (Kitchen.FurnitureShelf, "couch", 2),
     };
 
-    private const int ClothesCategory = 3, BackdropCategory = 4;
+    private const int FurnitureCategory = 2;
     private int _shopCategory;
 
     /// <summary>Самопроверка: строи всеки раздел на магазина.</summary>
@@ -689,7 +747,10 @@ public sealed class MenuWindow : Window
         var s = _pet.Save;
         _shopTiles.Children.Clear();
 
-        var bar = new UniformGrid { Columns = ShopCategories.Length, Margin = new Thickness(0, 0, 0, 10 * U) };
+        // Офертата на деня: първа, над разделите.
+        BuildDailyOffer();
+
+        var bar = new UniformGrid { Columns = ShopCategories.Length, Margin = new Thickness(0, 14 * U, 0, 10 * U) };
         for (int i = 0; i < ShopCategories.Length; i++)
         {
             int index = i;
@@ -722,36 +783,52 @@ public sealed class MenuWindow : Window
         _shopTiles.Children.Add(bar);
 
         var (shelf, _, mystery) = ShopCategories[_shopCategory];
-        if (_shopCategory == ClothesCategory)
-        {
-            foreach (var slot in Clothes.Shelves)
-            {
-                _shopTiles.Children.Add(Ribbon(slot.Name, slot.Icon));
-                var grid = NewShopGrid();
-                foreach (var g in Clothes.All.Where(g => g.SlotId == slot.Id && !g.Hidden)) grid.Children.Add(GarmentShopTile(g));
-                for (int i = 0; i < mystery; i++) grid.Children.Add(MysteryTile());
-            }
-            return;
-        }
-
         var tiles = NewShopGrid();
-        if (_shopCategory == BackdropCategory)
-            foreach (var b in Backdrops.All.Where(b => b.Price > 0)) tiles.Children.Add(BackdropTile(b));
-        else
-            foreach (var u in Kitchen.Upgrades.Where(u => u.Shelf == shelf)) tiles.Children.Add(UpgradeTile(u));
+        foreach (var u in Kitchen.Upgrades.Where(u => u.Shelf == shelf)) tiles.Children.Add(UpgradeTile(u));
         for (int i = 0; i < mystery; i++) tiles.Children.Add(MysteryTile());
+    }
 
-        // Мебели: и скинове за дивана и леглото.
-        if (shelf == Kitchen.FurnitureShelf)
+    /// <summary>
+    /// Офертата на деня: 3 неща (дрехи, тапети, скинове), нови всеки ден в 00:00.
+    /// Без гардероб няма дрехи и тапети.
+    /// </summary>
+    private void BuildDailyOffer()
+    {
+        var s = _pet.Save;
+        var left = DailyOffer.Left;
+        var ribbon = Ribbon("Оферта на деня", "gift");
+        _shopTiles.Children.Add(ribbon);
+        _shopTiles.Children.Add(new TextBlock
         {
-            foreach (var (item, title) in new[] { (Kitchen.Couch, "Скинове за дивана"), (Kitchen.Bed, "Скинове за леглото") })
+            Text = $"Нови неща след {(int)left.TotalHours} ч {left.Minutes} мин (в 00:00).",
+            Foreground = Muted,
+            Margin = new Thickness(2, 0, 0, 6 * U),
+        });
+
+        var offer = DailyOffer.Today(s);
+        var grid = NewShopGrid();
+        foreach (var key in offer)
+        {
+            switch (DailyOffer.Resolve(key))
             {
-                var ribbon = Ribbon(title, item == Kitchen.Bed ? "bed" : "couch");
-                ribbon.Margin = new Thickness(0, 10 * U, 0, 8);
-                _shopTiles.Children.Add(ribbon);
-                var grid = NewShopGrid();
-                foreach (var skin in Furniture.SkinsFor(item).Where(k => k.Price > 0)) grid.Children.Add(SkinTile(skin, shop: true));
+                case Garment g: grid.Children.Add(GarmentShopTile(g)); break;
+                case Backdrop b: grid.Children.Add(BackdropTile(b)); break;
+                case Skin k: grid.Children.Add(SkinTile(k, shop: true)); break;
             }
+        }
+        if (offer.Count == 0)
+        {
+            var note = new TextBlock
+            {
+                Text = DailyOffer.HasWardrobe(s)
+                    ? "Днес няма нищо ново: имаш всичко! Утре пак погледни."
+                    : "Купи гардероб от „Мебели“: тогава тук всеки ден ще има дрехи, аксесоари и тапети.",
+                Foreground = Muted,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(2, 0, 0, 0),
+            };
+            _shopTiles.Children.Remove(grid);
+            _shopTiles.Children.Add(note);
         }
     }
 
@@ -824,7 +901,7 @@ public sealed class MenuWindow : Window
         }
         else if (owned) action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
         else action = BuyButton(b.Price, () => _pet.BuyBackdrop(b), out why);
-        return MakeTile(_pet.BackdropImage(b), b.Name, Description("Фон за портрета на Мечо."), action, dim: false, why, owned, 2);
+        return MakeTile(_pet.BackdropImage(b), b.Name, Description("Тапет за портрета на Мечо."), action, dim: false, why, owned, 2);
     }
 
     /// <summary>Скин за диван/легло: в магазина се купува, в гардероба се слага.</summary>
@@ -970,15 +1047,30 @@ public sealed class MenuWindow : Window
         right.Children.Add(_pajamaChip);
         right.Children.Add(new TextBlock
         {
-            Text = "Дрехите се купуват в магазина и идват тук. Облечи някоя и мечокът ще се преоблече зад вратата на гардероба.",
+            Text = "Дрехите се купуват от офертата на деня в магазина и идват тук. Облечи някоя и мечокът ще се преоблече зад вратата на гардероба.",
             Foreground = Muted,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 6 * U, 0, 0),
         });
         Grid.SetColumn(right, 1);
         top.Children.Add(right);
-        p.Children.Add(top);
-        p.Children.Add(_wardrobeShelves);
+        _wardrobeBody.Children.Add(top);
+        _wardrobeBody.Children.Add(_wardrobeShelves);
+        p.Children.Add(_wardrobeBody);
+
+        // Без гардероб: заключено, с бутон към „Мебели“.
+        _wardrobeLock.Children.Add(Ribbon("Гардеробът е заключен", "lock"));
+        _wardrobeLock.Children.Add(new TextBlock
+        {
+            Text = "Купи гардероб от магазина (Мебели). Тогава ще има дрехи, аксесоари и тапети в офертата на деня, а и в подаръците.",
+            Foreground = Muted,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(2, 0, 0, 10 * U),
+        });
+        var go = Button("Към Мебели", () => OpenShop(FurnitureCategory), primary: true, icon: "shop");
+        go.HorizontalAlignment = HorizontalAlignment.Center;
+        _wardrobeLock.Children.Add(go);
+        p.Children.Add(_wardrobeLock);
         return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 
@@ -1032,18 +1124,63 @@ public sealed class MenuWindow : Window
         }
 
         _wardrobeShelves.Children.Clear();
+        _wardrobeLock.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Collapsed : Visibility.Visible;
+        _wardrobeBody.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
+        if (!DailyOffer.HasWardrobe(s)) return;
 
-        // Тук са само купените дрехи; новите се купуват в магазина („Дрехи“).
-        bool any = false;
-        foreach (var slot in Clothes.Shelves)
+        // Раздели: всеки вид дреха/аксесоар, тапетите и мебелите (ако има диван или легло).
+        var sections = Clothes.Shelves.Select(slot => (Id: slot.Id, Name: slot.Name, Icon: slot.Icon)).ToList();
+        sections.Add(("wallpapers", "Тапети", "picture"));
+        if (Kitchen.Owns(s, Kitchen.Couch) || Kitchen.Owns(s, Kitchen.Bed)) sections.Add(("furniture", "Мебели", "couch"));
+        if (!sections.Any(x => x.Id == _wardrobeSection)) _wardrobeSection = sections[0].Id;
+
+        var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
+        foreach (var section in sections)
         {
-            var owned = Clothes.All.Where(g => g.SlotId == slot.Id && !g.Hidden && Clothes.Owns(s, g)).ToList();
-            if (owned.Count == 0) continue;
-            any = true;
-            _wardrobeShelves.Children.Add(Ribbon(slot.Name, slot.Icon));
-            var grid = new UniformGrid { Columns = 3 };
-            _wardrobeShelves.Children.Add(grid);
-            foreach (var garment in owned)
+            string id = section.Id;
+            var chip = Chip("", () =>
+            {
+                _wardrobeSection = id;
+                BuildWardrobe();
+            });
+            chip.Child = IconText(section.Icon, section.Name);
+            chip.Background = id == _wardrobeSection ? Honey : PaperDark;
+            chip.Margin = new Thickness(0, 0, 5, 5);
+            bar.Children.Add(chip);
+        }
+        _wardrobeShelves.Children.Add(bar);
+
+        var grid = new UniformGrid { Columns = 3 };
+        _wardrobeShelves.Children.Add(grid);
+        string empty;
+        if (_wardrobeSection == "wallpapers")
+        {
+            foreach (var backdrop in Backdrops.All.Where(b => Backdrops.Owns(s, b)))
+            {
+                var b = backdrop;
+                bool used = s.Background == b.Id;
+                Button action;
+                if (used)
+                {
+                    action = Button("Сложен", () => { });
+                    action.IsEnabled = false;
+                }
+                else action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
+                grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, null, owned: used, artScale: 2));
+            }
+            empty = "Нови тапети излизат в офертата на деня в магазина.";
+        }
+        else if (_wardrobeSection == "furniture")
+        {
+            foreach (var item in new[] { Kitchen.Couch, Kitchen.Bed })
+                if (Kitchen.Owns(s, item))
+                    foreach (var skin in Furniture.SkinsFor(item).Where(k => Furniture.Owns(s, k))) grid.Children.Add(SkinTile(skin, shop: false));
+            empty = "Нови скинове за дивана и леглото излизат в офертата на деня.";
+        }
+        else
+        {
+            var slot = Clothes.Shelves.First(x => x.Id == _wardrobeSection);
+            foreach (var garment in Clothes.All.Where(g => g.SlotId == slot.Id && !g.Hidden && Clothes.Owns(s, g)))
             {
                 var g = garment;
                 bool worn = Clothes.IsWorn(s, g);
@@ -1059,63 +1196,18 @@ public sealed class MenuWindow : Window
                 };
                 grid.Children.Add(MakeTile(art, g.Name, details, action, dim: false, null, owned: worn, artScale: scale));
             }
+            empty = $"Още нямаш {slot.Name.ToLowerInvariant()}. Нови неща излизат в офертата на деня в магазина.";
         }
-        var more = Button(any ? "Още дрехи в магазина" : "Гардеробът е празен. Към магазина", () => OpenShop(ClothesCategory), primary: !any, icon: "shop");
+        if (grid.Children.Count == 0) _wardrobeShelves.Children.Add(MutedText(empty));
+        var more = Button("Офертата на деня", () => OpenShop(_shopCategory), icon: "shop");
         more.HorizontalAlignment = HorizontalAlignment.Center;
         more.Margin = new Thickness(0, 10 * U, 0, 0);
         _wardrobeShelves.Children.Add(more);
-        BuildWardrobeBackdrops();
     }
 
-    /// <summary>Разделът „Фонове“ в гардероба (под дрехите): купените фонове, „Сложи“ сменя портрета.</summary>
-    private void BuildWardrobeBackdrops()
-    {
-        var s = _pet.Save;
-        var ribbon = Ribbon("Фонове", "picture");
-        ribbon.Margin = new Thickness(0, 14 * U, 0, 8);
-        _wardrobeShelves.Children.Add(ribbon);
-        var grid = new UniformGrid { Columns = 3 };
-        _wardrobeShelves.Children.Add(grid);
-        foreach (var backdrop in Backdrops.All.Where(b => Backdrops.Owns(s, b)))
-        {
-            var b = backdrop;
-            bool used = s.Background == b.Id;
-            Button action;
-            if (used)
-            {
-                action = Button("Сложен", () => { });
-                action.IsEnabled = false;
-            }
-            else action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
-            grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, null, owned: used, artScale: 2));
-        }
-        if (!Backdrops.All.All(b => Backdrops.Owns(s, b)))
-        {
-            var more = Button("Още фонове в магазина", () => OpenShop(BackdropCategory), icon: "shop");
-            more.HorizontalAlignment = HorizontalAlignment.Center;
-            more.Margin = new Thickness(0, 10 * U, 0, 0);
-            _wardrobeShelves.Children.Add(more);
-        }
-
-        // Мебелите: скинове на дивана и леглото (ако са купени).
-        foreach (var (item, title) in new[] { (Kitchen.Couch, "Диван"), (Kitchen.Bed, "Легло") })
-        {
-            if (!Kitchen.Owns(s, item)) continue;
-            var ribbon2 = Ribbon(title, item == Kitchen.Bed ? "bed" : "couch");
-            ribbon2.Margin = new Thickness(0, 14 * U, 0, 8);
-            _wardrobeShelves.Children.Add(ribbon2);
-            var skins = new UniformGrid { Columns = 3 };
-            _wardrobeShelves.Children.Add(skins);
-            foreach (var skin in Furniture.SkinsFor(item).Where(k => Furniture.Owns(s, k))) skins.Children.Add(SkinTile(skin, shop: false));
-            if (Furniture.SkinsFor(item).Any(k => !Furniture.Owns(s, k)))
-            {
-                var moreSkins = Button("Още скинове в магазина", () => OpenShop(2), icon: "shop");
-                moreSkins.HorizontalAlignment = HorizontalAlignment.Center;
-                moreSkins.Margin = new Thickness(0, 10 * U, 0, 0);
-                _wardrobeShelves.Children.Add(moreSkins);
-            }
-        }
-    }
+    private string _wardrobeSection = "hat";
+    private readonly StackPanel _wardrobeBody = new();
+    private readonly StackPanel _wardrobeLock = new();
 
     /// <summary>Самопроверка: гардеробът с дрехите и фоновете.</summary>
     internal void SelfTestWardrobe()
@@ -1604,12 +1696,9 @@ public sealed class MenuWindow : Window
                          (s.FocusMinutesBank >= 1 ? $" (събрани {s.FocusMinutesBank:0} мин към следващия)." : ".");
         if (rebuild)
         {
-            BuildRelaxButtons();
-            BuildFoodTiles();
-            BuildShopTiles();
-            BuildWardrobe();
-            BuildTaskList();
-            BuildNoteList();
+            // Строи се само отвореният таб; другите – когато се отворят.
+            for (int i = 0; i < _dirty.Length; i++) _dirty[i] = true;
+            BuildTab(_tab);
         }
 
         // Време

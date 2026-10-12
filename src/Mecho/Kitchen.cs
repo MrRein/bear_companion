@@ -29,7 +29,7 @@ public static class Kitchen
 
     // Предмети за почивка: всеки отключва кътче (виж Scenes).
     public const string Easel = "easel", Computer = "computer", YogaMat = "yoga_mat", PlantPot = "plant", Radio = "radio", BoardGame = "board_game";
-    public const string Trampoline = "trampoline", Couch = "couch";
+    public const string Trampoline = "trampoline", Couch = "couch", Wardrobe = "wardrobe";
 
     // Раздели в магазина
     public const string KitchenShelf = "Кухня", FunShelf = "Хобита", FurnitureShelf = "Мебели", HelpShelf = "Подобрения";
@@ -77,6 +77,7 @@ public static class Kitchen
         new(Headphones, "Слушалки", "🎧", 35, "+1 🌰 за всяко завършено мечо-доро.", HelpShelf),
         new(Couch, "Диван", "🛋️", 20, "Мечокът чете на мек диван (иначе седи на земята), а кацането е меко.", FurnitureShelf),
         new(Bed, "Меко легло", "🛏️", 40, "Мечокът се наспива два пъти по-бързо.", FurnitureShelf),
+        new(Wardrobe, "Гардероб", "👕", 25, "Отключва дрехите, аксесоарите и тапетите (в офертата на деня и в подаръците).", FurnitureShelf),
         new(Fridge, "Хладилник", "🧊", 50, "Всяко ястие струва с 1 🌰 по-малко.", HelpShelf),
         new(Cookbook, "Готварска книга", "📖", 60, "Всяко ястие засища с 25% повече.", HelpShelf),
     };

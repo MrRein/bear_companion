@@ -54,6 +54,9 @@ public sealed partial class PetWindow
 
         ApplyOfflineTime();
         MorningRefresh(fromStart: true);
+        // Отпреди гардеробът да се купува: който вече има дрехи или тапети, го има.
+        if (!Kitchen.Owns(_save, Kitchen.Wardrobe) && (_save.OwnedClothes.Count > 0 || _save.Owned.Any(o => o.StartsWith("bg_"))))
+            _save.Owned.Add(Kitchen.Wardrobe);
         StartNewDay();
     }
 
