@@ -43,7 +43,7 @@ public sealed partial class PetWindow
     {
         if (_giftRun != GiftRun.None || _save.GiftPending) return false;
         if (_save.GiftAt == DateTime.MinValue || DateTime.Now < _save.GiftAt) return false;
-        if (InFocus || IsQuiet || WaitingForFood || IsAsleep) return false;
+        if (InFocus || IsQuiet || WaitingForFood || IsAsleep || Cooks) return false;
         StartGiftRun();
         return true;
     }

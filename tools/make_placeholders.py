@@ -1081,6 +1081,13 @@ def derive_sleep_peek():
     strip.save(os.path.join(OUT, "sleep_peek.png"))
 
 
+def derive_eat_hold():
+    """„Държи храната“ (паузите между хапките): вторият кадър на eat.png на Тут, неподвижен."""
+    src = Image.open(os.path.join(OUT, "eat.png")).convert("RGBA")
+    n = src.width // SIZE
+    src.crop(((n - 1) * SIZE, 0, n * SIZE, SIZE)).save(os.path.join(OUT, "eat_hold.png"))
+
+
 def save_clothes_layers(name, frames):
     """Шаблоните за дрехите (сиви) и точката за шапката, по един на анимация."""
     for slot, which in SLOTS.items():
@@ -1530,6 +1537,8 @@ def main():
     for name, (fps, loop) in EXTRA_DRAWN.items():
         manifest["animations"][name] = {"file": f"{name}.png", "fps": fps, "loop": loop}
     derive_sleep_peek()
+    derive_eat_hold()
+    manifest["animations"]["eat_hold"] = {"file": "eat_hold.png", "fps": 1, "loop": True}
     manifest["animations"]["sleep_peek"] = {"file": "sleep_peek.png", "fps": 3, "loop": False}
     with open(os.path.join(OUT, "anim.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2, ensure_ascii=False)

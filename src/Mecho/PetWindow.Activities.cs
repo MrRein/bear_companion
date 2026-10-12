@@ -71,6 +71,7 @@ public sealed partial class PetWindow
         if (FreeCycleStep()) return;
 
         bool tired = IsExhausted; // уморен: не му се играе, по-скоро се прозява
+        bool near = Cooks;        // готви: не отива далеч от уреда
         var choices = new (string Name, double Weight, Action Do)[]
         {
             ("walk", tired ? 10 : 26, () =>
@@ -80,7 +81,7 @@ public sealed partial class PetWindow
                 else SetIdle();
             }),
             ("wonder", 10, Wonder),
-            ("climb", tired || !HasPlatforms ? 0 : 8, Climb),
+            ("climb", tired || near || !HasPlatforms ? 0 : 8, Climb),
             ("sketch", tired ? 1 : 5, () => Play("work", length: 8 + _rng.Next(8), after: () => Announce(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
             ("dice", tired ? 0 : 4, () =>
             {
@@ -104,9 +105,9 @@ public sealed partial class PetWindow
                 Play("yawn");
                 Announce(tired ? Lines.Pick(Lines.Sleepy, _save.OwnerName) : "*протяга се* Ааах.", 3);
             }),
-            ("cursor", tired ? 0 : 5, FollowCursor),
-            ("butterfly", tired ? 0 : 5, StartChase),
-            ("peek", tired ? 0 : 3, Peekaboo),
+            ("cursor", tired || near ? 0 : 5, FollowCursor),
+            ("butterfly", tired || near ? 0 : 5, StartChase),
+            ("peek", tired || near ? 0 : 3, Peekaboo),
             ("juggle", tired ? 0 : 3, Juggle),
             ("idle", 14, SetIdle),
         };

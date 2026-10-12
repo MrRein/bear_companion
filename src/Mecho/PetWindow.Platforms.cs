@@ -30,6 +30,7 @@ public sealed partial class PetWindow
             _drawings.For(area, PixelSize).ShowLayer(true);
         }
         NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
+        RaiseCompanions();
     }
 
     /// <summary>„Рисувай“: върху екрана на мечока се отваря платно с четка, гума и цветове.</summary>
@@ -54,6 +55,7 @@ public sealed partial class PetWindow
         canvas.Save(DrawingStore.Folder);
         canvas.ShowLayer(true);
         NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
+        RaiseCompanions();
         if (!canvas.IsEmpty)
         {
             Say(Lines.Pick(Lines.DrawDone, _save.OwnerName), 4);
@@ -112,6 +114,12 @@ public sealed partial class PetWindow
     private double WalkTarget()
     {
         var area = Area;
+        // Докато готви, не се отдалечава много от уреда.
+        if (_cook is { Popped: false } c)
+        {
+            double reach = SpriteWidth * 2.5;
+            return Math.Clamp(c.Window.CenterX + (_rng.NextDouble() * 2 - 1) * reach, area.Left + 60, area.Right - 60);
+        }
         if (OnPlatform && _rng.NextDouble() < 0.75 && _drawings.PlatformSpan(area, _x, _y) is var (left, right))
         {
             double margin = FeetHalf;

@@ -106,7 +106,11 @@ public sealed class CookerWindow : Window
         _centerX = centerX;
         _bottom = bottom;
         SetArt(art, pixelSize);
-        if (!IsVisible && !_away) Show();
+        if (!IsVisible && !_away)
+        {
+            Show();
+            NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
+        }
         Reposition();
     }
 

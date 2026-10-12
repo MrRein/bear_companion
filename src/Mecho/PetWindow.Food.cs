@@ -19,6 +19,17 @@ public sealed partial class PetWindow
     };
 
     /// <summary>
+    /// Уредът и храната винаги са пред мечока: след като прозорецът на мечока
+    /// излезе отгоре (цъкане, влачене, рисуване), те пак се слагат над него.
+    /// </summary>
+    private void RaiseCompanions()
+    {
+        if (_cook is { Window.IsVisible: true } c) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(c.Window).Handle);
+        foreach (var f in _food)
+            if (f.IsVisible) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(f).Handle);
+    }
+
+    /// <summary>
     /// Мечокът е скрит (или пак показан): храната, уредът и подаръкът се
     /// скриват и показват с него.
     /// </summary>
@@ -31,6 +42,7 @@ public sealed partial class PetWindow
             else if (!show && f.IsVisible) f.Hide();
         }
         _cook?.Window.SetAway(!show);
+        if (show) RaiseCompanions();
         if (_giftWindow != null)
         {
             if (show && !_giftWindow.IsVisible) _giftWindow.Show();
@@ -124,6 +136,7 @@ public sealed partial class PetWindow
         w.Closed += (_, _) => _food.Remove(w);
         _food.Add(w);
         if (IsVisible) w.Show();
+        NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(w).Handle);
     }
 
     private double _foodReadyAt = -1000;
@@ -202,55 +215,24 @@ public sealed partial class PetWindow
         food.Close();
         _food.Remove(food);
         bool last = _food.Count == 0;
-        if (last)
-        {
-            if (!ThankForMeal()) Say(Lines.Pick(Lines.AllFoodEaten, _save.OwnerName), 4);
-        }
-        else
-        {
-            var lines = food.Food.Lines;
-            Say($"{lines[_rng.Next(lines.Length)]} Още {_food.Count}!", 3);
-        }
+        // Казва нещо за точно това ядене („Мммм, кафе!“), и колко остават.
+        var talk = FoodTalk.For(food.Food);
+        string line = Lines.Pick(talk.Receive, _save.OwnerName);
+        Say(last ? line : $"{line} Още {_food.Count}!", 3);
         // Напитка: сяда и я пие бавно, с чашата в лапата.
         if (IsDrink(food.Food) && CanAnimateFreely && !InFocus)
         {
-            StartDrinking(food.Food);
+            StartDrinking(food.Food, last);
         }
-        // Държи храната в лапите и яде бавно (няколко секунди), после танцува.
+        // Държи храната в лапите и яде бавно, с паузи.
         else if (CanAnimateFreely)
         {
-            _held.Source = bite;
-            Play("eat", length: EatTime, after: last ? () => Play("dance", length: 3) : null);
+            StartEating(food.Food, bite, last);
         }
+        else if (last) FinishedAll(food.Food);
         NotifyCare();
         Persist();
         return true;
-    }
-
-    private const double EatTime = 3 * BiteTime;
-    private readonly System.Windows.Controls.Image _held = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
-
-    private const double BiteTime = 4.0 / 3;
-
-    /// <summary>
-    /// Храната в лапите, докато яде: от корема се вдига към устата (когато
-    /// отваря уста) и пак слиза, докато дъвче; с всяка хапка е по-малка.
-    /// </summary>
-    private Rect HeldRect(Rect bear)
-    {
-        bool on = _anim == "eat" && _held.Source != null && _state == BearState.Busy;
-        _held.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-        if (!on) return Rect.Empty;
-        System.Windows.Media.RenderOptions.SetBitmapScalingMode(_held, System.Windows.Media.BitmapScalingMode.NearestNeighbor);
-        var img = (System.Windows.Media.Imaging.BitmapSource)_held.Source!;
-        int bites = (int)(_animTime / BiteTime);
-        double scale = Math.Max(0.3, 0.6 - 0.08 * bites);
-        double w = img.PixelWidth * PixelSize * scale, h = img.PixelHeight * PixelSize * scale;
-        _held.Width = w;
-        _held.Height = h;
-        double lift = 0.5 - 0.5 * Math.Cos(2 * Math.PI * _animTime / BiteTime);
-        double y = 0.68 + (0.5 - 0.68) * lift;
-        return new Rect(bear.Left + bear.Width / 2 - w / 2, bear.Top + bear.Height * y - h / 2, w, h);
     }
 
     /// <summary>Има храна из екрана, която още не му е донесена.</summary>

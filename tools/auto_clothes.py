@@ -239,6 +239,41 @@ CUP_BASE = (17, 26)
 PAW_BOX = (16, 18, 26, 28)   # къде е лапата с чашата (x0, y0, x1, y1)
 
 
+# Храната при ядене (eat, eat_hold): средата ѝ е в лапите пред корема и се
+# мести с лапите кадър по кадър.
+EAT_BASE = (16, 21)
+EAT_BOX = (7, 16, 25, 25)
+
+
+def paw_shift(base, frame, box):
+    """С колко пиксела са се преместили лапите в кутията спрямо основния кадър."""
+    x0, y0, x1, y1 = box
+    best, shift = None, (0, 0)
+    for dy in range(-4, 3):
+        for dx in range(-3, 4):
+            bad = 0
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    a = base.getpixel((x, y))
+                    xx, yy = x + dx, y + dy
+                    b = frame.getpixel((xx, yy)) if 0 <= xx < SIZE and 0 <= yy < SIZE else (0, 0, 0, 0)
+                    if (a[3] > 0) != (b[3] > 0) or (a[3] and a[:3] != b[:3]):
+                        bad += 1
+            if best is None or bad < best or (bad == best and abs(dx) + abs(dy) < abs(shift[0]) + abs(shift[1])):
+                best, shift = bad, (dx, dy)
+    return shift
+
+
+def eat_anchors(strip):
+    base = Image.open(os.path.join(BEAR, "eat.png")).convert("RGBA").crop((0, 0, SIZE, SIZE))
+    out = []
+    for f in range(strip.width // SIZE):
+        frame = strip.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE))
+        dx, dy = paw_shift(base, frame, EAT_BOX)
+        out.append((EAT_BASE[0] + dx, EAT_BASE[1] + dy))
+    return out
+
+
 def cup_anchors(strip, name):
     base = Image.open(os.path.join(BEAR, "sit_drinking.png")).convert("RGBA").crop((0, 0, SIZE, SIZE))
     x0, y0, x1, y1 = PAW_BOX
@@ -288,9 +323,10 @@ def main(anim):
             layers[name].putpixel((f * SIZE + ax, ay), (255, 0, 255, 255))
     for name, img in layers.items():
         img.save(os.path.join(BEAR, f"{anim}_{name}.png"))
-    if anim.startswith("sit_drinking"):
+    if anim.startswith("sit_drinking") or anim in ("eat", "eat_hold"):
         cup = Image.new("RGBA", strip.size, (0, 0, 0, 0))
-        for f, (cx, cy) in enumerate(cup_anchors(strip, anim)):
+        points = eat_anchors(strip) if anim.startswith("eat") else cup_anchors(strip, anim)
+        for f, (cx, cy) in enumerate(points):
             cup.putpixel((f * SIZE + cx, min(SIZE - 1, cy)), (255, 0, 255, 255))
         cup.save(os.path.join(BEAR, f"{anim}_cup.png"))
 

@@ -124,6 +124,7 @@ public sealed partial class PetWindow
         _trampWindow.ShowAt(prop, PixelSize, x, ground);
         _trampTop = ground - prop.Seat * PixelSize;
         NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
+        RaiseCompanions();
     }
 
     private void BeginBounce()
@@ -135,6 +136,7 @@ public sealed partial class PetWindow
         _facingLeft = false;
         SetState(BearState.Bounce, "bounce");
         NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
+        RaiseCompanions();
         _bounceVx = 0;
         LaunchFromTrampoline(0);
     }

@@ -140,6 +140,7 @@ public sealed partial class PetWindow
             Cook(Kitchen.Foods.First(f => f.Tool == Kitchen.Pan));
             _cook!.PopAt = Now + 3;
         }, 6000);
+        await step("готвене: уредът чака мечока", DevFinishCooking, 3000);
         await step("храната на парчета", () => { foreach (var f in _food) f.UpdateLayout(); DevClearFood(); }, 300);
         await step("уредът пада плавно", () =>
         {
@@ -164,9 +165,19 @@ public sealed partial class PetWindow
         await step("яде: храната към устата", () =>
         {
             DevClearFood();
-            _held.Source = _lib.GetProp("food_meatballs", 16, 16, 0).Image;
-            Play("eat", length: EatTime);
+            StartEating(Kitchen.Foods.First(f => f.Id == "meatballs"), _lib.GetProp("food_meatballs", 16, 16, 0).Image, last: true);
         }, 2500);
+        await step("яде: хапва", () =>
+        {
+            if (_anim is not ("eat" or "eat_hold") || HeldPoint() == null) throw new Exception("не държи храната в лапите");
+            EatBite();
+        }, 1500);
+        await step("яде: свършва", () =>
+        {
+            _bitesLeft = 1;
+            EatDone();
+            foreach (var f in Kitchen.Foods) _ = FoodTalk.For(f);
+        }, 500);
         await step("забравената храна се разчиства", () =>
         {
             SpawnFood(Kitchen.Foods[0], 1, 0, new Point(_x, _bearRect.Top), fromCooker: false);

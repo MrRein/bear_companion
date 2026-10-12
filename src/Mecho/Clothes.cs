@@ -286,6 +286,10 @@ public sealed class Dresser
     private static Color Mix(Color a, Color b, double t) => Color.FromRgb(
         (byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
 
+    /// <summary>Първият непрозрачен пиксел на точков слой (шапка, чаша, храна).</summary>
+    public static (int X, int Y)? FirstPoint(BitmapSource layer) =>
+        FirstPixel(Pixels(layer), layer.PixelWidth, layer.PixelHeight);
+
     private static (int, int)? FirstPixel(uint[] px, int w, int h)
     {
         for (int i = 0; i < w * h; i++)

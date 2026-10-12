@@ -168,6 +168,11 @@
       "fps": 10,
       "loop": false
     },
+    "eat_hold": {
+      "file": "eat_hold.png",
+      "fps": 1,
+      "loop": true
+    },
     "sleep_peek": {
       "file": "sleep_peek.png",
       "fps": 3,

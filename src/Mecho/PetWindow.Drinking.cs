@@ -14,15 +14,19 @@ public sealed partial class PetWindow
     private int _sipsLeft = -1;      // колко глътки до края (-1 = докато не стане, при чая на масичката)
     private int _loopsBeforeSip;
     private bool _blewThisSip;
+    private Food? _drinkFood;        // какво пие (за коментарите)
+    private bool _drinkLast;         // последното от поръчката
 
     private static bool IsDrink(Food f) => f.Id is "tea" or "coffee" || f.Id.StartsWith("juice");
 
     /// <summary>Напитка: сяда и я пие бавно (вместо да я изяде наведнъж).</summary>
-    private void StartDrinking(Food food)
+    private void StartDrinking(Food food, bool last = false)
     {
+        _drinkFood = food;
+        _drinkLast = last;
         if (_inScene) LeaveScene();
         StartScene(Scenes.Drink, quiet: true);
-        BeginCup(food.Id, sips: 3 + _rng.Next(3));
+        BeginCup(food.Id, sips: 4 + _rng.Next(3));
     }
 
     private void BeginCup(string drink, int sips)
@@ -78,9 +82,14 @@ public sealed partial class PetWindow
             _blewThisSip = false;
             if (sipped && _sipsLeft > 0 && --_sipsLeft == 0 && _scene == Scenes.Drink)
             {
-                Announce(Lines.Pick(Scenes.Drink.End, _save.OwnerName), 3);
+                if (_drinkFood is not { } drink) Announce(Lines.Pick(Scenes.Drink.End, _save.OwnerName), 3);
+                else if (_drinkLast && _food.Count == 0) FinishedAll(drink);
+                else Say(Lines.Pick(FoodTalk.For(drink).Done, _save.OwnerName), 3);
+                _drinkFood = null;
                 LeaveScene();
             }
+            else if (sipped && _drinkFood is { } d && _rng.Next(3) == 0)
+                Say(Lines.Pick(FoodTalk.For(d).Chew, _save.OwnerName), 2);
         }
     }
 }

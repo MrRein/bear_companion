@@ -27,7 +27,8 @@ public sealed partial class PetWindow
         public double NextPieceAt { get; set; }
         public double DoneAt { get; set; }
         public bool Popped { get; set; }
-        public bool Finale { get; set; }    // дошъл е за края
+        public bool Going { get; set; }     // тръгнал е към уреда за края
+        public bool Forced { get; set; }    // Developer: готово веднага, без да чака мечока
     }
 
     private Cooking? _cook;
@@ -46,20 +47,6 @@ public sealed partial class PetWindow
         Kitchen.Jug => 90,
         _ => 60,
     };
-
-    private static readonly string[] CookingDuring =
-    {
-        "*бърка*", "Мирише вкусно!", "Още малко…", "*опитва* Мм, почти.", "Не надничай, {0}! Изненада е.", "*тананика си, докато готви*",
-    };
-
-    private static readonly string[] CookingCheck =
-    {
-        "Да видя как върви готвенето…", "*бърка* Мм, ухае.", "Само да разбъркам.", "*наднича* Още не е готово.",
-    };
-
-    private static readonly string[] CookingAlmost = { "Почти е готово! Отивам да видя.", "Още малко… *тича към котлона*", "Ще стане всеки момент!" };
-
-    private static readonly string[] CookingSit = { "*сяда до котлона* Ще го пазя.", "Ще поседя тук, да не изгори.", "*сяда* Чакаме…" };
 
     private void StartCooking(Food food, double fullnessEach, double energyEach, int cost, double seconds = -1)
     {
@@ -108,7 +95,7 @@ public sealed partial class PetWindow
         _save.CookX = x;
         Persist();
 
-        if (!InFocus) Say(Lines.Pick(CookStartLines(tool), _save.OwnerName), 5);
+        if (!InFocus) Say(Lines.Pick(FoodTalk.For(food).Start, _save.OwnerName), 5);
         _nextCookCheck = Now + 20;
     }
 
@@ -164,39 +151,60 @@ public sealed partial class PetWindow
     private void UpdateCookingTag()
     {
         var c = _cook!;
-        c.Window.SetTime(c.Popped ? null : Clock(TimeSpan.FromSeconds(Math.Max(0, c.PopAt - Now))));
+        c.Window.SetTime(c.Popped ? null : Now >= c.PopAt ? "готово!" : Clock(TimeSpan.FromSeconds(Math.Max(0, c.PopAt - Now))));
     }
 
-    /// <summary>Всеки кадър: уредът къкри, тресе се, капакът хвръква, храната излита.</summary>
+    /// <summary>Колко най-много чака уредът мечока, след като е готово (после изхвърчава сам).</summary>
+    private const double CookWaitMax = 45;
+
+    /// <summary>Мечокът може да дойде до уреда (не работи, не спи, не е скрит, не го държат).</summary>
+    private bool CanComeToCooker(Cooking c) =>
+        !InFocus && !IsAsleep && IsVisible && !_onTrampoline && !c.Window.IsDragging && !c.Window.IsFalling &&
+        _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce);
+
+    /// <summary>Стои до уреда (на земята, от която и да е страна).</summary>
+    private bool AtCooker(Cooking c) =>
+        Math.Abs(_x - CookerSpot().X) < 3 * PixelSize && Math.Abs(_y - c.Window.Bottom) < 4 * PixelSize &&
+        _state is BearState.Idle or BearState.Busy;
+
+    /// <summary>Кога тръгва за края: колкото му трябва да стигне, плюс малко.</summary>
+    private double FinaleLead(Cooking c) => Math.Abs(_x - CookerSpot().X) / (IsExhausted ? WalkSpeed * 0.6 : WalkSpeed) + 4;
+
+    /// <summary>
+    /// Всеки кадър: уредът къкри. Малко преди края мечокът идва до уреда; като
+    /// стане готово, уредът трепери, докато мечокът не застане до него, и
+    /// тогава капакът хвръква и храната излита.
+    /// </summary>
     private void UpdateCooking(double now, double dt)
     {
         var c = _cook!;
-        if (c.Window.Step(dt))
-        {
-            // Кацна: ако чака края до уреда, отива при новото място.
-            if (!c.Popped) c.Finale = false;
-        }
+        c.Window.Step(dt);
         if (!c.Popped)
         {
             UpdateCookingTag();
-            // Към края отива при уреда и чака там капакът да хвръкне.
-            if (!c.Finale && c.PopAt - now < 25 && !InFocus && !IsAsleep && !c.Window.IsDragging && !c.Window.IsFalling &&
-                _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
+            bool canCome = CanComeToCooker(c);
+            bool at = AtCooker(c);
+            if (c.Going && (_state != BearState.Walk || !canCome)) c.Going = false;
+
+            // Тръгва към уреда за края.
+            if (canCome && !at && !c.Going && now > c.PopAt - FinaleLead(c))
             {
-                c.Finale = true;
-                if (_onTrampoline) EndBounce(null);
-                if (_inScene && !InFocus) LeaveScene();
+                if (_inScene) LeaveScene();
                 var (spot, faceLeft) = CookerSpot();
-                Announce(Lines.Pick(CookingAlmost, _save.OwnerName), 3);
+                if (now < c.PopAt) Announce(Lines.Pick(FoodTalk.For(c.Food).Almost, _save.OwnerName), 3);
+                c.Going = true;
                 WalkTo(spot, () =>
                 {
+                    if (_cook is not { Popped: false } cc) return;
+                    cc.Going = false;
                     _facingLeft = faceLeft;
-                    if (_cook is { Popped: false } cc)
-                        Play(Stirs(cc.Tool) ? "cook" : "idle", length: Math.Max(2, cc.PopAt - Now + 2));
+                    Play(Stirs(cc.Tool) ? "cook" : "idle", length: Math.Max(2, cc.PopAt - Now + 1));
                 });
             }
+
             c.Window.Shake(CookShaking ? Math.Round(Math.Sin(now * 50)) * PixelSize : 0);
-            if (now < c.PopAt)
+            bool ready = now >= c.PopAt && (c.Forced || at || !canCome || now > c.PopAt + CookWaitMax);
+            if (!ready)
             {
                 // Два кадъра: къкри, цвърчи, свети.
                 c.Window.SetArt(CookerArt((int)(now / 0.3) % 2 == 0 ? "" : "_b"), PixelSize);
@@ -207,6 +215,7 @@ public sealed partial class PetWindow
             c.Window.Shake(0);
             c.Window.SetArt(CookerArt("_open"), PixelSize);
             UpdateCookingTag();
+            if (at) _facingLeft = c.Window.CenterX < _x;
         }
 
         if (c.Left > 0 && now >= c.NextPieceAt)
@@ -221,7 +230,7 @@ public sealed partial class PetWindow
                 // Последната закъснява: тъкмо си мислиш, че е свършило.
                 c.NextPieceAt = now + (c.Left == 1 ? 1.4 : 0.25 + _rng.NextDouble() * 0.3);
             }
-            else if (!InFocus) Say(Lines.Pick(CookPopLines(c.Tool), _save.OwnerName), 2);
+            else if (!InFocus) Say(Lines.Pick(FoodTalk.For(c.Food).Pop, _save.OwnerName), 2);
             if (c.Left == 0) c.DoneAt = now + 1.5;
             return;
         }
@@ -245,8 +254,20 @@ public sealed partial class PetWindow
     /// </summary>
     private bool CookingStep()
     {
-        if (_cook is not { Popped: false } c || InFocus || Now < _nextCookCheck) return false;
+        if (_cook is not { Popped: false } c || InFocus) return false;
+        // Краят наближава (или е готово и уредът трепери): стои до уреда и чака.
+        if (Now > c.PopAt - FinaleLead(c) - 2)
+        {
+            if (AtCooker(c))
+            {
+                _facingLeft = c.Window.CenterX < _x;
+                Play(Stirs(c.Tool) ? "cook" : "idle", length: 3);
+            }
+            return true;
+        }
+        if (Now < _nextCookCheck) return false;
         _nextCookCheck = Now + 40 + _rng.Next(80);
+        var talk = FoodTalk.For(c.Food);
 
         var (stand, faceLeft) = CookerSpot();
         int roll = _rng.Next(10);
@@ -256,7 +277,7 @@ public sealed partial class PetWindow
             WalkTo(stand, () =>
             {
                 _facingLeft = faceLeft;
-                Announce(Lines.Pick(CookingCheck, _save.OwnerName), 3);
+                Announce(Lines.Pick(talk.Check, _save.OwnerName), 3);
                 Play(Stirs(c.Tool) ? "cook" : "idle", length: 6 + _rng.Next(7));
             });
             return true;
@@ -270,11 +291,11 @@ public sealed partial class PetWindow
                 StartScene(Scenes.Sit, quiet: true);
                 _facingLeft = seatFace;
                 _sceneUntil = Now + 60 + _rng.Next(90);
-                Announce(Lines.Pick(CookingSit, _save.OwnerName), 3);
+                Announce(Lines.Pick(talk.Sit, _save.OwnerName), 3);
             });
             return true;
         }
-        Mutter(Lines.Pick(CookingDuring, _save.OwnerName), 3);
+        Mutter(Lines.Pick(talk.During, _save.OwnerName), 3);
         return false;
     }
 
@@ -301,25 +322,10 @@ public sealed partial class PetWindow
     /// <summary>Developer: готово веднага.</summary>
     internal void DevFinishCooking()
     {
-        if (_cook is { Popped: false } c) c.PopAt = Now;
+        if (_cook is { Popped: false } c)
+        {
+            c.PopAt = Now;
+            c.Forced = true;
+        }
     }
-
-    private static string[] CookStartLines(string tool) => tool switch
-    {
-        Kitchen.Pot => new[] { "*сипва царевица в тенджерата* Ще пукат след малко!", "Пуканки! Капакът е затворен… засега.", "Тенджерата е на котлона!" },
-        Kitchen.Pan => new[] { "*цвър-цвър* Пържа кюфтенца!", "Кюфтенцата са в тигана. Ще ги наглеждам.", "Цвърчат! Не пипай, горещо е!" },
-        Kitchen.Oven => new[] { "*слага тавата във фурната* Чакаме…", "Мечешки картофки! Фурната загрява…", "Във фурната са. Ще ги наглеждам." },
-        Kitchen.CoffeeMachine => new[] { "*бззз* Кафемашината работи!", "*подскача нетърпеливо* Хайде, хайде…", "Мелим, мелим… *бррр*" },
-        Kitchen.Jug => new[] { "*изстисква плодовете в каничката* Сега ще го разбъркам.", "Сок в каничка! Трябва да се разбърка хубаво.", "*дрън-дрън с лъжичката*" },
-        _ => new[] { "*чайникът загрява*", "Водата скоро ще заври.", "*слага мед в чашата*" },
-    };
-
-    private static string[] CookPopLines(string tool) => tool switch
-    {
-        Kitchen.Pan => new[] { "*хоп* Подхвърлих ги!", "Опа! Хвръкнаха от тигана!" },
-        Kitchen.Oven => new[] { "*отваря фурната* Готови са!", "Хрупкави! *духа на лапата*" },
-        Kitchen.CoffeeMachine => new[] { "*пшшш* Кафето е готово!", "Ааа, мирише на сутрин!" },
-        Kitchen.Jug => new[] { "*налива в чашата* Сокът е готов!", "Разбъркан и студен! Наздраве!" },
-        _ => new[] { "*фиууу* Чайникът свири!", "Готово! С мед!" },
-    };
 }
