@@ -118,7 +118,12 @@ public sealed partial class PetWindow
         if (_cook is { Popped: false } c)
         {
             double reach = SpriteWidth * 2.5;
-            return Math.Clamp(c.Window.CenterX + (_rng.NextDouble() * 2 - 1) * reach, area.Left + 60, area.Right - 60);
+            double t = c.Window.CenterX + (_rng.NextDouble() * 2 - 1) * reach;
+            // Не спира в уреда: застава от едната му страна.
+            int side = t < c.Window.CenterX ? -1 : 1;
+            double gap = CookerGap(-side);
+            if (Math.Abs(t - c.Window.CenterX) < gap) t = c.Window.CenterX + side * (gap + _rng.NextDouble() * SpriteWidth * 0.5);
+            return Math.Clamp(t, area.Left + 60, area.Right - 60);
         }
         if (OnPlatform && _rng.NextDouble() < 0.75 && _drawings.PlatformSpan(area, _x, _y) is var (left, right))
         {

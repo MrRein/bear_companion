@@ -155,6 +155,17 @@ public sealed partial class PetWindow
             if (_cook!.Window.IsFalling) throw new Exception("уредът не кацна");
             StopCooking();
         }, 500);
+        await step("уредът върху мечока", () =>
+        {
+            TestCook(Kitchen.Foods.First(f => f.Tool == Kitchen.Oven));
+            _x = _cook!.Window.CenterX;
+            SetIdle();
+        }, 4000);
+        await step("мечокът отстъпи до уреда", () =>
+        {
+            if (OverlapsCooker(_cook!, _x)) throw new Exception("още стои в уреда");
+            StopCooking();
+        }, 500);
         await step("сок в каничка", () =>
         {
             TestCook(Kitchen.Foods.First(f => f.Tool == Kitchen.Jug));

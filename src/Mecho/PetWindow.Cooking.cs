@@ -55,10 +55,13 @@ public sealed partial class PetWindow
 
         // Уредът застава точно пред мечока (накъдето гледа; ако там няма място –
         // от другата страна). След рестарт – където е бил.
+        // Ако е тръгнал нанякъде, спира (иначе ще влезе в уреда).
+        if (_state == BearState.Walk) SetIdle();
         var area = Area;
-        double reach = CookerGap;
+        var art = CookerArtFor(food, tool, "");
         int dir = _facingLeft ? -1 : 1;
-        if (_x + dir * (reach + CookerHalf) > area.Right || _x + dir * (reach + CookerHalf) < area.Left) dir = -dir;
+        if (_x + dir * (CookerGapFor(art, dir) + CookerHalf) > area.Right || _x + dir * (CookerGapFor(art, dir) + CookerHalf) < area.Left) dir = -dir;
+        double reach = CookerGapFor(art, dir);
         double x = !double.IsNaN(_save.CookX) && _save.CookFood == food.Id ? _save.CookX : _x + dir * reach;
         x = Math.Clamp(x, area.Left + CookerHalf, area.Right - CookerHalf);
         if (_state is BearState.Idle or BearState.Walk) _facingLeft = x < _x;
@@ -117,10 +120,45 @@ public sealed partial class PetWindow
     private double CookerHalf => 11 * PixelSize;
 
     /// <summary>
-    /// Мечокът до уреда: средите им са на толкова (рисунките имат празни ръбове,
-    /// така лапата почти докосва уреда).
+    /// Мечокът до уреда: средите им са на толкова – видимата част на уреда
+    /// откъм мечока плюс видимата половина на мечока и един пиксел (рисунките
+    /// имат празни ръбове). Така лапата почти докосва уреда, но никога не е в него.
+    /// dir: от коя страна е уредът спрямо мечока (1 = вдясно от мечока).
     /// </summary>
-    private double CookerGap => CookerHalf + SpriteWidth / 2 - 6 * PixelSize;
+    private double CookerGap(int dir) => CookerGapFor(CookerArt(""), dir);
+
+    private double CookerGapFor(System.Windows.Media.Imaging.BitmapSource art, int dir)
+    {
+        var (left, right) = Visible(art);
+        var bear = Visible(_lib.Get("idle").Frames[0]);
+        return ((dir > 0 ? left : right) + Math.Max(bear.Left, bear.Right) + 1) * PixelSize;
+    }
+
+    private readonly System.Collections.Generic.Dictionary<System.Windows.Media.Imaging.BitmapSource, (int, int)> _visible = new();
+
+    /// <summary>Колко пиксела има от средата до най-далечния непрозрачен пиксел наляво и надясно.</summary>
+    private (int Left, int Right) Visible(System.Windows.Media.Imaging.BitmapSource img)
+    {
+        if (_visible.TryGetValue(img, out var ext)) return ext;
+        int w = img.PixelWidth, h = img.PixelHeight;
+        var px = new uint[w * h];
+        var conv = new System.Windows.Media.Imaging.FormatConvertedBitmap(img, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+        conv.CopyPixels(px, w * 4, 0);
+        int minX = w, maxX = -1;
+        for (int i = 0; i < px.Length; i++)
+        {
+            if (px[i] >> 24 == 0) continue;
+            minX = Math.Min(minX, i % w);
+            maxX = Math.Max(maxX, i % w);
+        }
+        ext = maxX < 0 ? (w / 2, w / 2) : (w / 2 - minX, maxX + 1 - w / 2);
+        _visible[img] = ext;
+        return ext;
+    }
+
+    /// <summary>Стои върху уреда (видимите им части се застъпват).</summary>
+    private bool OverlapsCooker(Cooking c, double x) =>
+        Math.Abs(x - c.Window.CenterX) < CookerGap(x < c.Window.CenterX ? 1 : -1) - PixelSize;
 
     /// <summary>
     /// Къде застава до уреда (не върху него): от страната, откъдето идва (или
@@ -130,8 +168,7 @@ public sealed partial class PetWindow
     {
         var c = _cook!;
         var area = AreaAt(c.Window.CenterX, c.Window.Bottom - 1);
-        double off = CookerGap + extra;
-        double left = c.Window.CenterX - off, right = c.Window.CenterX + off;
+        double left = c.Window.CenterX - CookerGap(1) - extra, right = c.Window.CenterX + CookerGap(-1) + extra;
         bool leftOk = left - HalfWidth >= area.Left, rightOk = right + HalfWidth <= area.Right;
         bool useLeft = leftOk && (!rightOk || _x <= c.Window.CenterX);
         return useLeft ? (left, false) : (right, true);
@@ -141,10 +178,11 @@ public sealed partial class PetWindow
     private static bool Stirs(string tool) => tool is Kitchen.Pot or Kitchen.Pan or Kitchen.Jug;
 
     /// <summary>Рисунката на уреда (каничката е с цвета на сока: cook_jug_orange…).</summary>
-    private System.Windows.Media.Imaging.BitmapSource CookerArt(string frame)
+    private System.Windows.Media.Imaging.BitmapSource CookerArt(string frame) => CookerArtFor(_cook!.Food, _cook.Tool, frame);
+
+    private System.Windows.Media.Imaging.BitmapSource CookerArtFor(Food food, string tool, string frame)
     {
-        var c = _cook!;
-        string name = c.Tool == Kitchen.Jug ? "jug_" + c.Food.Id.Replace("juice_", "") : c.Tool;
+        string name = tool == Kitchen.Jug ? "jug_" + food.Id.Replace("juice_", "") : tool;
         return _lib.GetProp("cook_" + name + frame, 22, 24, 0).Image;
     }
 
@@ -179,6 +217,7 @@ public sealed partial class PetWindow
     {
         var c = _cook!;
         c.Window.Step(dt);
+        StepAsideFromCooker(c);
         if (!c.Popped)
         {
             UpdateCookingTag();
@@ -249,8 +288,24 @@ public sealed partial class PetWindow
     }
 
     /// <summary>
-    /// Режим готвене (вика се, когато е свободен): от време на време отива при
-    /// уреда и бърка или сяда до него; иначе прави нещо друго. true = зае се.
+    /// Мечокът не стои върху уреда: ако е застанал (или седнал) в него – например
+    /// Тут пусна уреда върху него – отстъпва встрани, до уреда.
+    /// </summary>
+    private void StepAsideFromCooker(Cooking c)
+    {
+        if (c.Window.IsDragging || c.Window.IsFalling || c.Going || !OverlapsCooker(c, _x)) return;
+        if (Math.Abs(_y - c.Window.Bottom) > 4 * PixelSize) return;   // на друга височина (на рисунка)
+        bool sitting = _state == BearState.Couch && _inScene && _scene != Scenes.Focus && !_onTrampoline;
+        if (_state != BearState.Idle && !sitting) return;
+        if (sitting) LeaveScene();
+        var (spot, faceLeft) = CookerSpot();
+        WalkTo(spot, () => _facingLeft = faceLeft);
+    }
+
+    /// <summary>
+    /// Режим готвене (вика се, когато е свободен): често се приближава до уреда
+    /// (понякога само стои до него, понякога бърка или сяда), а от време на време
+    /// се отдалечава малко. true = зае се.
     /// </summary>
     private bool CookingStep()
     {
@@ -266,14 +321,22 @@ public sealed partial class PetWindow
             return true;
         }
         if (Now < _nextCookCheck) return false;
-        _nextCookCheck = Now + 40 + _rng.Next(80);
+        _nextCookCheck = Now + 25 + _rng.Next(35);
         var talk = FoodTalk.For(c.Food);
 
-        var (stand, faceLeft) = CookerSpot();
-        int roll = _rng.Next(10);
-        if (roll < 5)
+        int roll = _rng.Next(100);
+        if (roll < 40)
         {
-            // Бърка (тенджера, тиган) или наднича (фурна, кафе, чайник).
+            // Само се приближава и постоява до уреда, без да казва нищо.
+            var (near, nearFace) = CookerSpot(_rng.NextDouble() * SpriteWidth * 0.5);
+            if (Math.Abs(near - _x) < PixelSize * 2) return false;
+            WalkTo(near, () => _facingLeft = nearFace);
+            return true;
+        }
+        if (roll < 55)
+        {
+            // Бърка (тенджера, тиган, каничка) или наднича (фурна, кафе, чайник).
+            var (stand, faceLeft) = CookerSpot();
             WalkTo(stand, () =>
             {
                 _facingLeft = faceLeft;
@@ -282,17 +345,27 @@ public sealed partial class PetWindow
             });
             return true;
         }
-        if (roll < 8)
+        if (roll < 75)
         {
-            // Сяда до уреда за минута-две (малко по-настрани, не върху него).
+            // Сяда до уреда за минута-две (малко по-настрани) и тогава казва нещо.
             var (seat, seatFace) = CookerSpot(SpriteWidth * 0.12);
             WalkTo(seat, () =>
             {
                 StartScene(Scenes.Sit, quiet: true);
                 _facingLeft = seatFace;
                 _sceneUntil = Now + 60 + _rng.Next(90);
-                Announce(Lines.Pick(talk.Sit, _save.OwnerName), 3);
+                if (!IsQuiet) Say(Lines.Pick(talk.Sit, _save.OwnerName), 3);
             });
+            return true;
+        }
+        if (roll < 88)
+        {
+            // Отдалечава се малко от уреда (не стои само до него).
+            int side = _x < c.Window.CenterX ? -1 : 1;
+            if (_rng.Next(3) == 0) side = -side;
+            var area = AreaAt(c.Window.CenterX, c.Window.Bottom - 1);
+            double away = c.Window.CenterX + side * (CookerGap(-side) + SpriteWidth * (0.8 + _rng.NextDouble() * 1.4));
+            WalkTo(Math.Clamp(away, area.Left + HalfWidth, area.Right - HalfWidth));
             return true;
         }
         Mutter(Lines.Pick(talk.During, _save.OwnerName), 3);
