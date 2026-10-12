@@ -529,7 +529,7 @@ public sealed class MenuWindow : Window
                 double secs = PetWindow.CookSeconds(f.Tool);
                 effects.Children.Add(new TextBlock
                 {
-                    Text = secs >= 60 ? $"готви се {secs / 60:0} мин" : $"готви се {secs:0} с",
+                    Text = (f.Tool == Kitchen.Jug ? "разбърква се " : "готви се ") + (secs % 60 == 0 ? $"{secs / 60:0} мин" : $"{secs:0} с"),
                     Foreground = Muted,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, 2, 0, 0),

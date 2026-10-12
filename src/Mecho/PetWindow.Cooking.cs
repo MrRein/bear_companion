@@ -43,6 +43,7 @@ public sealed partial class PetWindow
         Kitchen.Oven => 10 * 60,
         Kitchen.Pan => 6 * 60,
         Kitchen.Pot => 3 * 60,
+        Kitchen.Jug => 90,
         _ => 60,
     };
 
@@ -68,7 +69,7 @@ public sealed partial class PetWindow
         // Уредът застава точно пред мечока (накъдето гледа; ако там няма място –
         // от другата страна). След рестарт – където е бил.
         var area = Area;
-        double reach = SpriteWidth / 2 + CookerHalf + 2 * PixelSize;
+        double reach = CookerGap;
         int dir = _facingLeft ? -1 : 1;
         if (_x + dir * (reach + CookerHalf) > area.Right || _x + dir * (reach + CookerHalf) < area.Left) dir = -dir;
         double x = !double.IsNaN(_save.CookX) && _save.CookFood == food.Id ? _save.CookX : _x + dir * reach;
@@ -90,13 +91,14 @@ public sealed partial class PetWindow
         window.Clicked += AskStopCooking;
         window.Dropped += (cx, _) =>
         {
-            // Тут го премести: каца на земята там, където го пусна.
+            // Тут го премести: пада плавно на земята там, където го пусна.
             var a = AreaAt(cx, window.Top + window.ActualHeight / 2);
             double nx = Math.Clamp(cx, a.Left + CookerHalf, a.Right - CookerHalf);
-            window.Place(CookerArt(_cook is { Popped: true } ? "_open" : ""), PixelSize, nx, a.Bottom);
+            window.FallTo(nx, a.Bottom);
             _save.CookX = nx;
             Persist();
         };
+        window.SetAway(!IsVisible);
         window.Place(CookerArt(""), PixelSize, x, area.Bottom);
         UpdateCookingTag();
 
@@ -128,6 +130,12 @@ public sealed partial class PetWindow
     private double CookerHalf => 11 * PixelSize;
 
     /// <summary>
+    /// Мечокът до уреда: средите им са на толкова (рисунките имат празни ръбове,
+    /// така лапата почти докосва уреда).
+    /// </summary>
+    private double CookerGap => CookerHalf + SpriteWidth / 2 - 6 * PixelSize;
+
+    /// <summary>
     /// Къде застава до уреда (не върху него): от страната, откъдето идва (или
     /// където има място), гледайки към уреда. extra отдалечава (за сядане).
     /// </summary>
@@ -135,15 +143,23 @@ public sealed partial class PetWindow
     {
         var c = _cook!;
         var area = AreaAt(c.Window.CenterX, c.Window.Bottom - 1);
-        double off = CookerHalf + SpriteWidth / 2 + 2 * PixelSize + extra;
+        double off = CookerGap + extra;
         double left = c.Window.CenterX - off, right = c.Window.CenterX + off;
         bool leftOk = left - HalfWidth >= area.Left, rightOk = right + HalfWidth <= area.Right;
         bool useLeft = leftOk && (!rightOk || _x <= c.Window.CenterX);
         return useLeft ? (left, false) : (right, true);
     }
 
-    private System.Windows.Media.Imaging.BitmapSource CookerArt(string frame) =>
-        _lib.GetProp("cook_" + _cook!.Tool + frame, 22, 24, 0).Image;
+    /// <summary>В тенджерата, тигана и каничката бърка; другите само наднича.</summary>
+    private static bool Stirs(string tool) => tool is Kitchen.Pot or Kitchen.Pan or Kitchen.Jug;
+
+    /// <summary>Рисунката на уреда (каничката е с цвета на сока: cook_jug_orange…).</summary>
+    private System.Windows.Media.Imaging.BitmapSource CookerArt(string frame)
+    {
+        var c = _cook!;
+        string name = c.Tool == Kitchen.Jug ? "jug_" + c.Food.Id.Replace("juice_", "") : c.Tool;
+        return _lib.GetProp("cook_" + name + frame, 22, 24, 0).Image;
+    }
 
     private void UpdateCookingTag()
     {
@@ -152,14 +168,19 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Всеки кадър: уредът къкри, тресе се, капакът хвръква, храната излита.</summary>
-    private void UpdateCooking(double now)
+    private void UpdateCooking(double now, double dt)
     {
         var c = _cook!;
+        if (c.Window.Step(dt))
+        {
+            // Кацна: ако чака края до уреда, отива при новото място.
+            if (!c.Popped) c.Finale = false;
+        }
         if (!c.Popped)
         {
             UpdateCookingTag();
             // Към края отива при уреда и чака там капакът да хвръкне.
-            if (!c.Finale && c.PopAt - now < 25 && !InFocus && !IsAsleep && !c.Window.IsDragging &&
+            if (!c.Finale && c.PopAt - now < 25 && !InFocus && !IsAsleep && !c.Window.IsDragging && !c.Window.IsFalling &&
                 _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
             {
                 c.Finale = true;
@@ -171,7 +192,7 @@ public sealed partial class PetWindow
                 {
                     _facingLeft = faceLeft;
                     if (_cook is { Popped: false } cc)
-                        Play(cc.Tool is Kitchen.Pot or Kitchen.Pan ? "cook" : "idle", length: Math.Max(2, cc.PopAt - Now + 2));
+                        Play(Stirs(cc.Tool) ? "cook" : "idle", length: Math.Max(2, cc.PopAt - Now + 2));
                 });
             }
             c.Window.Shake(CookShaking ? Math.Round(Math.Sin(now * 50)) * PixelSize : 0);
@@ -236,14 +257,14 @@ public sealed partial class PetWindow
             {
                 _facingLeft = faceLeft;
                 Announce(Lines.Pick(CookingCheck, _save.OwnerName), 3);
-                Play(c.Tool is Kitchen.Pot or Kitchen.Pan ? "cook" : "idle", length: 6 + _rng.Next(7));
+                Play(Stirs(c.Tool) ? "cook" : "idle", length: 6 + _rng.Next(7));
             });
             return true;
         }
         if (roll < 8)
         {
             // Сяда до уреда за минута-две (малко по-настрани, не върху него).
-            var (seat, seatFace) = CookerSpot(SpriteWidth * 0.3);
+            var (seat, seatFace) = CookerSpot(SpriteWidth * 0.12);
             WalkTo(seat, () =>
             {
                 StartScene(Scenes.Sit, quiet: true);
@@ -289,6 +310,7 @@ public sealed partial class PetWindow
         Kitchen.Pan => new[] { "*цвър-цвър* Пържа кюфтенца!", "Кюфтенцата са в тигана. Ще ги наглеждам.", "Цвърчат! Не пипай, горещо е!" },
         Kitchen.Oven => new[] { "*слага тавата във фурната* Чакаме…", "Мечешки картофки! Фурната загрява…", "Във фурната са. Ще ги наглеждам." },
         Kitchen.CoffeeMachine => new[] { "*бззз* Кафемашината работи!", "*подскача нетърпеливо* Хайде, хайде…", "Мелим, мелим… *бррр*" },
+        Kitchen.Jug => new[] { "*изстисква плодовете в каничката* Сега ще го разбъркам.", "Сок в каничка! Трябва да се разбърка хубаво.", "*дрън-дрън с лъжичката*" },
         _ => new[] { "*чайникът загрява*", "Водата скоро ще заври.", "*слага мед в чашата*" },
     };
 
@@ -297,6 +319,7 @@ public sealed partial class PetWindow
         Kitchen.Pan => new[] { "*хоп* Подхвърлих ги!", "Опа! Хвръкнаха от тигана!" },
         Kitchen.Oven => new[] { "*отваря фурната* Готови са!", "Хрупкави! *духа на лапата*" },
         Kitchen.CoffeeMachine => new[] { "*пшшш* Кафето е готово!", "Ааа, мирише на сутрин!" },
+        Kitchen.Jug => new[] { "*налива в чашата* Сокът е готов!", "Разбъркан и студен! Наздраве!" },
         _ => new[] { "*фиууу* Чайникът свири!", "Готово! С мед!" },
     };
 }

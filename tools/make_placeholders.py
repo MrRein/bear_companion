@@ -921,7 +921,34 @@ def cook_kettle(frame):
     return f
 
 
-COOKERS = {"pot": cook_pot, "pan": cook_pan, "oven": cook_oven, "coffee_machine": cook_coffee, "kettle": cook_kettle}
+def cook_jug(juice, light):
+    """Стъклена каничка със сок; лъжичката бърка (два кадъра), после сокът е готов."""
+    def make(frame):
+        def f(d):
+            glass = (215, 238, 248, 255)
+            d.rectangle((4, 8, 15, 23), fill=glass, outline=OUTLINE)
+            d.line((3, 7, 5, 9), fill=OUTLINE)                       # чучурче
+            d.rectangle((16, 11, 18, 18), outline=OUTLINE)           # дръжка
+            d.rectangle((5, 12, 14, 22), fill=juice)
+            d.line((5, 12, 14, 12), fill=light)
+            d.line((6, 14, 6, 20), fill=(255, 255, 255, 160))         # отблясък
+            if frame == 2:   # готово: капчици над каничката
+                for x, y in [(7, 4), (11, 2), (13, 5)]:
+                    d.point((x, y), fill=juice)
+                d.point((9, 6), fill=light)
+            else:            # лъжичката се люшка и прави вихрушка
+                top = 6 if frame == 0 else 13
+                d.line((top, 1, 10, 17), fill=WOOD)
+                d.rectangle((9, 17, 11, 18), fill=WOOD)
+                for x in ((8, 12) if frame == 0 else (7, 11)):
+                    d.point((x, 15 + frame), fill=light)
+        return f
+    return make
+
+
+COOKERS = {"pot": cook_pot, "pan": cook_pan, "oven": cook_oven, "coffee_machine": cook_coffee, "kettle": cook_kettle,
+           "jug_orange": cook_jug((250, 160, 40, 255), (255, 210, 120, 255)),
+           "jug_berry": cook_jug((150, 60, 140, 255), (200, 120, 190, 255))}
 
 
 # Шапките: 16 широки, долният ред е там, където шапката сяда на главата

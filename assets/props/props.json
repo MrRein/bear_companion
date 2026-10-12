@@ -225,6 +225,30 @@
       "file": "cook_kettle_open.png",
       "seat": 0
     },
+    "cook_jug_orange": {
+      "file": "cook_jug_orange.png",
+      "seat": 0
+    },
+    "cook_jug_orange_b": {
+      "file": "cook_jug_orange_b.png",
+      "seat": 0
+    },
+    "cook_jug_orange_open": {
+      "file": "cook_jug_orange_open.png",
+      "seat": 0
+    },
+    "cook_jug_berry": {
+      "file": "cook_jug_berry.png",
+      "seat": 0
+    },
+    "cook_jug_berry_b": {
+      "file": "cook_jug_berry_b.png",
+      "seat": 0
+    },
+    "cook_jug_berry_open": {
+      "file": "cook_jug_berry_open.png",
+      "seat": 0
+    },
     "food_popcorn_1": {
       "file": "food_popcorn_1.png",
       "seat": 0

@@ -20,6 +20,8 @@ public sealed class CookerWindow : Window
     private readonly TextBlock _time = new() { FontWeight = FontWeights.Bold };
     private readonly Border _tag;
     private double _centerX, _bottom, _shake;
+    private double _ground, _vy;
+    private bool _falling;
 
     /// <summary>Тут цъкна уреда.</summary>
     public event Action? Clicked;
@@ -31,6 +33,9 @@ public sealed class CookerWindow : Window
     private Point _pressScreen, _pressWindow;
 
     public bool IsDragging => _dragging;
+
+    /// <summary>Пада към земята, след като Тут го пусне.</summary>
+    public bool IsFalling => _falling;
 
     public CookerWindow()
     {
@@ -65,7 +70,7 @@ public sealed class CookerWindow : Window
         _image.MouseLeftButtonDown += (_, e) =>
         {
             _pressed = true;
-            _dragging = false;
+            _dragging = _falling = false;
             _pressScreen = PointToScreen(e.GetPosition(this));
             _pressWindow = new Point(Left, Top);
             _image.CaptureMouse();
@@ -81,6 +86,8 @@ public sealed class CookerWindow : Window
             _dragging = true;
             Left = _pressWindow.X + dx;
             Top = _pressWindow.Y + dy;
+            _centerX = Left + ActualWidth / 2 - _shake;
+            _bottom = Top + ActualHeight;
         };
         _image.MouseLeftButtonUp += (_, e) =>
         {
@@ -99,8 +106,22 @@ public sealed class CookerWindow : Window
         _centerX = centerX;
         _bottom = bottom;
         SetArt(art, pixelSize);
-        if (!IsVisible) Show();
+        if (!IsVisible && !_away) Show();
         Reposition();
+    }
+
+    private bool _away;
+
+    /// <summary>Мечокът е скрит: уредът също (готвенето продължава).</summary>
+    public void SetAway(bool away)
+    {
+        _away = away;
+        if (away && IsVisible) Hide();
+        else if (!away && !IsVisible && _image.Source != null)
+        {
+            Show();
+            Reposition();
+        }
     }
 
     public void SetArt(BitmapSource art, double pixelSize)
@@ -126,8 +147,37 @@ public sealed class CookerWindow : Window
         Reposition();
     }
 
+    /// <summary>Пада оттам, където е, до земята (ground) със средата на centerX.</summary>
+    public void FallTo(double centerX, double ground)
+    {
+        _centerX = centerX;
+        _bottom = Math.Min(_bottom, ground);
+        _ground = ground;
+        _vy = 0;
+        _falling = _bottom < ground - 0.5;
+        if (!_falling) _bottom = ground;
+        Reposition();
+    }
+
+    /// <summary>Всеки кадър: гравитация като при мечока. true = току-що кацна.</summary>
+    public bool Step(double dt)
+    {
+        if (!_falling) return false;
+        _vy += 2200 * dt;
+        _bottom += _vy * dt;
+        if (_bottom >= _ground)
+        {
+            _bottom = _ground;
+            _falling = false;
+        }
+        Reposition();
+        return !_falling;
+    }
+
     public double CenterX => _centerX;
-    public double Bottom => _bottom;
+
+    /// <summary>Дъното на уреда на земята (ако пада – там, където ще кацне).</summary>
+    public double Bottom => _falling ? _ground : _bottom;
 
     /// <summary>Горе на уреда (за откъдето излита храната).</summary>
     public Point Spout => new(_centerX, _bottom - _image.Height + _image.Height * 0.2);

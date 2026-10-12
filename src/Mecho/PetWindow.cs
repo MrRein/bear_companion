@@ -176,6 +176,7 @@ public sealed partial class PetWindow : Window
         };
         DpiChanged += (_, _) => ApplySpriteSize();
         Loaded += (_, _) => OnStart();
+        IsVisibleChanged += (_, _) => SyncCompanions();
 
         _timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
         _timer.Tick += (_, _) => Tick();
@@ -234,7 +235,7 @@ public sealed partial class PetWindow : Window
         }
         UpdateCare(dt, now);
         UpdateFood(dt);
-        if (_cook != null) UpdateCooking(now);
+        if (_cook != null) UpdateCooking(now, dt);
         UpdateButterfly(dt);
         UpdateGifts(now);
         MaybeOfferWork(now);
@@ -284,7 +285,7 @@ public sealed partial class PetWindow : Window
     private void PaceTimer()
     {
         bool moving = _state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
-            || _bfActive || _peeking || _anim == "juggle" || Dressing || CookShaking
+            || _bfActive || _peeking || _anim is "juggle" or "eat" || Dressing || CookShaking || _cook is { Window.IsFalling: true }
             || _food.Exists(f => f.VelocityX != 0 || f.VelocityY != 0);
         int ms = moving ? 33
             : IsAsleep && _bubble.Visibility != Visibility.Visible && _food.Count == 0 ? 200

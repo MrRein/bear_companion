@@ -19,6 +19,7 @@ public sealed class FoodWindow : Window
 
     public Food Food { get; }
     public double Fullness { get; }
+    public System.Windows.Media.Imaging.BitmapSource Art { get; }
     public double Energy { get; }
     public double VelocityY { get; set; }
     public double VelocityX { get; set; }
@@ -26,7 +27,13 @@ public sealed class FoodWindow : Window
     /// <summary>Хвърлена е от Тут: ако улучи мечока в движение, той я хваща.</summary>
     public bool Thrown { get; set; }
 
-    private readonly DateTime _spawned = DateTime.Now;
+    private DateTime _spawned = DateTime.Now;
+
+    /// <summary>Откога е навън (сама се разчиства след 30 минути).</summary>
+    public double Age => (DateTime.Now - _spawned).TotalSeconds;
+
+    /// <summary>Self-test: храната е стояла толкова секунди.</summary>
+    internal void DevAge(double seconds) => _spawned = _spawned.AddSeconds(-seconds);
 
     /// <summary>Току-що разпръсната (под 3 секунди): мечокът още не може да я изяде.</summary>
     public bool JustSpawned => (DateTime.Now - _spawned).TotalSeconds < 3;
@@ -41,6 +48,7 @@ public sealed class FoodWindow : Window
         Food = food;
         Fullness = fullness;
         Energy = energy;
+        Art = prop.Image;
         Title = food.Name;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;

@@ -141,6 +141,50 @@ public sealed partial class PetWindow
             _cook!.PopAt = Now + 3;
         }, 6000);
         await step("храната на парчета", () => { foreach (var f in _food) f.UpdateLayout(); DevClearFood(); }, 300);
+        await step("уредът пада плавно", () =>
+        {
+            Cook(Kitchen.Foods.First(f => f.Tool == Kitchen.Pot));
+            var w = _cook!.Window;
+            double ground = w.Bottom;
+            w.Place(CookerArt(""), PixelSize, w.CenterX, ground - 200);
+            w.FallTo(w.CenterX, ground);
+            if (!w.IsFalling) throw new Exception("уредът не пада");
+        }, 1500);
+        await step("уредът кацна", () =>
+        {
+            if (_cook!.Window.IsFalling) throw new Exception("уредът не кацна");
+            StopCooking();
+        }, 500);
+        await step("сок в каничка", () =>
+        {
+            Cook(Kitchen.Foods.First(f => f.Tool == Kitchen.Jug));
+            if (_cook?.Tool != Kitchen.Jug) throw new Exception("сокът не е в каничка");
+            DevFinishCooking();
+        }, 4000);
+        await step("яде: храната към устата", () =>
+        {
+            DevClearFood();
+            _held.Source = _lib.GetProp("food_meatballs", 16, 16, 0).Image;
+            Play("eat", length: EatTime);
+        }, 2500);
+        await step("забравената храна се разчиства", () =>
+        {
+            SpawnFood(Kitchen.Foods[0], 1, 0, new Point(_x, _bearRect.Top), fromCooker: false);
+            foreach (var f in _food) f.DevAge(FoodLifetime + 1);
+        }, 600);
+        await step("скрий мечока", () =>
+        {
+            if (_food.Count > 0) throw new Exception("храната не се разчисти");
+            SpawnFood(Kitchen.Foods[0], 1, 0, new Point(_x, _bearRect.Top), fromCooker: false);
+            Hide();
+            if (_food.Any(f => f.IsVisible)) throw new Exception("храната не се скри");
+        }, 500);
+        await step("покажи мечока", () =>
+        {
+            Show();
+            if (_food.Any(f => !f.IsVisible)) throw new Exception("храната не се показа");
+            DevClearFood();
+        }, 800);
         await step("готвене: спри", () =>
         {
             var pot = Kitchen.Foods.First(f => f.Tool == Kitchen.Pot);

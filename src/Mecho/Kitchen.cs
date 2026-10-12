@@ -22,6 +22,9 @@ public sealed record Upgrade(string Id, string Name, string Icon, int Price, str
 public static class Kitchen
 {
     public const string Pot = "pot", Pan = "pan", Oven = "oven", CoffeeMachine = "coffee_machine", Kettle = "kettle";
+
+    /// <summary>Каничката за сокове: не се купува, винаги я има.</summary>
+    public const string Jug = "jug";
     public const string Bed = "bed", Fridge = "fridge", Cookbook = "cookbook", Headphones = "headphones";
 
     // Предмети за почивка: всеки отключва кътче (виж Scenes).
@@ -48,9 +51,9 @@ public static class Kitchen
             new[] { "Кафе! Очите ми се отвориха!", "Ааах. Сега мога да прототипирам цял ден.", "Бззз! Енергия!" }),
         new("tea", "Чай с мед", "🍵", 6, 12, 1, 1, Kettle,
             new[] { "Чай с мед. Като у дома.", "Топличко… мммм.", "Мед в чая е най-хубавото изобретение." }),
-        new("juice_orange", "Портокалов сок", "🧃", 8, 10, 2, 1, null,
+        new("juice_orange", "Портокалов сок", "🧃", 8, 10, 2, 1, Jug,
             new[] { "Портокалов сок! Слънце в чаша.", "*сърба през сламката* Мм, кисело-сладко.", "Витамини! Ще съм бодър." }),
-        new("juice_berry", "Боровинков сок", "🧃", 10, 8, 3, 1, null,
+        new("juice_berry", "Боровинков сок", "🧃", 10, 8, 3, 1, Jug,
             new[] { "Боровинков сок! Езикът ми ще посинее.", "*сърба* Като горска поляна.", "Мм, сладичко." }),
     };
 
@@ -82,7 +85,7 @@ public static class Kitchen
 
     public static bool Owns(SaveData save, string id) => save.Owned.Contains(id);
 
-    public static bool HasTool(Food food, SaveData save) => food.Tool == null || Owns(save, food.Tool);
+    public static bool HasTool(Food food, SaveData save) => food.Tool is null or Jug || Owns(save, food.Tool);
 
     /// <summary>
     /// Рецептата се купува веднъж (освен за боровинките); после ястието се готви

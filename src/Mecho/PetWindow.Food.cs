@@ -9,6 +9,34 @@ namespace Mecho;
 public sealed partial class PetWindow
 {
     private const int MaxFoodOnScreen = 12;
+
+    /// <summary>След толкова секунди неизядената храна изчезва от екрана.</summary>
+    internal const double FoodLifetime = 30 * 60;
+
+    private static readonly string[] FoodCleared =
+    {
+        "*прибира забравената храна* Ще изстине, ще я сготвим пак.", "*мете трохичките* Чисто!", "Храната стоя твърде дълго. Прибрах я.",
+    };
+
+    /// <summary>
+    /// Мечокът е скрит (или пак показан): храната, уредът и подаръкът се
+    /// скриват и показват с него.
+    /// </summary>
+    private void SyncCompanions()
+    {
+        bool show = IsVisible;
+        foreach (var f in _food)
+        {
+            if (show && !f.IsVisible) f.Show();
+            else if (!show && f.IsVisible) f.Hide();
+        }
+        _cook?.Window.SetAway(!show);
+        if (_giftWindow != null)
+        {
+            if (show && !_giftWindow.IsVisible) _giftWindow.Show();
+            else if (!show && _giftWindow.IsVisible) _giftWindow.Hide();
+        }
+    }
     private readonly List<FoodWindow> _food = new();
 
     /// <summary>
@@ -95,7 +123,7 @@ public sealed partial class PetWindow
         w.VelocityY = Math.Sin(angle) * speed - 300; // повечето хвърчат нагоре
         w.Closed += (_, _) => _food.Remove(w);
         _food.Add(w);
-        w.Show();
+        if (IsVisible) w.Show();
     }
 
     private double _foodReadyAt = -1000;
@@ -170,7 +198,7 @@ public sealed partial class PetWindow
 
         _save.Fullness = Math.Min(100, _save.Fullness + food.Fullness);
         _save.Energy = Kitchen.EnergyAfter(_save.Energy, food.Energy);
-        var bite = _lib.GetProp("food_" + food.Food.Id, 16, 16, 0).Image;
+        var bite = food.Art;
         food.Close();
         _food.Remove(food);
         bool last = _food.Count == 0;
@@ -199,10 +227,15 @@ public sealed partial class PetWindow
         return true;
     }
 
-    private const double EatTime = 4.5;
+    private const double EatTime = 3 * BiteTime;
     private readonly System.Windows.Controls.Image _held = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
 
-    /// <summary>Храната в лапите, докато яде (пред корема, малко по-малка).</summary>
+    private const double BiteTime = 4.0 / 3;
+
+    /// <summary>
+    /// Храната в лапите, докато яде: от корема се вдига към устата (когато
+    /// отваря уста) и пак слиза, докато дъвче; с всяка хапка е по-малка.
+    /// </summary>
     private Rect HeldRect(Rect bear)
     {
         bool on = _anim == "eat" && _held.Source != null && _state == BearState.Busy;
@@ -210,10 +243,14 @@ public sealed partial class PetWindow
         if (!on) return Rect.Empty;
         System.Windows.Media.RenderOptions.SetBitmapScalingMode(_held, System.Windows.Media.BitmapScalingMode.NearestNeighbor);
         var img = (System.Windows.Media.Imaging.BitmapSource)_held.Source!;
-        double w = img.PixelWidth * PixelSize * 0.6, h = img.PixelHeight * PixelSize * 0.6;
+        int bites = (int)(_animTime / BiteTime);
+        double scale = Math.Max(0.3, 0.6 - 0.08 * bites);
+        double w = img.PixelWidth * PixelSize * scale, h = img.PixelHeight * PixelSize * scale;
         _held.Width = w;
         _held.Height = h;
-        return new Rect(bear.Left + bear.Width / 2 - w / 2, bear.Top + bear.Height * 0.68 - h / 2, w, h);
+        double lift = 0.5 - 0.5 * Math.Cos(2 * Math.PI * _animTime / BiteTime);
+        double y = 0.68 + (0.5 - 0.68) * lift;
+        return new Rect(bear.Left + bear.Width / 2 - w / 2, bear.Top + bear.Height * y - h / 2, w, h);
     }
 
     /// <summary>Има храна из екрана, която още не му е донесена.</summary>
@@ -248,6 +285,16 @@ public sealed partial class PetWindow
         foreach (var f in _food.ToList())
         {
             if (f.IsDragging) continue;
+
+            // Забравена храна (над 30 минути навън) се разчиства сама.
+            if (f.Age > FoodLifetime)
+            {
+                f.Close();
+                _food.Remove(f);
+                if (_food.Count == 0 && IsVisible && !InFocus && !IsResting)
+                    Announce(Lines.Pick(FoodCleared, _save.OwnerName), 4);
+                continue;
+            }
 
             if (_state == BearState.Bounce && bear.IntersectsWith(f.Bounds))
             {
