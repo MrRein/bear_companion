@@ -161,7 +161,7 @@ public sealed partial class PetWindow
         Math.Abs(x - c.Window.CenterX) < CookerGap(x < c.Window.CenterX ? 1 : -1) - (CookerSpace - 1) * PixelSize;
 
     /// <summary>Празни пиксели между мечока и уреда: уредът е пред него, а не върху него.</summary>
-    private const int CookerSpace = 6;
+    private const int CookerSpace = 3;
 
     /// <summary>
     /// Къде застава до уреда (не върху него): от страната, откъдето идва (или
