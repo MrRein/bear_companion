@@ -136,15 +136,14 @@ public sealed partial class PetWindow
 
         await step("готвене: идва за края", () =>
         {
-            DevClearFood();
-            Cook(Kitchen.Foods.First(f => f.Tool == Kitchen.Pan));
+            TestCook(Kitchen.Foods.First(f => f.Tool == Kitchen.Pan));
             _cook!.PopAt = Now + 3;
         }, 6000);
         await step("готвене: уредът чака мечока", DevFinishCooking, 3000);
         await step("храната на парчета", () => { foreach (var f in _food) f.UpdateLayout(); DevClearFood(); }, 300);
         await step("уредът пада плавно", () =>
         {
-            Cook(Kitchen.Foods.First(f => f.Tool == Kitchen.Pot));
+            TestCook(Kitchen.Foods.First(f => f.Tool == Kitchen.Pot));
             var w = _cook!.Window;
             double ground = w.Bottom;
             w.Place(CookerArt(""), PixelSize, w.CenterX, ground - 200);
@@ -158,7 +157,7 @@ public sealed partial class PetWindow
         }, 500);
         await step("сок в каничка", () =>
         {
-            Cook(Kitchen.Foods.First(f => f.Tool == Kitchen.Jug));
+            TestCook(Kitchen.Foods.First(f => f.Tool == Kitchen.Jug));
             if (_cook?.Tool != Kitchen.Jug) throw new Exception("сокът не е в каничка");
             DevFinishCooking();
         }, 4000);
@@ -303,6 +302,17 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Developer: махни храната от екрана.</summary>
+    /// <summary>Self-test: готви (на CI никой не пипа мишката и мечокът заспива: първо го буди).</summary>
+    private void TestCook(Food food)
+    {
+        DevClearFood();
+        if (_cook != null) EndCooking(food: null);
+        if (IsAsleep) WakeUp();
+        Cook(food);
+        if (_cook == null)
+            throw new Exception("не готви: " + string.Concat(_bubbleText.Inlines.OfType<System.Windows.Documents.Run>().Select(r => r.Text)));
+    }
+
     internal void DevClearFood()
     {
         foreach (var f in _food.ToList()) f.Close();

@@ -25,8 +25,9 @@ public sealed partial class PetWindow
     private void RaiseCompanions()
     {
         if (_cook is { Window.IsVisible: true } c) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(c.Window).Handle);
+        // Храната над главата му остава под балончето.
         foreach (var f in _food)
-            if (f.IsVisible) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(f).Handle);
+            if (f.IsVisible && f.Top > _bearRect.Top) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(f).Handle);
     }
 
     /// <summary>

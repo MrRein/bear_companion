@@ -990,7 +990,11 @@ public sealed partial class PetWindow : Window
         Ui.SetRichText(_bubbleText, text);
         _bubble.Visibility = Visibility.Visible;
         // Балончето не бива да остава под панела, храната или друг прозорец „винаги отгоре“.
-        if (!ChatIsOpen) NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
+        if (!ChatIsOpen)
+        {
+            NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
+            RaiseCompanions();
+        }
         _bubbleUntil = Now + seconds + text.Length * 0.04;
         _lastSpoke = Now;
         // Спи, но казва нещо: надига сънено глава, докато говори, после пак ляга.
