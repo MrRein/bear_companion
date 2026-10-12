@@ -40,9 +40,10 @@ public static class Furniture
 
     public static bool Owns(SaveData save, Skin s) => s.Price == 0 || save.Owned.Contains($"skin_{s.Item}_{s.Id}");
 
+    /// <summary>Сложеният скин: избраният, ако е купен; иначе първият (той е винаги наличен).</summary>
     public static Skin Current(SaveData save, string item)
     {
         string id = item == Kitchen.Bed ? save.BedSkin : save.CouchSkin;
-        return SkinsFor(item).FirstOrDefault(s => s.Id == id) ?? SkinsFor(item)[0];
+        return SkinsFor(item).FirstOrDefault(s => s.Id == id && Owns(save, s)) ?? SkinsFor(item)[0];
     }
 }

@@ -124,6 +124,13 @@ public sealed partial class PetWindow
             if (DailyOffer.Today(t).Any(k => k.StartsWith("skin:"))) throw new Exception("скин без диван/легло");
             _menu!.Hide();
         }, 400);
+        await step("скин по подразбиране", () =>
+        {
+            var t = new SaveData { CouchSkin = "velvet" };
+            if (Furniture.Current(t, Kitchen.Couch).Id != Furniture.Classic) throw new Exception("некупен скин е сложен");
+            t.Owned.Add("skin_couch_velvet");
+            if (Furniture.Current(t, Kitchen.Couch).Id != "velvet") throw new Exception("купеният скин не е сложен");
+        }, 100);
         await step("рецепти от страници", () =>
         {
             var t = new SaveData();
@@ -439,6 +446,8 @@ public sealed partial class PetWindow
         foreach (var f in Kitchen.Foods) if (!_save.Owned.Contains(Kitchen.RecipeId(f))) _save.Owned.Add(Kitchen.RecipeId(f));
         foreach (var b in Backdrops.All) if (!_save.Owned.Contains("bg_" + b.Id)) _save.Owned.Add("bg_" + b.Id);
         foreach (var g in Clothes.All) if (!_save.OwnedClothes.Contains(g.Id)) _save.OwnedClothes.Add(g.Id);
+        foreach (var k in Furniture.CouchSkins.Concat(Furniture.BedSkins))
+            if (!_save.Owned.Contains($"skin_{k.Item}_{k.Id}")) _save.Owned.Add($"skin_{k.Item}_{k.Id}");
         Persist();
         NotifyCare();
     }
