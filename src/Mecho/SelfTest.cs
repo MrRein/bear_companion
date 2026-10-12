@@ -281,6 +281,14 @@ public sealed partial class PetWindow
                 for (int i = 0; i < 8; i++) _dresser.Frame(_lib, anim, i, _save.Outfit);
             }
         }, 200);
+        await step("дрехи от clothes.json и шал под ръцете", () =>
+        {
+            if (Clothes.Find("tee_navy") == null) throw new Exception("clothes.json не се зареди");
+            if (_lib.Layer("eat", "front") == null) throw new Exception("няма слой front за eat");
+            _save.OwnedClothes.Add("tee_navy");
+            _save.Outfit["neck"] = "scarf_red";
+            for (int i = 0; i < 4; i++) _dresser.Frame(_lib, "eat", i, _save.Outfit);
+        }, 200);
         await step("аксесоари", () =>
         {
             foreach (var g in Clothes.All.Where(g => g.SlotId is "glasses" or "neck")) Wear(g);

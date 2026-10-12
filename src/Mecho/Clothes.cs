@@ -55,7 +55,8 @@ public static class Clothes
 
     private static Color C(byte r, byte g, byte b) => Color.FromRgb(r, g, b);
 
-    public static readonly Garment[] All =
+    /// <summary>Всички дрехи: вградените тук и новите от assets/clothes/clothes.json.</summary>
+    public static readonly Garment[] All = WithCatalog(new Garment[]
     {
         new("beanie", "Шапка с помпон", "hat", 8, default, default),
         new("beret", "Барета на художник", "hat", 15, default, default),
@@ -102,7 +103,55 @@ public static class Clothes
         new("coffee", "Кафе", "cup", 0, default, default) { Hidden = true },
         new("juice_orange", "Портокалов сок", "cup", 0, default, default) { Hidden = true },
         new("juice_berry", "Боровинков сок", "cup", 0, default, default) { Hidden = true },
-    };
+    });
+
+    /// <summary>
+    /// Нови дрехи без програмиране: assets/clothes/clothes.json (редактира се и от
+    /// GitHub). Дреха със същото id заменя вградената. Шапка, очила и шал искат и
+    /// рисунка (hat_&lt;id&gt;.png и т.н.); без нея не се показват.
+    /// </summary>
+    private static Garment[] WithCatalog(Garment[] builtIn)
+    {
+        var all = builtIn.ToList();
+        try
+        {
+            string path = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "clothes", "clothes.json");
+            if (!System.IO.File.Exists(path)) return builtIn;
+            using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(path),
+                new System.Text.Json.JsonDocumentOptions { CommentHandling = System.Text.Json.JsonCommentHandling.Skip, AllowTrailingCommas = true });
+            foreach (var e in doc.RootElement.GetProperty("garments").EnumerateArray())
+            {
+                string Str(string name, string fallback = "") => e.TryGetProperty(name, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString()! : fallback;
+                string id = Str("id"), slot = Str("slot");
+                if (id.Length == 0 || !Slots.Any(x => x.Id == slot)) continue;
+                var s = SlotById(slot);
+                if (s.Sprite != null && !System.IO.File.Exists(System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "clothes", $"{s.Sprite}_{id}.png"))) continue;
+                int price = e.TryGetProperty("price", out var p) && p.TryGetInt32(out int n) ? n : 10;
+                var main = Hex(Str("color", "#d64a46"));
+                var alt = Hex(Str("color2", Str("color", "#d64a46")));
+                var pattern = Str("pattern").ToLowerInvariant() switch
+                {
+                    "stripes" or "райета" => Pattern.Stripes,
+                    "dots" or "точки" => Pattern.Dots,
+                    "checks" or "каре" => Pattern.Checks,
+                    _ => Pattern.None,
+                };
+                all.RemoveAll(g => g.Id == id);
+                all.Add(new Garment(id, Str("name", id), slot, price, main, alt, pattern));
+            }
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex);   // счупен файл: остават вградените
+        }
+        return all.ToArray();
+    }
+
+    private static Color Hex(string hex)
+    {
+        try { return (Color)ColorConverter.ConvertFromString(hex.StartsWith('#') ? hex : "#" + hex); }
+        catch { return C(214, 74, 70); }
+    }
 
     /// <summary>Пижамата (слот → дреха), която сменя облеклото вечер.</summary>
     public static readonly Dictionary<string, string> Pajamas = new()
@@ -227,7 +276,21 @@ public sealed class Dresser
                     Anchor.Center => ay - art.PixelHeight / 2,
                     _ => ay,
                 };
+                // Шалът е под ръцете: лапа пред тялото (слоят <anim>_front.png) остава отгоре.
+                var front = slot == Clothes.Neck ? Pick(lib.Layer(anim, "front"), index) : null;
+                var under = front != null ? (uint[])px.Clone() : null;
                 Blit(px, w, H, Pixels(art), art.PixelWidth, art.PixelHeight, ax - art.PixelWidth / 2, top + HatRoom);
+                if (front != null)
+                {
+                    var arms = Pixels(front);
+                    int fw = front.PixelWidth;
+                    for (int i = 0; i < arms.Length; i++)
+                    {
+                        if (arms[i] >> 24 == 0) continue;
+                        int x = i % fw, y = i / fw;
+                        if (x < w && y + HatRoom < H) px[(y + HatRoom) * w + x] = under![(y + HatRoom) * w + x];
+                    }
+                }
                 continue;
             }
 

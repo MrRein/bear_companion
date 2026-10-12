@@ -1,6 +1,11 @@
 """Прави шаблоните за дрехите от нарисувания мечок (рисунките на Тут).
 
-    python tools/auto_clothes.py idle walk read ...
+    python tools/auto_clothes.py --all          всички нарисувани анимации
+    python tools/auto_clothes.py idle walk      само тези
+    python tools/auto_clothes.py idle --redo    нова чернова на картата (изтрива поправките!)
+
+Шаблоните се правят от картата assets/clothes/paint/<anim>.png (виж по-долу);
+ако я няма, първо се прави чернова от автоматичния разрез.
 
 Чете assets/bear/<anim>.png и записва в assets/clothes/layers/ <anim>_shirt.png,
 _pants.png, _shoes.png, _gloves.png и _head.png (сиви шаблони и точката за шапката).
@@ -89,6 +94,7 @@ def segment(frame, lying):
     k = {(x, y): kind(frame.getpixel((x, y))) for x in range(SIZE) for y in range(SIZE)}
     body = {c for c, v in k.items() if v in "fce"}
     parts = {}
+    front = set()
 
     groups = components(body)
     head = max(groups, key=lambda g: sum(1 for c in g if k[c] == "c"), default=[])
@@ -179,7 +185,8 @@ def segment(frame, lying):
         for c in torso:
             parts[c] = PANTS if c[1] >= waist else SHIRT
 
-        # Ръце и крака: останалите парчета козина.
+        # Ръце и крака: останалите парчета козина. Ръцете са „отпред“: шалът
+        # (и другото на точка) е под тях, когато лапата мине пред тялото.
         for g in components(rest):
             top = min(y for _, y in g)
             low = max(y for _, y in g)
@@ -200,9 +207,16 @@ def segment(frame, lying):
                 return max(abs(c[0] - base[0]), abs(c[1] - base[1]))
             anchors = torso or {(cx, chin + 3)}
             shoulder = min(g, key=lambda c: min(far(c, t) for t in anchors))
-            reach = max(far(c, shoulder) for c in g)
+            # Посоката на ръката: от рамото към най-далечната точка. Лапата е
+            # последните 3 реда по тази посока (вися ли – долу, вдигната – горе).
+            tip = max(g, key=lambda c: (c[0] - shoulder[0]) ** 2 + (c[1] - shoulder[1]) ** 2)
+            dx, dy = tip[0] - shoulder[0], tip[1] - shoulder[1]
+            length = max(1e-6, (dx * dx + dy * dy) ** 0.5)
+            along = {c: ((c[0] - shoulder[0]) * dx + (c[1] - shoulder[1]) * dy) / length for c in g}
+            end = max(along.values())
             for c in g:
-                parts[c] = GLOVES if far(c, shoulder) >= reach - 2 else SHIRT
+                parts[c] = GLOVES if along[c] >= end - 2.5 else SHIRT
+                front.add(c)
 
         # Точките: шапката над средата на муцуната, 3 реда под темето; очилата
         # на реда на очите; шалът под брадичката.
@@ -231,7 +245,11 @@ def segment(frame, lying):
                 break
             if HEAD in near:
                 break
-    return parts, anchor
+    # Контурите на ръцете също са отпред.
+    for (x, y), v in k.items():
+        if v == "k" and parts.get((x, y)) in (SHIRT, GLOVES) and any(n in front for n in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1))):
+            front.add((x, y))
+    return parts, anchor, front
 
 
 # Чашата (при пиене): долната ѝ среда е тук в първия кадър на sit_drinking;
@@ -309,29 +327,118 @@ def cup_anchors(strip, name):
     return out
 
 
-def main(anim):
-    strip = Image.open(os.path.join(BEAR, f"{anim}.png")).convert("RGBA")
-    frames = strip.width // SIZE
-    layers = {name: Image.new("RGBA", strip.size, (0, 0, 0, 0)) for name in list(LAYER.values()) + ["head", "face", "neck"]}
-    for f in range(frames):
+# ───────────────────────── Картата за дрехите ─────────────────────────
+#
+# assets/clothes/paint/<anim>.png е „карта“ върху мечока, със същия размер като
+# лентата. Всяка дреха е цвят; Тут я поправя в Aseprite (слой над мечока) и
+# картата е винаги с предимство пред автоматичния разрез. Ако я няма, скриптът
+# я прави сам от разреза (чернова) – после може да се поправи на ръка.
+
+PAINT = os.path.join(os.path.dirname(__file__), "..", "assets", "clothes", "paint")
+
+PART_COLORS = {SHIRT: (255, 0, 0), PANTS: (0, 0, 255), SHOES: (255, 255, 0), GLOVES: (0, 255, 0)}
+# Тъмните са същото, но „отпред“ (ръка пред тялото: шалът е под нея).
+FRONT_COLORS = {SHIRT: (128, 0, 0), GLOVES: (0, 128, 0), NONE: (128, 128, 128)}
+# Точките са в отделни ленти до картата (<anim>_head.png и т.н.), по един пиксел на кадър.
+POINT_COLORS = {"head": (255, 0, 255), "face": (0, 255, 255), "neck": (255, 255, 255), "cup": (255, 128, 0)}
+
+
+def draft(anim, strip):
+    """Чернова на картата и на точките от автоматичния разрез."""
+    paint = Image.new("RGBA", strip.size, (0, 0, 0, 0))
+    dots = {name: Image.new("RGBA", strip.size, (0, 0, 0, 0)) for name in POINT_COLORS}
+    cups = cup_anchors(strip, anim) if anim.startswith("sit_drinking") else eat_anchors(strip) if anim in ("eat", "eat_hold") else None
+    for f in range(strip.width // SIZE):
         frame = strip.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE))
-        parts, anchor = segment(frame, anim in LYING)
+        parts, anchor, front = segment(frame, anim in LYING)
         for (x, y), part in parts.items():
-            if part in LAYER:
-                g = tone(frame.getpixel((x, y)))
-                layers[LAYER[part]].putpixel((f * SIZE + x, y), (g, g, g, 255))
+            if (x, y) in front:
+                paint.putpixel((f * SIZE + x, y), FRONT_COLORS.get(part, FRONT_COLORS[NONE]) + (255,))
+            elif part in PART_COLORS:
+                paint.putpixel((f * SIZE + x, y), PART_COLORS[part] + (255,))
+        if cups:
+            anchor["cup"] = (cups[f][0], min(SIZE - 1, cups[f][1]))
         for name, (ax, ay) in anchor.items():
-            layers[name].putpixel((f * SIZE + ax, ay), (255, 0, 255, 255))
+            # Всяка точка е в своя лента (могат да се застъпват: чаша пред шала).
+            dots[name].putpixel((f * SIZE + ax, ay), POINT_COLORS[name] + (255,))
+    if not cups:
+        del dots["cup"]
+    return paint, dots
+
+
+def nearest(rgb, table):
+    """Кой цвят от таблицата е най-близо (картата може да е рисувана с леко различни цветове)."""
+    best, dist = None, 60 ** 2
+    for key, c in table.items():
+        d = sum((a - b) ** 2 for a, b in zip(rgb, c))
+        if d < dist:
+            best, dist = key, d
+    return best
+
+
+def layers_from(anim, strip, paint):
+    """От картата: сивите шаблони, точките и слоят „отпред“ в assets/clothes/layers."""
+    names = list(LAYER.values()) + ["head", "face", "neck", "front"]
+    if anim.startswith("sit_drinking") or anim in ("eat", "eat_hold"):
+        names.append("cup")
+    layers = {n: Image.new("RGBA", strip.size, (0, 0, 0, 0)) for n in names}
+    w = min(strip.width, paint.width)
+    for y in range(SIZE):
+        for x in range(w):
+            p = paint.getpixel((x, y))
+            if p[3] < 128:
+                continue
+            rgb = p[:3]
+            bear = strip.getpixel((x, y))
+            if bear[3] == 0:
+                continue
+            part = nearest(rgb, PART_COLORS)
+            is_front = part is None and nearest(rgb, FRONT_COLORS) is not None
+            if is_front:
+                part = nearest(rgb, FRONT_COLORS)
+                layers["front"].putpixel((x, y), (255, 255, 255, 255))
+            if part in LAYER:
+                g = tone(bear)
+                layers[LAYER[part]].putpixel((x, y), (g, g, g, 255))
+    # Точките: <anim>_head.png (шапка), _face.png (очила), _neck.png (шал),
+    # _cup.png (чаша/храна) от папката с картите – по един пиксел на кадър.
+    for name in POINT_COLORS:
+        src = os.path.join(PAINT, f"{anim}_{name}.png")
+        if os.path.exists(src):
+            layers[name] = Image.open(src).convert("RGBA")
+        elif name in layers and name == "cup":
+            del layers[name]
+    os.makedirs(LAYERS, exist_ok=True)
     for name, img in layers.items():
         img.save(os.path.join(LAYERS, f"{anim}_{name}.png"))
-    if anim.startswith("sit_drinking") or anim in ("eat", "eat_hold"):
-        cup = Image.new("RGBA", strip.size, (0, 0, 0, 0))
-        points = eat_anchors(strip) if anim.startswith("eat") else cup_anchors(strip, anim)
-        for f, (cx, cy) in enumerate(points):
-            cup.putpixel((f * SIZE + cx, min(SIZE - 1, cy)), (255, 0, 255, 255))
-        cup.save(os.path.join(LAYERS, f"{anim}_cup.png"))
+
+
+def main(anim, redo=False):
+    strip = Image.open(os.path.join(BEAR, f"{anim}.png")).convert("RGBA")
+    os.makedirs(PAINT, exist_ok=True)
+    path = os.path.join(PAINT, f"{anim}.png")
+    if redo or not os.path.exists(path):
+        paint, dots = draft(anim, strip)
+        paint.save(path)
+        for name, img in dots.items():
+            img.save(os.path.join(PAINT, f"{anim}_{name}.png"))
+        print(f"{anim}: нова чернова на картата")
+    paint = Image.open(path).convert("RGBA")
+    layers_from(anim, strip, paint)
+
+
+def all_anims():
+    """Нарисуваните от Тут (временните си имат точни шаблони от make_placeholders.py)."""
+    sys.path.insert(0, os.path.dirname(__file__))
+    import make_placeholders as mp
+    return sorted(mp.HAND_DRAWN | set(mp.EXTRA_DRAWN) | {"eat_hold"})
 
 
 if __name__ == "__main__":
-    for name in sys.argv[1:] or ["idle"]:
-        main(name)
+    args = sys.argv[1:]
+    redo = "--redo" in args
+    names = [a for a in args if not a.startswith("--")]
+    if "--all" in args or not names:
+        names = all_anims()
+    for name in names:
+        main(name, redo)
