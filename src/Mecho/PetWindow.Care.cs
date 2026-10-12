@@ -21,8 +21,28 @@ public sealed partial class PetWindow
     /// <summary>Много е уморен: ходи бавно и не му се играе.</summary>
     public bool IsExhausted => _save.Energy < 25;
 
-    public static readonly TimeSpan FocusLength = TimeSpan.FromMinutes(25);
-    public static readonly TimeSpan BreakLength = TimeSpan.FromMinutes(5);
+    /// <summary>Видовете мечо-доро: работа и почивка в минути.</summary>
+    public static readonly (string Id, string Name, int Focus, int Break, string Hint)[] PomodoroModes =
+    {
+        ("25", "25 / 5", 25, 5, "Класическото: 25 минути работа, 5 почивка."),
+        ("52", "52 / 17", 52, 17, "Дълбок фокус: 52 минути съсредоточена работа, после 17 минути почивка."),
+        ("90", "90 / 20", 90, 20, "Голям блок по естествения цикъл на енергията: 90 минути работа, 20 почивка."),
+    };
+
+    public (string Id, string Name, int Focus, int Break, string Hint) PomodoroMode =>
+        PomodoroModes.FirstOrDefault(m => m.Id == _save.PomodoroMode) is { Id: not null } m ? m : PomodoroModes[0];
+
+    public TimeSpan FocusLength => TimeSpan.FromMinutes(PomodoroMode.Focus);
+    public TimeSpan BreakLength => TimeSpan.FromMinutes(PomodoroMode.Break);
+
+    /// <summary>Сменя вида мечо-доро (само докато не тече).</summary>
+    public void SetPomodoroMode(string id)
+    {
+        if (_save.PomodoroPhase != PomodoroPhase.Off || PomodoroModes.All(m => m.Id != id)) return;
+        _save.PomodoroMode = id;
+        Persist();
+        NotifyCare();
+    }
 
     private double _nextNeedLine;
     private readonly Border _timerTag = new();

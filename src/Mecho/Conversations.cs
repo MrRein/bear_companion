@@ -19,7 +19,7 @@ public static class Conversations
 
     /// <summary>„Няма ли да правим нещо?“: мечо-доро, таймер, задача, бележка.</summary>
     public static ChatQuestion WorkOffer(PetWindow pet) => new($"Какво ще правим, {pet.Save.OwnerName}?",
-        new ChatOption("Мечо-доро (25 мин)", p => p.StartFocus()),
+        new ChatOption($"Мечо-доро ({pet.PomodoroMode.Focus} мин)", p => p.StartFocus()),
         new ChatOption("Таймер", p => p.OpenMenu(MenuWindow.PomodoroTab)),
         new ChatOption("Ще запиша задача", p => p.OpenMenu(MenuWindow.TasksTab)),
         new ChatOption("Ще запиша бележка", p => p.OpenMenu(MenuWindow.NotesTab)),
@@ -228,7 +228,7 @@ public static class Conversations
                 p.AddNote("✏️ " + prompt, quiet: true);
                 p.Cheer("Записах я в бележките!");
             }),
-            new ChatOption("🍯 Пусни 25 минути", p => p.StartFocus()),
+            new ChatOption("🍯 Пусни мечо-доро", p => p.StartFocus()),
             Reply("Стига толкова", "Нарисувай я и ми я покажи!"));
     }
 
@@ -240,7 +240,7 @@ public static class Conversations
             Reply("🤷 Не знам какво да рисувам", "Нарисувай чашата си. После я нарисувай като чудовище."),
             Reply("😒 Не ми харесва", "Обърни рисунката огледално. Свежият поглед вижда всичко."),
             Reply("🎞️ Движението е дървено", "Пробвай с повече разтягане и свиване. И изпревари движението с малко обратно."),
-            new ChatOption("⏳ Нямам време", p2 => p2.Ask(new ChatQuestion("Едно мечо-доро? Само 25 минути, аз ще пазя.",
+            new ChatOption("⏳ Нямам време", p2 => p2.Ask(new ChatQuestion($"Едно мечо-доро? Само {pet.PomodoroMode.Focus} минути, аз ще пазя.",
                 new ChatOption("🍯 Хайде", p3 => p3.StartFocus()),
                 Reply("Не сега", "Добре. Тук съм, когато решиш."))))))),
         Reply("🙊 Не питай", "Добре, мълча. *шшт*"));

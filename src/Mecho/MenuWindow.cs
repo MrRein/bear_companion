@@ -479,11 +479,11 @@ public sealed class MenuWindow : Window
         var chosen = _pet.CurrentFun;
         _relaxGrid.Children.Clear();
         bool random = _pet.RelaxesRandomly;
-        _relaxButton.Background = random ? Honey : PaperDark;
+        SetOn(_relaxButton, random);
         _relaxButton.ToolTip = Tip(random
             ? "Почива си и сменя заниманията сам. Цъкни пак, за да спре."
             : "Мечокът почива и сам сменя заниманията (четене, чай, музика…).");
-        _relaxMore.Background = _relaxOpen ? Honey : PaperDark;
+        SetOn(_relaxMore, _relaxOpen);
         _relaxGrid.Visibility = _relaxOpen ? Visibility.Visible : Visibility.Collapsed;
         foreach (var scene in Scenes.Fun)
         {
@@ -802,10 +802,10 @@ public sealed class MenuWindow : Window
             {
                 Background = i == _shopCategory ? Honey : PaperDark,
                 BorderBrush = Ink,
-                BorderThickness = new Thickness(2, 2, 2, i == _shopCategory ? 2 : 4),
+                BorderThickness = i == _shopCategory ? Sunken : Raised,
                 CornerRadius = new CornerRadius(5),
                 Padding = new Thickness(2, 5 * U, 2, 5 * U),
-                Margin = new Thickness(0, i == _shopCategory ? 2 : 0, 6, 0),
+                Margin = new Thickness(0, 0, 6, 0),
                 Cursor = Cursors.Hand,
                 Child = label,
             };
@@ -1053,7 +1053,7 @@ public sealed class MenuWindow : Window
         {
             Background = Tile,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(2, 2, 2, 4),
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(8 * U),
             Margin = new Thickness(0, 0, 8 * U, 8 * U),
@@ -1129,7 +1129,7 @@ public sealed class MenuWindow : Window
         _pajamaChip.Child = IconText("moon", s.PajamasAtNight
             ? (_pet.PajamaTime ? "Пижама вечер: вкл. (сега е с пижама)" : "Пижама вечер: вкл.")
             : "Пижама вечер: изкл.");
-        _pajamaChip.Background = s.PajamasAtNight ? Honey : PaperDark;
+        SetOn(_pajamaChip, s.PajamasAtNight);
         _model.Source = _pet.Portrait;
 
         _wornList.Children.Clear();
@@ -1191,7 +1191,7 @@ public sealed class MenuWindow : Window
                 BuildWardrobe();
             });
             chip.Child = IconText(section.Icon, section.Name);
-            chip.Background = id == _wardrobeSection ? Honey : PaperDark;
+            SetOn(chip, id == _wardrobeSection);
             chip.Margin = new Thickness(0, 0, 5, 5);
             bar.Children.Add(chip);
         }
@@ -1368,7 +1368,7 @@ public sealed class MenuWindow : Window
     private void BuildTaskList()
     {
         _taskList.Children.Clear();
-        _historyButton.Background = _showHistory ? Honey : PaperDark;
+        SetOn(_historyButton, _showHistory);
         if (_showHistory)
         {
             BuildTaskHistory();
@@ -1433,7 +1433,7 @@ public sealed class MenuWindow : Window
     private void UpdateSizeButtons()
     {
         for (int i = 0; i < 3; i++)
-            _sizeButtons[i].Background = i + 1 == _taskSize ? Honey : PaperDark;
+            SetOn(_sizeButtons[i], i + 1 == _taskSize);
     }
 
     // ───────────────────────── Бележки ─────────────────────────
@@ -1525,19 +1525,33 @@ public sealed class MenuWindow : Window
 
     // ───────────────────────── Време ─────────────────────────
 
+    private readonly List<(string Id, Border Chip)> _pomModes = new();
+
     private UIElement BuildPomodoroTab()
     {
         var p = new StackPanel();
         var pomRibbon = Ribbon("Мечо-доро", "honey");
         pomRibbon.Margin = new Thickness(0, 0, 0, 8);
         p.Children.Add(pomRibbon);
+        // Вид мечо-доро: 25/5, 52/17, 90/20 (сменя се, докато не тече).
+        var modes = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+        foreach (var mode in PetWindow.PomodoroModes)
+        {
+            string id = mode.Id;
+            var chip = Chip(mode.Name, () => _pet.SetPomodoroMode(id));
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            chip.ToolTip = Tip(mode.Hint);
+            _pomModes.Add((id, chip));
+            modes.Children.Add(chip);
+        }
+        p.Children.Add(modes);
         _pomTime = new TextBlock { FontFamily = MonoFont, FontSize = Huge, HorizontalAlignment = HorizontalAlignment.Center };
         _pomStatus = new TextBlock { HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
         p.Children.Add(new Border
         {
             Background = TileArt,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(2, 2, 2, 4),
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(10, 6, 10, 10),
             Child = new StackPanel { Children = { _pomTime, _pomStatus } },
@@ -1613,7 +1627,7 @@ public sealed class MenuWindow : Window
     private void UpdateWorkChip()
     {
         SetChip(_workChip, _timerWork ? "✓ Работен (мечокът работи с теб)" : "✕ Не е за работа");
-        _workChip.Background = _timerWork ? Honey : PaperDark;
+        SetOn(_workChip, _timerWork);
     }
 
     private void StartCustomTimer()
@@ -1761,12 +1775,21 @@ public sealed class MenuWindow : Window
                 _pomStatus.Text = "Почивка: стани, раздвижи се, пийни вода.";
                 break;
             default:
-                _pomTime.Text = $"{(int)PetWindow.FocusLength.TotalMinutes:00}:00";
-                _pomStatus.Text = "Готова ли си?";
+                _pomTime.Text = $"{(int)_pet.FocusLength.TotalMinutes:00}:00";
+                _pomStatus.Text = "Готова ли си? " + _pet.PomodoroMode.Hint;
                 break;
         }
         _pomStart.Visibility = s.PomodoroPhase == PomodoroPhase.Focus ? Visibility.Collapsed : Visibility.Visible;
-        SetButton(_pomStart, s.PomodoroPhase == PomodoroPhase.Break ? "Нов мечо-доро" : "Започни 25 минути", "play");
+        SetButton(_pomStart, s.PomodoroPhase == PomodoroPhase.Break ? "Нов мечо-доро" : $"Започни {_pet.PomodoroMode.Focus} минути", "play");
+        bool running = s.PomodoroPhase != PomodoroPhase.Off;
+        foreach (var (id, chip) in _pomModes)
+        {
+            SetOn(chip, id == _pet.PomodoroMode.Id);
+            // Докато тече, видът не се сменя: копчетата са бледи и не се натискат.
+            chip.IsHitTestVisible = !running;
+            chip.Opacity = running && id != _pet.PomodoroMode.Id ? 0.5 : 1;
+            chip.BorderThickness = id == _pet.PomodoroMode.Id ? Sunken : running ? Flat : Raised;
+        }
         _pomStop.Visibility = s.PomodoroPhase == PomodoroPhase.Off ? Visibility.Collapsed : Visibility.Visible;
         _pomToday.Text = $"Днес: {s.PomodorosToday}   ·   Общо: {s.PomodorosTotal}";
 
@@ -1800,7 +1823,7 @@ public sealed class MenuWindow : Window
         FontSize = Body,
         Padding = new Thickness(8, 6, 8, 6),
         BorderBrush = Ink,
-        BorderThickness = new Thickness(2, 2, 2, 3),
+        BorderThickness = Flat,
         Background = Cream,
         Foreground = Ink,
         VerticalContentAlignment = VerticalAlignment.Center,
@@ -1830,7 +1853,7 @@ public sealed class MenuWindow : Window
     {
         Background = faded ? PaperDark : Tile,
         BorderBrush = WoodDark,
-        BorderThickness = new Thickness(2, 2, 2, 3),
+        BorderThickness = Flat,
         CornerRadius = new CornerRadius(4),
         Padding = new Thickness(10, 7, 7, 7),
         Margin = new Thickness(0, 0, 0, 6),

@@ -67,6 +67,9 @@ public sealed class SaveData
 
     // Мечо-доро, което тече в момента (за да продължи след рестарт)
     public PomodoroPhase PomodoroPhase { get; set; }
+
+    /// <summary>Видът мечо-доро: "25" (25/5), "52" (52/17) или "90" (90/20).</summary>
+    public string PomodoroMode { get; set; } = "25";
     public DateTime PomodoroEndsAt { get; set; }
 
     // Обикновен таймер (MinValue = не тече)

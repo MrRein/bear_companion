@@ -325,6 +325,33 @@ public static class Ui
     public static void SetButton(Button button, string text, string? icon = null) =>
         button.Content = IconText(icon, text, bold: true);
 
+    // Три вида неща, навсякъде еднакво:
+    // * натиска се – изпъкнало: дебел ръб отдолу (Raised), свети при посочване;
+    // * избрано (включено) – медено и натиснато навътре: дебел ръб отгоре (Sunken);
+    // * не се натиска – заглавие (само текст с черта отдолу) или плоска рамка (Flat).
+    public static readonly Thickness Raised = new(2, 2, 2, 4);
+    public static readonly Thickness Sunken = new(2, 4, 2, 2);
+    public static readonly Thickness Flat = new(2);
+
+    /// <summary>Избрано или не (копче или бутон-превключвател).</summary>
+    public static void SetOn(FrameworkElement element, bool on)
+    {
+        element.Tag = on;
+        switch (element)
+        {
+            case Border b:
+                b.Background = on ? Honey : PaperDark;
+                b.BorderThickness = on ? Sunken : Raised;
+                break;
+            case Control c:
+                c.Background = on ? Honey : PaperDark;
+                c.BorderThickness = on ? Sunken : Raised;
+                break;
+        }
+    }
+
+    private static bool IsOn(FrameworkElement e) => e.Tag is true;
+
     /// <summary>Малко копче (размер на задача, ✕ и др.).</summary>
     public static Border Chip(string text, Action onClick)
     {
@@ -332,12 +359,14 @@ public static class Ui
         {
             Background = PaperDark,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(2, 2, 2, 3),
+            BorderThickness = Raised,
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(8, 3, 8, 4),
             Cursor = Cursors.Hand,
             Child = ChipContent(text),
         };
+        chip.MouseEnter += (_, _) => { if (!IsOn(chip)) chip.Background = Hover; };
+        chip.MouseLeave += (_, _) => { if (!IsOn(chip)) chip.Background = PaperDark; };
         // Натискането не стига до родителя (например до дръжката за местене на панела).
         chip.MouseLeftButtonDown += (_, e) => e.Handled = true;
         chip.MouseLeftButtonUp += (_, e) =>
@@ -381,6 +410,7 @@ public static class Ui
         template.Triggers.Add(pressed);
         var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5));
+        disabled.Setters.Add(new Setter(Border.BorderThicknessProperty, Flat, "bd"));      // не изпъква: не се натиска
         template.Triggers.Add(disabled);
         return template;
     }
@@ -407,15 +437,15 @@ public static class Ui
     };
 
     /// <summary>Заглавна лента (като панделка) за раздел.</summary>
+    /// Не е бутон: само текст с черта отдолу през цялата ширина.
     public static Border Ribbon(string text, string? icon = null) => new()
     {
-        Background = Honey,
-        BorderBrush = Ink,
-        BorderThickness = new Thickness(2, 2, 2, 3),
-        CornerRadius = new CornerRadius(4),
-        Padding = new Thickness(8, 3, 10, 4),
+        Background = Brushes.Transparent,
+        BorderBrush = WoodLight,
+        BorderThickness = new Thickness(0, 0, 0, 2),
+        Padding = new Thickness(2, 0, 2, 3),
         Margin = new Thickness(0, 12, 0, 8),
-        HorizontalAlignment = HorizontalAlignment.Left,
+        HorizontalAlignment = HorizontalAlignment.Stretch,
         Child = IconText(icon, text, bold: true),
     };
 
@@ -424,7 +454,7 @@ public static class Ui
     {
         Background = Honey,
         BorderBrush = Ink,
-        BorderThickness = new Thickness(2, 2, 2, 3),
+        BorderThickness = Flat,
         CornerRadius = new CornerRadius(10),
         Padding = new Thickness(8, 2, 10, 3),
         Child = content,

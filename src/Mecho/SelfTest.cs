@@ -131,6 +131,21 @@ public sealed partial class PetWindow
             t.Owned.Add("skin_couch_velvet");
             if (Furniture.Current(t, Kitchen.Couch).Id != "velvet") throw new Exception("купеният скин не е сложен");
         }, 100);
+        await step("видове мечо-доро", () =>
+        {
+            foreach (var mode in PomodoroModes)
+            {
+                SetPomodoroMode(mode.Id);
+                if (FocusLength.TotalMinutes != mode.Focus || BreakLength.TotalMinutes != mode.Break) throw new Exception("грешен вид " + mode.Id);
+            }
+            StartFocus();
+            SetPomodoroMode("25");
+            if (PomodoroMode.Id != "90") throw new Exception("видът се смени по време на работа");
+            OpenMenu(MenuWindow.PomodoroTab);
+            _menu!.UpdateLayout();
+            StopPomodoro();
+            SetPomodoroMode("25");
+        }, 600);
         await step("рецепти от страници", () =>
         {
             var t = new SaveData();

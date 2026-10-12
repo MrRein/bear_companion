@@ -232,9 +232,9 @@ public sealed class DrawWindow : Window
                 _swatches[i].BorderThickness = new Thickness(on ? 4 : 2);
                 _swatches[i].BorderBrush = on ? Honey : Ink;
             }
-            for (int i = 0; i < 3; i++) _sizes[i].Background = SizeCells[i] == _owner._size ? Honey : PaperDark;
+            for (int i = 0; i < 3; i++) SetOn(_sizes[i], SizeCells[i] == _owner._size);
             _brush.Background = _owner._eraser ? PaperDark : Honey;
-            _erase.Background = _owner._eraser ? Honey : PaperDark;
+            SetOn(_erase, _owner._eraser);
         }
     }
 }
