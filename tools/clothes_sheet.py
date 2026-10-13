@@ -173,8 +173,31 @@ def import_sheet(path):
             around = [p for p in around if p[3]]
             if around:
                 paint.putpixel((x, y), max(set(around), key=around.count))
+        # Няколко точки от един вид в кадър (например бели очи, взети за шала):
+        # остава тази, която е най-близо до мястото ѝ в другите кадри.
+        for n, img in dots.items():
+            frames_pts = []
+            for f in range(r["frames"]):
+                frames_pts.append([(x, y) for y in range(SIZE) for x in range(SIZE)
+                                   if img.getpixel((f * SIZE + x, y))[3]])
+            single = [p[0] for p in frames_pts if len(p) == 1]
+            # Легнал мечок (сън) е без шапка, очила и шал; иначе без ясна точка – нищо.
+            if not single or (anim in ac.LYING and n != "cup"):
+                img.paste((0, 0, 0, 0), (0, 0, img.width, img.height))
+                continue
+            mx = sum(x for x, _ in single) / len(single)
+            my = sum(y for _, y in single) / len(single)
+            for f, pts in enumerate(frames_pts):
+                if len(pts) <= 1:
+                    continue
+                keep = min(pts, key=lambda q: (q[0] - mx) ** 2 + (q[1] - my) ** 2)
+                for x, y in pts:
+                    if (x, y) != keep:
+                        img.putpixel((f * SIZE + x, y), (0, 0, 0, 0))
         # Кадър без нова точка (например две точки на един пиксел) пази старата.
         for n, old in old_dots.items():
+            if anim in ac.LYING and n != "cup":
+                continue
             for f in range(r["frames"]):
                 box = (f * SIZE, 0, f * SIZE + SIZE, SIZE)
                 if dots[n].crop(box).getbbox() is None:
@@ -182,8 +205,9 @@ def import_sheet(path):
         os.makedirs(ac.PAINT, exist_ok=True)
         paint.save(os.path.join(ac.PAINT, f"{anim}.png"))
         for n, img in dots.items():
-            if img.getbbox():
-                img.save(os.path.join(ac.PAINT, f"{anim}_{n}.png"))
+            path = os.path.join(ac.PAINT, f"{anim}_{n}.png")
+            if img.getbbox() or os.path.exists(path):
+                img.save(path)
         ac.main(anim)
         done.append(anim)
     print("Нови карти:", ", ".join(done) or "няма маркирани редове")
