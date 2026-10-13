@@ -177,6 +177,14 @@
       "file": "heater_b.png",
       "seat": 0
     },
+    "parcel": {
+      "file": "parcel.png",
+      "seat": 0
+    },
+    "parcel_open": {
+      "file": "parcel_open.png",
+      "seat": 0
+    },
     "bee": {
       "file": "bee.png",
       "seat": 0

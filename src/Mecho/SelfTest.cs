@@ -164,12 +164,28 @@ public sealed partial class PetWindow
                 if (done != next || got != need || !Kitchen.HasRecipe(next, t)) throw new Exception($"{next.Id}: грешно отключване");
                 learned++;
             }
-            if (learned != Kitchen.Foods.Count(f => f.Cost > 0)) throw new Exception("не всички рецепти се научиха");
+            if (learned != Kitchen.Foods.Count(f => f.Cost > 0 && !Kitchen.IsDefaultRecipe(f))) throw new Exception("не всички рецепти се научиха");
+            // Всеки уред идва със своята първа рецепта.
+            foreach (var tool in new[] { Kitchen.Pot, Kitchen.Pan, Kitchen.Oven, Kitchen.CoffeeMachine, Kitchen.Kettle, Kitchen.Jug })
+                if (Kitchen.DefaultRecipe(tool) == null) throw new Exception("уред без рецепта: " + tool);
             if (Recipes.AddPage(t) != null) throw new Exception("страница след всичко");
             FindRecipePage();
             OpenMenu(MenuWindow.FoodTab);
             _menu!.UpdateLayout();
         }, 400);
+        await step("доставка", () =>
+        {
+            _save.Hazelnuts += 100;
+            var pot = Kitchen.Upgrades.First(u => u.Id == Kitchen.Pot);
+            _save.Owned.Remove(Kitchen.Pot);
+            _save.Owned.Remove(Kitchen.RecipeId(Kitchen.Foods.First(f => f.Id == "popcorn")));
+            Buy(pot);
+            if (!Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "popcorn"), _save)) throw new Exception("тенджерата дойде без рецепта");
+            _nextDelivery = 0;
+        }, 2500);
+        await step("доставката пада", () => { if (_parcel == null) throw new Exception("няма кашонче"); }, 3000);
+        await step("доставката се отваря", () => { OpenParcel(); }, 2500);
+        await step("доставката свърши", () => { if (_parcel != null) throw new Exception("кашончето остана"); SetIdle(); }, 300);
         await step("отключи всичко", DevUnlockAll, 200);
         for (int tab = 0; tab <= MenuWindow.MoreTab; tab++)
         {

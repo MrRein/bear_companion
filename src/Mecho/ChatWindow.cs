@@ -85,10 +85,19 @@ public sealed class ChatWindow : Window
             _options.Children.Add(b);
         }
 
-        if (!IsVisible) Show();
+        // Първо се подрежда далеч от екрана и чак после застава над мечока –
+        // иначе за миг се показваше на старото място (където мечокът беше преди).
+        if (!IsVisible)
+        {
+            Left = -32000;
+            Top = -32000;
+            Show();
+        }
         UpdateLayout();
         double left = bear.Left + bear.Width / 2 - ActualWidth / 2;
         double top = bear.Top - ActualHeight - 6;
+        // Няма място отгоре (вдигнат е високо): под него.
+        if (top < area.Top + 4) top = Math.Min(bear.Bottom + 6, area.Bottom - ActualHeight - 4);
         Left = Math.Clamp(left, area.Left + 4, Math.Max(area.Left + 4, area.Right - ActualWidth - 4));
         Top = Math.Max(area.Top + 4, top);
         Activate();

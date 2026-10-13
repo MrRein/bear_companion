@@ -322,8 +322,16 @@ public static class Ui
     }
 
     /// <summary>Сменя текста (и иконката) на бутон.</summary>
-    public static void SetButton(Button button, string text, string? icon = null) =>
+    public static void SetButton(Button button, string text, string? icon = null)
+    {
+        // Менюто се опреснява всяка секунда: сменяме съдържанието само ако нещо е различно.
+        string key = icon + "\u0001" + text;
+        if (ButtonText.TryGetValue(button, out var old) && old.Value == key) return;
+        ButtonText.AddOrUpdate(button, new System.Runtime.CompilerServices.StrongBox<string>(key));
         button.Content = IconText(icon, text, bold: true);
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Button, System.Runtime.CompilerServices.StrongBox<string>> ButtonText = new();
 
     // Три вида неща, навсякъде еднакво:
     // * натиска се – изпъкнало: дебел ръб отдолу (Raised), свети при посочване;

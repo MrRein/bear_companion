@@ -30,6 +30,7 @@ public sealed partial class PetWindow
         UpdateCursorLook(now);
         UpdatePresence(now);
         UpdateVisitor(now);
+        UpdateDelivery(now);
         UpdateSkyTalk(now);
     }
 

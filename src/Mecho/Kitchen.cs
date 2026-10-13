@@ -59,11 +59,11 @@ public static class Kitchen
 
     public static readonly Upgrade[] Upgrades =
     {
-        new(Pot, "Тенджера", "🍲", 10, "За пуканки (рецептите се откриват от страници)."),
-        new(Kettle, "Чайник", "🫖", 15, "Кътче за чай; с рецептата – чай с мед за енергия."),
-        new(Pan, "Тиган", "🍳", 25, "За кюфтенца (рецептите се откриват от страници)."),
-        new(CoffeeMachine, "Кафе машина", "☕", 30, "За кафе, когато научиш рецептата: енергия до половината (най-много 2 на половин час)."),
-        new(Oven, "Фурна", "🔥", 45, "За мечешки картофки (рецептите се откриват от страници)."),
+        new(Pot, "Тенджера", "🍲", 10, "Идва с рецепта за пуканки; още рецепти – от страници."),
+        new(Kettle, "Чайник", "🫖", 15, "Идва с рецепта за чай с мед (енергия); и кътче за чай."),
+        new(Pan, "Тиган", "🍳", 25, "Идва с рецепта за кюфтенца; още рецепти – от страници."),
+        new(CoffeeMachine, "Кафе машина", "☕", 30, "Идва с рецепта за кафе: енергия до половината (най-много 2 на половин час)."),
+        new(Oven, "Фурна", "🔥", 45, "Идва с рецепта за мечешки картофки; още рецепти – от страници."),
 
         new(PlantPot, "Саксия с цвете", "🌱", 10, "Мечокът полива цветето.", FunShelf),
 
@@ -93,6 +93,20 @@ public static class Kitchen
     /// Рецептата се купува веднъж (освен за боровинките); после ястието се готви
     /// колкото пъти искаш. Пази се в Owned като „recipe_&lt;храна&gt;“.
     /// </summary>
+    /// <summary>Рецептата, която идва с уреда (останалите се научават от страници).</summary>
+    public static string? DefaultRecipe(string tool) => tool switch
+    {
+        Pot => "popcorn",
+        Pan => "meatballs",
+        Oven => "potatoes",
+        CoffeeMachine => "coffee",
+        Kettle => "tea",
+        Jug => "juice_orange",
+        _ => null,
+    };
+
+    public static bool IsDefaultRecipe(Food food) => food.Tool != null && DefaultRecipe(food.Tool) == food.Id;
+
     public static bool HasRecipe(Food food, SaveData save) => food.Cost == 0 || Owns(save, RecipeId(food));
 
     public static string RecipeId(Food food) => "recipe_" + food.Id;

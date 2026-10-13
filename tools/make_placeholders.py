@@ -1005,6 +1005,23 @@ def squirrel(frame):
     return f
 
 
+def parcel(opened):
+    """Доставка: кашонче с тиксо (затворено) или с отворени капаци."""
+    def f(d):
+        card, dark, tape = (205, 160, 105, 255), (165, 120, 70, 255), (235, 215, 160, 255)
+        d.rectangle((1, 5, 16, 15), fill=card, outline=OUTLINE)
+        d.line((2, 9, 15, 9), fill=dark)
+        if opened:
+            d.polygon([(1, 5), (-1, 1), (6, 1), (8, 5)], fill=dark, outline=OUTLINE)
+            d.polygon([(16, 5), (18, 1), (11, 1), (9, 5)], fill=dark, outline=OUTLINE)
+        else:
+            d.rectangle((1, 3, 16, 5), fill=card, outline=OUTLINE)
+            d.rectangle((7, 3, 10, 15), fill=tape)
+            d.line((7, 3, 7, 15), fill=dark); d.line((10, 3, 10, 15), fill=dark)
+        d.point((3, 12), fill=OUTLINE); d.point((4, 12), fill=OUTLINE)            # „етикет“
+    return f
+
+
 COOKERS = {"pot": cook_pot, "pan": cook_pan, "oven": cook_oven, "coffee_machine": cook_coffee, "kettle": cook_kettle,
            "jug_orange": cook_jug((250, 160, 40, 255), (255, 210, 120, 255)),
            "jug_berry": cook_jug((150, 60, 140, 255), (200, 120, 190, 255))}
@@ -1111,6 +1128,8 @@ for _skin, _args in BED_SKINS.items():
     PROP_LIST[f"bed_{_skin}"] = (bed(*_args), 7)
 for _i, _name in enumerate(["heater_off", "heater", "heater_b"]):
     PROP_LIST[_name] = (prop(20, 22, heater(_i)), 0)
+PROP_LIST["parcel"] = (prop(18, 16, parcel(False)), 0)
+PROP_LIST["parcel_open"] = (prop(18, 16, parcel(True)), 0)
 for _i, _name in enumerate(["bee", "bee_b"]):
     PROP_LIST[_name] = (prop(11, 11, bee(_i)), 0)
 for _i, _name in enumerate(["squirrel", "squirrel_b"]):

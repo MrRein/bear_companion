@@ -246,6 +246,7 @@ public sealed partial class PetWindow
 
         // ── Дребни неща за живот ──
         const string life = "Живот", weather = "Времето и печицата", talk = "Разговори и въпроси", modes = "Сам решава", lines = "Реплики";
+        yield return (life, "Доставка (тест)", () => { Deliver("🍲", "Тестово кашонче"); _nextDelivery = 0; });
         yield return (life, "Хълца", Hiccup);
         yield return (life, "Киха", Sneeze);
         yield return (life, "Намира нещо", FindSomething);

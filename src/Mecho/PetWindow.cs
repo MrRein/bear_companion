@@ -192,6 +192,7 @@ public sealed partial class PetWindow : Window
         _nextChatter = Now + 600 + _rng.Next(600);
         _nextUpdateCheck = Now + 60;
         StartFreeCycle(sitNow: false);
+        LearnOwnedDefaultRecipes();
         ResumeCooking();
         if (_save.StayPut)
         {
@@ -296,7 +297,7 @@ public sealed partial class PetWindow : Window
     private void PaceTimer()
     {
         bool moving = _state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
-            || _bfActive || _visitor != null || _peeking || _anim == "juggle" || Dressing || CookShaking || _cook is { Window.IsFalling: true }
+            || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || Dressing || CookShaking || _cook is { Window.IsFalling: true }
             || _food.Exists(f => f.VelocityX != 0 || f.VelocityY != 0);
         int ms = moving ? 33
             : IsAsleep && _bubble.Visibility != Visibility.Visible && _food.Count == 0 ? 200
@@ -917,7 +918,8 @@ public sealed partial class PetWindow : Window
             _sprite.Source = frame;
         }
         // Нов обект всеки кадър караше прозореца да се прерисува 30 пъти в секунда.
-        var flip = _facingLeft ? FlipLeft : Transform.Identity;
+        // В леглото лежи винаги с главата към възглавницата (както е нарисувано леглото).
+        var flip = _facingLeft && !BedOn ? FlipLeft : Transform.Identity;
         if (!ReferenceEquals(_sprite.RenderTransform, flip)) _sprite.RenderTransform = flip;
     }
 
@@ -929,6 +931,7 @@ public sealed partial class PetWindow : Window
     private double WindowW => 600 * Math.Max(1, BearScale / 3.0);
     private double WindowH => 340 * Math.Max(1, BearScale / 3.0);
     private Rect _window;
+    private double _winHalf, _winH, _winShrinkAt;   // истинският (по-малък) прозорец, виж UpdateLayoutAndWindow
 
     /// <summary>Нарежда мечока, дивана, табелката, балончето и пеперудата в прозореца.</summary>
     private void UpdateLayoutAndWindow()
@@ -998,22 +1001,68 @@ public sealed partial class PetWindow : Window
         var carry = CarryRect(bear);
         var held = HeldRect(bear);
 
-        Place(_sprite, new Rect(bear.Left, bear.Top - Dresser.HatRoom * PixelSize, bear.Width, _sprite.Height), _window.Left, _window.Top, dpi);
-        if (hasSeat) Place(_seat, seat, _window.Left, _window.Top, dpi);
-        if (!bed.IsEmpty) Place(_bed, bed, _window.Left, _window.Top, dpi);
-        if (hasSide) Place(_side, side, _window.Left, _window.Top, dpi);
-        if (!bubble.IsEmpty) Place(_bubble, bubble, _window.Left, _window.Top, dpi);
-        if (!tag.IsEmpty) Place(_timerTag, tag, _window.Left, _window.Top, dpi);
-        if (!carry.IsEmpty) Place(_carry, carry, _window.Left, _window.Top, dpi);
-        if (!held.IsEmpty) Place(_held, held, _window.Left, _window.Top, dpi);
-        if (!butterfly.IsEmpty) Place(_butterfly, butterfly, _window.Left, _window.Top, dpi);
+        // Прозорецът е само колкото е нужно (мечокът и каквото е около него):
+        // прозрачен прозорец се прерисува целият всеки кадър, затова по-малкият
+        // товари много по-малко. Върви точно с мечока (стъпалата му са винаги на
+        // едно място в прозореца); уголемява се веднага (балонче, пеперуда…), а
+        // се смалява чак 3 с по-късно и на стъпки от 64 – иначе Windows понякога
+        // преоразмерява кадър преди рисунката и мечокът трепери.
+        var sprite = new Rect(bear.Left, bear.Top - Dresser.HatRoom * PixelSize, bear.Width, _sprite.Height);
+        var used = sprite;
+        void Use(Rect u)
+        {
+            if (!u.IsEmpty) used.Union(u);
+        }
+        if (hasSeat) Use(seat);
+        Use(bed);
+        if (hasSide) Use(side);
+        Use(bubble);
+        Use(tag);
+        Use(carry);
+        Use(held);
+        Use(butterfly);
         for (int i = 0; i < nuts.Length; i++)
-            if (_juggleNuts[i].Visibility == Visibility.Visible) Place(_juggleNuts[i], nuts[i], _window.Left, _window.Top, dpi);
+            if (_juggleNuts[i].Visibility == Visibility.Visible) Use(nuts[i]);
+        const double step = 64;
+        double needHalf = Math.Ceiling((Math.Max(xs - used.Left, used.Right - xs) + 10) / step) * step;
+        double needH = Math.Ceiling((ys + 4 - used.Top + 10) / step) * step;
+        needHalf = Math.Min(needHalf, WindowW / 2);
+        needH = Math.Min(needH, WindowH);
+        double nowT = Now;
+        if (needHalf > _winHalf || needH > _winH || _winHalf == 0)
+        {
+            _winHalf = Math.Max(needHalf, _winHalf == 0 ? needHalf : _winHalf);
+            _winH = Math.Max(needH, _winH == 0 ? needH : _winH);
+            _winShrinkAt = nowT + 3;
+        }
+        else if (needHalf < _winHalf || needH < _winH)
+        {
+            if (nowT > _winShrinkAt)
+            {
+                _winHalf = needHalf;
+                _winH = needH;
+            }
+        }
+        else _winShrinkAt = nowT + 3;
+        double fw = Math.Round(_winHalf * 2 * dpi / 2) * 2, fh = Math.Round(_winH * dpi);
+        var frame = new Rect((ax - fw / 2) / dpi, (ay + 4 - fh) / dpi, fw / dpi, fh / dpi);
 
-        if (Math.Abs(Width - _window.Width) > 0.01) Width = _window.Width;
-        if (Math.Abs(Height - _window.Height) > 0.01) Height = _window.Height;
-        if (Math.Abs(Left - _window.Left) > 0.001) Left = _window.Left;
-        if (Math.Abs(Top - _window.Top) > 0.001) Top = _window.Top;
+        Place(_sprite, sprite, frame.Left, frame.Top, dpi);
+        if (hasSeat) Place(_seat, seat, frame.Left, frame.Top, dpi);
+        if (!bed.IsEmpty) Place(_bed, bed, frame.Left, frame.Top, dpi);
+        if (hasSide) Place(_side, side, frame.Left, frame.Top, dpi);
+        if (!bubble.IsEmpty) Place(_bubble, bubble, frame.Left, frame.Top, dpi);
+        if (!tag.IsEmpty) Place(_timerTag, tag, frame.Left, frame.Top, dpi);
+        if (!carry.IsEmpty) Place(_carry, carry, frame.Left, frame.Top, dpi);
+        if (!held.IsEmpty) Place(_held, held, frame.Left, frame.Top, dpi);
+        if (!butterfly.IsEmpty) Place(_butterfly, butterfly, frame.Left, frame.Top, dpi);
+        for (int i = 0; i < nuts.Length; i++)
+            if (_juggleNuts[i].Visibility == Visibility.Visible) Place(_juggleNuts[i], nuts[i], frame.Left, frame.Top, dpi);
+
+        if (Math.Abs(Width - frame.Width) > 0.01) Width = frame.Width;
+        if (Math.Abs(Height - frame.Height) > 0.01) Height = frame.Height;
+        if (Math.Abs(Left - frame.Left) > 0.001) Left = frame.Left;
+        if (Math.Abs(Top - frame.Top) > 0.001) Top = frame.Top;
     }
 
     private static void Place(UIElement element, Rect screen, double winLeft, double winTop, double dpi)

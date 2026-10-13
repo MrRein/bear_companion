@@ -26,6 +26,7 @@ public sealed partial class PetWindow
     {
         if (_cook is { Window.IsVisible: true } c) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(c.Window).Handle);
         if (_heaterWindow is { IsVisible: true } h) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(h).Handle);
+        if (_parcel is { IsVisible: true } pc) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(pc).Handle);
         if (_visitor is { IsVisible: true } v) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(v).Handle);
         // Храната над главата му остава под балончето.
         foreach (var f in _food)
@@ -47,6 +48,7 @@ public sealed partial class PetWindow
         _cook?.Window.SetAway(!show);
         _heaterWindow?.SetAway(!show);
         _visitor?.SetAway(!show);
+        _parcel?.SetAway(!show);
         if (show) RaiseCompanions();
         if (_giftWindow != null)
         {
@@ -205,14 +207,20 @@ public sealed partial class PetWindow
         }
         _save.Hazelnuts -= upgrade.Price;
         _save.Owned.Add(upgrade.Id);
-        Say($"Ура! {upgrade.Icon} {upgrade.Name}! {upgrade.Description}", 6);
-        // Диванът идва веднага, ако тъкмо чете на земята.
-        if (upgrade.Id == Kitchen.Couch && _inScene && _scene == Scenes.Reading) LoadSceneArt(Scenes.Reading);
-        // Ново нещо за почивка: веднага го пробва (ако не работите).
-        var scene = Scenes.All.FirstOrDefault(f => f.Unlock == upgrade.Id);
-        if (scene != null && !InFocus && !_save.StayPut && !IsAsleep && _state is not (BearState.Drag or BearState.Falling))
-            StartScene(scene, 180 + _rng.Next(120));
-        else if (CanAnimateFreely) Play("dance", length: 3);
+        LearnDefaultRecipe(upgrade.Id);
+        Say(R.Pick("delivery.ordered", _save.OwnerName), 4);
+        // Идва с доставка: като отвори кашончето, казва какво е и го пробва.
+        Deliver(upgrade.Icon, upgrade.Name, () =>
+        {
+            Say($"Ура! {upgrade.Icon} {upgrade.Name}! {upgrade.Description}", 6);
+            // Диванът идва веднага, ако тъкмо чете на земята.
+            if (upgrade.Id == Kitchen.Couch && _inScene && _scene == Scenes.Reading) LoadSceneArt(Scenes.Reading);
+            // Ново нещо за почивка: веднага го пробва (ако не работите).
+            var scene = Scenes.All.FirstOrDefault(f => f.Unlock == upgrade.Id);
+            if (scene != null && !InFocus && !_save.StayPut && !IsAsleep && _state is not (BearState.Drag or BearState.Falling))
+                StartScene(scene, 180 + _rng.Next(120));
+            else if (CanAnimateFreely) Play("dance", length: 3);
+        });
         NotifyCare();
         Persist();
     }
