@@ -329,8 +329,10 @@ public sealed partial class PetWindow
             return;
         }
 
-        // Тича след пеперудата, но спира, ако е точно под нея.
-        if (Math.Abs(_bfX - _x) > 12)
+        // Тича след пеперудата, но спира, ако е точно под нея. С „мъртва зона“: спира
+        // под 12, а тръгва чак над 40 – иначе на ръба сменяше „тича“/„радва се“ всеки кадър.
+        double gap = Math.Abs(_bfX - _x);
+        if (gap > 40 || (gap > 12 && _anim == "walk"))
         {
             SetAnimIfDifferent("walk");
             StepTowards(_bfX, WalkSpeed * 1.6, dt);

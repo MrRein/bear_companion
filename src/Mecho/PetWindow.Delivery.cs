@@ -112,7 +112,7 @@ public sealed partial class PetWindow
             WalkTo(cx + side * (SpriteWidth * 0.45 + w * PixelSize / 2), () =>
             {
                 _facingLeft = side > 0;
-                Play("happy", after: OpenParcel);
+                OpenParcel();
             });
         }
         else Later(6, OpenParcel);

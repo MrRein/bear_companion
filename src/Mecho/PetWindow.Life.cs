@@ -100,20 +100,41 @@ public sealed partial class PetWindow
         var c = new Point(pos.X / dpi, pos.Y / dpi);
         double speed = (c - _lastCursor).Length / Math.Max(dt, 0.05);
         _lastCursor = c;
-        if (_state != BearState.Idle || _inScene || IsAsleep) return;
+        // Само когато стои спокойно поне 3 с (иначе би се обърнал веднага след
+        // като се е обърнал към кашона, уреда… – премигване).
+        if (_state != BearState.Idle || _inScene || IsAsleep || _stateTime < 3) return;
         double dx = c.X - _x, dy = c.Y - (_y - SpriteHeight / 2);
-        if (Math.Abs(dx) > 260 || Math.Abs(dy) > 220 || Math.Abs(dx) < 12) return;
+        if (Math.Abs(dx) > 260 || Math.Abs(dy) > 220 || Math.Abs(dx) < 40)
+        {
+            _lookSince = -1;
+            return;
+        }
         // Мишката профуча покрай него: стряска се (рядко).
         if (speed > 2500 && Math.Abs(dx) < 120 && now > _nextStartle && !IsQuiet)
         {
             _nextStartle = now + Minutes(8, 15);
             _facingLeft = dx < 0;
+            _lastTurn = now;
             Say(R.Any("cursor.startle"), 2.5);
             Play("think", length: 1.2);
             return;
         }
-        _facingLeft = dx < 0;
+        // Обръща се към мишката само ако тя стои от другата му страна поне 0,8 с и
+        // не по-често от веднъж на 2,5 с – иначе се върти напред-назад.
+        bool left = dx < 0;
+        if (left == _facingLeft)
+        {
+            _lookSince = -1;
+            return;
+        }
+        if (_lookSince < 0) _lookSince = now;
+        if (now - _lookSince < 0.8 || now - _lastTurn < 2.5) return;
+        _facingLeft = left;
+        _lastTurn = now;
+        _lookSince = -1;
     }
+
+    private double _lookSince = -1, _lastTurn;
 
     // ── 4. Хълцане и кихане ──
 

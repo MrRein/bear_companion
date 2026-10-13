@@ -222,19 +222,43 @@ public sealed class Dresser
 {
     public const int HatRoom = 12;
 
-    private readonly Dictionary<(string, int), BitmapSource> _cache = new();
+    // Готовите кадри (мечокът с дрехите) – по облекло. Пазим няколко облекла: иначе
+    // всяка смяна (чашата в лапата при пиене, пижамата…) изтриваше всичко и
+    // следващите кадри се рисуваха наново точно когато трябва да се покажат
+    // (накъсване/премигване).
+    private readonly Dictionary<string, Dictionary<(string, int), BitmapSource>> _caches = new();
+    private readonly List<string> _recent = new();
+    private Dictionary<(string, int), BitmapSource> _cache = new();
     private SpriteLibrary? _lib;
     private string _key = "";
 
     public BitmapSource Frame(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit)
     {
         string key = string.Join(",", Clothes.Slots.Select(s => outfit.TryGetValue(s.Id, out var id) ? id : "")) + "|" + Book;
-        if (!ReferenceEquals(lib, _lib)) _previews.Clear();
-        if (!ReferenceEquals(lib, _lib) || key != _key)
+        if (!ReferenceEquals(lib, _lib))
         {
-            _cache.Clear();
+            _previews.Clear();
+            _caches.Clear();
+            _recent.Clear();
             _lib = lib;
+            _key = "";
+        }
+        if (key != _key)
+        {
+            if (!_caches.TryGetValue(key, out var c))
+            {
+                c = new Dictionary<(string, int), BitmapSource>();
+                _caches[key] = c;
+            }
+            _cache = c;
             _key = key;
+            _recent.Remove(key);
+            _recent.Add(key);
+            while (_recent.Count > 6)
+            {
+                _caches.Remove(_recent[0]);
+                _recent.RemoveAt(0);
+            }
         }
         if (_cache.TryGetValue((anim, index), out var done)) return done;
         done = Dress(lib, anim, index, outfit, Book);
@@ -253,7 +277,10 @@ public sealed class Dresser
     {
         if (!ReferenceEquals(lib, _lib))
         {
-            _cache.Clear();
+            _caches.Clear();
+            _recent.Clear();
+            _cache = new Dictionary<(string, int), BitmapSource>();
+            _key = "";
             _previews.Clear();
             _lib = lib;
         }

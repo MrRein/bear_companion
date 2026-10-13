@@ -18,6 +18,8 @@ public sealed class CourierWindow : Window
     private readonly Image _box = new();
     private readonly List<Image> _couriers = new();
     private double _centerX, _bottom;
+    private ScaleTransform? _flip;
+    private double _w, _h;
 
     public CourierWindow(int count)
     {
@@ -60,19 +62,23 @@ public sealed class CourierWindow : Window
         double gap = 1 * pixel;
         double rowW = _couriers.Count * cw + (_couriers.Count - 1) * gap;
         double boxW = box == null ? 0 : box.PixelWidth * pixel, boxH = box == null ? 0 : box.PixelHeight * pixel;
-        double w = Math.Max(rowW, boxW), h = ch + boxH - (box == null ? 0 : 3 * pixel);
-        Width = w;
-        Height = h;
+        // Размерът на прозореца не се мени и след като оставят кашона (иначе за кадър
+        // човечетата подскачат – прозрачен прозорец се преоразмерява с закъснение).
+        _w = Math.Max(_w, Math.Max(rowW, boxW));
+        _h = Math.Max(_h, ch + boxH - 3 * pixel);
+        double w = _w, h = _h;
         _canvas.Width = w;
         _canvas.Height = h;
-        var flip = faceLeft ? Transform.Identity : new ScaleTransform(-1, 1, cw / 2, 0);
+        if (_flip == null || Math.Abs(_flip.CenterX - cw / 2) > 0.01) _flip = new ScaleTransform(-1, 1, cw / 2, 0);
+        Transform flip = faceLeft ? Transform.Identity : _flip;
         for (int i = 0; i < _couriers.Count; i++)
         {
             var c = _couriers[i];
-            c.Source = (i % 2 == 0) == frame ? walkA : walkB;
+            var src = (i % 2 == 0) == frame ? walkA : walkB;
+            if (!ReferenceEquals(c.Source, src)) c.Source = src;
             c.Width = cw;
             c.Height = ch;
-            c.RenderTransform = flip;
+            if (!ReferenceEquals(c.RenderTransform, flip)) c.RenderTransform = flip;
             Canvas.SetLeft(c, (w - rowW) / 2 + i * (cw + gap));
             Canvas.SetTop(c, h - ch);
         }
@@ -83,8 +89,10 @@ public sealed class CourierWindow : Window
             _box.Width = boxW;
             _box.Height = boxH;
             Canvas.SetLeft(_box, (w - boxW) / 2);
-            Canvas.SetTop(_box, 0);
+            Canvas.SetTop(_box, h - ch - boxH + 3 * pixel);
         }
+        if (Math.Abs(Width - w) > 0.01) Width = w;
+        if (Math.Abs(Height - h) > 0.01) Height = h;
         Left = _centerX - w / 2;
         Top = _bottom - h;
         if (!IsVisible) Show();
