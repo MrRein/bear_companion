@@ -1024,29 +1024,6 @@ def parcel(opened, w=18, h=16):
     return f
 
 
-def courier(frame, carrying=True):
-    """
-    Куриерче: малко жълто пиленце (12 x 14) с розови бузки, оранжева човка и
-    крачета; с вдигнати крилца държи кашона над главата. frame 0/1 – крачка.
-    """
-    def f(d):
-        YEL, YEL_D, ORANGE = (250, 215, 80, 255), (225, 180, 50, 255), (240, 130, 40, 255)
-        if carrying:
-            d.line((2, 6, 1, 1), fill=YEL_D, width=2); d.line((9, 6, 10, 1), fill=YEL_D, width=2)   # крилцата нагоре
-        d.ellipse((1, 3, 10, 12), fill=YEL, outline=OUTLINE)                                     # тяло
-        d.line((5, 2, 6, 3), fill=OUTLINE); d.point((6, 2), fill=YEL_D)                         # перце
-        d.rectangle((3, 5, 3, 6), fill=BLACK); d.rectangle((8, 5, 8, 6), fill=BLACK)            # очи
-        d.point((2, 8), fill=(240, 140, 150, 255)); d.point((9, 8), fill=(240, 140, 150, 255))   # бузки
-        d.rectangle((5, 7, 6, 7), fill=ORANGE); d.point((5, 8), fill=(215, 100, 30, 255)); d.point((6, 8), fill=(215, 100, 30, 255))  # човка
-        if not carrying:
-            d.point((1, 8), fill=YEL_D); d.point((10, 8), fill=YEL_D)
-        if frame == 0:
-            d.line((3, 12, 3, 13), fill=ORANGE); d.line((8, 12, 9, 13), fill=ORANGE)
-        else:
-            d.line((4, 12, 3, 13), fill=ORANGE); d.line((7, 12, 8, 13), fill=ORANGE)
-    return f
-
-
 COOKERS = {"pot": cook_pot, "pan": cook_pan, "oven": cook_oven, "coffee_machine": cook_coffee, "kettle": cook_kettle,
            "jug_orange": cook_jug((250, 160, 40, 255), (255, 210, 120, 255)),
            "jug_berry": cook_jug((150, 60, 140, 255), (200, 120, 190, 255))}
@@ -1353,9 +1330,7 @@ for _tool, _fn in {"mixer": cook_mixer, "sandwich": cook_sandwich, "icecream": c
 for _sfx, (_w, _h) in {"_s": (12, 10), "": (18, 16), "_l": (28, 20)}.items():
     PROP_LIST[f"parcel{_sfx}"] = (prop(_w, _h, parcel(False, _w, _h)), 0)
     PROP_LIST[f"parcel{_sfx}_open"] = (prop(_w, _h, parcel(True, _w, _h)), 0)
-for _i in (0, 1):
-    PROP_LIST[f"courier{'_b' if _i else ''}"] = (prop(12, 14, courier(_i)), 0)
-    PROP_LIST[f"courier_free{'_b' if _i else ''}"] = (prop(12, 14, courier(_i, carrying=False)), 0)
+
 for _i, _name in enumerate(["bee", "bee_b"]):
     PROP_LIST[_name] = (prop(11, 11, bee(_i)), 0)
 for _i, _name in enumerate(["squirrel", "squirrel_b"]):

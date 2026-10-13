@@ -373,22 +373,6 @@
       "file": "parcel_l_open.png",
       "seat": 0
     },
-    "courier": {
-      "file": "courier.png",
-      "seat": 0
-    },
-    "courier_free": {
-      "file": "courier_free.png",
-      "seat": 0
-    },
-    "courier_b": {
-      "file": "courier_b.png",
-      "seat": 0
-    },
-    "courier_free_b": {
-      "file": "courier_free_b.png",
-      "seat": 0
-    },
     "bee": {
       "file": "bee.png",
       "seat": 0

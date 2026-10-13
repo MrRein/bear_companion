@@ -186,12 +186,7 @@ public sealed partial class PetWindow
             if (!Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "popcorn"), _save)) throw new Exception("тенджерата дойде без рецепта");
             _nextDelivery = 0;
         }, 2500);
-        await step("куриерчетата идват", () =>
-        {
-            if (_courier == null) throw new Exception("няма куриерчета");
-            _courierX = _courierDrop + 20;      // по-бързо до мястото
-        }, 2000);
-        await step("оставиха кашона", () => { if (_parcel == null) throw new Exception("няма кашон"); }, 300);
+        await step("доставката пада", () => { if (_parcel == null) throw new Exception("няма кашон"); }, 3000);
         await step("доставката се отваря", () => { OpenParcel(); }, 2500);
         await step("доставката свърши", () => { if (_parcel != null) throw new Exception("кашончето остана"); SetIdle(); }, 300);
         await step("отключи всичко", DevUnlockAll, 200);

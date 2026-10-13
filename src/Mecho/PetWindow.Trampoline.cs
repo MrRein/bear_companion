@@ -122,6 +122,7 @@ public sealed partial class PetWindow
         var prop = TrampolineProp;
         double ground = Area.Bottom;
         _trampWindow.ShowAt(prop, PixelSize, x, ground);
+        if (!IsVisible) _trampWindow.Hide();
         _trampTop = ground - prop.Seat * PixelSize;
         NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
         RaiseCompanions();
@@ -130,7 +131,8 @@ public sealed partial class PetWindow
     private void BeginBounce()
     {
         if (!_onTrampoline) return;
-        if (_trampWindow is not { IsVisible: true }) PlaceTrampoline(_x);
+        // Скрит мечок: батутът също е скрит – не го показваме наново при всеки скок.
+        if (_trampWindow is not { IsVisible: true } && IsVisible) PlaceTrampoline(_x);
         _x = TrampX;
         _y = _trampTop;
         _facingLeft = false;

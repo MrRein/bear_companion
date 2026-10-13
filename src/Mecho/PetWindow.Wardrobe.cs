@@ -54,8 +54,8 @@ public sealed partial class PetWindow
         }
         _save.Hazelnuts -= g.Price;
         _save.OwnedClothes.Add(g.Id);
-        // Купеното идва с доставка и отива в гардероба; облича се оттам.
-        Deliver("👕", g.Name, () => Say(Lines.Pick(Lines.NewClothes, _save.OwnerName), 3), size: 0);
+        // Купеното отива в гардероба; облича се оттам.
+        Say(Lines.Pick(Lines.NewClothes, _save.OwnerName), 3);
         Persist();
         NotifyCare();
     }

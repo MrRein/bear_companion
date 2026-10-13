@@ -49,7 +49,11 @@ public sealed partial class PetWindow
         _heaterWindow?.SetAway(!show);
         _visitor?.SetAway(!show);
         _parcel?.SetAway(!show);
-        if (!show) _courier?.Hide();
+        if (_trampWindow != null)
+        {
+            if (!show && _trampWindow.IsVisible) _trampWindow.Hide();
+            else if (show && _onTrampoline && !_trampWindow.IsVisible) _trampWindow.Show();
+        }
         if (show) RaiseCompanions();
         if (_giftWindow != null)
         {

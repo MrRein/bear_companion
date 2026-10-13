@@ -46,10 +46,7 @@ public sealed partial class PetWindow
         if (Furniture.Owns(_save, skin) || _save.Hazelnuts < skin.Price) return;
         _save.Hazelnuts -= skin.Price;
         _save.Owned.Add($"skin_{skin.Item}_{skin.Id}");
-        // Новата дамаска идва с доставка; слага я, като отвори кашончето.
-        Deliver("🎁", skin.Name, () => UseSkin(skin), size: 1);
-        Persist();
-        NotifyCare();
+        UseSkin(skin);
     }
 
     public void UseSkin(Skin skin)

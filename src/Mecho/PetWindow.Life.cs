@@ -248,9 +248,12 @@ public sealed partial class PetWindow
                 break;
         }
         string art = (int)(_visitorTime * 14) % 2 == 0 ? "bee" : "bee_b";
-        _visitor.Place(_lib.GetProp(art, 11, 11, 0).Image, PixelSize, _visitorX, _visitorY);
-        if (_visitor.Content is FrameworkElement fe) fe.LayoutTransform = new ScaleTransform(_visitorDir < 0 ? -1 : 1, 1);
+        // Първо „скрит ли е мечокът“, после мястото – иначе скрита пчеличка се
+        // показваше за кадър и пак се скриваше (премигване).
         _visitor.SetAway(!IsVisible);
+        _visitor.Place(_lib.GetProp(art, 11, 11, 0).Image, PixelSize, _visitorX, _visitorY);
+        var flip = _visitorDir < 0 ? FlipLeft : Transform.Identity;
+        if (_visitor.Content is FrameworkElement fe && !ReferenceEquals(fe.LayoutTransform, flip)) fe.LayoutTransform = flip;
         if (_visitorY < area.Top - 40 || _visitorX < area.Left - 60 || _visitorX > area.Right + 60) EndVisitor();
     }
 
