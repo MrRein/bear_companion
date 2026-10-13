@@ -523,14 +523,14 @@ public sealed partial class PetWindow
         await step("намира нещо", FindSomething, 3500);
         await step("любимото място", () => { _nextFavSpot = 0; GoToFavSpot(); }, 6000);
         await step("сутрешен ритуал", () => { _save.RitualDay = ""; MorningRitual(); }, 6000);
-        await step("гост: пчеличка", () => { SetIdle(); StartVisitor("bee"); _visitorX = _x - 200; _visitorDir = 1; }, 4000);
+        await step("гост: пчеличка", () => { SetIdle(); StartVisitor("bee"); _visitorDir = _x > Area.Left + Area.Width / 2 ? 1 : -1; _visitorX = _x - _visitorDir * 150; }, 4000);
         await step("пчеличката отлита", () =>
         {
             if (_visitor == null) throw new Exception("пчеличката я няма");
             if (!_visitorGreeted) throw new Exception("не поздрави пчеличката");
             EndVisitor();
         }, 1500);
-        await step("гост: катеричка", () => { StartVisitor("squirrel"); _visitorX = _x + 250; _visitorDir = -1; }, 3000);
+        await step("гост: катеричка", () => { StartVisitor("squirrel"); _visitorDir = _x > Area.Left + Area.Width / 2 ? 1 : -1; _visitorX = _x - _visitorDir * 100; }, 3000);
         await step("катеричката бяга", () => { if (!_visitorGreeted) throw new Exception("не видя катеричката"); EndVisitor(); }, 800);
         await step("времето и настроението", () =>
         {
