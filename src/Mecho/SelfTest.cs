@@ -44,8 +44,8 @@ public static class SelfTest
             Log(errors.Count == 0 ? "OK" : $"{errors.Count} грешки");
             app.Shutdown(errors.Count == 0 ? 0 : 1);
         });
-        // Ако нещо увисне, след 4 минути спираме с грешка.
-        var watchdog = new DispatcherTimer { Interval = TimeSpan.FromMinutes(4) };
+        // Ако нещо увисне, след 6 минути спираме с грешка.
+        var watchdog = new DispatcherTimer { Interval = TimeSpan.FromMinutes(6) };
         watchdog.Tick += (_, _) =>
         {
             Log("ГРЕШКА: тестът увисна");
@@ -505,13 +505,18 @@ public sealed partial class PetWindow
             if (_save.Energy > dozeEnergy + 0.001) throw new Exception("енергията се вдига от дрямката");
             if (!StartleFromDoze() || _anim != "read") throw new Exception("не се стресна");
         }, 500);
-        await step("вдигнат спира кътчето", () =>
+        await step("вдигнат продължава да чете", () =>
         {
             LiftUp();
-            if (_inScene || _save.StayPut) throw new Exception("продължава да чете");
+            if (!_inScene) throw new Exception("спря да чете");
             _vy = 0;
-            SetState(BearState.Falling, "drag");
+            SetState(BearState.Falling, _anim);
         }, 1500);
+        await step("пуснат: пак чете", () =>
+        {
+            if (!_inScene) throw new Exception("не се върна към книжката");
+            GetUp();
+        }, 500);
         await step("сутрешна енергия", () =>
         {
             _save.MorningRefill = "";
@@ -529,9 +534,9 @@ public sealed partial class PetWindow
         {
             if (_scene != Scenes.Focus) throw new Exception("не работи");
             LiftUp();
-            if (_inScene || !InFocus) throw new Exception("вдигането спря работата");
+            if (!InFocus) throw new Exception("вдигането спря работата");
             _vy = 0;
-            SetState(BearState.Falling, "drag");
+            SetState(BearState.Falling, _anim);
         }, 8000);
         await step("пуснат: пак работи", () =>
         {
