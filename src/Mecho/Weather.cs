@@ -29,6 +29,13 @@ public static class Weather
     public static int Code { get; private set; } = -1;
     public static double Wind { get; private set; }
 
+    /// <summary>Developer: измислено време (код по WMO и вятър).</summary>
+    internal static void Fake(int code, double wind)
+    {
+        Code = code;
+        Wind = wind;
+    }
+
     /// <summary>Мястото (веднъж на ден) и температурата сега, или null.</summary>
     public static async Task<double?> FetchAsync(SaveData save)
     {

@@ -54,13 +54,7 @@ public static class Conversations
                 Reply("📖 Чети си", R.Any("conv.reading.keep")));
         }
 
-        var topics = new List<Func<PetWindow, ChatQuestion>>
-        {
-            HowAreYou, WhatNow, WhatDrawing, SketchOffer, ArtProgress, Wrist, DrawMe, Colour,
-            IdeaOffer, DiceOrCards, Tastiest, FunFact, LuckyDice, Water, Couch,
-            Dream, GameName, Joke, Compliment, WouldYouRather, ForestNews, TeaOrCoffee, Stretch,
-            BestMoment, MechoWisdom, Hug, Music, Secret,
-        };
+        var topics = Topics.Select(t => t.Ask).ToList();
         int i;
         do i = Rng.Next(topics.Count);
         while (i == _lastTopic);
@@ -68,7 +62,18 @@ public static class Conversations
         return topics[i](pet);
     }
 
-    /// <summary>Докато тече мечо-доро и я питаш втори път: да спрем ли?</summary>
+    /// <summary>Темите за разговор (и за Developer панела).</summary>
+    internal static readonly (string Name, Func<PetWindow, ChatQuestion> Ask)[] Topics =
+    {
+        ("Как си", HowAreYou), ("Какво ще правим", WhatNow), ("Какво рисуваш", WhatDrawing), ("Тема за скица", SketchOffer),
+        ("Как върви проектът", ArtProgress), ("Ръката", Wrist), ("Ще ме нарисуваш ли", DrawMe), ("Любим цвят", Colour),
+        ("Идея за игра", IdeaOffer), ("Зарове или карти", DiceOrCards), ("Най-вкусното", Tastiest), ("Интересен факт", FunFact),
+        ("Зар за късмет", LuckyDice), ("Вода", Water), ("Да почета ли", Couch), ("Сън", Dream), ("Име за игра", GameName),
+        ("Виц", Joke), ("Комплимент", Compliment), ("Кое би избрала", WouldYouRather), ("Новини от гората", ForestNews),
+        ("Чай или кафе", TeaOrCoffee), ("Протягане", Stretch), ("Най-хубавото днес", BestMoment), ("Мъдрост", MechoWisdom),
+        ("Прегръдка", Hug), ("Музика", Music), ("Тайна", Secret),
+    };
+
     /// <summary>Обяд: „Ти няма ли да обядваш?“</summary>
     public static ChatQuestion Lunch() => new("Ти няма ли да обядваш?",
         Reply("🍽️ Да, сега ще ходя", "Хайде, трябва да се хапчи!"),

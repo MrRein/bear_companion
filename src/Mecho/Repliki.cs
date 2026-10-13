@@ -24,6 +24,14 @@ public static class R
 
     public static IReadOnlyCollection<string> Keys => All.Keys;
 
+    /// <summary>Чете файла наново (след редакция, без рестарт). Вече заредените списъци в кода остават.</summary>
+    public static int Reload()
+    {
+        _all = Load(FilePath);
+        Missing.Clear();
+        return _all.Count;
+    }
+
     /// <summary>Списъкът реплики за ключа (празен, ако го няма).</summary>
     public static string[] Get(string key)
     {

@@ -410,6 +410,24 @@ public sealed partial class PetWindow
             dev.UpdateLayout();
             dev.Close();
         }, 500);
+        await step("developer: живот, времето, разговори", () =>
+        {
+            foreach (var (group, label, act) in DevCommands())
+            {
+                if (group is not ("Живот" or "Времето и печицата" or "Разговори и въпроси")) continue;
+                try { act(); }
+                catch (Exception e) { throw new Exception($"„{label}“: {e.Message}"); }
+                _chat?.UpdateLayout();
+                _chat?.Hide();
+            }
+            EndVisitor();
+            SetHeater(false);
+            _save.Owned.Remove(Kitchen.Heater);
+            _tempC = null;
+            Weather.Fake(-1, 0);
+            GetUp();
+            SetIdle();
+        }, 2000);
         await step("SOS", () =>
         {
             var list = Motivations.Parse("- https://example.com Пример\n- [Име](https://example.org)\n- Текст\nдруго");

@@ -244,6 +244,75 @@ public sealed partial class PetWindow
             yield return (anims, anim, () => { if (!_inScene) Play(anim, length: 3); });
         }
 
+        // ── Дребни неща за живот ──
+        const string life = "Живот", weather = "Времето и печицата", talk = "Разговори и въпроси", modes = "Сам решава", lines = "Реплики";
+        yield return (life, "Хълца", Hiccup);
+        yield return (life, "Киха", Sneeze);
+        yield return (life, "Намира нещо", FindSomething);
+        yield return (life, "Любимо място", () => { _nextFavSpot = 0; GoToFavSpot(); });
+        yield return (life, "Сутрешен ритуал", () => { _save.RitualDay = ""; if (!MorningRitual()) { _save.RitualDay = ""; Say(R.Any("ritual.wake"), 3); Play("yawn"); } });
+        yield return (life, "Гост: пчеличка", () => { EndVisitor(); StartVisitor("bee"); });
+        yield return (life, "Гост: катеричка", () => { EndVisitor(); StartVisitor("squirrel"); });
+        yield return (life, "Стряска се от мишката", () => { Say(R.Any("cursor.startle"), 2.5); Play("think", length: 1.2); });
+        yield return (life, "„Ехо, тук ли си?“", () => Say(R.Pick("away.echo", _save.OwnerName), 6));
+        yield return (life, "Върна се (30+ мин)", () => { Say(R.Pick("welcome.back", _save.OwnerName), 5); Play("happy"); });
+        yield return (life, "Върна се (след часове)", () => { Say(R.Pick("welcome.missed", _save.OwnerName), 5); Play("happy"); });
+        yield return (life, "Настроение: чудесно", () => { Joy(JoyPetted); Joy(JoyFed); Joy(JoyWorked); Say(R.Pick("mood.great", _save.OwnerName), 5); });
+        yield return (life, "Настроение: тихичко", () => { _save.JoyFlags = 0; Say(R.Pick("mood.quiet", _save.OwnerName), 5); });
+        yield return (life, "Скицира", () => Play("work", length: 5, after: () => Say(Lines.Pick(Lines.SketchDone, _save.OwnerName), 4)));
+        yield return (life, "Хапва трохичка", () => { Play("eat", length: 2.5); Say(Lines.Pick(Lines.Snack, _save.OwnerName), 3); });
+        yield return (life, "Протяга се", () => { Play("yawn"); Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 3); });
+        yield return (life, "Катери се", Climb);
+        yield return (life, "Приказка за игри", () => Say(Lines.Pick(Lines.Chatter, _save.OwnerName), 5));
+
+        foreach (var (t, label) in new[] { (22.0, "20°C приятно"), (12.0, "12°C хладно"), (7.0, "7°C студено"), (2.0, "2°C много студено"), (-6.0, "−6°C мраз"), (31.0, "31°C жега") })
+        {
+            double temp = t;
+            yield return (weather, label, () => { _tempC = temp; NotifyCare(); TalkAboutWeather(); });
+        }
+        foreach (var (code, wind, label) in new[] { (61, 5.0, "Дъжд"), (65, 5.0, "Силен дъжд"), (73, 5.0, "Сняг"), (95, 5.0, "Буря"), (45, 5.0, "Мъгла"), (2, 40.0, "Вятър"), (0, 5.0, "Слънце"), (3, 5.0, "Облаци") })
+        {
+            int c = code; double w = wind;
+            yield return (weather, "Навън: " + label, () =>
+            {
+                Weather.Fake(c, w);
+                _tempC ??= 15;
+                NotifyCare();
+                Say(R.Pick("weather." + (Weather.Kind(_tempC) ?? "sunny"), _save.OwnerName), 5);
+            });
+        }
+        yield return (weather, "Без времето (няма интернет)", () => { _tempC = null; Weather.Fake(-1, 0); NotifyCare(); });
+        yield return (weather, "Купи печицата", () => { if (!Kitchen.Owns(_save, Kitchen.Heater)) _save.Owned.Add(Kitchen.Heater); Persist(); NotifyCare(); });
+        yield return (weather, "Печица: включи", () => { if (!Kitchen.Owns(_save, Kitchen.Heater)) _save.Owned.Add(Kitchen.Heater); SetHeater(true); });
+        yield return (weather, "Печица: изключи", () => SetHeater(false));
+        yield return (weather, "Пита за печицата", () => { _heaterAskUntil = Now + 120; TakeHeaterQuestion(); });
+        yield return (weather, "Сяда до печицата", () => { if (_heaterWindow == null) Say("Първо включи печицата.", 2); else WarmUpByHeater(); });
+        yield return (weather, "„Доближи печицата“", () => Say(R.Pick("heater.closer", _save.OwnerName), 5));
+
+        foreach (var (name, ask) in Conversations.Topics)
+        {
+            var a = ask;
+            yield return (talk, name, () => Ask(a(this)));
+        }
+        yield return (talk, "Обяд: пита", () => { AskAboutLunch(); TakeLunchQuestion(); });
+        yield return (talk, "Предлага работа", () => Ask(Conversations.WorkOffer(this)));
+        yield return (talk, "„Да спра ли?“", () => Ask(Conversations.StopAction(this, CurrentActionName)));
+        yield return (talk, "Гладен (въпрос)", () => { double f = _save.Fullness; _save.Fullness = 10; Ask(Conversations.Next(this)); _save.Fullness = f; });
+        yield return (talk, "Уморен (въпрос)", () => { double e = _save.Energy; _save.Energy = 10; Ask(Conversations.Next(this)); _save.Energy = e; });
+        yield return (talk, "SOS", Sos);
+
+        yield return (modes, "Сам решава сега", () => { _freeUntil = 0; SetIdle(); });
+        yield return (modes, "Работи си", WorkRandom);
+        yield return (modes, "Спри (като „Да, спри“)", StopAction);
+        yield return (modes, "Приспи, докато готви", () =>
+        {
+            if (_cook == null) Say("Първо пусни нещо да се готви.", 2);
+            else GoToSleep();
+        });
+
+        yield return (lines, "Отвори repliki.txt", () => OpenPath(R.FilePath));
+        yield return (lines, "Презареди репликите", () => Say($"Прочетох репликите наново ({R.Reload()} раздела). Някои се сменят чак след рестарт.", 5));
+
         yield return (files, "Папката със записа", () => OpenPath(SaveData.Folder));
         yield return (files, "crash.log", () => OpenPath(CrashLog.Path));
         yield return (files, "Презареди рисунките", ReloadArt);
