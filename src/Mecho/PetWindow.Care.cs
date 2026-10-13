@@ -254,7 +254,7 @@ public sealed partial class PetWindow
     {
         if (!_lunchAskPending || CurrentMeal != "lunch" || IsResting || InFocus || IsQuiet || _state == BearState.Drag) return;
         _lunchAskPending = false;
-        Say($"{_save.OwnerName}, ти няма ли да обядваш? (цъкни ме)", 10);
+        Say(string.Format(Lines.PickAny("{0}, ти няма ли да обядваш?", "{0}, обед е! Ти хапна ли нещо?", "Аз ще обядвам. А ти, {0}?", "{0}, не забравяй да обядваш!"), _save.OwnerName) + " (цъкни ме)", 10);
         _lunchAskUntil = Now + 120;
     }
 
@@ -283,7 +283,7 @@ public sealed partial class PetWindow
         if (BusyEating()) return;
         if (IsResting)
         {
-            Say("*мърка насън*", 3);
+            Say(Lines.PickAny("*мърка насън*", "*усмихва се насън*", "Ммм… мед… *хърка*", "*мърда ушички насън*"), 3);
             return;
         }
         Say(Lines.Pick(Lines.Petted, _save.OwnerName), 3);

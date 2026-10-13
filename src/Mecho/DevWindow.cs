@@ -171,7 +171,7 @@ public sealed partial class PetWindow
         yield return (bear, "Събуди", WakeUp);
         yield return (bear, "Рисуване", OpenDrawing);
         yield return (bear, "Разговор", () => Ask(Conversations.Next(this)));
-        yield return (bear, "Кажи нещо сега", () => { _lastMutter = -1000; Mutter(Lines.Pick(Lines.Chatter, _save.OwnerName), 5); });
+        yield return (bear, "Кажи нещо сега", () => { _lastMutter = -1000; Mutter(Lines.Chat(_save.OwnerName), 5); });
         yield return (bear, "Тих режим: изкл.", () => SetQuiet(false));
 
         foreach (var sc in Scenes.All)

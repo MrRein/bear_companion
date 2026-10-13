@@ -303,7 +303,7 @@ public sealed partial class PetWindow : Window
         if (!IsQuiet && !InFocus && !WaitingForFood && now > _nextChatter)
         {
             _nextChatter = now + 600 + _rng.Next(600);
-            Mutter(Lines.Pick(Lines.Chatter, _save.OwnerName), 6);
+            Mutter(Lines.Chat(_save.OwnerName), 6);
         }
 
         // Работим (мечо-доро или таймер), а го бяха вдигнали: веднага се връща на бюрото.
@@ -493,9 +493,15 @@ public sealed partial class PetWindow : Window
     public void GoToSleep()
     {
         if (IsAsleep || OnCouchMission || BusyEating()) return;
+        // Не заспива, докато нещо се готви: ще загори!
+        if (_cook != null || _pendingCook != null)
+        {
+            Say(Lines.Pick(Lines.NoSleepCooking, _save.OwnerName), 4);
+            return;
+        }
         if (_save.Energy >= 95)
         {
-            Say("Не ми се спи още! Бодър съм.", 3);
+            Say(Lines.PickAny("Не ми се спи още! Бодър съм.", "Да спя?! Сега? Тъкмо се събудих!", "Очите ми са широко отворени. Виж!", "Няма да заспя, ще лежа и ще мисля за игри."), 3);
             return;
         }
         _save.SleepingByChoice = true;
@@ -539,7 +545,7 @@ public sealed partial class PetWindow : Window
         _butterfly.Source = _butterflyProp.Image;
         _shownFrame = null;
         ApplySpriteSize();
-        Say("Ново облекло? Ура!");
+        Say(Lines.PickAny("Ново облекло? Ура!", "Ооо, нов вид! Харесва ми.", "Модна промяна! Как съм?"));
     }
 
     public void Persist()

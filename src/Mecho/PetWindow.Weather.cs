@@ -16,7 +16,7 @@ public sealed partial class PetWindow
 
     public double? Temperature => _tempC;
 
-    /// <summary>Колко топло е облечен: пуловер 2, блуза с ръкав 1, шапка, шал, плетени ръкавички по 1.</summary>
+    /// <summary>Колко топло е облечен: пуловер 2, блуза с ръкав 1, шапка, шал, плетени ръкавички, ботуши по 1.</summary>
     private int Warmth
     {
         get
@@ -30,7 +30,8 @@ public sealed partial class PetWindow
                     "shirt" => g.Fluffy ? 2 : g.LongSleeves ? 1 : 0,
                     "hat" => g.Id is "beanie" or "nightcap" ? 1 : 0,
                     "neck" => g.Id.StartsWith("scarf") ? 1 : 0,
-                    "gloves" => g.Fluffy ? 1 : 0,
+                    "gloves" => g.Fluffy || g.Id is "mittens" or "mint_mittens" or "winter" ? 1 : 0,
+                    "shoes" => g.Id is "boots" ? 1 : 0,
                     _ => 0,
                 };
             }
@@ -38,8 +39,26 @@ public sealed partial class PetWindow
         }
     }
 
-    private bool Cold => _tempC < Weather.Cold;
+    /// <summary>
+    /// Колко му е студено: 0 – над 15°C, 1 – хладно (10–15), 2 – студено (5–10),
+    /// 3 – много студено (0–5), 4 – мраз (под 0). Колкото по-студено, толкова
+    /// по-топли дрехи иска (Warmth ≥ нивото), а от 2 нагоре – и печицата.
+    /// </summary>
+    private int ColdLevel => _tempC switch
+    {
+        null => 0,
+        >= Weather.Cool => 0,
+        >= 10 => 1,
+        >= 5 => 2,
+        >= 0 => 3,
+        _ => 4,
+    };
+
+    private bool Cold => ColdLevel > 0;
     private bool Hot => _tempC > Weather.Hot;
+    private bool WantsHeater => ColdLevel >= 2;
+    private bool DressedWarmEnough => Warmth >= ColdLevel;
+    private bool Comfortable => DressedWarmEnough && (!WantsHeater || _save.HeaterOn);
 
     /// <summary>За менюто: „7°C · студено му е“.</summary>
     public string? WeatherText
@@ -47,9 +66,17 @@ public sealed partial class PetWindow
         get
         {
             if (_tempC is not { } t) return null;
-            string feel = Cold
-                ? (_save.HeaterOn ? "студено е, но печицата грее" : Warmth >= 2 ? "студено е, но е облечен топло" : "студено му е")
-                : Hot ? (Warmth >= 2 ? "горещо му е" : "топло е, но е облечен леко") : "приятно му е";
+            string feel;
+            if (Hot) feel = Warmth >= 2 ? "горещо му е в тези дрехи" : "топло е, но е облечен леко";
+            else if (!Cold) feel = "приятно му е";
+            else
+            {
+                string how = ColdLevel switch { 1 => "хладно е", 2 => "студено е", 3 => "много е студено", _ => "мраз е" };
+                if (Comfortable) feel = $"{how}, но му е топличко";
+                else if (!DressedWarmEnough && WantsHeater && !_save.HeaterOn) feel = $"{how} – иска печицата и по-топли дрехи";
+                else if (!DressedWarmEnough) feel = $"{how} – иска по-топли дрехи";
+                else feel = $"{how} – иска печицата";
+            }
             return $"🌡 {t:0}°C · {feel}";
         }
     }
@@ -72,27 +99,43 @@ public sealed partial class PetWindow
         }
         UpdateHeater(now);
         if (now < _nextWarmthLine || _tempC == null) return;
-        _nextWarmthLine = now + 40 * 60 + _rng.Next(40 * 60);
+        // Колкото му е по-неудобно, толкова по-често казва (40–80 мин, а в мраза без дрехи – 15–30).
+        int gap = Comfortable ? 40 : ColdLevel >= 3 ? 15 : ColdLevel == 2 ? 25 : 35;
+        _nextWarmthLine = now + gap * 60 + _rng.Next(gap * 60);
         if (IsQuiet || InFocus || IsResting || Cooks || _state is BearState.Drag or BearState.Falling) return;
         TalkAboutWeather();
     }
 
-    /// <summary>Казва нещо за студа/топлото (най-много веднъж на 40–80 мин).</summary>
+    /// <summary>Казва нещо за студа/топлото според нивото и какво му липсва.</summary>
     private void TalkAboutWeather()
     {
+        string o = _save.OwnerName;
         if (Cold)
         {
-            if (!Kitchen.Owns(_save, Kitchen.Heater))
-                Say("Брр, студено е… Дали можем да си вземем печица? (магазин → Мебели)", 6);
-            else if (!_save.HeaterOn)
+            int lvl = ColdLevel;
+            if (WantsHeater && !Kitchen.Owns(_save, Kitchen.Heater))
             {
-                Say("Студено ми е… Ще ми включиш ли печицата? (цъкни ме)", 8);
-                _heaterAskUntil = Now + 120;
+                Say(Lines.Pick(lvl >= 3 ? Lines.FreezingNoHeater : Lines.ColdNoHeater, o), 7);
+                return;
             }
-            else if (Warmth < 2)
-                Say(Lines.Pick(new[] { "Студено ми е… Облечи ми пуловер или шал, моля.", "Брр! Един пухкав пуловер би бил чудесен.", "*трепери* Шапка? Шал? Нещо топло?" }, _save.OwnerName), 6);
-            else
-                Say(Lines.Pick(new[] { "Топличко ми е, благодаря!", "*сгушва се* Обичам печицата и пуловера си.", "Навън е студено, а на мен ми е хубаво." }, _save.OwnerName), 4);
+            if (WantsHeater && !_save.HeaterOn)
+            {
+                Say(Lines.Pick(Lines.HeaterPlease, o) + " (цъкни ме)", 8);
+                _heaterAskUntil = Now + 120;
+                return;
+            }
+            if (!DressedWarmEnough)
+            {
+                Say(Lines.Pick(lvl switch
+                {
+                    1 => Lines.CoolWantsSleeves,
+                    2 => Lines.ColdWantsSweater,
+                    3 => Lines.VeryColdWantsMore,
+                    _ => Lines.FrostWantsEverything,
+                }, o), 6);
+                return;
+            }
+            Say(Lines.Pick(lvl >= 2 ? Lines.WarmInWinter : Lines.CoolButFine, o), 4);
             return;
         }
         if (Hot)
@@ -100,13 +143,26 @@ public sealed partial class PetWindow
             if (_save.HeaterOn)
             {
                 SetHeater(false);
-                Say("Уф, горещо е! Изключих печицата.", 4);
+                Say(Lines.Pick(Lines.HotHeaterOff, o), 4);
             }
             else if (Warmth >= 2)
-                Say(Lines.Pick(new[] { "Горещо ми е! Свали ми пуловера, моля.", "Уф, жега! Тениска би била по-добре.", "*вее си* Много съм облечен за тази жега." }, _save.OwnerName), 6);
+                Say(Lines.Pick(Lines.HotTooDressed, o), 6);
             else
-                Say(Lines.Pick(new[] { "Хубаво ми е така, по-леко.", "Лято! *протяга се на слънце*" }, _save.OwnerName), 4);
+                Say(Lines.Pick(Lines.HotButFine, o), 4);
+            return;
         }
+        if (_save.HeaterOn && _tempC >= Weather.Cool + 3)
+        {
+            SetHeater(false);
+            Say("Вече е топличко. Изгасих печицата, да не ѝ хабим жаравата.", 4);
+            return;
+        }
+        if (Warmth >= 3)
+        {
+            Say(Lines.Pick(Lines.MildTooDressed, o), 5);
+            return;
+        }
+        Say(Lines.Pick(Lines.MildWeather, o), 4);
     }
 
     /// <summary>Клик скоро след „Ще ми включиш ли печицата?“.</summary>
@@ -115,8 +171,8 @@ public sealed partial class PetWindow
         if (Now > _heaterAskUntil) return false;
         _heaterAskUntil = 0;
         Ask(new ChatQuestion("Ще ми включиш ли печицата?",
-            new ChatOption("🔥 Включи я", p => { p.SetHeater(true); p.Say("Ураа! Топличко! *грее лапички*", 4); }),
-            new ChatOption("Не сега", p => p.Say("Добре… *сгушва се*", 3))));
+            new ChatOption("🔥 Включи я", p => { p.SetHeater(true); p.Say(Lines.PickAny("Ураа! Топличко! *грее лапички*", "Мерси! Ще се сгуша до нея.", "Ах, печицата! Най-хубавият звук – пращене.", "Топло! Обичам те, {0}!".Replace("{0}", p.Save.OwnerName)), 4); }),
+            new ChatOption("Не сега", p => p.Say(Lines.PickAny("Добре… *сгушва се*", "Ще се стопля с мисли за мед.", "Окей… *трепери героично*"), 3))));
         return true;
     }
 
@@ -147,11 +203,11 @@ public sealed partial class PetWindow
             var area = Area;
             double x = double.IsNaN(_save.HeaterX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.5 : _save.HeaterX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
-            _heaterWindow = new CookerWindow();
+            _heaterWindow = new CookerWindow("Печица") { Hint = "Печицата грее. Хвани я, за да я преместиш; цъкни, за да я изгасиш." };
             _heaterWindow.SetTime(null);
             _heaterWindow.Clicked += () => Ask(new ChatQuestion("Да изключа ли печицата?",
                 new ChatOption("Изключи я", p => p.SetHeater(false)),
-                new ChatOption("Не, нека грее", p => p.Say("*грее лапички* Мм.", 3))));
+                new ChatOption("Не, нека грее", p => p.Say(Lines.PickAny("*грее лапички* Мм.", "Ура! Пак при печицата.", "Нека пука! Обичам я."), 3))));
             _heaterWindow.Dropped += (cx, _) =>
             {
                 var a = AreaAt(cx, _heaterWindow!.Top + _heaterWindow.ActualHeight / 2);
@@ -184,7 +240,7 @@ public sealed partial class PetWindow
             StartScene(Scenes.Sit, quiet: true);
             _facingLeft = side > 0;
             _sceneUntil = Now + 120 + _rng.Next(180);
-            Announce(Lines.Pick(new[] { "*грее лапички* Обичам печицата.", "Топличко… *мърка*", "Печицата е най-хубавото нещо зимата." }, _save.OwnerName), 4);
+            Announce(Lines.Pick(Lines.HeaterLove, _save.OwnerName), 4);
         });
     }
 }

@@ -303,6 +303,9 @@ public sealed partial class PetWindow
             var pot = Kitchen.Foods.First(f => f.Tool == Kitchen.Pot);
             Cook(pot);
             StartPendingCook();
+            _save.Energy = 50;
+            GoToSleep();
+            if (IsAsleep || _save.SleepingByChoice) throw new Exception("заспа, докато се готви");
             AskStopCooking();
             _chat?.Hide();
             StopCooking();
@@ -475,6 +478,26 @@ public sealed partial class PetWindow
             GetUp();
             SetIdle();
         }, 800);
+        await step("реплики без повторение", () =>
+        {
+            var deck = Enumerable.Range(0, 8).Select(i => $"тест {i} {{0}}").ToArray();
+            var seen = new HashSet<string>();
+            for (int i = 0; i < deck.Length; i++) seen.Add(Lines.Pick(deck, "Тут"));
+            if (seen.Count != deck.Length) throw new Exception("репликите се повтарят");
+            for (int i = 0; i < 40; i++) if (string.IsNullOrEmpty(Lines.Chat("Тут"))) throw new Exception("празна приказка");
+            for (int i = 0; i < 40; i++) Conversations.Next(this);
+        }, 200);
+        await step("студ по нива", () =>
+        {
+            foreach (var (t, lvl) in new[] { (20.0, 0), (12.0, 1), (7.0, 2), (2.0, 3), (-5.0, 4) })
+            {
+                _tempC = t;
+                if (ColdLevel != lvl) throw new Exception($"{t}°C: ниво {ColdLevel}, а трябва {lvl}");
+                TalkAboutWeather();
+                if (WeatherText == null) throw new Exception("няма текст");
+            }
+            _tempC = null;
+        }, 300);
         await step("предложение за работа", () => { Ask(Conversations.WorkOffer(this)); _chat?.UpdateLayout(); _chat?.Hide(); }, 500);
         await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);
         await step("сън в леглото", GoToSleep, 1500);

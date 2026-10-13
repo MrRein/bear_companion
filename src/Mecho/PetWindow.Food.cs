@@ -63,17 +63,17 @@ public sealed partial class PetWindow
         if (!Kitchen.CanCook(food, _save) || BusyEating()) return;
         if (IsResting)
         {
-            Say("Ззз… ще ям, като стана.", 3);
+            Say(Lines.PickAny("Ззз… ще ям, като стана.", "Хррр… остави го… после…", "*мляска насън* Ззз…"), 3);
             return;
         }
         if (Cooks || _pendingCook != null)
         {
-            Say("Чакай, още готвя!", 3);
+            Say(Lines.PickAny("Чакай, още готвя!", "Едно по едно! Още се готви.", "Котлонът е зает! Като свърши, готвим пак."), 3);
             return;
         }
         if (_food.Count + food.Count > MaxFoodOnScreen)
         {
-            Say("Първо ми донеси другата храна!", 4);
+            Say(Lines.PickAny("Първо ми донеси другата храна!", "Там още има храна! Нея първо.", "Не хабим! Първо онова, което чака."), 4);
             return;
         }
         if (food.Cost == 0 && Kitchen.BerriesIn(_save) > 0)
@@ -87,7 +87,7 @@ public sealed partial class PetWindow
             _save.CoffeeTimes.RemoveAll(t => (DateTime.Now - t).TotalMinutes > 30);
             if (_save.CoffeeTimes.Count >= 2)
             {
-                Say("Сърцето ми прави туп-туп-туп! Стига кафе за сега.", 4);
+                Say(Lines.PickAny("Сърцето ми прави туп-туп-туп! Стига кафе за сега.", "Още кафе и ще полетя. Може би после.", "Ушите ми бръмчат от кафе. Пауза!"), 4);
                 return;
             }
         }
@@ -231,7 +231,7 @@ public sealed partial class PetWindow
         if (food.JustSpawned) return false;
         if (IsResting)
         {
-            Say("Ззз… после…", 2);
+            Say(Lines.PickAny("Ззз… после…", "Хррр… утре…", "*обръща се насън*"), 2);
             return false;
         }
 

@@ -22,8 +22,8 @@ public static class Weather
         return http;
     }
 
-    /// <summary>Под толкова градуса му е студено, над толкова – горещо.</summary>
-    public const double Cold = 10, Hot = 25;
+    /// <summary>Под Cool почва да му е хладно (все по-студено надолу), над Hot – горещо.</summary>
+    public const double Cool = 15, Cold = 10, Hot = 25;
 
     /// <summary>Мястото (веднъж на ден) и температурата сега, или null.</summary>
     public static async Task<double?> FetchAsync(SaveData save)

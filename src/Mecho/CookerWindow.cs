@@ -37,9 +37,15 @@ public sealed class CookerWindow : Window
     /// <summary>Пада към земята, след като Тут го пусне.</summary>
     public bool IsFalling => _falling;
 
-    public CookerWindow()
+    /// <summary>Подсказката при задържане на мишката (уред, печица…).</summary>
+    public string Hint
     {
-        Title = "Готвене";
+        set => _image.ToolTip = Tip(value);
+    }
+
+    public CookerWindow(string title = "Готвене")
+    {
+        Title = title;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = Brushes.Transparent;
@@ -63,7 +69,7 @@ public sealed class CookerWindow : Window
         stack.Children.Add(_tag);
         stack.Children.Add(_image);
         Content = stack;
-        _image.ToolTip = Tip("Готви се. Хвани го, за да го преместиш; цъкни, ако искаш да го спреш.");
+        Hint = "Готви се. Хвани го, за да го преместиш; цъкни, ако искаш да го спреш.";
 
         SourceInitialized += (_, _) => NativeMethods.MakeToolWindow(new WindowInteropHelper(this).Handle);
         // Хващаш го и го местиш (таймерът е с него); кратко цъкване пита дали да спре.
