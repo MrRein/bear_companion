@@ -332,6 +332,10 @@ public sealed partial class PetWindow
             if (Clothes.Find("tee_navy") == null) throw new Exception("clothes.json не се зареди");
             if (_lib.Layer("eat", "front") == null) throw new Exception("няма слой front за eat");
             if (_lib.Layer("idle", "sleeves") == null) throw new Exception("няма слой sleeves (ръкави)");
+            foreach (var kind in new[] { "tee", "blouse", "sweater", "gloves", "shoes", "pants" })
+                if (_lib.Clothes("icons/" + kind) == null) throw new Exception("няма картинка за гардероба: " + kind);
+            foreach (var g in Clothes.All.Where(g => g.Slot.Sprite == null && !g.Hidden))
+                if (_dresser.Preview(_lib, g) == null) throw new Exception("няма картинка за " + g.Id);
             foreach (var shirt in new[] { "tee_white", "sweater_red" })
             {
                 _save.Outfit["shirt"] = shirt;

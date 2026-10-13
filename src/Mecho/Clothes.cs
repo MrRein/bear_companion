@@ -32,6 +32,16 @@ public sealed record Garment(string Id, string Name, string SlotId, int Price, C
     /// <summary>Блуза с дълъг ръкав: оцветява и ръкавите (иначе – къс ръкав, ръцете се виждат).</summary>
     public bool LongSleeves { get; init; }
 
+    /// <summary>Пухкава плетка (пуловери, плетени ръкавички): мек контур и плетка по плата.</summary>
+    public bool Fluffy { get; init; }
+
+    /// <summary>Картинката в гардероба: assets/clothes/icons/&lt;вид&gt;.png.</summary>
+    public string Kind => SlotId switch
+    {
+        "shirt" => Fluffy ? "sweater" : LongSleeves ? "blouse" : "tee",
+        _ => SlotId,
+    };
+
     public Slot Slot => Clothes.SlotById(SlotId);
 }
 
@@ -68,28 +78,50 @@ public static class Clothes
         new("chef", "Готварска шапка", "hat", 35, default, default),
         new("crown", "Корона на дизайнера", "hat", 105, default, default),
 
+        // Тениски (къс ръкав).
         new("tee_red", "Червена тениска", "shirt", 10, C(214, 74, 70), C(214, 74, 70)),
-        new("sailor", "Моряшка блуза", "shirt", 25, C(245, 245, 250), C(60, 90, 170), Pattern.Stripes) { LongSleeves = true },
-        new("hoodie", "Зелен суитшърт", "shirt", 30, C(110, 170, 90), C(110, 170, 90)) { LongSleeves = true },
-        new("dots", "Жълт пуловер на точки", "shirt", 40, C(250, 200, 80), C(240, 120, 60), Pattern.Dots) { LongSleeves = true },
-        new("designer", "Лилава блуза на дизайнер", "shirt", 50, C(150, 100, 200), C(255, 209, 102), Pattern.Stripes) { LongSleeves = true },
         new("tee_white", "Бяла тениска", "shirt", 12, C(245, 245, 240), C(245, 245, 240)),
         new("tee_stripes", "Тениска на райета", "shirt", 20, C(240, 170, 60), C(250, 240, 220), Pattern.Stripes),
-        new("sweater_red", "Червен пуловер", "shirt", 35, C(196, 60, 56), C(196, 60, 56)) { LongSleeves = true },
+        new("tee_pink", "Розова тениска", "shirt", 14, C(240, 150, 170), C(240, 150, 170)),
+        new("tee_green_dots", "Зелена тениска на точки", "shirt", 18, C(110, 170, 90), C(250, 240, 200), Pattern.Dots),
+
+        // Блузи (дълъг тънък ръкав).
+        new("sailor", "Моряшка блуза", "shirt", 25, C(245, 245, 250), C(60, 90, 170), Pattern.Stripes) { LongSleeves = true },
+        new("hoodie", "Зелен суитшърт", "shirt", 30, C(110, 170, 90), C(110, 170, 90)) { LongSleeves = true },
+        new("designer", "Лилава блуза на дизайнер", "shirt", 50, C(150, 100, 200), C(255, 209, 102), Pattern.Stripes) { LongSleeves = true },
         new("sweatshirt_gray", "Сив суитшърт", "shirt", 35, C(150, 150, 160), C(150, 150, 160)) { LongSleeves = true },
-        new("cardigan", "Каре жилетка", "shirt", 45, C(120, 90, 160), C(240, 200, 120), Pattern.Checks) { LongSleeves = true },
+        new("plaid_shirt", "Риза каре", "shirt", 35, C(70, 110, 180), C(230, 230, 240), Pattern.Checks) { LongSleeves = true },
+
+        // Пуловери (пухкави, дълъг ръкав).
+        new("dots", "Жълт пуловер на точки", "shirt", 40, C(250, 200, 80), C(240, 120, 60), Pattern.Dots) { LongSleeves = true, Fluffy = true },
+        new("sweater_red", "Червен пуловер", "shirt", 35, C(196, 60, 56), C(196, 60, 56)) { LongSleeves = true, Fluffy = true },
+        new("cardigan", "Каре жилетка", "shirt", 45, C(120, 90, 160), C(240, 200, 120), Pattern.Checks) { LongSleeves = true, Fluffy = true },
+        new("sweater_cream", "Кремав пухкав пуловер", "shirt", 45, C(245, 232, 205), C(245, 232, 205)) { LongSleeves = true, Fluffy = true },
+        new("sweater_honey", "Меден пуловер", "shirt", 45, C(232, 170, 70), C(232, 170, 70)) { LongSleeves = true, Fluffy = true },
+        new("sweater_winter", "Зимен пуловер на райета", "shirt", 55, C(200, 55, 60), C(250, 250, 250), Pattern.Stripes) { LongSleeves = true, Fluffy = true },
+        new("sweater_lavender", "Лавандулов пуловер", "shirt", 50, C(180, 160, 220), C(180, 160, 220)) { LongSleeves = true, Fluffy = true },
+        new("sweater_mint", "Ментов пуловер на точки", "shirt", 50, C(150, 215, 190), C(250, 250, 250), Pattern.Dots) { LongSleeves = true, Fluffy = true },
 
         new("jeans", "Дънки", "pants", 20, C(70, 100, 170), C(70, 100, 170)),
         new("brown", "Кафяви панталонки", "pants", 14, C(120, 80, 50), C(120, 80, 50)),
         new("plaid", "Карирани панталони", "pants", 30, C(200, 70, 70), C(60, 50, 60), Pattern.Checks),
+        new("pants_black", "Черни панталони", "pants", 20, C(60, 55, 60), C(60, 55, 60)),
+        new("pants_pink_dots", "Розови на точки", "pants", 25, C(240, 160, 180), C(255, 255, 255), Pattern.Dots),
+        new("pants_cargo", "Зелени карго", "pants", 25, C(110, 130, 80), C(110, 130, 80)),
 
         new("sneakers", "Червени гуменки", "shoes", 20, C(220, 60, 60), C(220, 60, 60)),
         new("boots", "Жълти ботуши", "shoes", 25, C(250, 200, 60), C(250, 200, 60)),
         new("slippers", "Розови пантофи", "shoes", 20, C(245, 150, 170), C(255, 255, 255), Pattern.Dots),
+        new("sneakers_blue", "Сини гуменки", "shoes", 20, C(70, 110, 200), C(70, 110, 200)),
+        new("sneakers_white", "Бели маратонки", "shoes", 25, C(240, 240, 240), C(240, 240, 240)),
+        new("shoes_brown", "Кафяви обувки", "shoes", 25, C(110, 70, 40), C(110, 70, 40)),
 
         new("white", "Бели ръкавички", "gloves", 14, C(250, 250, 250), C(250, 250, 250)),
-        new("winter", "Зимни на райета", "gloves", 20, C(90, 140, 210), C(250, 250, 250), Pattern.Stripes),
+        new("winter", "Зимни на райета", "gloves", 20, C(90, 140, 210), C(250, 250, 250), Pattern.Stripes) { Fluffy = true },
         new("garden", "Градинарски", "gloves", 20, C(120, 180, 80), C(120, 180, 80)),
+        new("gloves_red", "Червени ръкавички", "gloves", 15, C(210, 60, 60), C(210, 60, 60)),
+        new("mittens", "Пухкави палчики", "gloves", 25, C(245, 225, 200), C(245, 225, 200)) { Fluffy = true },
+        new("gloves_pink_dots", "Розови на точки", "gloves", 20, C(240, 150, 170), C(255, 255, 255), Pattern.Dots),
 
         // Аксесоари (рисунки на точка): очила при очите, шал/папийонка под брадичката.
         new("round", "Кръгли очила", "glasses", 20, default, default),
@@ -148,6 +180,7 @@ public static class Clothes
                 all.Add(new Garment(id, Str("name", id), slot, price, main, alt, pattern)
                 {
                     LongSleeves = Str("sleeves").ToLowerInvariant() is "long" or "дълъг",
+                    Fluffy = e.TryGetProperty("fluffy", out var fl) && fl.ValueKind == System.Text.Json.JsonValueKind.True,
                 });
             }
         }
@@ -234,6 +267,17 @@ public sealed class Dresser
     {
         var slot = g.Slot;
         if (slot.Sprite != null) return lib.Clothes(slot.Sprite + "_" + g.Id);
+        // Своя картинка за гардероба: assets/clothes/icons/<вид>.png, оцветена като дрехата.
+        if (lib.Clothes("icons/" + g.Kind) is { } icon)
+        {
+            int iw = icon.PixelWidth, ih = icon.PixelHeight;
+            var ipx = new uint[iw * (ih + HatRoom)];
+            Paint(ipx, iw, Pixels(icon), iw, ih, g);
+            var iconFull = BitmapSource.Create(iw, ih + HatRoom, 96, 96, PixelFormats.Bgra32, null, ipx, iw * 4);
+            var iconCrop = new CroppedBitmap(iconFull, new System.Windows.Int32Rect(0, HatRoom, iw, ih));
+            iconCrop.Freeze();
+            return iconCrop;
+        }
         var own = Pick(lib.Layer("idle", slot.Layer + "_" + g.Id), 0);
         var mask = own ?? Pick(lib.Layer("idle", slot.Layer), 0);
         if (mask == null) return null;
@@ -318,7 +362,8 @@ public sealed class Dresser
                 for (int i = 0; i < Math.Min(maskPx.Length, sleevePx.Length); i++)
                     if (sleevePx[i] >> 24 != 0) maskPx[i] = sleevePx[i];
             }
-            Paint(px, w, maskPx, mask.PixelWidth, mask.PixelHeight, g);
+            var (refX, refY) = Pick(lib.Layer(anim, "neck"), index) is { } neck && FirstPoint(neck) is var (nx, ny) ? (nx, ny) : (0, 0);
+            Paint(px, w, maskPx, mask.PixelWidth, mask.PixelHeight, g, refX, refY);
         }
 
         if (under != null && Pick(lib.Layer(anim, "front"), index) is { } front)
@@ -346,12 +391,14 @@ public sealed class Dresser
         strip == null || strip.Length == 0 ? null : strip[index % strip.Length];
 
     /// <summary>Сивият шаблон става дреха: под 80 контур, до 135 сянка, после цветът, над 200 отблясък.</summary>
-    private static void Paint(uint[] px, int w, uint[] mask, int mw, int mh, Garment g)
+    /// <summary>
+    /// Оцветява сивия шаблон. Шарката се брои от (refX, refY) – точката на врата
+    /// в кадъра: върви с тялото, но не подскача, когато ръката се вдигне или
+    /// гърдите мръднат (преди се броеше от най-горния пиксел на дрехата).
+    /// </summary>
+    private static void Paint(uint[] px, int w, uint[] mask, int mw, int mh, Garment g, int refX = 0, int refY = 0)
     {
-        int top = int.MaxValue;
-        for (int i = 0; i < mask.Length && top == int.MaxValue; i++)
-            if (mask[i] >> 24 != 0) top = i / mw;
-        if (top == int.MaxValue) return;
+        int top = refY;
 
         for (int y = 0; y < mh; y++)
         {
@@ -360,21 +407,37 @@ public sealed class Dresser
                 uint m = mask[y * mw + x];
                 if (m >> 24 == 0) continue;
                 int gray = (int)((m >> 16) & 0xFF);
-                int ry = y - top;   // шарката върви с дрехата, а не с кадъра
+                int ry = y - top + 64, rx = x - refX + 64;   // +64: винаги положително
                 bool alt = g.Pattern switch
                 {
                     Pattern.Stripes => ry / 2 % 2 == 1,
-                    Pattern.Dots => ry % 3 == 1 && x % 3 == 1,
-                    Pattern.Checks => (x / 2 + ry / 2) % 2 == 1,
+                    Pattern.Dots => ry % 3 == 1 && rx % 3 == 1,
+                    Pattern.Checks => (rx / 2 + ry / 2) % 2 == 1,
                     _ => false,
                 };
-                var c = alt ? g.Alt : g.Main;
-                if (gray < 80) c = Mix(c, Color.FromRgb(40, 25, 15), 0.6);          // контур
-                else if (gray < 135) c = Mix(c, Color.FromRgb(40, 25, 15), 0.25);   // сянка
-                else if (gray > 200) c = Mix(c, Colors.White, 0.3);                // отблясък
+                var c = Shade(g, alt ? g.Alt : g.Main, gray, rx, ry);
                 px[(y + HatRoom) * w + x] = 0xFF000000u | ((uint)c.R << 16) | ((uint)c.G << 8) | c.B;
             }
         }
+    }
+
+    /// <summary>Цветът на пиксел от шаблона: контур, сянка, плат, отблясък; пухкавото – с плетка.</summary>
+    private static Color Shade(Garment g, Color c, int gray, int rx, int ry)
+    {
+        var dark = Color.FromRgb(40, 25, 15);
+        if (g.Fluffy)
+        {
+            // Пухкаво: по-мек контур, а платът е на бримки (светли и сенчести точици).
+            if (gray < 80) return Mix(c, dark, (rx + ry) % 2 == 0 ? 0.45 : 0.3);
+            if (gray < 135) return Mix(c, dark, 0.2);
+            if (gray > 200) return Mix(c, Colors.White, 0.35);
+            int knit = (rx + 2 * ry) % 4;
+            return knit == 0 ? Mix(c, Colors.White, 0.18) : knit == 2 ? Mix(c, dark, 0.1) : c;
+        }
+        if (gray < 80) return Mix(c, dark, 0.6);          // контур
+        if (gray < 135) return Mix(c, dark, 0.25);        // сянка
+        if (gray > 200) return Mix(c, Colors.White, 0.3); // отблясък
+        return c;
     }
 
     private static Color Mix(Color a, Color b, double t) => Color.FromRgb(
