@@ -164,7 +164,7 @@ public sealed partial class PetWindow
     {
         if (InFocus)
         {
-            Say(Lines.PickAny("Първо работата! После почивка.", "Работим сега. Почивката ще дойде, обещавам.", "Таймерът тече! После ще се забавляваме.", "Шшт, работим. После – каквото поискаш."), 3);
+            Say(R.Any("work.first"), 3);
             return;
         }
         Say(Lines.Pick(Lines.RestToo, _save.OwnerName), 4);

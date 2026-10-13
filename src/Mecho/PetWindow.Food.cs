@@ -63,17 +63,17 @@ public sealed partial class PetWindow
         if (!Kitchen.CanCook(food, _save) || BusyEating()) return;
         if (IsResting)
         {
-            Say(Lines.PickAny("Ззз… ще ям, като стана.", "Хррр… остави го… после…", "*мляска насън* Ззз…"), 3);
+            Say(R.Any("food.asleep"), 3);
             return;
         }
         if (Cooks || _pendingCook != null)
         {
-            Say(Lines.PickAny("Чакай, още готвя!", "Едно по едно! Още се готви.", "Котлонът е зает! Като свърши, готвим пак."), 3);
+            Say(R.Any("food.cooking"), 3);
             return;
         }
         if (_food.Count + food.Count > MaxFoodOnScreen)
         {
-            Say(Lines.PickAny("Първо ми донеси другата храна!", "Там още има храна! Нея първо.", "Не хабим! Първо онова, което чака."), 4);
+            Say(R.Any("food.other"), 4);
             return;
         }
         if (food.Cost == 0 && Kitchen.BerriesIn(_save) > 0)
@@ -87,7 +87,7 @@ public sealed partial class PetWindow
             _save.CoffeeTimes.RemoveAll(t => (DateTime.Now - t).TotalMinutes > 30);
             if (_save.CoffeeTimes.Count >= 2)
             {
-                Say(Lines.PickAny("Сърцето ми прави туп-туп-туп! Стига кафе за сега.", "Още кафе и ще полетя. Може би после.", "Ушите ми бръмчат от кафе. Пауза!"), 4);
+                Say(R.Any("food.coffeelimit"), 4);
                 return;
             }
         }
@@ -231,7 +231,7 @@ public sealed partial class PetWindow
         if (food.JustSpawned) return false;
         if (IsResting)
         {
-            Say(Lines.PickAny("Ззз… после…", "Хррр… утре…", "*обръща се насън*"), 2);
+            Say(R.Any("food.asleep2"), 2);
             return false;
         }
 
@@ -277,8 +277,7 @@ public sealed partial class PetWindow
         _nextFoodReminder = now + 45 + _rng.Next(30);
         var nearest = _food.OrderBy(f => Math.Abs(f.Left + f.Width / 2 - _x)).First();
         _facingLeft = nearest.Left + nearest.Width / 2 < _x;
-        var line = Lines.WantFood[_rng.Next(Lines.WantFood.Length)];
-        Say(string.Format(line, _save.OwnerName, _food.Count, nearest.Food.Icon), 4);
+        Say(Lines.Fill(Lines.PickAny(Lines.WantFood), _save.OwnerName, _food.Count, nearest.Food.Icon), 4);
         Play(_rng.Next(2) == 0 ? "sad" : "idle", length: 2);
     }
 

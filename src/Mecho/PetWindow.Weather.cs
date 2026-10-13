@@ -154,7 +154,7 @@ public sealed partial class PetWindow
         if (_save.HeaterOn && _tempC >= Weather.Cool + 3)
         {
             SetHeater(false);
-            Say("Вече е топличко. Изгасих печицата, да не ѝ хабим жаравата.", 4);
+            Say(R.Any("weather.heateroff"), 4);
             return;
         }
         if (Warmth >= 3)
@@ -171,8 +171,8 @@ public sealed partial class PetWindow
         if (Now > _heaterAskUntil) return false;
         _heaterAskUntil = 0;
         Ask(new ChatQuestion("Ще ми включиш ли печицата?",
-            new ChatOption("🔥 Включи я", p => { p.SetHeater(true); p.Say(Lines.PickAny("Ураа! Топличко! *грее лапички*", "Мерси! Ще се сгуша до нея.", "Ах, печицата! Най-хубавият звук – пращене.", "Топло! Обичам те, {0}!".Replace("{0}", p.Save.OwnerName)), 4); }),
-            new ChatOption("Не сега", p => p.Say(Lines.PickAny("Добре… *сгушва се*", "Ще се стопля с мисли за мед.", "Окей… *трепери героично*"), 3))));
+            new ChatOption("🔥 Включи я", p => { p.SetHeater(true); p.Say(Lines.Fill(R.Any("heater.on"), p.Save.OwnerName), 4); }),
+            new ChatOption("Не сега", p => p.Say(R.Any("heater.notnow"), 3))));
         return true;
     }
 
@@ -207,7 +207,7 @@ public sealed partial class PetWindow
             _heaterWindow.SetTime(null);
             _heaterWindow.Clicked += () => Ask(new ChatQuestion("Да изключа ли печицата?",
                 new ChatOption("Изключи я", p => p.SetHeater(false)),
-                new ChatOption("Не, нека грее", p => p.Say(Lines.PickAny("*грее лапички* Мм.", "Ура! Пак при печицата.", "Нека пука! Обичам я."), 3))));
+                new ChatOption("Не, нека грее", p => p.Say(R.Any("heater.keep"), 3))));
             _heaterWindow.Dropped += (cx, _) =>
             {
                 var a = AreaAt(cx, _heaterWindow!.Top + _heaterWindow.ActualHeight / 2);

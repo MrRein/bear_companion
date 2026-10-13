@@ -566,6 +566,11 @@ public sealed partial class PetWindow
             if (_scene != Scenes.Focus) throw new Exception("не се върна на бюрото");
             StopPomodoro();
         }, 1000);
+        await step("всички реплики са във файла", () =>
+        {
+            if (R.Keys.Count < 200) throw new Exception("repliki.txt не се зареди");
+            if (R.MissingKeys.Count > 0) throw new Exception("липсват: " + string.Join(", ", R.MissingKeys));
+        }, 100);
     }
 
     /// <summary>Developer: всичко купено (уреди, рецепти, дрехи, фонове).</summary>

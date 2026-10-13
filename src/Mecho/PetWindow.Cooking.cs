@@ -453,29 +453,14 @@ public sealed partial class PetWindow
         string the = TheFood(c.Food);
         string[] lines;
         if (_inScene && _scene != null && (_scene == Scenes.Focus || Scenes.Work.Contains(_scene)))
-            lines = new[]
-            {
-                $"Ще поработя още малко, докато чакам {the}.", $"*поглежда към уреда* Работим, докато се готви.",
-                $"Още малко работа, после ще погледна {the}.", $"Едно ухо в работата, другото в {the}.",
-                $"*души въздуха* Ухае на {the}. Работата върви по-леко.", $"Пиша правила и пазя {the}. Многозадачен мечок.",
-                $"Мисля за работата. И за {the}. Повече за {the}.",
-            };
+            lines = R.Get("cook.while.work");
         else if (_inScene && _scene == Scenes.Reading)
-            lines = new[]
-            {
-                $"Ще почета още малко, докато чакам {the}.", $"Още една страница и ще погледна {the}.", "*чете и подушва* Ухае от кухнята!",
-                $"Героят в книжката също чака нещо. Аз чакам {the}.", "*чете един и същ ред три пъти, защото мисли за яденето*",
-                $"Глава за приключения, а аз мисля само за {the}.",
-            };
+            lines = R.Get("cook.while.read");
         else if (_inScene || _onTrampoline)
-            lines = new[]
-            {
-                $"Още малко тук, докато чакам {the}.", $"*поглежда към уреда* Как ли върви с {the}?", "Мм, мирише хубаво оттук!",
-                $"Не съм забравил {the}. Как бих могъл!", "*поглежда през рамо към уреда*", $"Още малко търпение за {the}.",
-            };
+            lines = R.Get("cook.while.other");
         else
             lines = FoodTalk.For(c.Food).During;
-        return Lines.Pick(lines, _save.OwnerName);
+        return Lines.Pick(lines, _save.OwnerName).Replace("{ястие}", the).Replace("{Ястие}", Capital(the));
     }
 
     /// <summary>Краят наближава или е готово: стои до уреда (дори да работят).</summary>
@@ -521,20 +506,8 @@ public sealed partial class PetWindow
             Kitchen.CoffeeMachine => "кафемашината", Kitchen.Kettle => "чайника", _ => "каничката",
         };
         string food = $"{c.Food.Icon} {c.Food.Name}";
-        bool juice = c.Tool == Kitchen.Jug;
-        return new[]
-        {
-            $"{food} – готово! Цъкни {tool}, {{0}}!",
-            $"*сочи {tool}* Готово е! Само цъкни!",
-            juice ? "Сокът е разбъркан! Цъкни каничката да го налея." : $"Ухааа! Цъкни {tool}, да не изстине!",
-            $"{{0}}, {food} чака! Цъкни {tool}, моля те.",
-            $"*подскача до {tool}* Готово, готово, готово!",
-            $"Тук съм, до {tool}. Ти само цъкни, аз ще хвана.",
-            $"{food}: готово! Ухае на щастие. Цъкни {tool}!",
-            $"*маха с две лапи* {{0}}! Насам! {Capital(tool)}!",
-            $"Ако не цъкнеш {tool}, ще изстине… А аз ще се разплача.",
-            juice ? "Каничката е пълна! Едно цъкване и наливам." : $"Пара излиза от {tool}! Значи е готово. Цъкни!",
-        };
+        var lines = R.Get(c.Tool == Kitchen.Jug ? "cook.ready.juice" : "cook.ready");
+        return lines.Select(l => l.Replace("{уред}", tool).Replace("{Уред}", Capital(tool)).Replace("{ястие}", food)).ToArray();
     }
 
     private void AskStopCooking()
@@ -542,8 +515,7 @@ public sealed partial class PetWindow
         if (_cook is not { Popped: false } c) return;
         Ask(new ChatQuestion($"Да спра ли готвенето на {c.Food.Name.ToLowerInvariant()}? Лешниците ти се връщат.",
             new ChatOption("Да, спри", p => p.StopCooking()),
-            new ChatOption("Не, нека се готви", p => p.Cheer(Lines.PickAny("Добре! Още малко търпение.", "Ура! Не се отказвам от яденето.",
-                "Пфу, уплаши ме! Готвим нататък.", "Мъдро решение. Аз също бих го взел.")))));
+            new ChatOption("Не, нека се готви", p => p.Cheer(R.Any("cook.keep")))));
     }
 
     /// <summary>Спира готвенето (сбъркано ястие): уредът изчезва, лешниците се връщат.</summary>
@@ -553,8 +525,7 @@ public sealed partial class PetWindow
         _save.Hazelnuts += c.Cost;
         if (c.Food.Cost == 0) _save.BerriesReadyAt = DateTime.MinValue;
         EndCooking(food: null);
-        Say(Lines.PickAny("Добре, спрях котлона. Лешниците са обратно при теб.", "Спрях го. *тъжно поглежда уреда* Лешниците са при теб.",
-            "Готвенето е спряно. Може би друг път, малко ядене…"), 4);
+        Say(R.Any("cook.stopped"), 4);
         NotifyCare();
     }
 

@@ -25,7 +25,7 @@ public sealed partial class PetWindow
     {
         bool eat = _eating != null, drink = _inScene && _scene == Scenes.Drink;
         if (!eat && !drink) return false;
-        if (say) Say(eat ? Lines.PickAny("Момент, сега ям.", "Мм-хм! *с пълна уста* Секунда!", "Първо да си доям!", "Ям, ям! После!") : Lines.PickAny("Момент, сега пия.", "*отпива* Секунда, пия!", "Само да си допия!", "Първо чашата, после всичко друго!"), 2);
+        if (say) Say(eat ? R.Any("busy.eat") : R.Any("busy.drink"), 2);
         return true;
     }
 
