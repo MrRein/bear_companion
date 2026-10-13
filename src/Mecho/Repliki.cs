@@ -24,6 +24,9 @@ public static class R
 
     public static IReadOnlyCollection<string> Keys => All.Keys;
 
+    /// <summary>Има ли такъв раздел (с поне една реплика).</summary>
+    public static bool Has(string key) => All.TryGetValue(key, out var l) && l.Length > 0;
+
     /// <summary>Чете файла наново (след редакция, без рестарт). Вече заредените списъци в кода остават.</summary>
     public static int Reload()
     {

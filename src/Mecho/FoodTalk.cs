@@ -12,7 +12,31 @@ public sealed record FoodTalk(
     string[] Start, string[] During, string[] Check, string[] Sit, string[] Almost, string[] Pop,
     string[] Receive, string[] Chew, string[] Done)
 {
-    public static FoodTalk For(Food food) => All.TryGetValue(food.Id, out var t) ? t : Plain(food);
+    public static FoodTalk For(Food food) => For(food, food.Tool);
+
+    /// <summary>
+    /// За ястие и уред (при рецепти в два уреда първата стъпка е в другия уред).
+    /// Старите ястия имат свои реплики за всичко; новите – за уреда (раздели
+    /// tool.&lt;уред&gt;.start… във файла, {ястие} е името) и свои за яденето
+    /// (food.&lt;ястие&gt;.receive / chew / done).
+    /// </summary>
+    public static FoodTalk For(Food food, string? tool)
+    {
+        if (All.TryGetValue(food.Id, out var t)) return t;
+        string key = food.Id + "/" + tool;
+        if (Built.TryGetValue(key, out var b)) return b;
+        string name = food.Name.ToLowerInvariant();
+        string[] T(string role) => tool == null ? Array.Empty<string>()
+            : Array.ConvertAll(R.Get($"tool.{tool}.{role}"), l => l.Replace("{ястие}", name));
+        string[] F(string role, string[] fallback) => R.Has($"food.{food.Id}.{role}") ? R.Get($"food.{food.Id}.{role}") : fallback;
+        var plain = Plain(food);
+        b = new FoodTalk(T("start"), T("during"), T("check"), T("sit"), T("almost"), T("pop"),
+            F("receive", plain.Receive), F("chew", plain.Chew), F("done", plain.Done));
+        Built[key] = b;
+        return b;
+    }
+
+    private static readonly Dictionary<string, FoodTalk> Built = new();
 
     private static FoodTalk Plain(Food food) => new(
         new[] { "Готвя!", "Започвам!", "*запретва ръкави*" }, new[] { "*чака*", "Мирише хубаво.", "Скоро, скоро…" },

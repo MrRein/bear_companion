@@ -1005,20 +1005,45 @@ def squirrel(frame):
     return f
 
 
-def parcel(opened):
-    """Доставка: кашонче с тиксо (затворено) или с отворени капаци."""
+def parcel(opened, w=18, h=16):
+    """Доставка: кашон с тиксо (затворен) или с отворени капаци; w x h – малък, среден, голям."""
     def f(d):
         card, dark, tape = (205, 160, 105, 255), (165, 120, 70, 255), (235, 215, 160, 255)
-        d.rectangle((1, 5, 16, 15), fill=card, outline=OUTLINE)
-        d.line((2, 9, 15, 9), fill=dark)
+        top = max(3, h // 4)
+        d.rectangle((1, top, w - 2, h - 1), fill=card, outline=OUTLINE)
+        d.line((2, (top + h) // 2, w - 3, (top + h) // 2), fill=dark)
+        mid = w // 2
         if opened:
-            d.polygon([(1, 5), (-1, 1), (6, 1), (8, 5)], fill=dark, outline=OUTLINE)
-            d.polygon([(16, 5), (18, 1), (11, 1), (9, 5)], fill=dark, outline=OUTLINE)
+            d.polygon([(1, top), (-1, 0), (mid - 2, 0), (mid - 1, top)], fill=dark, outline=OUTLINE)
+            d.polygon([(w - 2, top), (w, 0), (mid + 1, 0), (mid, top)], fill=dark, outline=OUTLINE)
         else:
-            d.rectangle((1, 3, 16, 5), fill=card, outline=OUTLINE)
-            d.rectangle((7, 3, 10, 15), fill=tape)
-            d.line((7, 3, 7, 15), fill=dark); d.line((10, 3, 10, 15), fill=dark)
-        d.point((3, 12), fill=OUTLINE); d.point((4, 12), fill=OUTLINE)            # „етикет“
+            d.rectangle((1, top - 2, w - 2, top), fill=card, outline=OUTLINE)
+            d.rectangle((mid - 2, top - 2, mid + 1, h - 1), fill=tape)
+            d.line((mid - 2, top - 2, mid - 2, h - 1), fill=dark); d.line((mid + 1, top - 2, mid + 1, h - 1), fill=dark)
+        d.point((3, h - 4), fill=OUTLINE); d.point((4, h - 4), fill=OUTLINE)            # „етикет“
+    return f
+
+
+def courier(frame, carrying=True):
+    """
+    Куриерче: малко жълто пиленце (12 x 14) с розови бузки, оранжева човка и
+    крачета; с вдигнати крилца държи кашона над главата. frame 0/1 – крачка.
+    """
+    def f(d):
+        YEL, YEL_D, ORANGE = (250, 215, 80, 255), (225, 180, 50, 255), (240, 130, 40, 255)
+        if carrying:
+            d.line((2, 6, 1, 1), fill=YEL_D, width=2); d.line((9, 6, 10, 1), fill=YEL_D, width=2)   # крилцата нагоре
+        d.ellipse((1, 3, 10, 12), fill=YEL, outline=OUTLINE)                                     # тяло
+        d.line((5, 2, 6, 3), fill=OUTLINE); d.point((6, 2), fill=YEL_D)                         # перце
+        d.rectangle((3, 5, 3, 6), fill=BLACK); d.rectangle((8, 5, 8, 6), fill=BLACK)            # очи
+        d.point((2, 8), fill=(240, 140, 150, 255)); d.point((9, 8), fill=(240, 140, 150, 255))   # бузки
+        d.rectangle((5, 7, 6, 7), fill=ORANGE); d.point((5, 8), fill=(215, 100, 30, 255)); d.point((6, 8), fill=(215, 100, 30, 255))  # човка
+        if not carrying:
+            d.point((1, 8), fill=YEL_D); d.point((10, 8), fill=YEL_D)
+        if frame == 0:
+            d.line((3, 12, 3, 13), fill=ORANGE); d.line((8, 12, 9, 13), fill=ORANGE)
+        else:
+            d.line((4, 12, 3, 13), fill=ORANGE); d.line((7, 12, 8, 13), fill=ORANGE)
     return f
 
 
@@ -1128,8 +1153,209 @@ for _skin, _args in BED_SKINS.items():
     PROP_LIST[f"bed_{_skin}"] = (bed(*_args), 7)
 for _i, _name in enumerate(["heater_off", "heater", "heater_b"]):
     PROP_LIST[_name] = (prop(20, 22, heater(_i)), 0)
-PROP_LIST["parcel"] = (prop(18, 16, parcel(False)), 0)
-PROP_LIST["parcel_open"] = (prop(18, 16, parcel(True)), 0)
+
+# ── Нови ястия (16x16) и уреди (22x24, кадри "", "_b", "_open") ──
+
+def _img16(fn):
+    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    fn(ImageDraw.Draw(img))
+    return img
+
+
+def _glass(color, top=None, straw=False, ice=False):
+    def f(d):
+        d.polygon([(3, 3), (12, 3), (11, 15), (4, 15)], fill=(235, 245, 255, 255), outline=OUTLINE)
+        d.polygon([(4, 6), (11, 6), (10, 14), (5, 14)], fill=color)
+        if top:
+            d.rectangle((4, 4, 11, 6), fill=top)
+        if ice:
+            d.rectangle((5, 7, 7, 9), fill=(230, 245, 255, 255)); d.rectangle((8, 9, 10, 11), fill=(230, 245, 255, 255))
+        if straw:
+            d.line((9, 0, 8, 6), fill=RED)
+    return _img16(f)
+
+
+def _mug(color, foam=None, steam=True):
+    def f(d):
+        if steam:
+            d.line((6, 0, 5, 3), fill=(220, 220, 220, 255)); d.line((9, 1, 10, 4), fill=(220, 220, 220, 255))
+        d.rectangle((2, 6, 11, 14), fill=WHITE, outline=OUTLINE)
+        d.rectangle((3, 7, 10, 8), fill=color)
+        if foam:
+            d.rectangle((3, 6, 10, 7), fill=foam)
+        d.ellipse((10, 8, 14, 12), outline=OUTLINE)
+        d.line((1, 15, 13, 15), fill=OUTLINE)
+    return _img16(f)
+
+
+def _small_cup(color):
+    def f(d):
+        d.line((7, 2, 6, 5), fill=(220, 220, 220, 255))
+        d.rectangle((4, 8, 10, 13), fill=WHITE, outline=OUTLINE)
+        d.rectangle((5, 9, 9, 9), fill=color)
+        d.ellipse((10, 9, 12, 11), outline=OUTLINE)
+        d.line((2, 14, 13, 14), fill=OUTLINE)
+    return _img16(f)
+
+
+def _bowl(color, bits=None):
+    def f(d):
+        d.line((6, 1, 5, 4), fill=(220, 220, 220, 255)); d.line((10, 1, 11, 4), fill=(220, 220, 220, 255))
+        d.pieslice((1, 2, 14, 15), 0, 180, fill=(240, 240, 245, 255), outline=OUTLINE)
+        d.rectangle((2, 8, 13, 9), fill=color)
+        for x, y, c in (bits or []):
+            d.point((x, y), fill=c)
+    return _img16(f)
+
+
+def _plate(draw):
+    def f(d):
+        d.ellipse((0, 10, 15, 15), fill=(240, 240, 245, 255), outline=OUTLINE)
+        draw(d)
+    return _img16(f)
+
+
+def _cone(scoop, spot):
+    def f(d):
+        d.polygon([(4, 8), (11, 8), (8, 15)], fill=(220, 170, 90, 255), outline=OUTLINE)
+        d.line((5, 10, 9, 10), fill=(180, 130, 60, 255))
+        oval(d, (3, 2, 12, 9), scoop)
+        d.point((6, 4), fill=spot); d.point((9, 6), fill=spot)
+    return _img16(f)
+
+
+FOOD_ART = {
+    "lemonade": _glass((250, 230, 90, 255), straw=True),
+    "soup": _bowl((230, 150, 60, 255), [(5, 8, (90, 170, 70, 255)), (9, 8, (240, 210, 120, 255))]),
+    "corn": _img16(lambda d: (d.ellipse((5, 1, 11, 14), fill=(250, 210, 60, 255), outline=OUTLINE),
+                             [d.point((x, y), fill=(220, 170, 30, 255)) for y in range(3, 13, 2) for x in (7, 9)],
+                             d.polygon([(4, 9), (8, 15), (3, 15)], fill=(110, 180, 80, 255), outline=OUTLINE))),
+    "cocoa": _mug((110, 60, 30, 255), foam=(250, 240, 240, 255)),
+    "linden_tea": _mug((230, 200, 90, 255)),
+    "eggs": _plate(lambda d: (d.ellipse((2, 7, 8, 12), fill=WHITE, outline=OUTLINE), d.ellipse((4, 8, 6, 10), fill=(250, 190, 40, 255)),
+                              d.ellipse((8, 6, 14, 11), fill=WHITE, outline=OUTLINE), d.ellipse((10, 7, 12, 9), fill=(250, 190, 40, 255)))),
+    "pancakes": _plate(lambda d: ([d.ellipse((2, 9 - i * 2, 13, 12 - i * 2), fill=(230, 180, 100, 255), outline=OUTLINE) for i in range(3)],
+                                  d.line((6, 4, 6, 7), fill=(240, 170, 40, 255)), d.ellipse((5, 3, 10, 5), fill=(240, 170, 40, 255)))),
+    "espresso": _small_cup((70, 40, 20, 255)),
+    "latte": _glass((200, 160, 110, 255), top=(250, 245, 235, 255)),
+    "mocha": _mug((90, 50, 30, 255), foam=(250, 245, 235, 255)),
+    "cappuccino": _mug((150, 100, 60, 255), foam=(250, 245, 235, 255)),
+    "iced_coffee": _glass((140, 90, 50, 255), ice=True, straw=True),
+    "cookies": _img16(lambda d: [(oval(d, (x, y, x + 6, y + 6), (210, 160, 90, 255)), d.point((x + 2, y + 2), fill=(90, 50, 30, 255)),
+                                  d.point((x + 4, y + 4), fill=(90, 50, 30, 255))) for x, y in [(1, 8), (8, 9), (4, 3)]]),
+    "muffins": _img16(lambda d: (d.polygon([(4, 9), (12, 9), (11, 15), (5, 15)], fill=(230, 120, 140, 255), outline=OUTLINE),
+                                 oval(d, (2, 3, 14, 10), (220, 170, 100, 255)), d.point((6, 6), fill=(70, 90, 190, 255)),
+                                 d.point((9, 5), fill=(70, 90, 190, 255)), d.point((10, 7), fill=(70, 90, 190, 255)))),
+    "pizza": _img16(lambda d: (d.polygon([(1, 3), (14, 3), (8, 15)], fill=(250, 210, 90, 255), outline=OUTLINE),
+                               d.line((1, 3, 14, 3), fill=(200, 140, 70, 255), width=2), d.ellipse((5, 5, 7, 7), fill=RED),
+                               d.ellipse((9, 6, 11, 8), fill=RED), d.point((8, 10), fill=RED))),
+    "smoothie": _glass((230, 110, 160, 255), straw=True),
+    "toast": _plate(lambda d: (d.rectangle((3, 3, 12, 11), fill=(230, 180, 110, 255), outline=OUTLINE),
+                               d.rectangle((4, 9, 11, 10), fill=(250, 210, 60, 255)), d.line((4, 5, 11, 5), fill=(190, 130, 70, 255)))),
+    "sandwich_ham": _plate(lambda d: (d.polygon([(2, 11), (13, 11), (2, 2)], fill=(240, 220, 170, 255), outline=OUTLINE),
+                                      d.line((3, 9, 11, 9), fill=(230, 130, 140, 255)), d.line((3, 8, 9, 8), fill=(110, 180, 80, 255)))),
+    "sandwich_honey": _plate(lambda d: (d.polygon([(2, 11), (13, 11), (2, 2)], fill=(240, 220, 170, 255), outline=OUTLINE),
+                                        d.line((3, 9, 11, 9), fill=(250, 230, 120, 255)), d.line((3, 8, 9, 8), fill=(240, 170, 40, 255)))),
+    "waffle_honey": _img16(lambda d: (d.rectangle((2, 4, 13, 14), fill=(230, 180, 90, 255), outline=OUTLINE),
+                                      [d.line((x, 5, x, 13), fill=(190, 130, 60, 255)) for x in (5, 8, 11)],
+                                      [d.line((3, y, 12, y), fill=(190, 130, 60, 255)) for y in (7, 10)],
+                                      d.line((4, 3, 10, 3), fill=(240, 170, 40, 255)))),
+    "waffle_choco": _img16(lambda d: (d.rectangle((2, 4, 13, 14), fill=(230, 180, 90, 255), outline=OUTLINE),
+                                      [d.line((x, 5, x, 13), fill=(190, 130, 60, 255)) for x in (5, 8, 11)],
+                                      d.rectangle((3, 5, 12, 8), fill=(100, 55, 30, 255)))),
+    "waffle_icecream": _img16(lambda d: (d.rectangle((1, 8, 14, 14), fill=(230, 180, 90, 255), outline=OUTLINE),
+                                         [d.line((x, 9, x, 13), fill=(190, 130, 60, 255)) for x in (4, 7, 10)],
+                                         oval(d, (4, 2, 11, 9), (250, 235, 200, 255)), d.point((7, 4), fill=(240, 170, 40, 255)))),
+    "icecream_honey": _cone((250, 225, 150, 255), (150, 95, 40, 255)),
+    "icecream_berry": _cone((170, 110, 200, 255), (90, 60, 160, 255)),
+    "skewers": _img16(lambda d: (d.line((1, 14, 14, 1), fill=WOOD, width=1),
+                                 [oval(d, (x - 2, 13 - x - 2, x + 2, 13 - x + 2), c) for x, c in
+                                  [(4, (150, 80, 50, 255)), (7, (110, 180, 80, 255)), (10, (170, 90, 60, 255))]])),
+    "veggies": _plate(lambda d: (oval(d, (2, 5, 7, 11), (110, 180, 80, 255)), oval(d, (6, 4, 11, 10), RED),
+                                 oval(d, (10, 6, 14, 11), (250, 200, 60, 255)), d.line((5, 7, 5, 9), fill=(70, 120, 50, 255)))),
+    "grilled_bread": _img16(lambda d: [(d.rectangle((x, y, x + 6, y + 6), fill=(220, 160, 90, 255), outline=OUTLINE),
+                                        d.line((x + 1, y + 2, x + 5, y + 2), fill=(120, 70, 40, 255)),
+                                        d.line((x + 1, y + 4, x + 5, y + 4), fill=(120, 70, 40, 255))) for x, y in [(1, 7), (8, 4)]]),
+}
+for _id, _img in FOOD_ART.items():
+    PROP_LIST[f"food_{_id}"] = (_img, 0)
+
+
+def cook_mixer(frame):
+    """Миксер: кана върху основа; работи – перките се въртят."""
+    def f(d):
+        d.rectangle((4, 18, 15, 23), fill=(220, 90, 80, 255), outline=OUTLINE)
+        d.point((9, 20), fill=(250, 240, 120, 255) if frame else WHITE)
+        d.polygon([(5, 6), (14, 6), (13, 17), (6, 17)], fill=(220, 240, 250, 200), outline=OUTLINE)
+        d.rectangle((7, 11, 12, 16), fill=(240, 200, 150, 255))
+        if frame == 1:
+            d.line((7, 13, 12, 14), fill=GREY)
+        else:
+            d.line((9, 12, 10, 16), fill=GREY)
+        if frame == 2:
+            d.rectangle((5, 2, 14, 4), fill=(220, 90, 80, 255), outline=OUTLINE)
+        else:
+            d.rectangle((5, 4, 14, 6), fill=(220, 90, 80, 255), outline=OUTLINE)
+    return f
+
+
+def cook_sandwich(frame):
+    """Сандвичарник: две плочи с панта; работи – свети лампичката и пуши."""
+    def f(d):
+        d.rectangle((2, 15, 17, 22), fill=(80, 80, 90, 255), outline=OUTLINE)
+        if frame == 2:
+            d.polygon([(2, 15), (4, 4), (19, 4), (17, 15)], fill=(110, 110, 120, 255), outline=OUTLINE)
+            d.rectangle((4, 13, 15, 15), fill=(230, 180, 100, 255))
+        else:
+            d.rectangle((2, 10, 17, 15), fill=(110, 110, 120, 255), outline=OUTLINE)
+            d.rectangle((14, 7, 19, 9), fill=OUTLINE)
+        d.point((5, 19), fill=(250, 80, 60, 255) if frame == 1 else (120, 40, 40, 255))
+        if frame == 1:
+            d.line((8, 7, 7, 4), fill=(220, 220, 220, 255)); d.line((12, 6, 13, 3), fill=(220, 220, 220, 255))
+    return f
+
+
+def cook_icecream(frame):
+    """Машинка за сладолед: кутия с купа отгоре; работи – бърка."""
+    def f(d):
+        d.rectangle((3, 12, 16, 23), fill=(150, 200, 230, 255), outline=OUTLINE)
+        d.rectangle((5, 15, 14, 17), fill=WHITE)
+        d.ellipse((4, 5, 15, 13), fill=(240, 245, 250, 255), outline=OUTLINE)
+        if frame == 2:
+            oval(d, (6, 2, 13, 8), (250, 235, 200, 255))
+        else:
+            d.ellipse((6, 7, 13, 11), fill=(250, 235, 200, 255))
+            d.line((9 + frame, 7, 10 - frame, 11), fill=GREY)
+    return f
+
+
+def cook_grill(frame):
+    """Скара: решетка на крачета; работи – въглените светят и пуши."""
+    def f(d):
+        d.line((4, 17, 2, 23), fill=OUTLINE); d.line((15, 17, 17, 23), fill=OUTLINE)
+        d.pieslice((2, 6, 17, 19), 0, 180, fill=(60, 60, 70, 255), outline=OUTLINE)
+        for x in range(4, 16, 2):
+            d.point((x, 13), fill=FLAME if (x + frame) % 4 else (255, 210, 90, 255))
+        d.line((2, 12, 17, 12), fill=GREY)
+        if frame != 2:
+            oval(d, (5, 8, 9, 11), (150, 80, 50, 255)); oval(d, (11, 8, 15, 11), (110, 180, 80, 255))
+        if frame == 1:
+            d.line((7, 6, 6, 2), fill=(220, 220, 220, 255)); d.line((12, 5, 13, 1), fill=(220, 220, 220, 255))
+    return f
+
+
+for _tool, _fn in {"mixer": cook_mixer, "sandwich": cook_sandwich, "icecream": cook_icecream, "grill": cook_grill}.items():
+    for _i, _suffix in enumerate(["", "_b", "_open"]):
+        PROP_LIST[f"cook_{_tool}{_suffix}"] = (prop(22, 24, _fn(_i)), 0)
+    # Иконката в магазина: първият кадър, смален до 16x16.
+    PROP_LIST[f"shop_{_tool}"] = (prop(22, 24, _fn(0)).crop((0, 0, 20, 24)).resize((16, 16), Image.NEAREST), 0)
+
+for _sfx, (_w, _h) in {"_s": (12, 10), "": (18, 16), "_l": (28, 20)}.items():
+    PROP_LIST[f"parcel{_sfx}"] = (prop(_w, _h, parcel(False, _w, _h)), 0)
+    PROP_LIST[f"parcel{_sfx}_open"] = (prop(_w, _h, parcel(True, _w, _h)), 0)
+for _i in (0, 1):
+    PROP_LIST[f"courier{'_b' if _i else ''}"] = (prop(12, 14, courier(_i)), 0)
+    PROP_LIST[f"courier_free{'_b' if _i else ''}"] = (prop(12, 14, courier(_i, carrying=False)), 0)
 for _i, _name in enumerate(["bee", "bee_b"]):
     PROP_LIST[_name] = (prop(11, 11, bee(_i)), 0)
 for _i, _name in enumerate(["squirrel", "squirrel_b"]):

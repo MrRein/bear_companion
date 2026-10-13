@@ -44,8 +44,8 @@ public static class SelfTest
             Log(errors.Count == 0 ? "OK" : $"{errors.Count} грешки");
             app.Shutdown(errors.Count == 0 ? 0 : 1);
         });
-        // Ако нещо увисне, след 8 минути спираме с грешка.
-        var watchdog = new DispatcherTimer { Interval = TimeSpan.FromMinutes(8) };
+        // Ако нещо увисне, след 10 минути спираме с грешка.
+        var watchdog = new DispatcherTimer { Interval = TimeSpan.FromMinutes(10) };
         watchdog.Tick += (_, _) =>
         {
             Log("ГРЕШКА: тестът увисна");
@@ -149,6 +149,8 @@ public sealed partial class PetWindow
         await step("рецепти от страници", () =>
         {
             var t = new SaveData();
+            // Учат се само рецепти за уреди, които ги има: с всички уреди – всички рецепти.
+            foreach (var u in Kitchen.Upgrades) t.Owned.Add(u.Id);
             int learned = 0, pages = 0;
             while (Recipes.Next(t) is { } next)
             {
@@ -166,7 +168,8 @@ public sealed partial class PetWindow
             }
             if (learned != Kitchen.Foods.Count(f => f.Cost > 0 && !Kitchen.IsDefaultRecipe(f))) throw new Exception("не всички рецепти се научиха");
             // Всеки уред идва със своята първа рецепта.
-            foreach (var tool in new[] { Kitchen.Pot, Kitchen.Pan, Kitchen.Oven, Kitchen.CoffeeMachine, Kitchen.Kettle, Kitchen.Jug })
+            foreach (var tool in new[] { Kitchen.Pot, Kitchen.Pan, Kitchen.Oven, Kitchen.CoffeeMachine, Kitchen.Kettle, Kitchen.Jug,
+                Kitchen.Mixer, Kitchen.SandwichMaker, Kitchen.IceCream, Kitchen.Grill })
                 if (Kitchen.DefaultRecipe(tool) == null) throw new Exception("уред без рецепта: " + tool);
             if (Recipes.AddPage(t) != null) throw new Exception("страница след всичко");
             FindRecipePage();
@@ -183,7 +186,12 @@ public sealed partial class PetWindow
             if (!Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "popcorn"), _save)) throw new Exception("тенджерата дойде без рецепта");
             _nextDelivery = 0;
         }, 2500);
-        await step("доставката пада", () => { if (_parcel == null) throw new Exception("няма кашонче"); }, 3000);
+        await step("куриерчетата идват", () =>
+        {
+            if (_courier == null) throw new Exception("няма куриерчета");
+            _courierX = _courierDrop + 20;      // по-бързо до мястото
+        }, 2000);
+        await step("оставиха кашона", () => { if (_parcel == null) throw new Exception("няма кашон"); }, 300);
         await step("доставката се отваря", () => { OpenParcel(); }, 2500);
         await step("доставката свърши", () => { if (_parcel != null) throw new Exception("кашончето остана"); SetIdle(); }, 300);
         await step("отключи всичко", DevUnlockAll, 200);
@@ -213,9 +221,34 @@ public sealed partial class PetWindow
         await step("почивай си на случаен принцип", RelaxRandom, 800);
         await step("стани", GetUp, 500);
 
-        foreach (var food in Kitchen.Foods)
+        // Всички стари ястия, по едно за всеки нов уред и всички в два уреда (иначе тестът става твърде дълъг).
+        var newTools = new System.Collections.Generic.HashSet<string>();
+        var toCook = Kitchen.Foods.Where(f => f.Id is "berries" or "popcorn" or "meatballs" or "potatoes" or "coffee" or "tea" or "juice_orange" or "juice_berry"
+            || f.Prep != null || (f.Tool != null && Kitchen.IsDefaultRecipe(f) && newTools.Add(f.Tool))).ToList();
+        foreach (var food in toCook)
         {
             var f = food;
+            if (f.Prep != null)
+            {
+                await step($"готви {f.Id}: първа стъпка", () =>
+                {
+                    _save.CoffeeTimes.Clear();
+                    Cook(f);
+                    StartPendingCook();
+                    if (_cook?.Tool != f.Prep) throw new Exception("не почна от " + f.Prep);
+                }, 1000);
+                await step($"готви {f.Id}: втори уред", () =>
+                {
+                    DevFinishCooking();
+                }, 1200);
+                await step($"готови {f.Id}: в главния уред", () =>
+                {
+                    if (_cook?.Tool != f.Tool) throw new Exception("не мина в " + f.Tool);
+                    DevFinishCooking();
+                }, 4000);
+                await step("изчисти храната", DevClearFood, 300);
+                continue;
+            }
             await step($"готви {f.Id}", () =>
             {
                 _save.BerriesReadyAt = DateTime.MinValue;

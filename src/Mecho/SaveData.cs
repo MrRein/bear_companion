@@ -37,6 +37,7 @@ public sealed class SaveData
     public string? CookFood { get; set; }                     // какво се готви (виж PetWindow.Cooking.cs)
     public DateTime CookReadyAt { get; set; }
     public int CookCost { get; set; }
+    public int CookStage { get; set; } = 1;                     // рецепта в два уреда: 0 – първият, 1 – вторият
     public double CookX { get; set; } = double.NaN;
     public List<string> MealsDone { get; set; } = new();      // "lunch:2026-10-11", "lunch-thanks:…" (виж Meals)
     public string CouchSkin { get; set; } = "classic";

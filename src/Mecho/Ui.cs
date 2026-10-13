@@ -224,6 +224,13 @@ public static class Ui
         ["📻"] = "shop_radio", ["🎲"] = "dice", ["🎨"] = "shop_easel", ["🎮"] = "shop_computer", ["🤸"] = "shop_trampoline",
         ["💡"] = "pencil", ["📝"] = "notes", ["📋"] = "tasks", ["🛋"] = "couch", ["🎁"] = "gift", ["🚶"] = "walk", ["🔒"] = "lock",
         ["💤"] = "moon", ["🌙"] = "moon", ["☀"] = "sun", ["❤"] = "heart", ["♪"] = "music",
+        ["🥄"] = "shop_mixer", ["🧇"] = "shop_sandwich", ["🍨"] = "shop_icecream", ["♨"] = "shop_grill",
+        ["🍋"] = "food_lemonade", ["🥣"] = "food_soup", ["🌽"] = "food_corn", ["🍫"] = "food_cocoa", ["🌼"] = "food_linden_tea",
+        ["🥚"] = "food_eggs", ["🥞"] = "food_pancakes", ["🫘"] = "food_espresso", ["🥛"] = "food_latte", ["🟤"] = "food_mocha",
+        ["🫧"] = "food_cappuccino", ["🧋"] = "food_iced_coffee", ["🍪"] = "food_cookies", ["🧁"] = "food_muffins", ["🍕"] = "food_pizza",
+        ["🥤"] = "food_smoothie", ["🍞"] = "food_toast", ["🥪"] = "food_sandwich_ham", ["🍌"] = "food_sandwich_honey",
+        ["🟨"] = "food_waffle_honey", ["🟫"] = "food_waffle_choco", ["🍧"] = "food_waffle_icecream", ["🍦"] = "food_icecream_honey",
+        ["🟣"] = "food_icecream_berry", ["🍢"] = "food_skewers", ["🫑"] = "food_veggies", ["🥖"] = "food_grilled_bread",
     };
 
     /// <summary>

@@ -17,7 +17,7 @@ public sealed partial class PetWindow
     private Food? _drinkFood;        // какво пие (за коментарите)
     private bool _drinkLast;         // последното от поръчката
 
-    private static bool IsDrink(Food f) => f.Id is "tea" or "coffee" || f.Id.StartsWith("juice");
+    private static bool IsDrink(Food f) => Kitchen.IsDrink(f);
 
     /// <summary>Напитка: сяда и я пие бавно (вместо да я изяде наведнъж).</summary>
     private void StartDrinking(Food food, bool last = false)
@@ -26,13 +26,13 @@ public sealed partial class PetWindow
         _drinkLast = last;
         if (_inScene) LeaveScene();
         StartScene(Scenes.Drink, quiet: true);
-        BeginCup(food.Id, sips: 4 + _rng.Next(3));
+        BeginCup(Kitchen.CupFor(food), sips: 4 + _rng.Next(3), hot: Kitchen.IsHot(food));
     }
 
-    private void BeginCup(string drink, int sips)
+    private void BeginCup(string drink, int sips, bool? hot = null)
     {
         _cup = drink;
-        _cupHot = drink is "tea" or "coffee";
+        _cupHot = hot ?? drink is "tea" or "coffee";
         _sipsLeft = sips;
         _loopsBeforeSip = 2 + _rng.Next(3);
         _blewThisSip = false;

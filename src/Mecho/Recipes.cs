@@ -17,8 +17,9 @@ public static class Recipes
     /// <summary>Колко страници иска рецептата.</summary>
     public static int PagesFor(Food f) => f.Id switch
     {
-        "potatoes" => 7,
-        "coffee" or "meatballs" => 5,
+        "potatoes" or "pizza" => 7,
+        "coffee" or "meatballs" or "latte" or "mocha" or "skewers" => 5,
+        _ when f.Prep != null => 5,     // в два уреда – средна
         _ => 3,
     };
 
@@ -28,7 +29,8 @@ public static class Recipes
     /// Рецептите, които още не знае и се учат от страници. Боровинките са без
     /// рецепта, а всеки уред идва със своята първа рецепта (Kitchen.DefaultRecipe).
     /// </summary>
-    private static Food[] Unknown(SaveData s) => Kitchen.Foods.Where(f => f.Cost > 0 && !Kitchen.IsDefaultRecipe(f) && !Kitchen.HasRecipe(f, s)).ToArray();
+    /// Учат се само рецепти за уредите, които вече има (иначе няма с какво да се сготвят).
+    private static Food[] Unknown(SaveData s) => Kitchen.Foods.Where(f => f.Cost > 0 && !Kitchen.IsDefaultRecipe(f) && !Kitchen.HasRecipe(f, s) && Kitchen.HasTool(f, s)).ToArray();
 
     /// <summary>Следващата рецепта (избира я, ако още няма). null = знае всички.</summary>
     public static Food? Next(SaveData s)

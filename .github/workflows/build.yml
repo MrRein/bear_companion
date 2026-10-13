@@ -29,7 +29,7 @@ jobs:
       # Пуска мечока в режим на самопроверка (менюто, магазина, кътчетата,
       # готвенето, гардероба). Ако нещо гърми, версия не излиза.
       - name: Self-test
-        timeout-minutes: 10
+        timeout-minutes: 12
         shell: pwsh
         run: |
           $p = Start-Process -FilePath publish/Mecho/Mecho.exe -ArgumentList '--selftest' -Wait -PassThru

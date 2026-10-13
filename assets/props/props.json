@@ -177,12 +177,216 @@
       "file": "heater_b.png",
       "seat": 0
     },
+    "food_lemonade": {
+      "file": "food_lemonade.png",
+      "seat": 0
+    },
+    "food_soup": {
+      "file": "food_soup.png",
+      "seat": 0
+    },
+    "food_corn": {
+      "file": "food_corn.png",
+      "seat": 0
+    },
+    "food_cocoa": {
+      "file": "food_cocoa.png",
+      "seat": 0
+    },
+    "food_linden_tea": {
+      "file": "food_linden_tea.png",
+      "seat": 0
+    },
+    "food_eggs": {
+      "file": "food_eggs.png",
+      "seat": 0
+    },
+    "food_pancakes": {
+      "file": "food_pancakes.png",
+      "seat": 0
+    },
+    "food_espresso": {
+      "file": "food_espresso.png",
+      "seat": 0
+    },
+    "food_latte": {
+      "file": "food_latte.png",
+      "seat": 0
+    },
+    "food_mocha": {
+      "file": "food_mocha.png",
+      "seat": 0
+    },
+    "food_cappuccino": {
+      "file": "food_cappuccino.png",
+      "seat": 0
+    },
+    "food_iced_coffee": {
+      "file": "food_iced_coffee.png",
+      "seat": 0
+    },
+    "food_cookies": {
+      "file": "food_cookies.png",
+      "seat": 0
+    },
+    "food_muffins": {
+      "file": "food_muffins.png",
+      "seat": 0
+    },
+    "food_pizza": {
+      "file": "food_pizza.png",
+      "seat": 0
+    },
+    "food_smoothie": {
+      "file": "food_smoothie.png",
+      "seat": 0
+    },
+    "food_toast": {
+      "file": "food_toast.png",
+      "seat": 0
+    },
+    "food_sandwich_ham": {
+      "file": "food_sandwich_ham.png",
+      "seat": 0
+    },
+    "food_sandwich_honey": {
+      "file": "food_sandwich_honey.png",
+      "seat": 0
+    },
+    "food_waffle_honey": {
+      "file": "food_waffle_honey.png",
+      "seat": 0
+    },
+    "food_waffle_choco": {
+      "file": "food_waffle_choco.png",
+      "seat": 0
+    },
+    "food_waffle_icecream": {
+      "file": "food_waffle_icecream.png",
+      "seat": 0
+    },
+    "food_icecream_honey": {
+      "file": "food_icecream_honey.png",
+      "seat": 0
+    },
+    "food_icecream_berry": {
+      "file": "food_icecream_berry.png",
+      "seat": 0
+    },
+    "food_skewers": {
+      "file": "food_skewers.png",
+      "seat": 0
+    },
+    "food_veggies": {
+      "file": "food_veggies.png",
+      "seat": 0
+    },
+    "food_grilled_bread": {
+      "file": "food_grilled_bread.png",
+      "seat": 0
+    },
+    "cook_mixer": {
+      "file": "cook_mixer.png",
+      "seat": 0
+    },
+    "cook_mixer_b": {
+      "file": "cook_mixer_b.png",
+      "seat": 0
+    },
+    "cook_mixer_open": {
+      "file": "cook_mixer_open.png",
+      "seat": 0
+    },
+    "shop_mixer": {
+      "file": "shop_mixer.png",
+      "seat": 0
+    },
+    "cook_sandwich": {
+      "file": "cook_sandwich.png",
+      "seat": 0
+    },
+    "cook_sandwich_b": {
+      "file": "cook_sandwich_b.png",
+      "seat": 0
+    },
+    "cook_sandwich_open": {
+      "file": "cook_sandwich_open.png",
+      "seat": 0
+    },
+    "shop_sandwich": {
+      "file": "shop_sandwich.png",
+      "seat": 0
+    },
+    "cook_icecream": {
+      "file": "cook_icecream.png",
+      "seat": 0
+    },
+    "cook_icecream_b": {
+      "file": "cook_icecream_b.png",
+      "seat": 0
+    },
+    "cook_icecream_open": {
+      "file": "cook_icecream_open.png",
+      "seat": 0
+    },
+    "shop_icecream": {
+      "file": "shop_icecream.png",
+      "seat": 0
+    },
+    "cook_grill": {
+      "file": "cook_grill.png",
+      "seat": 0
+    },
+    "cook_grill_b": {
+      "file": "cook_grill_b.png",
+      "seat": 0
+    },
+    "cook_grill_open": {
+      "file": "cook_grill_open.png",
+      "seat": 0
+    },
+    "shop_grill": {
+      "file": "shop_grill.png",
+      "seat": 0
+    },
+    "parcel_s": {
+      "file": "parcel_s.png",
+      "seat": 0
+    },
+    "parcel_s_open": {
+      "file": "parcel_s_open.png",
+      "seat": 0
+    },
     "parcel": {
       "file": "parcel.png",
       "seat": 0
     },
     "parcel_open": {
       "file": "parcel_open.png",
+      "seat": 0
+    },
+    "parcel_l": {
+      "file": "parcel_l.png",
+      "seat": 0
+    },
+    "parcel_l_open": {
+      "file": "parcel_l_open.png",
+      "seat": 0
+    },
+    "courier": {
+      "file": "courier.png",
+      "seat": 0
+    },
+    "courier_free": {
+      "file": "courier_free.png",
+      "seat": 0
+    },
+    "courier_b": {
+      "file": "courier_b.png",
+      "seat": 0
+    },
+    "courier_free_b": {
+      "file": "courier_free_b.png",
       "seat": 0
     },
     "bee": {

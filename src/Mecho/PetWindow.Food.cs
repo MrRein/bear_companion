@@ -49,6 +49,7 @@ public sealed partial class PetWindow
         _heaterWindow?.SetAway(!show);
         _visitor?.SetAway(!show);
         _parcel?.SetAway(!show);
+        if (!show) _courier?.Hide();
         if (show) RaiseCompanions();
         if (_giftWindow != null)
         {
@@ -210,7 +211,7 @@ public sealed partial class PetWindow
         LearnDefaultRecipe(upgrade.Id);
         Say(R.Pick("delivery.ordered", _save.OwnerName), 4);
         // Идва с доставка: като отвори кашончето, казва какво е и го пробва.
-        Deliver(upgrade.Icon, upgrade.Name, () =>
+        Deliver(upgrade.Icon, upgrade.Name, size: SizeOf(upgrade.Id), onOpen: () =>
         {
             Say($"Ура! {upgrade.Icon} {upgrade.Name}! {upgrade.Description}", 6);
             // Диванът идва веднага, ако тъкмо чете на земята.

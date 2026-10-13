@@ -47,7 +47,7 @@ public sealed partial class PetWindow
         _save.Hazelnuts -= skin.Price;
         _save.Owned.Add($"skin_{skin.Item}_{skin.Id}");
         // Новата дамаска идва с доставка; слага я, като отвори кашончето.
-        Deliver("🎁", skin.Name, () => UseSkin(skin));
+        Deliver("🎁", skin.Name, () => UseSkin(skin), size: 1);
         Persist();
         NotifyCare();
     }

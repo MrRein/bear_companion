@@ -18,6 +18,7 @@ public sealed partial class PetWindow
     {
         public required Food Food { get; init; }
         public required string Tool { get; init; }
+        public int Stage { get; init; } = 1;  // 0 – първата стъпка в друг уред (Food.Prep), 1 – главният уред
         public required CookerWindow Window { get; init; }
         public double Fullness { get; init; }
         public double Energy { get; init; }
@@ -65,7 +66,7 @@ public sealed partial class PetWindow
         int dir = _rng.Next(2) == 0 ? -1 : 1;
         double step = SpriteWidth * (0.5 + _rng.NextDouble() * 0.4);
         if (_x + dir * (step + SpriteWidth * 1.5) > area.Right || _x + dir * (step + SpriteWidth * 1.5) < area.Left) dir = -dir;
-        Say(Lines.Pick(FoodTalk.For(food).Start, _save.OwnerName), 5);
+        Say(Lines.Pick(FoodTalk.For(food, food.Prep ?? food.Tool).Start, _save.OwnerName), 5);
         WalkTo(_x + dir * step, () =>
         {
             _facingLeft = dir < 0;
@@ -85,13 +86,18 @@ public sealed partial class PetWindow
         Kitchen.Oven => 10 * 60,
         Kitchen.Pan => 6 * 60,
         Kitchen.Pot => 3 * 60,
+        Kitchen.Grill => 6 * 60,
+        Kitchen.IceCream => 4 * 60,
+        Kitchen.SandwichMaker => 3 * 60,
         Kitchen.Jug => 90,
         _ => 60,
     };
 
-    private void StartCooking(Food food, double fullnessEach, double energyEach, int cost, double seconds = -1, bool quiet = false)
+    private void StartCooking(Food food, double fullnessEach, double energyEach, int cost, double seconds = -1, bool quiet = false, int stage = -1)
     {
-        string tool = food.Tool!;
+        // Рецепта в два уреда: първо в Prep (миксер, кафемашина…), после в главния.
+        if (stage < 0) stage = food.Prep != null ? 0 : 1;
+        string tool = stage == 0 ? food.Prep! : food.Tool!;
         if (seconds < 0) seconds = CookSeconds(tool);
 
         // Уредът застава точно пред мечока (накъдето гледа; ако там няма място –
@@ -112,6 +118,7 @@ public sealed partial class PetWindow
         {
             Food = food,
             Tool = tool,
+            Stage = stage,
             Window = window,
             Fullness = fullnessEach,
             Energy = energyEach,
@@ -134,12 +141,13 @@ public sealed partial class PetWindow
         UpdateCookingTag();
 
         _save.CookFood = food.Id;
+        _save.CookStage = stage;
         _save.CookReadyAt = DateTime.Now.AddSeconds(seconds);
         _save.CookCost = cost;
         _save.CookX = x;
         Persist();
 
-        if (!InFocus && !quiet) Say(Lines.Pick(FoodTalk.For(food).Start, _save.OwnerName), 5);
+        if (!InFocus && !quiet) Say(Lines.Pick(FoodTalk.For(food, tool).Start, _save.OwnerName), 5);
         _nextCookCheck = Now + 20;
         _nextWorkCookCheck = Now + 180 + _rng.Next(120);
     }
@@ -155,7 +163,8 @@ public sealed partial class PetWindow
             return;
         }
         double left = Math.Max(3, (_save.CookReadyAt - DateTime.Now).TotalSeconds);
-        StartCooking(food, Kitchen.FullnessOf(food, _save) / food.Count, food.Energy / food.Count, _save.CookCost, left);
+        StartCooking(food, Kitchen.FullnessOf(food, _save) / food.Count, food.Energy / food.Count, _save.CookCost, left,
+            stage: food.Prep != null ? _save.CookStage : 1);
     }
 
     /// <summary>Половината ширина на уреда (рисунките са 22 пиксела).</summary>
@@ -227,7 +236,7 @@ public sealed partial class PetWindow
 
     private System.Windows.Media.Imaging.BitmapSource CookerArtFor(Food food, string tool, string frame)
     {
-        string name = tool == Kitchen.Jug ? "jug_" + food.Id.Replace("juice_", "") : tool;
+        string name = tool == Kitchen.Jug ? "jug_" + (food.Id == "juice_berry" ? "berry" : "orange") : tool;
         return _lib.GetProp("cook_" + name + frame, 22, 24, 0).Image;
     }
 
@@ -273,7 +282,7 @@ public sealed partial class PetWindow
             {
                 if (_inScene) LeaveScene();
                 var (spot, faceLeft) = CookerSpot();
-                if (now < c.PopAt) Announce(Lines.Pick(FoodTalk.For(c.Food).Almost, _save.OwnerName), 3, food: true);
+                if (now < c.PopAt) Announce(Lines.Pick(FoodTalk.For(c.Food, c.Tool).Almost, _save.OwnerName), 3, food: true);
                 c.Going = true;
                 WalkTo(spot, () =>
                 {
@@ -305,6 +314,12 @@ public sealed partial class PetWindow
                 c.Window.SetArt(CookerArt((int)(now / 0.3) % 2 == 0 ? "" : "_b"), PixelSize);
                 return;
             }
+            // Първата стъпка е готова: мечокът „пренася купичката“ във втория уред.
+            if (c.Stage == 0)
+            {
+                NextCookingStage(c);
+                return;
+            }
             c.Popped = true;
             c.NextPieceAt = now;
             c.Window.Shake(0);
@@ -325,13 +340,34 @@ public sealed partial class PetWindow
                 // Последната закъснява: тъкмо си мислиш, че е свършило.
                 c.NextPieceAt = now + (c.Left == 1 ? 1.4 : 0.25 + _rng.NextDouble() * 0.3);
             }
-            else if (!InFocus) Say(Lines.Pick(FoodTalk.For(c.Food).Pop, _save.OwnerName), 2);
+            else if (!InFocus) Say(Lines.Pick(FoodTalk.For(c.Food, c.Tool).Pop, _save.OwnerName), 2);
             if (c.Left == 0) c.DoneAt = now + 1.5;
             return;
         }
 
         if (c.Left == 0 && now >= c.DoneAt) EndCooking(food: c.Food);
     }
+
+    /// <summary>Рецепта в два уреда: първият е готов – затваря се и на същото място се включва вторият.</summary>
+    private void NextCookingStage(Cooking c)
+    {
+        _cook = null;
+        _save.CookX = c.Window.CenterX;
+        c.Window.Close();
+        StartCooking(c.Food, c.Fullness, c.Energy, c.Cost, quiet: true, stage: 1);
+        string next = ToolName(c.Food.Tool!);
+        if (!InFocus) Say(R.Pick("cook.nextstep", _save.OwnerName).Replace("{уред}", next).Replace("{ястие}", c.Food.Name.ToLowerInvariant()), 4);
+        if (CanAnimateFreely && _state == BearState.Idle) Play("happy");
+    }
+
+    /// <summary>Уредът с член, за репликите („тенджерата“, „миксера“…).</summary>
+    private static string ToolName(string tool) => tool switch
+    {
+        Kitchen.Pot => "тенджерата", Kitchen.Pan => "тигана", Kitchen.Oven => "фурната",
+        Kitchen.CoffeeMachine => "кафемашината", Kitchen.Kettle => "чайника", Kitchen.Mixer => "миксера",
+        Kitchen.SandwichMaker => "сандвичарника", Kitchen.IceCream => "машинката за сладолед", Kitchen.Grill => "скарата",
+        _ => "каничката",
+    };
 
     private void EndCooking(Food? food)
     {
@@ -378,7 +414,7 @@ public sealed partial class PetWindow
         }
         if (InFocus || Now < _nextCookCheck) return false;
         _nextCookCheck = Now + 25 + _rng.Next(35);
-        var talk = FoodTalk.For(c.Food);
+        var talk = FoodTalk.For(c.Food, c.Tool);
 
         int roll = _rng.Next(100);
         if (roll < 40)
@@ -459,7 +495,7 @@ public sealed partial class PetWindow
         else if (_inScene || _onTrampoline)
             lines = R.Get("cook.while.other");
         else
-            lines = FoodTalk.For(c.Food).During;
+            lines = FoodTalk.For(c.Food, c.Tool).During;
         return Lines.Pick(lines, _save.OwnerName).Replace("{ястие}", the).Replace("{Ястие}", Capital(the));
     }
 
@@ -500,11 +536,7 @@ public sealed partial class PetWindow
     /// <summary>Готово е: вика Тут да цъкне уреда (според ястието).</summary>
     private static string[] ReadyLines(Cooking c)
     {
-        string tool = c.Tool switch
-        {
-            Kitchen.Pot => "тенджерата", Kitchen.Pan => "тигана", Kitchen.Oven => "фурната",
-            Kitchen.CoffeeMachine => "кафемашината", Kitchen.Kettle => "чайника", _ => "каничката",
-        };
+        string tool = ToolName(c.Tool);
         string food = $"{c.Food.Icon} {c.Food.Name}";
         var lines = R.Get(c.Tool == Kitchen.Jug ? "cook.ready.juice" : "cook.ready");
         return lines.Select(l => l.Replace("{уред}", tool).Replace("{Уред}", Capital(tool)).Replace("{ястие}", food)).ToArray();

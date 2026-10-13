@@ -9,7 +9,11 @@ namespace Mecho;
 /// колко парчета се появява из екрана; рисунката е assets/props/food_{Id}.png.
 /// </summary>
 public sealed record Food(
-    string Id, string Name, string Icon, double Fullness, double Energy, int Cost, int Count, string? Tool, string[] Lines);
+    string Id, string Name, string Icon, double Fullness, double Energy, int Cost, int Count, string? Tool, string[] Lines)
+{
+    /// <summary>Първата стъпка в друг уред (миксер за тестото, кафемашина за кафето…), или null.</summary>
+    public string? Prep { get; init; }
+}
 
 /// <summary>Нещо за купуване с лешници: уред за кухнята или подобрение.</summary>
 /// <summary>Нещо за купуване с лешници. Shelf е разделът в магазина.</summary>
@@ -22,6 +26,7 @@ public sealed record Upgrade(string Id, string Name, string Icon, int Price, str
 public static class Kitchen
 {
     public const string Pot = "pot", Pan = "pan", Oven = "oven", CoffeeMachine = "coffee_machine", Kettle = "kettle";
+    public const string Mixer = "mixer", SandwichMaker = "sandwich", IceCream = "icecream", Grill = "grill";
 
     /// <summary>Каничката за сокове: не се купува, винаги я има.</summary>
     public const string Jug = "jug";
@@ -55,7 +60,53 @@ public static class Kitchen
             new[] { "Портокалов сок! Слънце в чаша.", "*сърба през сламката* Мм, кисело-сладко.", "Витамини! Ще съм бодър." }),
         new("juice_berry", "Боровинков сок", "🧃", 10, 8, 3, 1, Jug,
             new[] { "Боровинков сок! Езикът ми ще посинее.", "*сърба* Като горска поляна.", "Мм, сладичко." }),
+
+        // ── Още рецепти (учат се от страници; ⭐ = в два уреда един след друг) ──
+        new("lemonade", "Лимонада с мед", "🍋", 8, 10, 2, 1, Jug, Array.Empty<string>()),
+        new("soup", "Супичка", "🥣", 35, 0, 3, 1, Pot, Array.Empty<string>()),
+        new("corn", "Царевица на кочан", "🌽", 20, 0, 2, 2, Pot, Array.Empty<string>()),
+        new("cocoa", "Какао", "🍫", 8, 8, 2, 1, Kettle, Array.Empty<string>()),
+        new("linden_tea", "Липов чай", "🌼", 5, 5, 1, 1, Kettle, Array.Empty<string>()),
+        new("eggs", "Яйца на очи", "🥚", 25, 5, 2, 2, Pan, Array.Empty<string>()),
+        new("pancakes", "Палачинки с мед", "🥞", 40, 0, 4, 3, Pan, Array.Empty<string>()) { Prep = Mixer },
+        new("espresso", "Еспресо", "🫘", 2, 40, 3, 1, CoffeeMachine, Array.Empty<string>()),
+        new("latte", "Лате", "🥛", 6, 30, 3, 1, CoffeeMachine, Array.Empty<string>()),
+        new("mocha", "Мока", "🟤", 8, 30, 4, 1, CoffeeMachine, Array.Empty<string>()),
+        new("cappuccino", "Капучино", "🫧", 6, 40, 4, 1, Mixer, Array.Empty<string>()) { Prep = CoffeeMachine },
+        new("iced_coffee", "Ледено кафе", "🧋", 6, 30, 4, 1, IceCream, Array.Empty<string>()) { Prep = CoffeeMachine },
+        new("cookies", "Бисквитки", "🍪", 15, 0, 2, 4, Oven, Array.Empty<string>()),
+        new("muffins", "Мъфини с боровинки", "🧁", 30, 5, 4, 3, Oven, Array.Empty<string>()) { Prep = Mixer },
+        new("pizza", "Пица", "🍕", 60, 0, 6, 4, Oven, Array.Empty<string>()) { Prep = Mixer },
+        new("smoothie", "Смути", "🥤", 12, 15, 2, 1, Mixer, Array.Empty<string>()),
+        new("toast", "Тост с кашкавал", "🍞", 25, 0, 2, 1, SandwichMaker, Array.Empty<string>()),
+        new("sandwich_ham", "Сандвич с шунка", "🥪", 35, 0, 3, 1, SandwichMaker, Array.Empty<string>()),
+        new("sandwich_honey", "Сандвич с банан и мед", "🍌", 30, 5, 3, 1, SandwichMaker, Array.Empty<string>()),
+        new("waffle_honey", "Гофрета с мед", "🟨", 25, 0, 2, 2, SandwichMaker, Array.Empty<string>()),
+        new("waffle_choco", "Шоколадова гофрета", "🟫", 28, 0, 3, 2, SandwichMaker, Array.Empty<string>()),
+        new("waffle_icecream", "Гофрети със сладолед", "🍧", 35, 0, 5, 2, SandwichMaker, Array.Empty<string>()) { Prep = IceCream },
+        new("icecream_honey", "Медено-лешников сладолед", "🍦", 15, 0, 3, 1, IceCream, Array.Empty<string>()),
+        new("icecream_berry", "Боровинков сладолед", "🟣", 15, 0, 3, 1, IceCream, Array.Empty<string>()) { Prep = Mixer },
+        new("skewers", "Шишчета", "🍢", 50, 0, 5, 3, Grill, Array.Empty<string>()),
+        new("veggies", "Печени зеленчуци", "🫑", 30, 0, 3, 3, Grill, Array.Empty<string>()),
+        new("grilled_bread", "Скарени филийки с мед", "🥖", 25, 0, 2, 2, Grill, Array.Empty<string>()) { Prep = Oven },
     };
+
+    /// <summary>Пие се (седнал, с чаша), а не се яде.</summary>
+    public static bool IsDrink(Food f) => f.Id is "tea" or "coffee" or "lemonade" or "cocoa" or "linden_tea" or "espresso" or "latte"
+        or "mocha" or "cappuccino" or "iced_coffee" or "smoothie" || f.Id.StartsWith("juice");
+
+    /// <summary>Коя чаша държи (рисунките в assets/clothes: tea, coffee, juice_orange, juice_berry).</summary>
+    public static string CupFor(Food f) => f.Id switch
+    {
+        "espresso" or "latte" or "mocha" or "cappuccino" or "iced_coffee" => "coffee",
+        "cocoa" or "linden_tea" => "tea",
+        "lemonade" => "juice_orange",
+        "smoothie" => "juice_berry",
+        _ => f.Id,
+    };
+
+    /// <summary>Горещо е (понякога духа).</summary>
+    public static bool IsHot(Food f) => f.Id is "tea" or "coffee" or "cocoa" or "linden_tea" or "espresso" or "latte" or "mocha" or "cappuccino";
 
     public static readonly Upgrade[] Upgrades =
     {
@@ -64,6 +115,10 @@ public static class Kitchen
         new(Pan, "Тиган", "🍳", 25, "Идва с рецепта за кюфтенца; още рецепти – от страници."),
         new(CoffeeMachine, "Кафе машина", "☕", 30, "Идва с рецепта за кафе: енергия до половината (най-много 2 на половин час)."),
         new(Oven, "Фурна", "🔥", 45, "Идва с рецепта за мечешки картофки; още рецепти – от страници."),
+        new(Mixer, "Миксер", "🥄", 20, "Идва с рецепта за смути; бърка тестото за палачинки, мъфини и пица."),
+        new(SandwichMaker, "Сандвичарник", "🧇", 25, "Идва с рецепта за тост; прави сандвичи и гофрети."),
+        new(IceCream, "Машинка за сладолед", "🍨", 35, "Идва с рецепта за медено-лешников сладолед."),
+        new(Grill, "Скара", "♨️", 40, "Идва с рецепта за шишчета."),
 
         new(PlantPot, "Саксия с цвете", "🌱", 10, "Мечокът полива цветето.", FunShelf),
 
@@ -87,7 +142,9 @@ public static class Kitchen
 
     public static bool Owns(SaveData save, string id) => save.Owned.Contains(id);
 
-    public static bool HasTool(Food food, SaveData save) => food.Tool is null or Jug || Owns(save, food.Tool);
+    public static bool HasTool(Food food, SaveData save) => Has(food.Tool, save) && Has(food.Prep, save);
+
+    private static bool Has(string? tool, SaveData save) => tool is null or Jug || Owns(save, tool);
 
     /// <summary>
     /// Рецептата се купува веднъж (освен за боровинките); после ястието се готви
@@ -102,6 +159,10 @@ public static class Kitchen
         CoffeeMachine => "coffee",
         Kettle => "tea",
         Jug => "juice_orange",
+        Mixer => "smoothie",
+        SandwichMaker => "toast",
+        IceCream => "icecream_honey",
+        Grill => "skewers",
         _ => null,
     };
 
