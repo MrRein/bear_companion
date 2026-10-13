@@ -472,8 +472,12 @@ public sealed partial class PetWindow
             _ = Warmth;
             SetHeater(false);
             UpdateHeater(Now);
-            if (_heaterWindow != null) throw new Exception("печицата не изчезна");
+            if (_heaterWindow == null) throw new Exception("изгасената печица изчезна");
+            _tempC = 20;
+            WarmUpByHeater();
             _save.Owned.Remove(Kitchen.Heater);
+            UpdateHeater(Now);
+            if (_heaterWindow != null) throw new Exception("печицата не изчезна");
             _tempC = null;
             GetUp();
             SetIdle();

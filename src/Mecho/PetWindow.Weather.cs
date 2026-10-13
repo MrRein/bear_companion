@@ -188,8 +188,10 @@ public sealed partial class PetWindow
     /// <summary>Печицата на земята: показва се, докато е включена, и свети (два кадъра).</summary>
     private void UpdateHeater(double now)
     {
-        bool on = _save.HeaterOn && Kitchen.Owns(_save, Kitchen.Heater);
-        if (!on)
+        // Купената печица стои на земята винаги; включена – свети.
+        bool owned = Kitchen.Owns(_save, Kitchen.Heater);
+        bool on = _save.HeaterOn && owned;
+        if (!owned)
         {
             if (_heaterWindow != null)
             {
@@ -203,11 +205,15 @@ public sealed partial class PetWindow
             var area = Area;
             double x = double.IsNaN(_save.HeaterX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.5 : _save.HeaterX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
-            _heaterWindow = new CookerWindow("Печица") { Hint = "Печицата грее. Хвани я, за да я преместиш; цъкни, за да я изгасиш." };
+            _heaterWindow = new CookerWindow("Печица");
             _heaterWindow.SetTime(null);
-            _heaterWindow.Clicked += () => Ask(new ChatQuestion("Да изключа ли печицата?",
-                new ChatOption("Изключи я", p => p.SetHeater(false)),
-                new ChatOption("Не, нека грее", p => p.Say(R.Any("heater.keep"), 3))));
+            _heaterWindow.Clicked += () => Ask(_save.HeaterOn
+                ? new ChatQuestion("Да изключа ли печицата?",
+                    new ChatOption("Изключи я", p => p.SetHeater(false)),
+                    new ChatOption("Не, нека грее", p => p.Say(R.Any("heater.keep"), 3)))
+                : new ChatQuestion("Да включа ли печицата?",
+                    new ChatOption("🔥 Включи я", p => { p.SetHeater(true); p.Say(R.Any("heater.on"), 4); }),
+                    new ChatOption("Не сега", p => p.Say(R.Any("heater.notnow"), 3))));
             _heaterWindow.Dropped += (cx, _) =>
             {
                 var a = AreaAt(cx, _heaterWindow!.Top + _heaterWindow.ActualHeight / 2);
@@ -217,18 +223,22 @@ public sealed partial class PetWindow
                 Persist();
             };
             _heaterWindow.SetAway(!IsVisible);
-            _heaterWindow.Place(_lib.GetProp("heater", 20, 22, 0).Image, PixelSize, x, area.Bottom);
+            _heaterWindow.Place(_lib.GetProp(on ? "heater" : "heater_off", 20, 22, 0).Image, PixelSize, x, area.Bottom);
             _save.HeaterX = x;
         }
+        _heaterWindow.Hint = on
+            ? "Печицата грее. Хвани я, за да я преместиш; цъкни, за да я изгасиш."
+            : "Печицата е изгасена. Хвани я, за да я преместиш; цъкни, за да я включиш.";
         _heaterWindow.Step(0.033);
         if (now > _nextHeaterFrame)
         {
             _nextHeaterFrame = now + 0.4;
-            _heaterWindow.SetArt(_lib.GetProp((int)(now / 0.4) % 2 == 0 ? "heater" : "heater_b", 20, 22, 0).Image, PixelSize);
+            string art = !on ? "heater_off" : (int)(now / 0.4) % 2 == 0 ? "heater" : "heater_b";
+            _heaterWindow.SetArt(_lib.GetProp(art, 20, 22, 0).Image, PixelSize);
         }
     }
 
-    /// <summary>Седи до печицата и се топли (когато е включена).</summary>
+    /// <summary>Сяда до печицата: включена – топли се; изгасена – за компания (или пита да я включиш, ако е студено).</summary>
     private void WarmUpByHeater()
     {
         if (_heaterWindow == null) return;
@@ -239,8 +249,17 @@ public sealed partial class PetWindow
         {
             StartScene(Scenes.Sit, quiet: true);
             _facingLeft = side > 0;
-            _sceneUntil = Now + 120 + _rng.Next(180);
-            Announce(Lines.Pick(Lines.HeaterLove, _save.OwnerName), 4);
+            _sceneUntil = Now + 120 + _rng.Next(_save.HeaterOn ? 300 : 180);
+            if (_save.HeaterOn)
+                Announce(Lines.Pick(Lines.HeaterLove, _save.OwnerName), 4);
+            else if (WantsHeater)
+            {
+                // Студено е, а печицата е изгасена: сяда до нея и пита.
+                Say(Lines.Pick(Lines.HeaterPlease, _save.OwnerName) + " (цъкни ме)", 8);
+                _heaterAskUntil = Now + 120;
+            }
+            else
+                Announce(R.Pick("heater.offsit", _save.OwnerName), 4);
         });
     }
 }

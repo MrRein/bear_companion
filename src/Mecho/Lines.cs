@@ -68,11 +68,11 @@ public static class Lines
         return last.Value;
     }
 
-    /// <summary>Приказка от нищото: обикновената или – понякога – за часа, деня и сезона.</summary>
+    /// <summary>Приказка от нищото (без игрите – те са само докато играе или работи): за Тут, храна, гората, мисли, часа, деня и сезона.</summary>
     public static string Chat(string owner)
     {
         var now = DateTime.Now;
-        var pools = new List<string[]> { Chatter, Chatter, Chatter, AboutTut, AboutFood, Forest, Thoughts };
+        var pools = new List<string[]> { AboutTut, AboutFood, Forest, Thoughts, Thoughts };
         int h = now.Hour;
         if (h is >= 5 and < 11) pools.Add(MorningChat);
         else if (h is >= 14 and < 17) pools.Add(AfternoonChat);
