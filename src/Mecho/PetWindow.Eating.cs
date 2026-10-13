@@ -69,6 +69,7 @@ public sealed partial class PetWindow
     /// <summary>Изяде (или изпи) всичко: благодари за обяда/вечерята или казва нещо за яденето.</summary>
     private void FinishedAll(Food food)
     {
+        Joy(JoyFed);
         if (!ThankForMeal()) Say(Lines.Pick(FoodTalk.For(food).Done, _save.OwnerName), 4);
     }
 

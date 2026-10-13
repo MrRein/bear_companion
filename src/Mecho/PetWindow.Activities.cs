@@ -88,7 +88,7 @@ public sealed partial class PetWindow
                 int n = _rng.Next(1, 7);
                 Play("dice", after: () => Announce(Lines.DiceRoll(n) + " " + Lines.Pick(Lines.Playtest, _save.OwnerName), 5));
             }),
-            ("dance", tired ? 0 : 3, () =>
+            ("dance", tired ? 0 : 3 * JoyBoost, () =>
             {
                 Play("dance", length: 3);
                 Announce(Lines.Pick(Lines.Dancing, _save.OwnerName), 3);
@@ -107,8 +107,12 @@ public sealed partial class PetWindow
             }),
             ("cursor", tired || near ? 0 : 5, FollowCursor),
             ("butterfly", tired || near ? 0 : 5, StartChase),
-            ("peek", tired || near ? 0 : 3, Peekaboo),
-            ("juggle", tired ? 0 : 3, Juggle),
+            ("peek", tired || near ? 0 : 3 * JoyBoost, Peekaboo),
+            ("juggle", tired ? 0 : 3 * JoyBoost, Juggle),
+            ("favspot", near ? 0 : FavSpotWeight, GoToFavSpot),
+            ("hiccup", 1.2, Hiccup),
+            ("sneeze", SneezeWeight, Sneeze),
+            ("find", tired ? 1 : 3, FindSomething),
             ("idle", 14, SetIdle),
             // Печицата грее: когато няма какво да прави, отива и сяда до нея –
             // колкото по-студено, толкова по-често.

@@ -203,7 +203,7 @@ public sealed partial class PetWindow : Window
         {
             EnterSleep(away: false);
         }
-        else
+        else if (!MorningRitual())
         {
             Play("happy");
             Say(Lines.Greeting(_save.OwnerName));
@@ -242,6 +242,7 @@ public sealed partial class PetWindow : Window
         UpdateButterfly(dt);
         UpdateGifts(now);
         UpdateWeather(now);
+        UpdateLife(now);
         MaybeOfferWork(now);
         UpdatePajamas();
 
@@ -304,7 +305,7 @@ public sealed partial class PetWindow : Window
         if (!IsQuiet && !InFocus && !WaitingForFood && now > _nextChatter)
         {
             _nextChatter = now + 600 + _rng.Next(600);
-            Mutter(Lines.Chat(_save.OwnerName), 6);
+            Mutter(MoodLine() ?? Lines.Chat(_save.OwnerName), 6);
         }
 
         // Работим (мечо-доро или таймер), а го бяха вдигнали: веднага се връща на бюрото.

@@ -83,8 +83,12 @@ public sealed partial class PetWindow
             if (sipped && _sipsLeft > 0 && --_sipsLeft == 0 && _scene == Scenes.Drink)
             {
                 if (_drinkFood is not { } drink) Announce(Lines.Pick(Scenes.Drink.End, _save.OwnerName), 3);
-                else if (_drinkLast && _food.Count == 0) FinishedAll(drink);
-                else Say(Lines.Pick(FoodTalk.For(drink).Done, _save.OwnerName), 3);
+                else
+                {
+                    Joy(JoyFed);
+                    if (_drinkLast && _food.Count == 0) FinishedAll(drink);
+                    else Say(Lines.Pick(FoodTalk.For(drink).Done, _save.OwnerName), 3);
+                }
                 _drinkFood = null;
                 LeaveScene();
             }

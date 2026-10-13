@@ -177,6 +177,22 @@
       "file": "heater_b.png",
       "seat": 0
     },
+    "bee": {
+      "file": "bee.png",
+      "seat": 0
+    },
+    "bee_b": {
+      "file": "bee_b.png",
+      "seat": 0
+    },
+    "squirrel": {
+      "file": "squirrel.png",
+      "seat": 0
+    },
+    "squirrel_b": {
+      "file": "squirrel_b.png",
+      "seat": 0
+    },
     "cook_pot": {
       "file": "cook_pot.png",
       "seat": 0

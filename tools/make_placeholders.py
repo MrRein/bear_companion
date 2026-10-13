@@ -970,6 +970,41 @@ def heater(frame):
     return f
 
 
+def bee(frame):
+    """Пчеличка (гост): жълто-черно телце, крилца нагоре/надолу."""
+    def f(d):
+        wing = (230, 245, 255, 220)
+        if frame == 0:
+            d.ellipse((3, 0, 7, 4), fill=wing, outline=OUTLINE)
+        else:
+            d.ellipse((2, 3, 6, 6), fill=wing, outline=OUTLINE)
+        d.ellipse((1, 4, 10, 10), fill=(250, 200, 40, 255), outline=OUTLINE)
+        for x in (4, 7):
+            d.line((x, 5, x, 9), fill=OUTLINE)
+        d.point((9, 6), fill=OUTLINE)                                                 # око
+        d.point((0, 7), fill=OUTLINE)                                                 # жило
+    return f
+
+
+def squirrel(frame):
+    """Катеричка (гост): кафява, с голяма пухкава опашка; два кадъра тичане."""
+    def f(d):
+        fur, light, tail = (190, 100, 45, 255), (235, 170, 110, 255), (205, 120, 60, 255)
+        d.ellipse((0, 0, 8, 11), fill=tail, outline=OUTLINE)                          # опашката
+        d.point((3, 3), fill=light); d.point((5, 6), fill=light)
+        d.ellipse((5, 6, 14, 13), fill=fur, outline=OUTLINE)                          # тяло
+        d.ellipse((11, 3, 17, 9), fill=fur, outline=OUTLINE)                          # глава
+        d.point((13, 2), fill=OUTLINE); d.point((15, 2), fill=OUTLINE)               # ушички
+        d.point((15, 5), fill=OUTLINE)                                                # око
+        d.point((17, 7), fill=OUTLINE)                                                # нос
+        d.ellipse((8, 9, 11, 12), fill=light)                                         # коремче
+        if frame == 0:
+            d.line((7, 13, 6, 15), fill=OUTLINE); d.line((13, 13, 14, 15), fill=OUTLINE)
+        else:
+            d.line((8, 13, 9, 15), fill=OUTLINE); d.line((12, 13, 11, 15), fill=OUTLINE)
+    return f
+
+
 COOKERS = {"pot": cook_pot, "pan": cook_pan, "oven": cook_oven, "coffee_machine": cook_coffee, "kettle": cook_kettle,
            "jug_orange": cook_jug((250, 160, 40, 255), (255, 210, 120, 255)),
            "jug_berry": cook_jug((150, 60, 140, 255), (200, 120, 190, 255))}
@@ -1076,6 +1111,10 @@ for _skin, _args in BED_SKINS.items():
     PROP_LIST[f"bed_{_skin}"] = (bed(*_args), 7)
 for _i, _name in enumerate(["heater_off", "heater", "heater_b"]):
     PROP_LIST[_name] = (prop(20, 22, heater(_i)), 0)
+for _i, _name in enumerate(["bee", "bee_b"]):
+    PROP_LIST[_name] = (prop(11, 11, bee(_i)), 0)
+for _i, _name in enumerate(["squirrel", "squirrel_b"]):
+    PROP_LIST[_name] = (prop(18, 16, squirrel(_i)), 0)
 for _tool, _fn in COOKERS.items():
     for _i, _suffix in enumerate(["", "_b", "_open"]):
         PROP_LIST[f"cook_{_tool}{_suffix}"] = (prop(22, 24, _fn(_i)), 0)

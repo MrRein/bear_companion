@@ -69,6 +69,9 @@ public sealed class SaveData
 
     /// <summary>„Почивай си“/„Работи си“ е избрано от самия мечок (по часовника), не от Тут.</summary>
     public bool AutoMode { get; set; }
+    public string JoyDay { get; set; } = "";        // за кой ден са JoyFlags
+    public int JoyFlags { get; set; }               // днес: 1 – галиха го, 2 – нахраниха го, 4 – работиха заедно
+    public string RitualDay { get; set; } = "";     // сутрешният ритуал (веднъж на ден)
 
     /// <summary>Къде е (по интернет връзката) – за температурата.</summary>
     public double WeatherLat { get; set; } = double.NaN;

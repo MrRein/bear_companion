@@ -44,8 +44,8 @@ public static class SelfTest
             Log(errors.Count == 0 ? "OK" : $"{errors.Count} грешки");
             app.Shutdown(errors.Count == 0 ? 0 : 1);
         });
-        // Ако нещо увисне, след 6 минути спираме с грешка.
-        var watchdog = new DispatcherTimer { Interval = TimeSpan.FromMinutes(6) };
+        // Ако нещо увисне, след 8 минути спираме с грешка.
+        var watchdog = new DispatcherTimer { Interval = TimeSpan.FromMinutes(8) };
         watchdog.Tick += (_, _) =>
         {
             Log("ГРЕШКА: тестът увисна");
@@ -500,6 +500,31 @@ public sealed partial class PetWindow
             }
             _tempC = null;
         }, 300);
+        await step("хълца", Hiccup, 9000);
+        await step("киха", Sneeze, 4000);
+        await step("намира нещо", FindSomething, 3500);
+        await step("любимото място", () => { _nextFavSpot = 0; GoToFavSpot(); }, 6000);
+        await step("сутрешен ритуал", () => { _save.RitualDay = ""; MorningRitual(); }, 6000);
+        await step("гост: пчеличка", () => { SetIdle(); StartVisitor("bee"); _visitorX = _x - 200; _visitorDir = 1; }, 4000);
+        await step("пчеличката отлита", () =>
+        {
+            if (_visitor == null) throw new Exception("пчеличката я няма");
+            if (!_visitorGreeted) throw new Exception("не поздрави пчеличката");
+            EndVisitor();
+        }, 1500);
+        await step("гост: катеричка", () => { StartVisitor("squirrel"); _visitorX = _x + 250; _visitorDir = -1; }, 3000);
+        await step("катеричката бяга", () => { if (!_visitorGreeted) throw new Exception("не видя катеричката"); EndVisitor(); }, 800);
+        await step("времето и настроението", () =>
+        {
+            foreach (var k in new[] { "rain", "heavyrain", "snow", "storm", "fog", "windy", "frost", "heat", "sunny", "cloudy" })
+                if (R.Get("weather." + k).Length == 0) throw new Exception("няма реплики за " + k);
+            Joy(JoyPetted); Joy(JoyFed); Joy(JoyWorked);
+            if (JoyToday != 3) throw new Exception("настроението не се брои");
+            for (int i = 0; i < 12; i++) MoodLine();
+            Say(R.Pick("away.echo", _save.OwnerName), 1);
+            Say(R.Pick("welcome.back", _save.OwnerName), 1);
+            SetIdle();
+        }, 500);
         await step("предложение за работа", () => { Ask(Conversations.WorkOffer(this)); _chat?.UpdateLayout(); _chat?.Hide(); }, 500);
         await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);
         await step("сън в леглото", GoToSleep, 1500);

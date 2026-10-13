@@ -287,6 +287,7 @@ public sealed partial class PetWindow
             return;
         }
         Say(Lines.Pick(Lines.Petted, _save.OwnerName), 3);
+        Joy(JoyPetted);
         if (CanAnimateFreely) Play("happy");
     }
 
@@ -331,6 +332,7 @@ public sealed partial class PetWindow
             if (_rng.Next(4) == 0) page = FindRecipePage();
         }
 
+        Joy(JoyWorked);
         Say(Lines.Pick(task.Size switch { 3 => Lines.BigTaskDone, 2 => Lines.TaskDone, _ => Lines.SmallTaskDone }, _save.OwnerName) +
             $" +{task.Reward} 🌰" + page, 4);
 
@@ -485,6 +487,7 @@ public sealed partial class PetWindow
             _save.PomodoroEndsAt = DateTime.Now + BreakLength;
             // Понякога (1 на 5) – страница от готварската книга.
             string page = _rng.Next(5) == 0 ? FindRecipePage() : "";
+            Joy(JoyWorked);
             Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts) + page, 8);
             if (!InFocus) RelaxAfterWork();
         }

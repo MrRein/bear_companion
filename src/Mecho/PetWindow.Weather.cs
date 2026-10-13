@@ -77,7 +77,8 @@ public sealed partial class PetWindow
                 else if (!DressedWarmEnough) feel = $"{how} – иска по-топли дрехи";
                 else feel = $"{how} – иска печицата";
             }
-            return $"🌡 {t:0}°C · {feel}";
+            string sky = Weather.KindText(t) is { } k ? $", {k}" : "";
+            return $"🌡 {t:0}°C{sky} · {feel}";
         }
     }
 
