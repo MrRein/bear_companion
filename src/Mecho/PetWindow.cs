@@ -240,6 +240,7 @@ public sealed partial class PetWindow : Window
         else if (_pendingCook != null && now > _pendingCookAt) StartPendingCook();
         UpdateButterfly(dt);
         UpdateGifts(now);
+        UpdateWeather(now);
         MaybeOfferWork(now);
         UpdatePajamas();
 
@@ -696,6 +697,7 @@ public sealed partial class PetWindow : Window
         if (_chatOpenAtPress) return;
         if (!InFocus && TakeOffer()) return;
         if (TakeLunchQuestion()) return;
+        if (TakeHeaterQuestion()) return;
         if (StartleFromDoze()) return;
         if (BusyEating()) return;
 

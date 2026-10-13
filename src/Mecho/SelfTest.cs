@@ -441,6 +441,40 @@ public sealed partial class PetWindow
             GetUp();
         }, 500);
         await step("обяд: въпрос", () => { Ask(Conversations.Lunch()); _chat?.UpdateLayout(); _chat?.Hide(); }, 300);
+        await step("студено: печица", () =>
+        {
+            bool had = Kitchen.Owns(_save, Kitchen.Heater);
+            _save.Owned.Remove(Kitchen.Heater);
+            _tempC = 3;
+            TalkAboutWeather();
+            if (WeatherText == null) throw new Exception("няма текст за времето");
+            _save.Owned.Add(Kitchen.Heater);
+            SetHeater(false);
+            TalkAboutWeather();
+            if (!TakeHeaterQuestion()) throw new Exception("не пита за печицата");
+            _chat?.UpdateLayout();
+            _chat?.Hide();
+            SetHeater(true);
+            UpdateHeater(Now);
+            if (_heaterWindow == null) throw new Exception("печицата не се показа");
+            TalkAboutWeather();
+            WarmUpByHeater();
+            if (!had) _save.Owned.Remove(Kitchen.Heater);
+        }, 1500);
+        await step("горещо: изгася печицата", () =>
+        {
+            _tempC = 30;
+            _save.Owned.Add(Kitchen.Heater);
+            TalkAboutWeather();
+            _ = Warmth;
+            SetHeater(false);
+            UpdateHeater(Now);
+            if (_heaterWindow != null) throw new Exception("печицата не изчезна");
+            _save.Owned.Remove(Kitchen.Heater);
+            _tempC = null;
+            GetUp();
+            SetIdle();
+        }, 800);
         await step("предложение за работа", () => { Ask(Conversations.WorkOffer(this)); _chat?.UpdateLayout(); _chat?.Hide(); }, 500);
         await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);
         await step("сън в леглото", GoToSleep, 1500);

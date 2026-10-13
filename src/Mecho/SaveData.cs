@@ -69,6 +69,16 @@ public sealed class SaveData
 
     /// <summary>„Почивай си“/„Работи си“ е избрано от самия мечок (по часовника), не от Тут.</summary>
     public bool AutoMode { get; set; }
+
+    /// <summary>Къде е (по интернет връзката) – за температурата.</summary>
+    public double WeatherLat { get; set; } = double.NaN;
+    public double WeatherLon { get; set; } = double.NaN;
+    public string WeatherCity { get; set; } = "";
+    public string WeatherPlaceDay { get; set; } = "";
+
+    /// <summary>Печицата е включена.</summary>
+    public bool HeaterOn { get; set; }
+    public double HeaterX { get; set; } = double.NaN;
     public int PomodorosToday { get; set; }
 
     // Мечо-доро, което тече в момента (за да продължи след рестарт)

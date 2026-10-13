@@ -110,6 +110,8 @@ public sealed partial class PetWindow
             ("peek", tired || near ? 0 : 3, Peekaboo),
             ("juggle", tired ? 0 : 3, Juggle),
             ("idle", 14, SetIdle),
+            // Печицата грее: обича да седи до нея (особено когато е студено).
+            ("warm", _save.HeaterOn && _heaterWindow != null && !near ? (Cold ? 14 : 5) : 0, WarmUpByHeater),
         };
 
         double total = 0;

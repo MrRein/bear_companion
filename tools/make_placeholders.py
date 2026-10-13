@@ -948,6 +948,28 @@ def cook_jug(juice, light):
     return make
 
 
+def heater(frame):
+    """Печица: малка метална печка с решетка; когато е включена, решетката свети."""
+    def f(d):
+        d.rectangle((2, 3, 17, 18), fill=(150, 60, 50, 255), outline=OUTLINE)       # кутията
+        d.rectangle((4, 1, 15, 3), fill=(120, 45, 40, 255), outline=OUTLINE)        # капак
+        d.rectangle((4, 6, 15, 15), fill=(60, 40, 35, 255), outline=OUTLINE)        # прозорче
+        if frame > 0:
+            glow = [(255, 150, 60, 255), (255, 200, 90, 255)]
+            for y in range(7, 15):
+                for x in range(5, 15):
+                    if (x + y + frame) % 3 == 0:
+                        d.point((x, y), fill=glow[(x + frame) % 2])
+                    elif (x * 3 + y) % 5 == 0:
+                        d.point((x, y), fill=(220, 90, 40, 255))
+            d.point((7 + frame, 0), fill=(255, 210, 120, 255))                       # искрица
+        for x in range(5, 15, 3):
+            d.line((x, 6, x, 15), fill=OUTLINE)                                      # решетката
+        d.rectangle((3, 19, 5, 21), fill=OUTLINE)                                    # крачета
+        d.rectangle((14, 19, 16, 21), fill=OUTLINE)
+    return f
+
+
 COOKERS = {"pot": cook_pot, "pan": cook_pan, "oven": cook_oven, "coffee_machine": cook_coffee, "kettle": cook_kettle,
            "jug_orange": cook_jug((250, 160, 40, 255), (255, 210, 120, 255)),
            "jug_berry": cook_jug((150, 60, 140, 255), (200, 120, 190, 255))}
@@ -1052,6 +1074,8 @@ for _skin, _args in COUCH_SKINS.items():
 PROP_LIST["bed"] = (bed(*BED_SKINS["classic"]), 7)
 for _skin, _args in BED_SKINS.items():
     PROP_LIST[f"bed_{_skin}"] = (bed(*_args), 7)
+for _i, _name in enumerate(["heater_off", "heater", "heater_b"]):
+    PROP_LIST[_name] = (prop(20, 22, heater(_i)), 0)
 for _tool, _fn in COOKERS.items():
     for _i, _suffix in enumerate(["", "_b", "_open"]):
         PROP_LIST[f"cook_{_tool}{_suffix}"] = (prop(22, 24, _fn(_i)), 0)
@@ -1549,7 +1573,7 @@ def main():
     # Иконки за магазина от предметите за почивка: смалени до 16 x 16.
     for shop, src in [("shop_easel", "easel"), ("shop_computer", "computer"), ("shop_yoga_mat", "mat"),
                       ("shop_plant", "plant"), ("shop_radio", "radio"), ("shop_board_game", "table_board"), ("shop_trampoline", "trampoline"),
-                      ("shop_couch", "couch"), ("shop_bed_real", "bed"), ("shop_wardrobe", "wardrobe")]:
+                      ("shop_couch", "couch"), ("shop_bed_real", "bed"), ("shop_wardrobe", "wardrobe"), ("shop_heater", "heater")]:
         img, _ = PROP_LIST[src]
         icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
         scale = min(1.0, 16 / img.width, 16 / img.height)

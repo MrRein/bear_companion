@@ -165,6 +165,18 @@
       "file": "bed_honey.png",
       "seat": 7
     },
+    "heater_off": {
+      "file": "heater_off.png",
+      "seat": 0
+    },
+    "heater": {
+      "file": "heater.png",
+      "seat": 0
+    },
+    "heater_b": {
+      "file": "heater_b.png",
+      "seat": 0
+    },
     "cook_pot": {
       "file": "cook_pot.png",
       "seat": 0
@@ -351,6 +363,10 @@
     },
     "shop_wardrobe": {
       "file": "shop_wardrobe.png",
+      "seat": 0
+    },
+    "shop_heater": {
+      "file": "shop_heater.png",
       "seat": 0
     }
   }

@@ -65,7 +65,8 @@ public sealed class MenuWindow : Window
         return box;
     }
     private Border[] _fullBar = null!, _energyBar = null!;
-    private TextBlock _fullText = null!, _energyText = null!, _mood = null!;
+    private TextBlock _fullText = null!, _energyText = null!, _mood = null!, _weather = null!;
+    private Button _heaterButton = null!;
     private Button _sleepButton = null!, _couchButton = null!, _quietButton = null!;
     // Мрежа по 3: всички плочки в един ред са еднакво високи, бутоните са на една линия.
     private readonly UniformGrid _foodTiles = new() { Columns = 3 };
@@ -401,6 +402,8 @@ public sealed class MenuWindow : Window
         var stats = new StackPanel { Margin = new Thickness(16 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         _mood = new TextBlock { FontSize = Ui.Title, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10 * U), TextWrapping = TextWrapping.Wrap };
         stats.Children.Add(_mood);
+        _weather = new TextBlock { FontSize = Ui.Body, Margin = new Thickness(0, -6 * U, 0, 8 * U), TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
+        stats.Children.Add(_weather);
         stats.Children.Add(Bar("honey", "Ситост", out _fullBar, out _fullText));
         stats.Children.Add(Bar("energy", "Енергия", out _energyBar, out _energyText));
         Grid.SetColumn(stats, 1);
@@ -433,6 +436,13 @@ public sealed class MenuWindow : Window
         }, icon: "walk"));
         _couchButton.ToolTip = Tip("Става от кътчето и пак се разхожда.");
         actions.Children.Add(_couchButton);
+        _heaterButton = Wide(Button("", () =>
+        {
+            _pet.SetHeater(!_pet.Save.HeaterOn);
+            Refresh(false);
+        }, icon: "sun"));
+        _heaterButton.ToolTip = Tip("Печицата: мечокът я обича, когато навън е студено.");
+        actions.Children.Add(_heaterButton);
         p.Children.Add(actions);
 
         // „Почивай си“: мечокът сменя кътчетата сам. С ☰ се отваря списъкът и
@@ -1780,6 +1790,11 @@ public sealed class MenuWindow : Window
             >= 15 => "уморен",
             _ => "капнал!",
         });
+        var weather = _pet.WeatherText;
+        _weather.Text = weather ?? "";
+        _weather.Visibility = weather == null ? Visibility.Collapsed : Visibility.Visible;
+        _heaterButton.Visibility = Kitchen.Owns(s, Kitchen.Heater) ? Visibility.Visible : Visibility.Collapsed;
+        SetButton(_heaterButton, s.HeaterOn ? "Изгаси печицата" : "Печицата", "sun");
         if (_pet.IsAsleep) SetButton(_sleepButton, "Събуди", "sun");
         else SetButton(_sleepButton, "Приспи", "moon");
         _sleepButton.IsEnabled = _pet.CanSleep;
