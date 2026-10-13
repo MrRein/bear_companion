@@ -462,6 +462,8 @@ public sealed partial class PetWindow
             if (_heaterWindow == null) throw new Exception("печицата не се показа");
             TalkAboutWeather();
             WarmUpByHeater();
+            _nextCloserLine = 0;
+            AskHeaterCloser(Now);
             if (!had) _save.Owned.Remove(Kitchen.Heater);
         }, 1500);
         await step("горещо: изгася печицата", () =>
@@ -472,12 +474,8 @@ public sealed partial class PetWindow
             _ = Warmth;
             SetHeater(false);
             UpdateHeater(Now);
-            if (_heaterWindow == null) throw new Exception("изгасената печица изчезна");
-            _tempC = 20;
-            WarmUpByHeater();
-            _save.Owned.Remove(Kitchen.Heater);
-            UpdateHeater(Now);
             if (_heaterWindow != null) throw new Exception("печицата не изчезна");
+            _save.Owned.Remove(Kitchen.Heater);
             _tempC = null;
             GetUp();
             SetIdle();
