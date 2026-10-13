@@ -337,7 +337,8 @@ def cup_anchors(strip, name):
 PAINT = os.path.join(os.path.dirname(__file__), "..", "assets", "clothes", "paint")
 
 PART_COLORS = {SHIRT: (255, 0, 0), PANTS: (0, 0, 255), SHOES: (255, 255, 0), GLOVES: (0, 255, 0)}
-# Тъмните са същото, но „отпред“ (ръка пред тялото: шалът е под нея).
+# Тъмните са „отпред“ (ръка пред тялото: шал, очила и шапка са под нея).
+# Тъмночервеното е и ръкавът: оцветяват го само блузите с дълъг ръкав.
 FRONT_COLORS = {SHIRT: (128, 0, 0), GLOVES: (0, 128, 0), NONE: (128, 128, 128)}
 # Точките са в отделни ленти до картата (<anim>_head.png и т.н.), по един пиксел на кадър.
 POINT_COLORS = {"head": (255, 0, 255), "face": (0, 255, 255), "neck": (255, 255, 255), "cup": (255, 128, 0)}
@@ -378,7 +379,7 @@ def nearest(rgb, table):
 
 def layers_from(anim, strip, paint):
     """От картата: сивите шаблони, точките и слоят „отпред“ в assets/clothes/layers."""
-    names = list(LAYER.values()) + ["head", "face", "neck", "front"]
+    names = list(LAYER.values()) + ["sleeves", "head", "face", "neck", "front"]
     if anim.startswith("sit_drinking") or anim in ("eat", "eat_hold"):
         names.append("cup")
     layers = {n: Image.new("RGBA", strip.size, (0, 0, 0, 0)) for n in names}
@@ -397,6 +398,11 @@ def layers_from(anim, strip, paint):
             if is_front:
                 part = nearest(rgb, FRONT_COLORS)
                 layers["front"].putpixel((x, y), (255, 255, 255, 255))
+                # Тъмночервеното е ръкав: само дългите блузи го оцветяват.
+                if part == SHIRT:
+                    g = tone(bear)
+                    layers["sleeves"].putpixel((x, y), (g, g, g, 255))
+                    continue
             if part in LAYER:
                 g = tone(bear)
                 layers[LAYER[part]].putpixel((x, y), (g, g, g, 255))

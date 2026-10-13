@@ -8,10 +8,11 @@
   //   color   – основният цвят, например "#4060c0"
   //   color2  – вторият цвят за шарката
   //   pattern – "" (плътна), "stripes" (райета), "dots" (точки), "checks" (каре)
+  //   sleeves – само за блузи: "long" (дълъг ръкав) или "short" (къс ръкав)
   // Шапка, очила и шал искат и рисунка: assets/clothes/hat_<id>.png,
   // glasses_<id>.png или neck_<id>.png (виж README → „Нова дреха“).
   "garments": [
-    { "id": "tee_navy", "name": "Синя тениска на райета", "slot": "shirt", "price": 20, "color": "#3c5aa0", "color2": "#f5f5fa", "pattern": "stripes" },
+    { "id": "tee_navy", "name": "Синя тениска на райета", "slot": "shirt", "price": 20, "color": "#3c5aa0", "color2": "#f5f5fa", "pattern": "stripes", "sleeves": "short" },
     { "id": "mint_mittens", "name": "Ментови ръкавички", "slot": "gloves", "price": 16, "color": "#8fd6b4", "color2": "#8fd6b4", "pattern": "" }
   ]
 }

@@ -88,6 +88,40 @@ def close(a, b, tol=40):
     return sum((x - y) ** 2 for x, y in zip(a, b)) <= tol * tol
 
 
+# Цветовете за маркиране и как излизат от Aseprite с друг цветови профил
+# (леко изместени): всеки вариант → истинският цвят от картата.
+MARKS = {
+    (255, 0, 0): [(255, 43, 6)],          # блуза
+    (128, 0, 0): [(151, 20, 2)],          # ръкав / ръка отпред
+    (0, 0, 255): [(25, 34, 251)],         # панталон
+    (255, 255, 0): [(254, 253, 50)],      # обувки
+    (0, 255, 0): [],                      # ръкавици
+    (0, 128, 0): [(0, 144, 23)],          # ръкавици отпред
+    (128, 128, 128): [],                  # лапа отпред без дреха
+}
+POINT_MARKS = {
+    "head": [(255, 0, 255), (255, 56, 252)],
+    "face": [(0, 255, 255), (0, 252, 255)],
+    "neck": [(255, 255, 255)],
+    "cup": [(255, 128, 0), (255, 149, 26)],
+}
+
+
+def mark_of(rgb):
+    """Цвят от картата (или None), ако пикселът е маркировка."""
+    for real, variants in MARKS.items():
+        if any(close(rgb, c, 14) for c in [real] + variants):
+            return real
+    return None
+
+
+def point_of(rgb):
+    for name, variants in POINT_MARKS.items():
+        if any(close(rgb, c, 14) for c in variants):
+            return name
+    return None
+
+
 def import_sheet(path):
     sheet = Image.open(path).convert("RGBA")
     with open(os.path.join(OUTDIR, "clothes_sheet.json"), encoding="utf-8") as fh:
@@ -115,16 +149,19 @@ def import_sheet(path):
                         continue
                     rgb = p[:3]
                     bear = strip.getpixel((f * SIZE + x, y))
-                    if (bear[3] and close(rgb, bear[:3], 4)) or (not bear[3] and close(rgb, (255, 255, 255), 4)):
-                        continue   # непипнато
-                    point = next((n for n, c in ac.POINT_COLORS.items() if close(rgb, c)), None)
+                    if not bear[3] and close(rgb, (255, 255, 255), 4):
+                        continue   # празно
+                    # Бялото е точка само ако мечокът там не е бял (очите са бели).
+                    point = point_of(rgb)
+                    if point == "neck" and bear[3] and close(bear[:3], (255, 255, 255), 4):
+                        point = None
                     if point:
                         dots[point].putpixel((f * SIZE + x, y), ac.POINT_COLORS[point] + (255,))
                         if bear[3]:
                             on_point.append((f * SIZE + x, y))
                         marked = True
                         continue
-                    color = next((c for c in list(parts.values()) + list(fronts.values()) if close(rgb, c)), None)
+                    color = mark_of(rgb)
                     if color and bear[3]:
                         paint.putpixel((f * SIZE + x, y), color + (255,))
                         marked = True

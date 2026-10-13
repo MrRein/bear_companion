@@ -29,6 +29,9 @@ public sealed record Garment(string Id, string Name, string SlotId, int Price, C
     /// <summary>Не се продава и не стои в гардероба (пижамата).</summary>
     public bool Hidden { get; init; }
 
+    /// <summary>Блуза с дълъг ръкав: оцветява и ръкавите (иначе – къс ръкав, ръцете се виждат).</summary>
+    public bool LongSleeves { get; init; }
+
     public Slot Slot => Clothes.SlotById(SlotId);
 }
 
@@ -66,10 +69,15 @@ public static class Clothes
         new("crown", "Корона на дизайнера", "hat", 105, default, default),
 
         new("tee_red", "Червена тениска", "shirt", 10, C(214, 74, 70), C(214, 74, 70)),
-        new("sailor", "Моряшка блуза", "shirt", 25, C(245, 245, 250), C(60, 90, 170), Pattern.Stripes),
-        new("hoodie", "Зелен суитшърт", "shirt", 30, C(110, 170, 90), C(110, 170, 90)),
-        new("dots", "Жълт пуловер на точки", "shirt", 40, C(250, 200, 80), C(240, 120, 60), Pattern.Dots),
-        new("designer", "Лилава блуза на дизайнер", "shirt", 50, C(150, 100, 200), C(255, 209, 102), Pattern.Stripes),
+        new("sailor", "Моряшка блуза", "shirt", 25, C(245, 245, 250), C(60, 90, 170), Pattern.Stripes) { LongSleeves = true },
+        new("hoodie", "Зелен суитшърт", "shirt", 30, C(110, 170, 90), C(110, 170, 90)) { LongSleeves = true },
+        new("dots", "Жълт пуловер на точки", "shirt", 40, C(250, 200, 80), C(240, 120, 60), Pattern.Dots) { LongSleeves = true },
+        new("designer", "Лилава блуза на дизайнер", "shirt", 50, C(150, 100, 200), C(255, 209, 102), Pattern.Stripes) { LongSleeves = true },
+        new("tee_white", "Бяла тениска", "shirt", 12, C(245, 245, 240), C(245, 245, 240)),
+        new("tee_stripes", "Тениска на райета", "shirt", 20, C(240, 170, 60), C(250, 240, 220), Pattern.Stripes),
+        new("sweater_red", "Червен пуловер", "shirt", 35, C(196, 60, 56), C(196, 60, 56)) { LongSleeves = true },
+        new("sweatshirt_gray", "Сив суитшърт", "shirt", 35, C(150, 150, 160), C(150, 150, 160)) { LongSleeves = true },
+        new("cardigan", "Каре жилетка", "shirt", 45, C(120, 90, 160), C(240, 200, 120), Pattern.Checks) { LongSleeves = true },
 
         new("jeans", "Дънки", "pants", 20, C(70, 100, 170), C(70, 100, 170)),
         new("brown", "Кафяви панталонки", "pants", 14, C(120, 80, 50), C(120, 80, 50)),
@@ -94,7 +102,7 @@ public static class Clothes
         new("nut_necklace", "Колие с лешник", "neck", 45, default, default),
 
         // Пижамата: облича се сама вечер (виж PetWindow.Wardrobe.cs), не се продава.
-        new("pj_top", "Пижама", "shirt", 0, C(150, 190, 235), C(250, 250, 255), Pattern.Dots) { Hidden = true },
+        new("pj_top", "Пижама", "shirt", 0, C(150, 190, 235), C(250, 250, 255), Pattern.Dots) { Hidden = true, LongSleeves = true },
         new("pj_pants", "Пижама", "pants", 0, C(150, 190, 235), C(250, 250, 255), Pattern.Stripes) { Hidden = true },
         new("nightcap", "Нощна шапка", "hat", 0, default, default) { Hidden = true },
 
@@ -137,7 +145,10 @@ public static class Clothes
                     _ => Pattern.None,
                 };
                 all.RemoveAll(g => g.Id == id);
-                all.Add(new Garment(id, Str("name", id), slot, price, main, alt, pattern));
+                all.Add(new Garment(id, Str("name", id), slot, price, main, alt, pattern)
+                {
+                    LongSleeves = Str("sleeves").ToLowerInvariant() is "long" or "дълъг",
+                });
             }
         }
         catch (Exception ex)
@@ -262,6 +273,7 @@ public sealed class Dresser
         int w = baseFrame.PixelWidth, h = baseFrame.PixelHeight, H = h + HatRoom;
         var px = new uint[w * H];
         Blit(px, w, H, Pixels(baseFrame), w, h, 0, HatRoom);
+        uint[]? under = null;
 
         foreach (var slot in Clothes.Slots)
         {
@@ -282,21 +294,10 @@ public sealed class Dresser
                     Anchor.Center => ay - art.PixelHeight / 2,
                     _ => ay,
                 };
-                // Шалът е под ръцете: лапа пред тялото (слоят <anim>_front.png) остава отгоре.
-                var front = slot == Clothes.Neck ? Pick(lib.Layer(anim, "front"), index) : null;
-                var under = front != null ? (uint[])px.Clone() : null;
+                // Шал, очила и шапка са под ръцете: лапа пред тялото (слоят
+                // <anim>_front.png) остава отгоре. Снимката е от преди първия аксесоар.
+                if (slot != Clothes.Cup) under ??= (uint[])px.Clone();
                 Blit(px, w, H, Pixels(art), art.PixelWidth, art.PixelHeight, ax - art.PixelWidth / 2, top + HatRoom);
-                if (front != null)
-                {
-                    var arms = Pixels(front);
-                    int fw = front.PixelWidth;
-                    for (int i = 0; i < arms.Length; i++)
-                    {
-                        if (arms[i] >> 24 == 0) continue;
-                        int x = i % fw, y = i / fw;
-                        if (x < w && y + HatRoom < H) px[(y + HatRoom) * w + x] = under![(y + HatRoom) * w + x];
-                    }
-                }
                 continue;
             }
 
@@ -309,7 +310,27 @@ public sealed class Dresser
             }
             var mask = Pick(lib.Layer(anim, slot.Layer), index);
             if (mask == null) continue;
-            Paint(px, w, Pixels(mask), mask.PixelWidth, mask.PixelHeight, g);
+            var maskPx = Pixels(mask);
+            // Дълъг ръкав: и ръкавите (тъмночервеното от картата) са в цвета на блузата.
+            if (g.LongSleeves && Pick(lib.Layer(anim, "sleeves"), index) is { } sleeves)
+            {
+                var sleevePx = Pixels(sleeves);
+                for (int i = 0; i < Math.Min(maskPx.Length, sleevePx.Length); i++)
+                    if (sleevePx[i] >> 24 != 0) maskPx[i] = sleevePx[i];
+            }
+            Paint(px, w, maskPx, mask.PixelWidth, mask.PixelHeight, g);
+        }
+
+        if (under != null && Pick(lib.Layer(anim, "front"), index) is { } front)
+        {
+            var arms = Pixels(front);
+            int fw = front.PixelWidth;
+            for (int i = 0; i < arms.Length; i++)
+            {
+                if (arms[i] >> 24 == 0) continue;
+                int x = i % fw, y = i / fw;
+                if (x < w && y + HatRoom < H) px[(y + HatRoom) * w + x] = under[(y + HatRoom) * w + x];
+            }
         }
 
         if (book != null && lib.Clothes(book) is { } bookArt && Pick(lib.Layer(anim, "book"), index) is { } bookPoint
