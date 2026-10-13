@@ -251,8 +251,7 @@ public sealed partial class PetWindow
         yield return (life, "Намира нещо", FindSomething);
         yield return (life, "Любимо място", () => { _nextFavSpot = 0; GoToFavSpot(); });
         yield return (life, "Сутрешен ритуал", () => { _save.RitualDay = ""; if (!MorningRitual()) { _save.RitualDay = ""; Say(R.Any("ritual.wake"), 3); Play("yawn"); } });
-        yield return (life, "Гост: пчеличка", () => { EndVisitor(); StartVisitor("bee"); });
-        yield return (life, "Гост: катеричка", () => { EndVisitor(); StartVisitor("squirrel"); });
+        yield return (life, "Гост: пчеличка", () => { EndVisitor(); StartVisitor(); });
         yield return (life, "Стряска се от мишката", () => { Say(R.Any("cursor.startle"), 2.5); Play("think", length: 1.2); });
         yield return (life, "„Ехо, тук ли си?“", () => Say(R.Pick("away.echo", _save.OwnerName), 6));
         yield return (life, "Върна се (30+ мин)", () => { Say(R.Pick("welcome.back", _save.OwnerName), 5); Play("happy"); });
@@ -265,7 +264,7 @@ public sealed partial class PetWindow
         yield return (life, "Катери се", Climb);
         yield return (life, "Приказка за игри", () => Say(Lines.Pick(Lines.Chatter, _save.OwnerName), 5));
 
-        foreach (var (t, label) in new[] { (22.0, "20°C приятно"), (12.0, "12°C хладно"), (7.0, "7°C студено"), (2.0, "2°C много студено"), (-6.0, "−6°C мраз"), (31.0, "31°C жега") })
+        foreach (var (t, label) in new[] { (22.0, "22°C приятно"), (17.0, "17°C хладно"), (12.0, "12°C студено"), (5.0, "5°C много студено"), (-6.0, "−6°C мраз"), (31.0, "31°C жега") })
         {
             double temp = t;
             yield return (weather, label, () => { _tempC = temp; NotifyCare(); TalkAboutWeather(); });

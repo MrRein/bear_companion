@@ -170,19 +170,19 @@ public sealed partial class PetWindow
         {
             if (_save.Fullness < 25)
             {
-                _nextNeedLine = now + 600 + _rng.Next(300);
+                _nextNeedLine = now + 1200 + _rng.Next(600);
                 var meal = CurrentMeal;
                 Say(Lines.Pick(meal == "lunch" ? Lines.LunchTime : meal == "dinner" ? Lines.DinnerTime : Lines.Hungry, _save.OwnerName), 5);
             }
             else if (LateNight && _save.Energy < 50)
             {
-                _nextNeedLine = now + 420 + _rng.Next(240);
+                _nextNeedLine = now + 900 + _rng.Next(600);
                 Say(Lines.Pick(Lines.Bedtime, _save.OwnerName), 5);
             }
             else if (_save.Energy < TiredBelow)
             {
                 // Колкото е по-уморен, толкова по-често го казва.
-                _nextNeedLine = now + (_save.Energy < 12 ? 300 : 600) + _rng.Next(300);
+                _nextNeedLine = now + (_save.Energy < 12 ? 900 : 1500) + _rng.Next(600);
                 Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 5);
             }
         }

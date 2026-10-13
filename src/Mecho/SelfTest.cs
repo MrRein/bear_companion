@@ -509,7 +509,7 @@ public sealed partial class PetWindow
         }, 200);
         await step("студ по нива", () =>
         {
-            foreach (var (t, lvl) in new[] { (20.0, 0), (12.0, 1), (7.0, 2), (2.0, 3), (-5.0, 4) })
+            foreach (var (t, lvl) in new[] { (22.0, 0), (17.0, 1), (12.0, 2), (5.0, 3), (-5.0, 4) })
             {
                 _tempC = t;
                 if (ColdLevel != lvl) throw new Exception($"{t}°C: ниво {ColdLevel}, а трябва {lvl}");
@@ -523,18 +523,16 @@ public sealed partial class PetWindow
         await step("намира нещо", FindSomething, 3500);
         await step("любимото място", () => { _nextFavSpot = 0; GoToFavSpot(); }, 6000);
         await step("сутрешен ритуал", () => { _save.RitualDay = ""; MorningRitual(); }, 6000);
-        await step("гост: пчеличка", () => { SetIdle(); StartVisitor("bee"); _visitorDir = _x > Area.Left + Area.Width / 2 ? 1 : -1; _visitorX = _x - _visitorDir * 150; }, 4000);
-        await step("пчеличката отлита", () =>
+        await step("гост: пчеличка", () => { SetIdle(); StartVisitor(); _visitorX = _x - _visitorDir * 150; }, 2500);
+        await step("пчеличката кръжи", () =>
         {
             if (_visitor == null) throw new Exception("пчеличката я няма");
-            if (!_visitorGreeted) throw new Exception("не поздрави пчеличката");
-            EndVisitor();
-        }, 1500);
-        await step("гост: катеричка", () => { StartVisitor("squirrel"); _visitorDir = _x > Area.Left + Area.Width / 2 ? 1 : -1; _visitorX = _x - _visitorDir * 100; }, 3000);
-        await step("катеричката бяга", () => { if (!_visitorGreeted) throw new Exception("не видя катеричката"); EndVisitor(); }, 800);
+            if (!_visitorGreeted) throw new Exception("не дойде до мечока");
+        }, 6000);
+        await step("пчеличката отлетя", () => { if (_visitor != null) EndVisitor(); }, 300);
         await step("времето и настроението", () =>
         {
-            foreach (var k in new[] { "rain", "heavyrain", "snow", "storm", "fog", "windy", "frost", "heat", "sunny", "cloudy" })
+            foreach (var k in new[] { "rain", "heavyrain", "snow", "storm", "fog", "windy", "frost", "heat", "cold", "cool", "sunny", "cloudy" })
                 if (R.Get("weather." + k).Length == 0) throw new Exception("няма реплики за " + k);
             Joy(JoyPetted); Joy(JoyFed); Joy(JoyWorked);
             if (JoyToday != 3) throw new Exception("настроението не се брои");

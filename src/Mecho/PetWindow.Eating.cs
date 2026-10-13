@@ -64,14 +64,21 @@ public sealed partial class PetWindow
             FinishedAll(food);
             Play("dance", length: 3);
         }
+        // Изяде едно парче, а има още: понякога казва нещо кратко.
+        else if (_rng.Next(10) < 3) Say(R.Pick("ate.piece", _save.OwnerName), 3);
     }
 
     /// <summary>Изяде (или изпи) всичко: благодари за обяда/вечерята или казва нещо за яденето.</summary>
     private void FinishedAll(Food food)
     {
         Joy(JoyFed);
-        if (!ThankForMeal()) Say(Lines.Pick(FoodTalk.For(food).Done, _save.OwnerName), 4);
+        if (!ThankForMeal()) Say(DoneLine(food), 4);
     }
+
+    /// <summary>Изяде/изпи: понякога за точно това ядене, понякога общо („Беше вкусно!“).</summary>
+    private string DoneLine(Food food) => _rng.Next(2) == 0 && FoodTalk.For(food).Done.Length > 0
+        ? Lines.Pick(FoodTalk.For(food).Done, _save.OwnerName)
+        : R.Pick(IsDrink(food) ? "drank.done" : "ate.done", _save.OwnerName);
 
     /// <summary>
     /// Храната в лапите: средата ѝ е на точката за този кадър; с всяка хапка е

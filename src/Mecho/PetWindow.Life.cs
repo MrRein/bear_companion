@@ -7,7 +7,7 @@ namespace Mecho;
 
 // Дребни неща, които му дават живот: сутрешен ритуал, любимо място (всеки ден
 // различно), поглежда към курсора, хълца и киха, „Ехо, тук ли си?“, радва се,
-// като се върнеш, гости (пчеличка, катеричка), говори за времето навън, намира
+// като се върнеш, гост (пчеличка), говори за времето навън, намира
 // си неща и има леко настроение за деня (по-весел, ако е галян, нахранен и сте
 // работили заедно; никога тъжен).
 public sealed partial class PetWindow
@@ -76,7 +76,7 @@ public sealed partial class PetWindow
 
     private void GoToFavSpot()
     {
-        _nextFavSpot = Now + Minutes(45, 90);
+        _nextFavSpot = Now + Minutes(90, 150);
         WalkTo(FavSpotX, () =>
         {
             Say(R.Pick("favspot", _save.OwnerName), 4);
@@ -178,11 +178,11 @@ public sealed partial class PetWindow
             Play("happy");
     }
 
-    // ── 10. Гости: пчеличка и катеричка ──
+    // ── 10. Гост: пчеличка (като пеперудата: долита, покръжи около главата му и отлита) ──
 
     private CookerWindow? _visitor;
-    private string _visitorKind = "";
-    private double _nextVisitor = 40 * 60, _visitorX, _visitorY, _visitorDir, _visitorTime, _visitorPause;
+    private double _nextVisitor = 40 * 60, _visitorX, _visitorY, _visitorDir, _visitorTime, _visitorHover, _visitorLast;
+    private int _visitorPhase;          // 0 – долита, 1 – кръжи около главата му, 2 – отлита
     private bool _visitorGreeted;
 
     private void UpdateVisitor(double now)
@@ -192,68 +192,75 @@ public sealed partial class PetWindow
             if (now < _nextVisitor) return;
             _nextVisitor = now + Minutes(60, 150);
             if (!IsVisible || IsAsleep) return;
-            StartVisitor(_rng.Next(2) == 0 ? "bee" : "squirrel");
+            StartVisitor();
             return;
         }
-        double dt = 0.033;
+        double dt = Math.Clamp(now - _visitorLast, 0, 0.1);
+        _visitorLast = now;
         _visitorTime += dt;
         var area = Area;
-        bool bee = _visitorKind == "bee";
-        if (_visitorPause > 0) _visitorPause -= dt;
-        else _visitorX += _visitorDir * (bee ? 70 : 150) * dt;
-        // Спира за малко до мечока (пчеличката пърха около главата му, катеричката сяда).
-        if (!_visitorGreeted && Math.Abs(_visitorX - _x) < (bee ? 90 : 140))
+        double headY = _y - SpriteHeight * 0.85;
+        switch (_visitorPhase)
         {
-            _visitorGreeted = true;
-            _visitorPause = bee ? 4 : 2.5;
-            GreetVisitor();
+            case 0:
+                _visitorX += _visitorDir * 230 * dt;
+                _visitorY = headY - 20 + Math.Sin(_visitorTime * 4) * 14;
+                if (Math.Abs(_visitorX - _x) < 70)
+                {
+                    _visitorPhase = 1;
+                    _visitorHover = 2.5 + _rng.NextDouble();
+                    _visitorGreeted = true;
+                    GreetVisitor();
+                }
+                break;
+            case 1:
+                _visitorHover -= dt;
+                _visitorX = _x + Math.Sin(_visitorTime * 3.2) * 55;
+                _visitorY = headY - 25 + Math.Cos(_visitorTime * 6.4) * 14;
+                _visitorDir = Math.Cos(_visitorTime * 3.2) >= 0 ? 1 : -1;
+                if (_visitorHover <= 0) _visitorPhase = 2;
+                break;
+            default:
+                _visitorX += _visitorDir * 200 * dt;
+                _visitorY -= 170 * dt;
+                break;
         }
-        _visitorY = bee
-            ? area.Bottom - SpriteHeight * 0.9 + Math.Sin(_visitorTime * 3) * 18 + Math.Sin(_visitorTime * 11) * 3
-            : area.Bottom;
-        string art = _visitorKind + ((int)(_visitorTime * (bee ? 12 : _visitorPause > 0 ? 0 : 8)) % 2 == 0 ? "" : "_b");
-        var img = _lib.GetProp(art, bee ? 11 : 18, bee ? 11 : 16, 0).Image;
-        _visitor.Place(img, PixelSize, _visitorX, _visitorY);
+        string art = (int)(_visitorTime * 14) % 2 == 0 ? "bee" : "bee_b";
+        _visitor.Place(_lib.GetProp(art, 11, 11, 0).Image, PixelSize, _visitorX, _visitorY);
         if (_visitor.Content is FrameworkElement fe) fe.LayoutTransform = new ScaleTransform(_visitorDir < 0 ? -1 : 1, 1);
         _visitor.SetAway(!IsVisible);
-        if (_visitorX < area.Left - 60 || _visitorX > area.Right + 60) EndVisitor();
+        if (_visitorY < area.Top - 40 || _visitorX < area.Left - 60 || _visitorX > area.Right + 60) EndVisitor();
     }
 
-    private void StartVisitor(string kind)
+    private void StartVisitor()
     {
         var area = Area;
-        _visitorKind = kind;
-        _visitorDir = _rng.Next(2) == 0 ? 1 : -1;
-        _visitorX = _visitorDir > 0 ? area.Left - 40 : area.Right + 40;
+        _visitorDir = _x > area.Left + area.Width / 2 ? 1 : -1;     // идва откъм по-далечния край
+        _visitorX = _visitorDir > 0 ? area.Left - 30 : area.Right + 30;
         _visitorTime = 0;
-        _visitorPause = 0;
+        _visitorPhase = 0;
+        _visitorLast = Now;
         _visitorGreeted = false;
-        _visitor = new CookerWindow(kind == "bee" ? "Пчеличка" : "Катеричка")
-        {
-            Hint = kind == "bee" ? "Пчеличка! Цъкни я." : "Катеричка! Цъкни я.",
-        };
+        _visitor = new CookerWindow("Пчеличка") { Hint = "Пчеличка! Цъкни я." };
         _visitor.SetTime(null);
-        _visitor.Clicked += () => Say(R.Pick($"visit.{_visitorKind}.click", _save.OwnerName), 3);
+        _visitor.Clicked += () => Say(R.Pick("visit.bee.click", _save.OwnerName), 3);
     }
 
     private void GreetVisitor()
     {
-        if (IsQuiet && InFocus) return;
-        if (!InFocus) Say(R.Pick($"visit.{_visitorKind}", _save.OwnerName), 4);
+        if (IsQuiet || InFocus) return;
+        if (_rng.Next(3) != 0) Say(R.Pick("visit.bee", _save.OwnerName), 3);
         if (_state is BearState.Idle or BearState.Walk && !_inScene)
         {
             _facingLeft = _visitorX < _x;
-            Play("happy", after: () => _facingLeft = _visitorX < _x);
+            Play("happy");
         }
-        else if (!_inScene || _scene == Scenes.Sit)
-            _facingLeft = _visitorX < _x;
     }
 
     private void EndVisitor()
     {
         _visitor?.Close();
         _visitor = null;
-        if (_visitorGreeted && !InFocus && !IsAsleep) Later(1, () => Mutter(R.Pick($"visit.{_visitorKind}.gone", _save.OwnerName), 3));
     }
 
     // ── 11. Приказки за времето навън ──
@@ -263,7 +270,7 @@ public sealed partial class PetWindow
     private void UpdateSkyTalk(double now)
     {
         if (now < _nextSkyTalk) return;
-        _nextSkyTalk = now + Minutes(45, 100);
+        _nextSkyTalk = now + Minutes(90, 180);
         if (Weather.Kind(_tempC) is not { } kind || IsAsleep || InFocus) return;
         Mutter(R.Pick("weather." + kind, _save.OwnerName), 5);
     }

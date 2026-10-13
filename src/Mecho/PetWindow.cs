@@ -189,7 +189,7 @@ public sealed partial class PetWindow : Window
     private void OnStart()
     {
         _lastTime = Now;
-        _nextChatter = Now + 120 + _rng.Next(180);
+        _nextChatter = Now + 600 + _rng.Next(600);
         _nextUpdateCheck = Now + 60;
         StartFreeCycle(sitNow: false);
         ResumeCooking();
@@ -217,10 +217,16 @@ public sealed partial class PetWindow : Window
     private void Tick()
     {
         double now = Now;
-        double dt = Math.Clamp(now - _lastTime, 0, 0.1);
+        // real: колко време наистина мина (за анимациите, таймерите и нуждите);
+        // dt: същото, но най-много 0,1 с – за движението (да не прескача).
+        // Цикълът е по-рядък, когато мечокът стои или спи (виж PaceTimer), затова
+        // анимациите вървят по истинското време, иначе спокойният мечок се
+        // анимира по-бавно, а вдигнат (по-чест цикъл) – изведнъж „по-бързо“.
+        double real = Math.Clamp(now - _lastTime, 0, 0.5);
+        double dt = Math.Min(real, 0.1);
         _lastTime = now;
-        _stateTime += dt;
-        _animTime += dt * AnimSpeed;
+        _stateTime += real;
+        _animTime += real * AnimSpeed;
 
         switch (_state)
         {
@@ -235,7 +241,7 @@ public sealed partial class PetWindow : Window
             case BearState.Bounce: UpdateBounce(dt); break;
             case BearState.Drag: break;
         }
-        UpdateCare(dt, now);
+        UpdateCare(real, now);
         UpdateFood(dt);
         if (_cook != null) UpdateCooking(now, dt);
         else if (_pendingCook != null && now > _pendingCookAt) StartPendingCook();
@@ -290,7 +296,7 @@ public sealed partial class PetWindow : Window
     private void PaceTimer()
     {
         bool moving = _state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
-            || _bfActive || _peeking || _anim == "juggle" || Dressing || CookShaking || _cook is { Window.IsFalling: true }
+            || _bfActive || _visitor != null || _peeking || _anim == "juggle" || Dressing || CookShaking || _cook is { Window.IsFalling: true }
             || _food.Exists(f => f.VelocityX != 0 || f.VelocityY != 0);
         int ms = moving ? 33
             : IsAsleep && _bubble.Visibility != Visibility.Visible && _food.Count == 0 ? 200
@@ -304,7 +310,7 @@ public sealed partial class PetWindow : Window
 
         if (!IsQuiet && !InFocus && !WaitingForFood && now > _nextChatter)
         {
-            _nextChatter = now + 600 + _rng.Next(600);
+            _nextChatter = now + 1500 + _rng.Next(1200);
             Mutter(MoodLine() ?? Lines.Chat(_save.OwnerName), 6);
         }
 
@@ -437,12 +443,12 @@ public sealed partial class PetWindow : Window
         if (_inScene)
         {
             // С дивана (или столчето) кацането е меко.
-            if (hard) Say(Lines.Pick(_scene == Scenes.Reading && HasCouch ? Lines.CouchLanded : Lines.LandedInScene, _save.OwnerName));
+            if (hard && DragTalk()) Say(Lines.Pick(_scene == Scenes.Reading && HasCouch ? Lines.CouchLanded : Lines.LandedInScene, _save.OwnerName));
             ResumeScene();
         }
         else if (hard)
         {
-            Say(Lines.Pick(Lines.Fell, _save.OwnerName));
+            if (DragTalk()) Say(Lines.Pick(Lines.Fell, _save.OwnerName));
             Play("fall");
         }
         else SetIdle();
@@ -645,15 +651,28 @@ public sealed partial class PetWindow : Window
         }
         if (_eating != null)
         {
-            Say("Момент, ям! *държи храната здраво*", 2);
+            if (DragTalk()) Say("Момент, ям! *държи храната здраво*", 2);
             SetState(BearState.Drag, "eat_hold");
             return;
         }
-        if (_inScene)
-            Say(Lines.Pick(_scene == Scenes.Reading && HasCouch ? Lines.FlyingCouch : _scene == Scenes.Focus ? Lines.LiftedAtWork : Lines.LiftedInScene, _save.OwnerName), 3);
-        else
-            Say(Lines.Pick(Lines.Dragged, _save.OwnerName), 2);
+        if (DragTalk())
+        {
+            if (_inScene)
+                Say(Lines.Pick(_scene == Scenes.Reading && HasCouch ? Lines.FlyingCouch : _scene == Scenes.Focus ? Lines.LiftedAtWork : Lines.LiftedInScene, _save.OwnerName), 3);
+            else
+                Say(Lines.Pick(Lines.Dragged, _save.OwnerName), 2);
+        }
         SetState(BearState.Drag, _inScene ? _anim : "drag");
+    }
+
+    private double _lastDragTalk = -1000;
+
+    /// <summary>Коментира вдигането/падането само понякога (1 от 3) и не по-често от веднъж на 2 мин.</summary>
+    private bool DragTalk()
+    {
+        if (IsQuiet || Now - _lastDragTalk < 120 || _rng.Next(3) != 0) return false;
+        _lastDragTalk = Now;
+        return true;
     }
 
     private bool _dragAsleep, _dragAway;
@@ -1090,7 +1109,9 @@ public sealed partial class PetWindow : Window
     /// </summary>
     private void Announce(string text, double seconds = 4, bool food = false)
     {
-        if (IsQuiet || Now - _lastSpoke < 25) return;
+        if (IsQuiet || Now - _lastSpoke < 45) return;
+        // Не казва на глас всяко нещо, което почва (ambient): около половината.
+        if (!food && _rng.Next(10) < 5) return;
         // Докато се готви, говори само за храната.
         if (!food && _cook is { Popped: false }) text = CookingChatter();
         Say(text, seconds);
@@ -1108,7 +1129,7 @@ public sealed partial class PetWindow : Window
         Say(text, seconds);
     }
 
-    private const double MutterGap = 180;
+    private const double MutterGap = 420;
     private double _lastMutter = -1000;
 
     private void HideBubble() => _bubble.Visibility = Visibility.Collapsed;

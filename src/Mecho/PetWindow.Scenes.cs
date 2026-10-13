@@ -423,7 +423,7 @@ public sealed partial class PetWindow
 
         if (!dozing && !IsQuiet && !InFocus && scene.During.Length > 0 && now > _nextChatter)
         {
-            _nextChatter = now + (stay ? 600 : 120) + _rng.Next(stay ? 600 : 120);
+            _nextChatter = now + (stay ? 1500 : 300) + _rng.Next(stay ? 1200 : 300);
             // На настолната игра и на бюрото понякога си говори за игрите.
             bool games = scene == Scenes.Board || scene == Scenes.Desk || scene == Scenes.Write;
             Mutter(Lines.Pick(games && _rng.Next(2) == 0 ? Lines.Chatter : scene.During, _save.OwnerName), 5);

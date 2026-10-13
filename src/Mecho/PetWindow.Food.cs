@@ -276,7 +276,7 @@ public sealed partial class PetWindow
             if (_anim != "idle") SetIdle();
             return;
         }
-        _nextFoodReminder = now + 45 + _rng.Next(30);
+        _nextFoodReminder = now + 90 + _rng.Next(60);
         var nearest = _food.OrderBy(f => Math.Abs(f.Left + f.Width / 2 - _x)).First();
         _facingLeft = nearest.Left + nearest.Width / 2 < _x;
         Say(Lines.Fill(Lines.PickAny(Lines.WantFood), _save.OwnerName, _food.Count, nearest.Food.Icon), 4);

@@ -23,7 +23,7 @@ public static class Weather
     }
 
     /// <summary>Под Cool почва да му е хладно (все по-студено надолу), над Hot – горещо.</summary>
-    public const double Cool = 15, Cold = 10, Hot = 25;
+    public const double Cool = 20, Cold = 15, Hot = 25;
 
     /// <summary>Какво е времето сега (код по WMO: 0 ясно, 61 дъжд, 71 сняг, 95 гръмотевици…) и вятърът в км/ч.</summary>
     public static int Code { get; private set; } = -1;
@@ -80,6 +80,8 @@ public static class Weather
         _ when Wind >= 30 => "windy",
         _ when temp < -3 => "frost",
         _ when temp > 30 => "heat",
+        _ when temp < Cold => "cold",
+        _ when temp < Cool => "cool",
         0 or 1 when DateTime.Now.Hour is >= 8 and < 19 => "sunny",
         2 or 3 => "cloudy",
         _ => null,

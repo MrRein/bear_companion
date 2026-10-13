@@ -86,7 +86,7 @@ public sealed partial class PetWindow
         }
         if (!IsQuiet && now > _nextChatter)
         {
-            _nextChatter = now + 600 + _rng.Next(600);
+            _nextChatter = now + 1500 + _rng.Next(1200);
             Mutter(Lines.Pick(Scenes.Sit.During, _save.OwnerName), 4);
         }
     }
@@ -97,7 +97,7 @@ public sealed partial class PetWindow
     private void MaybeOfferWork(double now)
     {
         if (now < _nextOffer) return;
-        _nextOffer = now + Minutes(45, 90);
+        _nextOffer = now + Minutes(90, 150);
         if (IsQuiet || InFocus || TimerRunning || IsAsleep || LateNight || NativeMethods.IdleSeconds() > 120) return;
         Say(Lines.Pick(Lines.WorkOffer, _save.OwnerName) + " (цъкни ме)", 8);
         _offerUntil = now + 180;

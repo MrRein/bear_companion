@@ -40,16 +40,16 @@ public sealed partial class PetWindow
     }
 
     /// <summary>
-    /// Колко му е студено: 0 – над 15°C, 1 – хладно (10–15), 2 – студено (5–10),
-    /// 3 – много студено (0–5), 4 – мраз (под 0). Колкото по-студено, толкова
+    /// Колко му е студено: 0 – над 20°C, 1 – хладно (15–20), 2 – студено (10–15),
+    /// 3 – много студено (0–10), 4 – мраз (под 0). Колкото по-студено, толкова
     /// по-топли дрехи иска (Warmth ≥ нивото), а от 2 нагоре – и печицата.
     /// </summary>
     private int ColdLevel => _tempC switch
     {
         null => 0,
         >= Weather.Cool => 0,
-        >= 10 => 1,
-        >= 5 => 2,
+        >= Weather.Cold => 1,
+        >= 10 => 2,
         >= 0 => 3,
         _ => 4,
     };
@@ -102,7 +102,7 @@ public sealed partial class PetWindow
         AskHeaterCloser(now);
         if (now < _nextWarmthLine || _tempC == null) return;
         // Колкото му е по-неудобно, толкова по-често казва (40–80 мин, а в мраза без дрехи – 15–30).
-        int gap = Comfortable ? 40 : ColdLevel >= 3 ? 15 : ColdLevel == 2 ? 25 : 35;
+        int gap = Comfortable ? 70 : ColdLevel >= 3 ? 25 : ColdLevel == 2 ? 40 : 55;
         _nextWarmthLine = now + gap * 60 + _rng.Next(gap * 60);
         if (IsQuiet || InFocus || IsResting || Cooks || _state is BearState.Drag or BearState.Falling) return;
         TalkAboutWeather();
