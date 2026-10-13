@@ -237,6 +237,7 @@ public sealed partial class PetWindow : Window
         UpdateCare(dt, now);
         UpdateFood(dt);
         if (_cook != null) UpdateCooking(now, dt);
+        else if (_pendingCook != null && now > _pendingCookAt) StartPendingCook();
         UpdateButterfly(dt);
         UpdateGifts(now);
         MaybeOfferWork(now);
@@ -305,7 +306,7 @@ public sealed partial class PetWindow : Window
         }
 
         // Работим (мечо-доро или таймер), а го бяха вдигнали: веднага се връща на бюрото.
-        if (InFocus && !WaitingForFood && !MenuIsOpen && !ChatIsOpen && _stateTime > 1.5)
+        if (InFocus && !WaitingForFood && !CookFinale && !MenuIsOpen && !ChatIsOpen && _stateTime > 1.5)
         {
             EnterWorkMode();
             return;
@@ -336,7 +337,10 @@ public sealed partial class PetWindow : Window
         // Тут го е оставила в кътче (и после са го вдигнали): връща се там.
         if (_save.StayPut && !_inScene && !_onTrampoline && !InFocus)
         {
+            // Сам е решил (по часовника): блокът свърши – избира пак почивка или работа.
+            if (_save.AutoMode && Now > _autoUntil) PickAutoMode();
             if (RelaxesRandomly) StartRandomRelax(_lastFun);
+            else if (WorksRandomly) StartRandomWork(_lastFun);
             else StartScene(Scenes.ById(_save.StayScene), quiet: true);
             return;
         }
@@ -414,6 +418,19 @@ public sealed partial class PetWindow : Window
         _y = floor;
         _vy = 0;
         bool hard = floor - _fallFrom > 120;
+        // Спеше в ръцете ѝ: спи си и на земята.
+        if (_dragAsleep)
+        {
+            _dragAsleep = false;
+            EnterSleep(_dragAway);
+            return;
+        }
+        // Ядеше: дояжда.
+        if (_eating != null)
+        {
+            EatHold(1 + _rng.NextDouble());
+            return;
+        }
         if (_inScene)
         {
             // С дивана (или столчето) кацането е меко.
@@ -474,7 +491,7 @@ public sealed partial class PetWindow : Window
 
     public void GoToSleep()
     {
-        if (IsAsleep || OnCouchMission) return;
+        if (IsAsleep || OnCouchMission || BusyEating()) return;
         if (_save.Energy >= 95)
         {
             Say("Не ми се спи още! Бодър съм.", 3);
@@ -507,7 +524,7 @@ public sealed partial class PetWindow : Window
 
     public void RollDice()
     {
-        if (IsAsleep || _state is BearState.Drag or BearState.Falling) return;
+        if (IsAsleep || _state is BearState.Drag or BearState.Falling || BusyEating()) return;
         int n = _rng.Next(1, 7);
         if (!OnCouchMission) Play("dice");
         Say(Lines.DiceRoll(n));
@@ -604,25 +621,33 @@ public sealed partial class PetWindow : Window
     }
 
     /// <summary>Тут го вдигна: казва нещо и спира каквото прави.</summary>
+    /// <summary>
+    /// Тут го вдигна: продължава каквото прави. Спи – спи и в ръцете ѝ (и като го
+    /// пусне); в кътче – кътчето идва с него; яде – държи храната и после дояжда.
+    /// </summary>
     private void LiftUp()
     {
-        bool goingToSleep = _afterBusy == "sleep";
-        _save.SleepingByChoice = false;
-        if (IsAsleep || goingToSleep || _anim == "read_sleep")
-            Say(Lines.Pick(Lines.WokenByDrag, _save.OwnerName));
-        else if (_inScene && _scene == Scenes.Focus)
-            Say(Lines.Pick(Lines.LiftedAtWork, _save.OwnerName), 3);
+        _dragAsleep = IsAsleep;
+        _dragAway = _sleepIsAway;
+        if (_dragAsleep)
+        {
+            SetState(BearState.Drag, "sleep");
+            return;
+        }
+        if (_eating != null)
+        {
+            Say("Момент, ям! *държи храната здраво*", 2);
+            SetState(BearState.Drag, "eat_hold");
+            return;
+        }
+        if (_inScene)
+            Say(Lines.Pick(_scene == Scenes.Reading && HasCouch ? Lines.FlyingCouch : _scene == Scenes.Focus ? Lines.LiftedAtWork : Lines.LiftedInScene, _save.OwnerName), 3);
         else
             Say(Lines.Pick(Lines.Dragged, _save.OwnerName), 2);
-
-        // Вдигнат спира каквото прави (кътче, ядене, сън). Мечо-дорото и
-        // таймерът текат: като го пуснеш, пак сяда да работи.
-        if (_inScene) LeaveScene();
-        _save.StayPut = false;
-        _eating = null;
-        _held.Source = null;
-        SetState(BearState.Drag, "drag");
+        SetState(BearState.Drag, _inScene ? _anim : "drag");
     }
+
+    private bool _dragAsleep, _dragAway;
 
     private void OnMouseUp(object sender, MouseButtonEventArgs e)
     {
@@ -635,7 +660,7 @@ public sealed partial class PetWindow : Window
         {
             _fallFrom = _y;
             _vy = 0;
-            SetState(BearState.Falling, _inScene ? _anim : "drag");
+            SetState(BearState.Falling, _anim);
             Persist();
             return;
         }
@@ -670,7 +695,9 @@ public sealed partial class PetWindow : Window
         }
         if (_chatOpenAtPress) return;
         if (!InFocus && TakeOffer()) return;
+        if (TakeLunchQuestion()) return;
         if (StartleFromDoze()) return;
+        if (BusyEating()) return;
 
         // Задрямал по време на мечо-доро или таймер: сънливо надига глава. Второ
         // цъкане скоро след това пита дали да спрат.
@@ -706,7 +733,26 @@ public sealed partial class PetWindow : Window
             }
             return;
         }
+        // Прави нещо (кътче, хоби, работа си): пита дали да спре.
+        if (InAction)
+        {
+            Ask(Conversations.StopAction(this, CurrentActionName));
+            return;
+        }
         Ask(Conversations.Next(this));
+    }
+
+    /// <summary>Прави нещо (кътче, хоби, „Почивай си“/„Работи си“), а не просто се разхожда.</summary>
+    private bool InAction => _onTrampoline || (_inScene && _scene != null && _scene != Scenes.Focus && _scene != Scenes.Wardrobe);
+
+    private string CurrentActionName => _onTrampoline ? "скачам на батута" : _scene?.Name is { Length: > 0 } n ? n : "правя нещо";
+
+    /// <summary>„Да, спри“: става и пак се разхожда свободно (и сам не почва веднага пак).</summary>
+    public void StopAction()
+    {
+        GetUp();
+        StopAutoMode();
+        if (CanAnimateFreely) SetIdle();
     }
 
     /// <summary>Десен бутон: гъделичкане и панелът „Мечо“.</summary>
@@ -1032,9 +1078,11 @@ public sealed partial class PetWindow : Window
     /// Казва какво почва (или свършва) да прави: „Ще поиграя малко!“. Мълчи само в
     /// тих режим или ако току-що е казал нещо (под 25 с), за да не дудне.
     /// </summary>
-    private void Announce(string text, double seconds = 4)
+    private void Announce(string text, double seconds = 4, bool food = false)
     {
         if (IsQuiet || Now - _lastSpoke < 25) return;
+        // Докато се готви, говори само за храната.
+        if (!food && _cook is { Popped: false }) text = CookingChatter();
         Say(text, seconds);
     }
 
@@ -1042,10 +1090,11 @@ public sealed partial class PetWindow : Window
     /// Казано от само себе си (не в отговор на Тут): мълчи в тих режим и не
     /// приказва по-често от веднъж на няколко минути, за да не досажда.
     /// </summary>
-    private void Mutter(string text, double seconds = 4)
+    private void Mutter(string text, double seconds = 4, bool food = false)
     {
         if (IsQuiet || Now - _lastMutter < MutterGap) return;
         _lastMutter = Now;
+        if (!food && _cook is { Popped: false }) text = CookingChatter();
         Say(text, seconds);
     }
 

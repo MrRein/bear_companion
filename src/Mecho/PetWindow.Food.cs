@@ -58,13 +58,13 @@ public sealed partial class PetWindow
     /// </summary>
     public void Cook(Food food)
     {
-        if (!Kitchen.CanCook(food, _save)) return;
+        if (!Kitchen.CanCook(food, _save) || BusyEating()) return;
         if (IsResting)
         {
             Say("Ззз… ще ям, като стана.", 3);
             return;
         }
-        if (Cooks)
+        if (Cooks || _pendingCook != null)
         {
             Say("Чакай, още готвя!", 3);
             return;
@@ -105,8 +105,9 @@ public sealed partial class PetWindow
         Persist();
         if (food.Tool != null)
         {
-            // Уредът се готви сам до мечока; храната излита от него (виж PetWindow.Cooking.cs).
-            StartCooking(food, fullness, energy, cost);
+            // Спира каквото прави, мръдва малко встрани и чак тогава слага уреда
+            // (виж PetWindow.Cooking.cs).
+            BeginCooking(food, fullness, energy, cost);
             return;
         }
         var from = new Point(_x, _bearRect.Top + _bearRect.Height * 0.3);
@@ -204,7 +205,7 @@ public sealed partial class PetWindow
         // Диванът идва веднага, ако тъкмо чете на земята.
         if (upgrade.Id == Kitchen.Couch && _inScene && _scene == Scenes.Reading) LoadSceneArt(Scenes.Reading);
         // Ново нещо за почивка: веднага го пробва (ако не работите).
-        var scene = Scenes.Fun.FirstOrDefault(f => f.Unlock == upgrade.Id);
+        var scene = Scenes.All.FirstOrDefault(f => f.Unlock == upgrade.Id);
         if (scene != null && !InFocus && !_save.StayPut && !IsAsleep && _state is not (BearState.Drag or BearState.Falling))
             StartScene(scene, 180 + _rng.Next(120));
         else if (CanAnimateFreely) Play("dance", length: 3);

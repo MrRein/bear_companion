@@ -17,6 +17,18 @@ public sealed partial class PetWindow
     private readonly System.Windows.Controls.Image _held = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
     private readonly Dictionary<BitmapSource, (int X, int Y)?> _heldPoints = new();
 
+    /// <summary>
+    /// Яде или пие: не се прекъсва с други неща („Момент, сега ям.“). say=false –
+    /// без приказка (когато мечокът сам щеше да почне нещо друго).
+    /// </summary>
+    internal bool BusyEating(bool say = true)
+    {
+        bool eat = _eating != null, drink = _inScene && _scene == Scenes.Drink;
+        if (!eat && !drink) return false;
+        if (say) Say(eat ? "Момент, сега ям." : "Момент, сега пия.", 2);
+        return true;
+    }
+
     private void StartEating(Food food, BitmapSource bite, bool last)
     {
         _held.Source = bite;
@@ -66,7 +78,7 @@ public sealed partial class PetWindow
     /// </summary>
     private Rect HeldRect(Rect bear)
     {
-        bool on = _anim is "eat" or "eat_hold" && _held.Source != null && _state == BearState.Busy;
+        bool on = _anim is "eat" or "eat_hold" && _held.Source != null && _state is BearState.Busy or BearState.Drag or BearState.Falling;
         _held.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         if (!on) return Rect.Empty;
         System.Windows.Media.RenderOptions.SetBitmapScalingMode(_held, System.Windows.Media.BitmapScalingMode.NearestNeighbor);

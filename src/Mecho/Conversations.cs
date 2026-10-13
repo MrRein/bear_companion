@@ -67,6 +67,17 @@ public static class Conversations
     }
 
     /// <summary>Докато тече мечо-доро и я питаш втори път: да спрем ли?</summary>
+    /// <summary>Обяд: „Ти няма ли да обядваш?“</summary>
+    public static ChatQuestion Lunch() => new("Ти няма ли да обядваш?",
+        Reply("🍽️ Да, сега ще ходя", "Хайде, трябва да се хапчи!"),
+        Reply("✅ Вече обядвах", "Ааа, добре, аз се притесних."),
+        Reply("🙅 Не, днес няма", "Неее, трябва да се храниш. Хапни, моля те."));
+
+    /// <summary>Цъкнаха го, докато прави нещо: да спре ли.</summary>
+    public static ChatQuestion StopAction(PetWindow pet, string what) => new($"Да спра ли? Сега: {what}.",
+        new ChatOption("■ Да, спри", p => { p.StopAction(); p.Say(Pick("Добре! Ще се поразходя.", "Става. *протяга се*", "Готово, свободен съм."), 3); }),
+        Reply("Не, продължавай", Pick("Добре, продължавам!", "Ура, още малко!", "*доволно продължава*")));
+
     public static ChatQuestion StopFocus(PetWindow pet)
     {
         bool pomodoro = pet.PomodoroFocus;

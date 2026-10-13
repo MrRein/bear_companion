@@ -19,7 +19,10 @@ public sealed partial class PetWindow
     private double RestRate => RestAsleep * (Kitchen.Owns(_save, Kitchen.Bed) ? 2 : 1);
 
     /// <summary>Много е уморен: ходи бавно и не му се играе.</summary>
-    public bool IsExhausted => _save.Energy < 25;
+    /// <summary>Уморен: под толкова енергия ходи и стои уморено.</summary>
+    public const double TiredBelow = 35;
+
+    public bool IsExhausted => _save.Energy < TiredBelow;
 
     /// <summary>Видовете мечо-доро: работа и почивка в минути.</summary>
     public static readonly (string Id, string Name, int Focus, int Break, string Hint)[] PomodoroModes =
@@ -109,6 +112,21 @@ public sealed partial class PetWindow
         _save.Energy = 100;
     }
 
+    /// <summary>В 22:00 енергията пада рязко (веднъж на вечер): доспива му се.</summary>
+    private void NightDrop()
+    {
+        var now = DateTime.Now;
+        if (now.Hour < 22 || IsAsleep) return;
+        string today = now.ToString("yyyy-MM-dd");
+        if (_save.NightDropDay == today) return;
+        _save.NightDropDay = today;
+        if (_save.Energy > 30)
+        {
+            _save.Energy = 30;
+            if (!IsQuiet && !InFocus) Say(Lines.Pick(Lines.Bedtime, _save.OwnerName), 5);
+        }
+    }
+
     /// <summary>Нов ден: свършените вчера задачи се махат, броячът на мечо-дора се нулира.</summary>
     private void StartNewDay()
     {
@@ -139,11 +157,13 @@ public sealed partial class PetWindow
         double change = IsAsleep ? RestRate : _anim == "read_sleep" ? 0 : -tiring;
         _save.Energy = Math.Clamp(_save.Energy + change * h, 0, 100);
         MorningRefresh(fromStart: false);
+        NightDrop();
 
         UpdatePomodoro();
         UpdateTimer();
         TellLearnedRecipe();
         UpdateMeals();
+        AskAboutLunch();
 
         // Казва, че е гладен или сънлив, но не по-често от веднъж на няколко минути.
         if (!IsResting && !IsQuiet && !InFocus && now > _nextNeedLine && _state != BearState.Drag)
@@ -159,7 +179,7 @@ public sealed partial class PetWindow
                 _nextNeedLine = now + 420 + _rng.Next(240);
                 Say(Lines.Pick(Lines.Bedtime, _save.OwnerName), 5);
             }
-            else if (_save.Energy < 25)
+            else if (_save.Energy < TiredBelow)
             {
                 // Колкото е по-уморен, толкова по-често го казва.
                 _nextNeedLine = now + (_save.Energy < 12 ? 300 : 600) + _rng.Next(300);
@@ -175,10 +195,10 @@ public sealed partial class PetWindow
     {
         get
         {
+            // След 22:00 пада много бързо (кафето вдига най-много до половината,
+            // но след това пак бързо пада).
             var t = DateTime.Now.TimeOfDay;
-            if (t >= new TimeSpan(22, 30, 0) || t < new TimeSpan(6, 0, 0)) return 4;
-            if (t >= new TimeSpan(22, 0, 0)) return 2;
-            return 1;
+            return t >= new TimeSpan(22, 0, 0) || t < new TimeSpan(6, 0, 0) ? 4 : 1;
         }
     }
 
@@ -219,9 +239,31 @@ public sealed partial class PetWindow
         MarkMeal(meal);
         _save.Fullness = Math.Min(_save.Fullness, 22);
         _nextNeedLine = Now + 600 + _rng.Next(300);
-        if (!IsResting && !InFocus && !IsQuiet)
-            Say(Lines.Pick(meal == "lunch" ? Lines.LunchTime : Lines.DinnerTime, _save.OwnerName), 5);
+        // Обяд: пита Тут дали тя няма да обядва (щом не работите и не спи).
+        if (meal == "lunch") _lunchAskPending = true;
+        else if (!IsResting && !InFocus && !IsQuiet)
+            Say(Lines.Pick(Lines.DinnerTime, _save.OwnerName), 5);
         NotifyCare();
+    }
+
+    private bool _lunchAskPending;
+    private double _lunchAskUntil;
+
+    /// <summary>„Ти няма ли да обядваш?“ – цъкнеш ли го, докато е балончето, има отговори.</summary>
+    private void AskAboutLunch()
+    {
+        if (!_lunchAskPending || CurrentMeal != "lunch" || IsResting || InFocus || IsQuiet || _state == BearState.Drag) return;
+        _lunchAskPending = false;
+        Say($"{_save.OwnerName}, ти няма ли да обядваш? (цъкни ме)", 10);
+        _lunchAskUntil = Now + 120;
+    }
+
+    private bool TakeLunchQuestion()
+    {
+        if (Now > _lunchAskUntil) return false;
+        _lunchAskUntil = 0;
+        Ask(Conversations.Lunch());
+        return true;
     }
 
     /// <summary>След като е ял по време на обяд/вечеря: благодари (веднъж на ден за всяко).</summary>
@@ -238,6 +280,7 @@ public sealed partial class PetWindow
 
     public void Pet()
     {
+        if (BusyEating()) return;
         if (IsResting)
         {
             Say("*мърка насън*", 3);
@@ -335,7 +378,7 @@ public sealed partial class PetWindow
     /// <summary>Сяда на бюрото и работи сериозно, докато трае работата.</summary>
     private void EnterWorkMode()
     {
-        if (_scene == Scenes.Focus || IsAsleep || _state is BearState.Drag or BearState.Falling or BearState.Jump) return;
+        if (_scene == Scenes.Focus || IsAsleep || _state is BearState.Drag or BearState.Falling or BearState.Jump || BusyEating(say: false)) return;
         _save.SleepingByChoice = false;
         _save.StayPut = false;
         StartScene(Scenes.Focus, quiet: false);
@@ -357,6 +400,7 @@ public sealed partial class PetWindow
     /// </summary>
     private void UpdateFocusScene(double now)
     {
+        if (CheckFoodWhileWorking()) return;
         if (IsExhausted)
         {
             if (_anim != "focus_tired")

@@ -27,7 +27,26 @@ public sealed record Scene(
 public static class Scenes
 {
     /// <summary>Забавленията: кътчета, в които сяда сам, когато скучае, или когато Тут му каже „Почивай си“.</summary>
-    public static Scene[] Fun => new[] { Reading, Painting, Gaming, Tea, Yoga, Plant, Music, Board, Trampoline };
+    public static Scene[] Fun => new[] { Reading, Gaming, Tea, Yoga, Plant, Music, Trampoline };
+
+    /// <summary>Работа (без мечо-доро): „Работи си“ – бюро, тефтер, настолна игра, статив.</summary>
+    public static Scene[] Work => new[] { Desk, Write, Board, Painting };
+
+    public static Scene[] All => Fun.Concat(Work).ToArray();
+
+    /// <summary>Работи на бюрото сам (без мечо-доро): мисли, скицира, пише.</summary>
+    public static readonly Scene Desk = new("desk", "stool", "desk", 1, "focus",
+        new[] { "*сяда на бюрото* Ще поработя малко.", "Имам идея! Отивам на бюрото.", "*слага очилата* Работа." },
+        new[] { "*мисли* Хмм…", "Скицирам идеи.", "*пише* Записвам си.", "Тази идея е добра. Мисля." },
+        new[] { "*сваля очилата* Стига за сега.", "Добре поработих!", "Готово. Ставам." })
+    { Name = "Работи на бюрото", Icon = "tasks" };
+
+    /// <summary>Пише в тефтера (без предмет).</summary>
+    public static readonly Scene Write = new("write", null, null, 0, "write",
+        new[] { "Ще си запиша нещо.", "*вади тефтера*", "Да запиша идеите си." },
+        new[] { "*драска*", "Точка първа…", "Ето така.", "*гризе молива*" },
+        new[] { "Записах всичко.", "*затваря тефтера*", "Готово!" })
+    { Name = "Пиши в тефтера", Icon = "notes" };
 
     /// <summary>Батутът е особен: не седи, а подскача (виж PetWindow.Trampoline.cs).</summary>
     public static readonly Scene Trampoline = new("trampoline", null, null, 0, "bounce",
@@ -56,7 +75,7 @@ public static class Scenes
         new[] { "Хайде, ставам.", "*протяга се* Стига седене." })
     { Name = "Седни", Icon = "couch" };
 
-    public static Scene ById(string? id) => Fun.FirstOrDefault(s => s.Id == id) ?? Reading;
+    public static Scene ById(string? id) => All.FirstOrDefault(s => s.Id == id) ?? Reading;
 
     public static bool IsUnlocked(Scene scene, SaveData save) => scene.Unlock == null || Kitchen.Owns(save, scene.Unlock);
 
@@ -135,6 +154,7 @@ public sealed partial class PetWindow
     /// </summary>
     public void Relax(Scene scene)
     {
+        if (BusyEating()) return;
         if (!Scenes.IsUnlocked(scene, _save))
         {
             var item = scene.Unlock == null ? null : Kitchen.Find(scene.Unlock);
@@ -148,6 +168,7 @@ public sealed partial class PetWindow
         }
         _save.StayPut = true;
         _save.StayScene = scene.Id;
+        _save.AutoMode = false;
         _save.SleepingByChoice = false;
         if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) StartScene(scene, quiet: false);
         _sceneUntil = 0;
@@ -162,9 +183,48 @@ public sealed partial class PetWindow
 
     public bool RelaxesRandomly => _save.StayPut && _save.StayScene == RandomRelax;
 
+    /// <summary>„Работи си“ без избор: сменя работните занимания сам.</summary>
+    public const string RandomWork = "random_work";
+
+    public bool WorksRandomly => _save.StayPut && _save.StayScene == RandomWork;
+
+    /// <summary>Сам е решил да си почива/работи (по часовника) – Тут може да го изключи.</summary>
+    public bool AutoMode => _save.StayPut && _save.AutoMode;
+
+    /// <summary>„Работи си“: сменя работните занимания (бюро, тефтер, игра, статив), докато не стане.</summary>
+    public void WorkRandom()
+    {
+        if (BusyEating()) return;
+        if (InFocus)
+        {
+            Say("Вече работим заедно!", 3);
+            return;
+        }
+        _save.StayPut = true;
+        _save.StayScene = RandomWork;
+        _save.AutoMode = false;
+        _save.SleepingByChoice = false;
+        var last = CurrentFun;
+        if (_onTrampoline) EndBounce(null);
+        if (_inScene) LeaveScene();
+        StartRandomWork(last);
+        _idleSince = Now;
+        Persist();
+    }
+
+    /// <summary>Следващото работно занимание (различно от предното), за 10–20 минути.</summary>
+    private void StartRandomWork(Scene? last)
+    {
+        var options = Scenes.Work.Where(f => Scenes.IsUnlocked(f, _save) && f != last).ToList();
+        var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Desk;
+        StartScene(scene, quiet: false);
+        _sceneUntil = Now + 600 + _rng.Next(600);
+    }
+
     /// <summary>„Почивай си“: прави различни неща за почивка едно след друго, докато не стане.</summary>
     public void RelaxRandom()
     {
+        if (BusyEating()) return;
         if (InFocus)
         {
             Say("Първо работата! После почивка.", 3);
@@ -172,6 +232,7 @@ public sealed partial class PetWindow
         }
         _save.StayPut = true;
         _save.StayScene = RandomRelax;
+        _save.AutoMode = false;
         _save.SleepingByChoice = false;
         var last = CurrentFun;
         if (_onTrampoline) EndBounce(null);
@@ -195,14 +256,15 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Забавлението, което прави в момента (избрано от Тут или само), или null.</summary>
-    public Scene? CurrentFun => _onTrampoline ? Scenes.Trampoline : _inScene && _scene != null && Scenes.Fun.Contains(_scene) ? _scene : null;
+    public Scene? CurrentFun => _onTrampoline ? Scenes.Trampoline : _inScene && _scene != null && Scenes.All.Contains(_scene) ? _scene : null;
 
     /// <summary>Кътчето, в което Тут го е оставила (или null).</summary>
-    public Scene? ChosenScene => _save.StayPut && !RelaxesRandomly ? Scenes.ById(_save.StayScene) : null;
+    public Scene? ChosenScene => _save.StayPut && !RelaxesRandomly && !WorksRandomly ? Scenes.ById(_save.StayScene) : null;
 
     /// <summary>Става от дивана и диванът изчезва.</summary>
     public void GetUp()
     {
+        if (_save.StayPut) StopAutoMode();
         _save.StayPut = false;
         if (_onTrampoline) EndBounce(null);
         LeaveScene();
@@ -257,7 +319,7 @@ public sealed partial class PetWindow
 
     private void LeaveScene()
     {
-        if (_scene != null && Scenes.Fun.Contains(_scene)) _lastFun = _scene;
+        if (_scene != null && Scenes.All.Contains(_scene)) _lastFun = _scene;
         bool wasAuto = _autoBlock;
         _cup = null;
         _autoBlock = false;

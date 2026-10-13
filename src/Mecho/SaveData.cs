@@ -63,6 +63,12 @@ public sealed class SaveData
 
     /// <summary>Денят, в който сутринта се е събудил бодър (енергия 100).</summary>
     public string MorningRefill { get; set; } = "";
+
+    /// <summary>Вечерта, в която в 22:00 енергията вече е паднала.</summary>
+    public string NightDropDay { get; set; } = "";
+
+    /// <summary>„Почивай си“/„Работи си“ е избрано от самия мечок (по часовника), не от Тут.</summary>
+    public bool AutoMode { get; set; }
     public int PomodorosToday { get; set; }
 
     // Мечо-доро, което тече в момента (за да продължи след рестарт)

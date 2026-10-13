@@ -189,7 +189,7 @@ public sealed partial class PetWindow
         }, 400);
         await step("затвори менюто", () => _menu!.Hide(), 300);
 
-        foreach (var scene in Scenes.Fun)
+        foreach (var scene in Scenes.All)
         {
             var sc = scene;
             await step($"кътче {sc.Id}", () => Relax(sc), 1200);
@@ -205,6 +205,7 @@ public sealed partial class PetWindow
                 _save.BerriesReadyAt = DateTime.MinValue;
                 _save.CoffeeTimes.Clear();
                 Cook(f);
+                StartPendingCook();
             }, 1500);
             await step($"готово: {f.Id}", DevFinishCooking, 5000);
             await step("изчисти храната", DevClearFood, 300);
@@ -217,6 +218,21 @@ public sealed partial class PetWindow
         }, 6000);
         await step("готвене: уредът чака мечока", DevFinishCooking, 3000);
         await step("храната на парчета", () => { foreach (var f in _food) f.UpdateLayout(); DevClearFood(); }, 300);
+        await step("готово: чака цъкване", () =>
+        {
+            TestCook(Kitchen.Foods.First(f => f.Tool == Kitchen.Pan));
+            _cook!.PopAt = Now;
+        }, 1500);
+        await step("готово: цъкнато", () =>
+        {
+            if (_cook is not { Popped: false }) throw new Exception("храната излезе, без да цъкнеш уреда");
+            CookerClicked();
+        }, 4000);
+        await step("след цъкването", () =>
+        {
+            if (_cook is { Popped: false }) throw new Exception("цъкването не извади храната");
+            DevClearFood();
+        }, 300);
         await step("уредът пада плавно", () =>
         {
             TestCook(Kitchen.Foods.First(f => f.Tool == Kitchen.Pot));
@@ -286,6 +302,7 @@ public sealed partial class PetWindow
         {
             var pot = Kitchen.Foods.First(f => f.Tool == Kitchen.Pot);
             Cook(pot);
+            StartPendingCook();
             AskStopCooking();
             _chat?.Hide();
             StopCooking();
@@ -293,6 +310,7 @@ public sealed partial class PetWindow
         await step("готвене и мечо-доро заедно", () =>
         {
             Cook(Kitchen.Foods.First(f => f.Tool == Kitchen.Oven));
+            StartPendingCook();
             StartFocus();
         }, 1500);
         await step("готово по време на работа", () => { DevFinishCooking(); }, 5000);
@@ -399,8 +417,30 @@ public sealed partial class PetWindow
         }, 800);
         await step("SOS: друго", () => { Sos(); _chat?.Hide(); }, 500);
         await step("седи", () => { if (_inScene) LeaveScene(); StartScene(Scenes.Sit, quiet: false); }, 800);
-        await step("хоби само", () => { LeaveScene(); StartAutoHobby(); }, 1000);
-        await step("след хобито пак седи", () => { if (_onTrampoline) EndBounce(null); else LeaveScene(); }, 500);
+        await step("сам решава: почивка или работа", () =>
+        {
+            LeaveScene();
+            _freeUntil = 0;
+            if (!FreeCycleStep() || !AutoMode || !(RelaxesRandomly || WorksRandomly)) throw new Exception("не избра сам");
+        }, 1000);
+        await step("часовник почивка/работа", () =>
+        {
+            var monday = new DateTime(2026, 10, 12);
+            if (WorkChance(monday.AddHours(10)) < 0.8 || WorkChance(monday.AddHours(12.75)) > 0.2 ||
+                WorkChance(monday.AddHours(15)) < 0.7 || WorkChance(monday.AddHours(20)) > 0.3 || WorkChance(monday.AddDays(5).AddHours(11)) > 0.3)
+                throw new Exception("грешен часовник");
+            StopAction();
+            if (AutoMode || _inScene) throw new Exception("не спря");
+        }, 500);
+        await step("работи си", () => { WorkRandom(); if (!WorksRandomly) throw new Exception("не работи"); }, 1000);
+        await step("цъкнат, докато работи си", () =>
+        {
+            Ask(Conversations.StopAction(this, CurrentActionName));
+            _chat?.UpdateLayout();
+            _chat?.Hide();
+            GetUp();
+        }, 500);
+        await step("обяд: въпрос", () => { Ask(Conversations.Lunch()); _chat?.UpdateLayout(); _chat?.Hide(); }, 300);
         await step("предложение за работа", () => { Ask(Conversations.WorkOffer(this)); _chat?.UpdateLayout(); _chat?.Hide(); }, 500);
         await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);
         await step("сън в леглото", GoToSleep, 1500);
@@ -487,6 +527,7 @@ public sealed partial class PetWindow
         if (_cook != null) EndCooking(food: null);
         if (IsAsleep) WakeUp();
         Cook(food);
+        StartPendingCook();
         if (_cook == null)
             throw new Exception("не готви: " + string.Concat(_bubbleText.Inlines.OfType<System.Windows.Documents.Run>().Select(r => r.Text)));
     }

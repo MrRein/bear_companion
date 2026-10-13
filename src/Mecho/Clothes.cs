@@ -59,7 +59,7 @@ public static class Clothes
     public static readonly Slot Gloves = new("gloves", "Ръкавици", "glove", "gloves");
 
     /// <summary>В този ред се рисуват (шапката е най-отгоре).</summary>
-    public static readonly Slot[] Slots = { Shoes, Pants, Shirt, Gloves, Cup, Neck, Glasses, Hat };
+    public static readonly Slot[] Slots = { Shoes, Pants, Shirt, Gloves, Neck, Glasses, Hat, Cup };
 
     /// <summary>В този ред са в гардероба.</summary>
     public static readonly Slot[] Shelves = { Hat, Glasses, Neck, Shirt, Pants, Shoes, Gloves };
@@ -318,10 +318,31 @@ public sealed class Dresser
         var px = new uint[w * H];
         Blit(px, w, H, Pixels(baseFrame), w, h, 0, HatRoom);
         uint[]? under = null;
+        bool frontDone = false;
+
+        // Ръцете отпред (<anim>_front.png) – над шала, очилата и шапката.
+        void RestoreFront()
+        {
+            if (frontDone) return;
+            frontDone = true;
+            if (under == null || Pick(lib.Layer(anim, "front"), index) is not { } front) return;
+            var arms = Pixels(front);
+            int fw = front.PixelWidth;
+            for (int i = 0; i < arms.Length; i++)
+            {
+                if (arms[i] >> 24 == 0) continue;
+                int x = i % fw, y = i / fw;
+                if (x < w && y + HatRoom < H) px[(y + HatRoom) * w + x] = under[(y + HatRoom) * w + x];
+            }
+        }
 
         foreach (var slot in Clothes.Slots)
         {
             if (!outfit.TryGetValue(slot.Id, out var id) || Clothes.Find(id) is not { } g || g.SlotId != slot.Id) continue;
+            // Чете: книжката закрива шала и папийонката – не се рисуват.
+            if (slot == Clothes.Neck && lib.Layer(anim, "book") != null) continue;
+            // Чашата е най-отгоре: първо ръцете отпред се връщат над аксесоарите.
+            if (slot == Clothes.Cup) RestoreFront();
             if (slot.Sprite != null)
             {
                 // Рисунка на точка: шапка (долният ѝ ред на точката), очила (средата),
@@ -340,7 +361,7 @@ public sealed class Dresser
                 };
                 // Шал, очила и шапка са под ръцете: лапа пред тялото (слоят
                 // <anim>_front.png) остава отгоре. Снимката е от преди първия аксесоар.
-                if (slot != Clothes.Cup) under ??= (uint[])px.Clone();
+                if (slot != Clothes.Cup && !frontDone) under ??= (uint[])px.Clone();
                 Blit(px, w, H, Pixels(art), art.PixelWidth, art.PixelHeight, ax - art.PixelWidth / 2, top + HatRoom);
                 continue;
             }
@@ -366,17 +387,7 @@ public sealed class Dresser
             Paint(px, w, maskPx, mask.PixelWidth, mask.PixelHeight, g, refX, refY);
         }
 
-        if (under != null && Pick(lib.Layer(anim, "front"), index) is { } front)
-        {
-            var arms = Pixels(front);
-            int fw = front.PixelWidth;
-            for (int i = 0; i < arms.Length; i++)
-            {
-                if (arms[i] >> 24 == 0) continue;
-                int x = i % fw, y = i / fw;
-                if (x < w && y + HatRoom < H) px[(y + HatRoom) * w + x] = under[(y + HatRoom) * w + x];
-            }
-        }
+        RestoreFront();
 
         if (book != null && lib.Clothes(book) is { } bookArt && Pick(lib.Layer(anim, "book"), index) is { } bookPoint
             && FirstPixel(Pixels(bookPoint), bookPoint.PixelWidth, bookPoint.PixelHeight) is var (bx, by))

@@ -63,6 +63,12 @@ public static class DailyOffer
     /// </summary>
     public static IReadOnlyList<string> Today(SaveData s, bool force = false)
     {
+        // Без гардероб няма оферта изобщо (и скиновете чакат гардероба).
+        if (!HasWardrobe(s))
+        {
+            s.OfferItems.Clear();
+            return s.OfferItems;
+        }
         string today = DateTime.Today.ToString("yyyy-MM-dd");
         // Отпреди разнообразието: три неща от един вид (три дивана) – наново.
         bool same = s.OfferItems.Select(GroupOf).Distinct().Count() < s.OfferItems.Count;

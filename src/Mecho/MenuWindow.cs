@@ -457,6 +457,27 @@ public sealed class MenuWindow : Window
         p.Children.Add(relax);
         p.Children.Add(_relaxGrid);
 
+        // „Работи си“: същото, но с работа (бюро, тефтер, настолна игра, статив).
+        var work = new DockPanel();
+        _workMore = Button("", () =>
+        {
+            _workOpen = !_workOpen;
+            Refresh(true);
+        }, icon: "menu");
+        _workMore.ToolTip = Tip("Избери с какво точно да работи");
+        _workMore.Margin = new Thickness(0, 0, 6, 6);
+        DockPanel.SetDock(_workMore, Dock.Right);
+        work.Children.Add(_workMore);
+        _workButton = Wide(Button("Работи си", () =>
+        {
+            if (_pet.WorksRandomly) _pet.GetUp();
+            else _pet.WorkRandom();
+            Refresh(true);
+        }, icon: "pencil"));
+        work.Children.Add(_workButton);
+        p.Children.Add(work);
+        p.Children.Add(_workGrid);
+
         // SOS: мечокът дава нещо за мотивация (листът е motivation.md в GitHub).
         var sos = Wide(Button("SOS: мотивация", () =>
         {
@@ -470,22 +491,38 @@ public sealed class MenuWindow : Window
     }
 
     private readonly UniformGrid _relaxGrid = new() { Columns = 2 };
-    private Button _relaxButton = null!, _relaxMore = null!;
-    private bool _relaxOpen;
+    private readonly UniformGrid _workGrid = new() { Columns = 2 };
+    private Button _relaxButton = null!, _relaxMore = null!, _workButton = null!, _workMore = null!;
+    private bool _relaxOpen, _workOpen;
 
     private void BuildRelaxButtons()
     {
         var s = _pet.Save;
         var chosen = _pet.CurrentFun;
-        _relaxGrid.Children.Clear();
+        bool auto = _pet.AutoMode;
         bool random = _pet.RelaxesRandomly;
         SetOn(_relaxButton, random);
         _relaxButton.ToolTip = Tip(random
-            ? "Почива си и сменя заниманията сам. Цъкни пак, за да спре."
+            ? (auto ? "Сам реши да си почине. Цъкни, за да спре." : "Почива си и сменя заниманията сам. Цъкни пак, за да спре.")
             : "Мечокът почива и сам сменя заниманията (четене, чай, музика…).");
         SetOn(_relaxMore, _relaxOpen);
-        _relaxGrid.Visibility = _relaxOpen ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var scene in Scenes.Fun)
+        bool working = _pet.WorksRandomly;
+        SetOn(_workButton, working);
+        _workButton.ToolTip = Tip(working
+            ? (auto ? "Сам реши да поработи. Цъкни, за да спре." : "Работи си и сменя заниманията сам. Цъкни пак, за да спре.")
+            : "Мечокът си работи: бюро, тефтер, настолна игра, статив.");
+        SetOn(_workMore, _workOpen);
+        FillSceneGrid(_relaxGrid, _relaxOpen, Scenes.Fun, chosen, random);
+        FillSceneGrid(_workGrid, _workOpen, Scenes.Work, chosen, working);
+    }
+
+    /// <summary>Списъкът (☰) с кътчетата: избраното свети, цъкнеш ли го пак – спира.</summary>
+    private void FillSceneGrid(UniformGrid grid, bool open, Scene[] scenes, Scene? chosen, bool random)
+    {
+        var s = _pet.Save;
+        grid.Children.Clear();
+        grid.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var scene in scenes)
         {
             var sc = scene;
             bool unlocked = Scenes.IsUnlocked(sc, s);
@@ -505,7 +542,7 @@ public sealed class MenuWindow : Window
                 ToolTipService.SetShowOnDisabled(b, true);
             }
             else if (chosen == sc && !random) b.ToolTip = Tip("Сега прави това. Цъкни пак, за да спре.");
-            _relaxGrid.Children.Add(b);
+            grid.Children.Add(b);
         }
     }
 
@@ -1727,7 +1764,7 @@ public sealed class MenuWindow : Window
         _portraitBg.Source = _modelBg.Source = _pet.BackdropImage(_pet.CurrentBackdrop);
         _mood.Text = _pet.IsAsleep ? "Ззз… спи сладко" :
             s.Fullness < 25 ? "Гладен е!" :
-            s.Energy < 25 ? "Много е уморен" :
+            s.Energy < PetWindow.TiredBelow ? "Много е уморен" :
             s.Fullness >= 70 && s.Energy >= 60 ? "Щастлив е!" : "Добре е";
         SetBar(_fullBar, _fullText, s.Fullness, s.Fullness switch
         {
@@ -1739,8 +1776,8 @@ public sealed class MenuWindow : Window
         SetBar(_energyBar, _energyText, s.Energy, _pet.IsAsleep ? "спи…" : s.Energy switch
         {
             >= 70 => "бодър",
-            >= 40 => "добре",
-            >= 25 => "уморен",
+            >= PetWindow.TiredBelow => "добре",
+            >= 15 => "уморен",
             _ => "капнал!",
         });
         if (_pet.IsAsleep) SetButton(_sleepButton, "Събуди", "sun");

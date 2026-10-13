@@ -11,8 +11,7 @@ namespace Mecho;
 // От време на време (не често) подпитва дали да не свършат нещо заедно.
 public sealed partial class PetWindow
 {
-    private double _freeUntil = 25 * 60;    // докога продължава разходката (после избира блок)
-    private double _lastHobbyAt = -3600;
+    private double _freeUntil = 15 * 60;    // докога се разхожда свободно (после сам решава: почивка или работа)
     private bool _autoBlock;                // седи или прави хоби по свой избор (не на Тут)
     private double _nextOffer = 45 * 60;    // кога пак да предложи работа
     private double _offerUntil;             // докато е в сила предложението (клик го отваря)
@@ -22,44 +21,59 @@ public sealed partial class PetWindow
     /// <summary>След блок (или в началото): кратка разходка, после пак избира.</summary>
     private void StartFreeCycle(bool sitNow) => _freeUntil = Now + (sitNow ? Minutes(3, 10) : Minutes(20, 40));
 
-    /// <summary>Вика се от ChooseActivity: време ли е за нов блок. true = зае се с нещо.</summary>
+    /// <summary>
+    /// Вика се от ChooseActivity: ако дълго никой не му е казал какво да прави,
+    /// сам решава да си почива или да работи (по часовника) – като „Почивай си“
+    /// или „Работи си“ в менюто, които тогава светят и Тут може да ги изключи.
+    /// </summary>
     private bool FreeCycleStep()
     {
-        if (Now < _freeUntil || Cooks) return false;   // докато се готви, не тръгва на хоби
+        if (Now < _freeUntil || Cooks || InFocus || IsAsleep) return false;
+        PickAutoMode();
+        if (RelaxesRandomly) StartRandomRelax(_lastFun);
+        else StartRandomWork(_lastFun);
+        Persist();
+        return true;
+    }
 
-        bool canHobby = Now - _lastHobbyAt > 45 * 60;
-        var blocks = new (string Name, double Weight)[]
-        {
-            ("wander", 3),
-            ("sit", IsExhausted ? 8 : 4),   // уморен: по-често сяда (но сам не ляга)
-            ("hobby", canHobby ? 2.5 : 0),
-        };
-        double roll = _rng.NextDouble() * blocks.Sum(b => b.Weight);
-        string pick = blocks[^1].Name;
-        foreach (var b in blocks)
-        {
-            if (roll < b.Weight)
-            {
-                pick = b.Name;
-                break;
-            }
-            roll -= b.Weight;
-        }
+    private double _autoUntil;
 
-        switch (pick)
-        {
-            case "sit":
-                StartScene(Scenes.Sit, quiet: false);
-                _sceneUntil = Now + Minutes(15, 45);
-                _autoBlock = true;
-                return true;
-            case "hobby":
-                StartAutoHobby();
-                return true;
-            default:
-                _freeUntil = Now + Minutes(15, 40);
-                return false;
-        }
+    /// <summary>Избира почивка или работа за следващия блок (по часовника, с малко случайност).</summary>
+    private void PickAutoMode()
+    {
+        double work = WorkChance(DateTime.Now);
+        bool working = _rng.NextDouble() < work;
+        _save.StayPut = true;
+        _save.AutoMode = true;
+        _save.StayScene = working ? RandomWork : RandomRelax;
+        // Работа: 45–60 мин. Почивка в работно време – кратка (15–20 мин), иначе 30–60.
+        _autoUntil = Now + (working ? Minutes(45, 60) : work >= 0.7 ? Minutes(15, 20) : Minutes(30, 60));
+    }
+
+    /// <summary>
+    /// Колко вероятно е да работи сега. Делник: 9–12 работи (рядко почива), 12–13:30
+    /// почива, 13:30–18 работи (с почивки по 15–20 мин), след 18 по-скоро почива.
+    /// Почивни дни: по-скоро почива. Всяка граница е с ±15 мин, различно всеки ден.
+    /// </summary>
+    internal static double WorkChance(DateTime now)
+    {
+        if (now.Hour >= 22 || now.Hour < 6) return 0.05;
+        if (now.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return 0.2;
+        var day = new Random(now.Year * 1000 + now.DayOfYear);
+        TimeSpan At(int h, int m) => new TimeSpan(h, m, 0) + TimeSpan.FromMinutes(day.Next(-15, 16));
+        var t = now.TimeOfDay;
+        if (t < At(9, 0)) return 0.2;
+        if (t < At(12, 0)) return 0.9;
+        if (t < At(13, 30)) return 0.1;
+        if (t < At(18, 0)) return 0.8;
+        return 0.2;
+    }
+
+    /// <summary>Тут го изключи („Стани“ или „Да, спри“): разхожда се, а след 30–45 мин пак решава сам.</summary>
+    private void StopAutoMode()
+    {
+        _save.AutoMode = false;
+        _freeUntil = Now + Minutes(30, 45);
     }
 
     private void UpdateSitting(double now)
@@ -75,24 +89,6 @@ public sealed partial class PetWindow
             _nextChatter = now + 600 + _rng.Next(600);
             Mutter(Lines.Pick(Scenes.Sit.During, _save.OwnerName), 4);
         }
-    }
-
-    /// <summary>Едно от отключените хобита за 10–20 мин.</summary>
-    private void StartAutoHobby()
-    {
-        var options = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save) && f != _lastFun).ToList();
-        var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Reading;
-        double seconds = Minutes(10, 20);
-        _lastHobbyAt = Now;
-        if (scene == Scenes.Trampoline)
-        {
-            StartTrampoline(seconds);
-            _freeUntil = Now + seconds + Minutes(3, 10);   // батутът не минава през LeaveScene
-            return;
-        }
-        StartScene(scene, quiet: false);
-        _sceneUntil = Now + seconds;
-        _autoBlock = true;
     }
 
     // ── „Няма ли да правим нещо?“ ──
