@@ -546,16 +546,28 @@ public sealed partial class PetWindow
 
     public TimeSpan TimerLeft => TimerRunning ? Max(TimeSpan.Zero, _save.TimerEndsAt - DateTime.Now) : TimeSpan.Zero;
 
-    public void StartTimer(double minutes, string label, bool work)
+    public void StartTimer(double minutes, string label, bool work) => StartTimer(minutes, label, work ? "work" : "other");
+
+    /// <summary>Видът таймер: "work" – работят заедно (носи лешници), "rest" – почивка (зелен, почива си), "other" – друго.</summary>
+    public bool RestTimer => TimerRunning && _save.TimerKind == "rest";
+
+    public void StartTimer(double minutes, string label, string kind)
     {
         if (minutes <= 0) return;
-        if (TimerRunning) PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes);
+        if (TimerRunning && _save.TimerIsWork) PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes);
+        bool work = kind == "work";
         _save.TimerEndsAt = DateTime.Now.AddMinutes(minutes);
         _save.TimerMinutes = minutes;
         _save.TimerLabel = label.Trim();
+        _save.TimerKind = kind;
         _save.TimerIsWork = work;
         Say($"⏰ Пускам таймер за {minutes:0.#} мин.{(_save.TimerLabel.Length > 0 ? $" ({_save.TimerLabel})" : "")}", 3);
         if (work) EnterWorkMode();
+        else if (kind == "rest" && !InFocus && !IsAsleep)
+        {
+            LeaveWorkMode();
+            RelaxRandom();
+        }
         OpenParcelFirst();
         NotifyCare();
         Persist();
@@ -564,9 +576,11 @@ public sealed partial class PetWindow
     public void StopTimer()
     {
         if (!TimerRunning) return;
-        int nuts = PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes);
+        int nuts = _save.TimerIsWork ? PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes) : 0;
+        bool rest = RestTimer;
         _save.TimerEndsAt = DateTime.MinValue;
         if (!InFocus) LeaveWorkMode();
+        if (rest && RelaxesRandomly) GetUp();
         Say("Спрях таймера." + Earned(nuts), 2);
         NotifyCare();
         Persist();
@@ -576,10 +590,18 @@ public sealed partial class PetWindow
     {
         if (!TimerRunning || DateTime.Now < _save.TimerEndsAt) return;
         string label = _save.TimerLabel;
+        bool rest = RestTimer, work = _save.TimerIsWork;
         _save.TimerEndsAt = DateTime.MinValue;
-        int nuts = PayForMinutes(_save.TimerMinutes);
+        // Лешници – само за работен таймер.
+        int nuts = work ? PayForMinutes(_save.TimerMinutes) : 0;
         Say((label.Length > 0 ? $"⏰ Времето изтече: {label}!" : "⏰ Времето изтече!") + Earned(nuts), 12);
-        if (!InFocus) RelaxAfterWork();
+        if (rest)
+        {
+            // Почивката свърши: става от кътчето.
+            if (RelaxesRandomly) GetUp();
+        }
+        else if (!work) { }
+        else if (!InFocus) RelaxAfterWork();
         else if (CanAnimateFreely) Play("dance", length: 3);
         NotifyCare();
         Persist();
@@ -654,7 +676,7 @@ public sealed partial class PetWindow
         }
         if (_timerBadge.Content is Border badge)
         {
-            var back = _save.PomodoroPhase == PomodoroPhase.Break ? TagBreak : _badgeBack;
+            var back = _save.PomodoroPhase == PomodoroPhase.Break || (RestTimer && _save.PomodoroPhase == PomodoroPhase.Off) ? TagBreak : _badgeBack;
             if (!ReferenceEquals(badge.Background, back)) badge.Background = back;
         }
         if (!_timerBadge.IsVisible) _timerBadge.Show();
@@ -687,7 +709,8 @@ public sealed partial class PetWindow
             _timerTagShown = text;
             Ui.SetRichText(_timerText, text);
         }
-        var back = _save.PomodoroPhase == PomodoroPhase.Break ? TagBreak : TagWork;
+        // Зелена – почивка (между мечо-дората или таймер „Почивка“).
+        var back = _save.PomodoroPhase == PomodoroPhase.Break || (RestTimer && _save.PomodoroPhase == PomodoroPhase.Off) ? TagBreak : TagWork;
         if (!ReferenceEquals(_timerTag.Background, back)) _timerTag.Background = back;
         _timerTag.Visibility = Visibility.Visible;
     }

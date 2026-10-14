@@ -755,6 +755,23 @@ public sealed partial class PetWindow
             GetUp();
             SetIdle();
         }, 500);
+        await step("таймер: почивка", () =>
+        {
+            int nuts = _save.Hazelnuts;
+            StartTimer(1, "", "rest");
+            if (!RestTimer || !RelaxesRandomly) throw new Exception("не почива");
+            UpdateTimerTag();
+            _save.TimerEndsAt = DateTime.Now;
+            UpdateTimer();
+            if (TimerRunning || RelaxesRandomly) throw new Exception("не стана след почивката");
+            if (_save.Hazelnuts != nuts) throw new Exception("почивката даде лешници");
+            StartTimer(1, "", "work");
+            if (!WorkTimer) throw new Exception("работният не работи");
+            StopTimer();
+            _save.TimerKind = "work";
+            GetUp();
+            SetIdle();
+        }, 500);
         await step("не заспива сам", () =>
         {
             if (IsAsleep) throw new Exception("още спи");

@@ -122,6 +122,7 @@ public sealed class SaveData
     public string TimerLabel { get; set; } = "";
     public double TimerMinutes { get; set; }
     public bool TimerIsWork { get; set; } = true;   // работен таймер: мечокът работи сериозно
+    public string TimerKind { get; set; } = "work"; // "work" – работен, "rest" – почивка, "other" – друго
 
     public List<TaskItem> Tasks { get; set; } = new();
     public List<TaskItem> TaskHistory { get; set; } = new();   // свършените от минали дни (най-новите отпред)

@@ -89,8 +89,8 @@ public sealed class MenuWindow : Window
     private double _timerChoice;
     private readonly List<(double Minutes, Border Chip)> _timerChips = new();
     private Button _timerStop = null!;
-    private Border _workChip = null!;
-    private bool _timerWork = true;
+    private string _timerKind = "work";
+    private readonly List<(string Kind, Border Chip)> _kindChips = new();
     private Button _updateButton = null!;
 
     public MenuWindow(PetWindow pet)
@@ -410,7 +410,7 @@ public sealed class MenuWindow : Window
         p.Children.Add(top);
 
         p.Children.Add(Ribbon("Какво да правим?"));
-        var actions = new UniformGrid { Columns = 4 };
+        var actions = new UniformGrid { Columns = 3 };
         actions.Children.Add(Wide(Button("Нахрани", () => SelectTab(FoodTab), icon: "food")));
         // Приспи: отваря избор колко да спи (вечер – и „Лягай за деня“). Спи ли – буди го.
         _sleepButton = Wide(Button("", () =>
@@ -1684,16 +1684,23 @@ public sealed class MenuWindow : Window
         _timerLabel = NewTextInput();
         p.Children.Add(WithHint(_timerLabel, "За какво е? (чай, пране… по избор)"));
 
-        // Работен таймер: мечокът сяда на бюрото и работи сериозно, докато тече.
-        _timerWork = _pet.Save.TimerIsWork;
-        _workChip = Chip("", () =>
+        // Видът таймер: Работен / Почивка / Друго (избраният свети).
+        _timerKind = _pet.Save.TimerKind is "work" or "rest" or "other" ? _pet.Save.TimerKind : "work";
+        var kinds = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+        foreach (var (kind, name) in new[] { ("work", "Работен"), ("rest", "Почивка"), ("other", "Друго") })
         {
-            _timerWork = !_timerWork;
-            UpdateWorkChip();
-        });
-        _workChip.HorizontalAlignment = HorizontalAlignment.Left;
-        _workChip.Margin = new Thickness(0, 8, 0, 0);
-        p.Children.Add(_workChip);
+            string k = kind;
+            var chip = Chip(name, () =>
+            {
+                _timerKind = k;
+                UpdateWorkChip();
+                UpdateTimerChoice();
+            });
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            _kindChips.Add((k, chip));
+            kinds.Children.Add(chip);
+        }
+        p.Children.Add(kinds);
         UpdateWorkChip();
 
         // Избираш времето (цъкане или свое число) и чак тогава „Пусни“.
@@ -1752,8 +1759,7 @@ public sealed class MenuWindow : Window
 
     private void UpdateWorkChip()
     {
-        SetChip(_workChip, _timerWork ? "✓ Работен (мечокът работи с теб)" : "✕ Не е за работа");
-        SetOn(_workChip, _timerWork);
+        foreach (var (kind, chip) in _kindChips) SetOn(chip, kind == _timerKind);
     }
 
     /// <summary>Написаното число минути (или null, ако не е число).</summary>
@@ -1769,7 +1775,7 @@ public sealed class MenuWindow : Window
     {
         foreach (var (m, chip) in _timerChips) SetOn(chip, Math.Abs(m - _timerChoice) < 0.01 && _timerMinutes.Text.Trim().Length == 0);
         int nuts = _pet.NutsFor(_timerChoice);
-        SetRichText(_timerReward, $"Избрано: {_timerChoice:0.#} мин  ·  ще получиш {nuts} 🌰");
+        SetRichText(_timerReward, _timerKind == "work" ? $"Избрано: {_timerChoice:0.#} мин  ·  ще получиш {nuts} 🌰" : $"Избрано: {_timerChoice:0.#} мин");
     }
 
     /// <summary>„Пусни“: пуска таймера с избраното време.</summary>
@@ -1782,7 +1788,7 @@ public sealed class MenuWindow : Window
             return;
         }
         if (_timerChoice <= 0) return;
-        _pet.StartTimer(_timerChoice, _timerLabel.Text, _timerWork);
+        _pet.StartTimer(_timerChoice, _timerLabel.Text, _timerKind);
         _timerMinutes.Clear();
     }
 
@@ -1910,7 +1916,7 @@ public sealed class MenuWindow : Window
         else SetButton(_quietButton, "Тихо", "quiet");
 
         // Храна и магазин
-        _foodInfo.Text = "Занеси сготвеното при мечока.";
+        _foodInfo.Visibility = Visibility.Collapsed;
         _shopInfo.Visibility = Visibility.Collapsed;
         if (rebuild)
         {
@@ -1966,6 +1972,7 @@ public sealed class MenuWindow : Window
             _timerTime.Text = s.TimerLabel.Length > 0 ? $"{clock}  {s.TimerLabel}" : clock;
         }
         else _timerTime.Text = "--:--";
+        _timerTime.Foreground = _pet.RestTimer ? BreakInk : Ink;
         _timerStop.Visibility = _pet.TimerRunning ? Visibility.Visible : Visibility.Collapsed;
 
         // Още
