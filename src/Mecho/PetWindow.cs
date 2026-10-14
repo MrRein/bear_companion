@@ -379,7 +379,11 @@ public sealed partial class PetWindow : Window
         else CompositionTarget.Rendering -= OnRendering;
     }
 
-    /// <summary>Кадър на екрана: един цикъл (не повече от ~60 в секунда).</summary>
+    /// <summary>
+    /// Кадър на екрана: един цикъл (не повече от ~60 в секунда). Не вътре в самото
+    /// рисуване (там Windows не дава да се отвори нов прозорец – храна, уред…), а
+    /// веднага след него.
+    /// </summary>
     private void OnRendering(object? sender, EventArgs e)
     {
         if (e is RenderingEventArgs r)
@@ -387,9 +391,16 @@ public sealed partial class PetWindow : Window
             if (r.RenderingTime == _lastRenderingTime) return;   // същият кадър
             _lastRenderingTime = r.RenderingTime;
         }
-        if (Now - _lastTime < 0.014) return;
-        Tick();
+        if (_tickQueued || Now - _lastTime < 0.014) return;
+        _tickQueued = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+        {
+            _tickQueued = false;
+            if (Now - _lastTime >= 0.014) Tick();
+        }));
     }
+
+    private bool _tickQueued;
 
     private void UpdateIdle(double now)
     {
