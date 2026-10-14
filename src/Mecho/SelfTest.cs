@@ -205,23 +205,33 @@ public sealed partial class PetWindow
         }, 300);
         await step("доставка: „само да отворя доставката“", () =>
         {
+            ClearDeliveries();
+            _holdParcelTrip = true;
             Deliver("📦", "Тест", size: 0);
             _nextDelivery = 0;
         }, 2500);
         await step("доставка: каза му да почива", () =>
         {
-            if (_parcel == null) throw new Exception("няма кашон");
-            _trip = null;
-            SetIdle();
-            Relax(Scenes.Reading);
-            if (_trip == null) throw new Exception("не тръгна първо към кашона");
-            if (!_trip.StayPut || _trip.Scene != Scenes.Reading) throw new Exception("забрави какво му казах");
-            ClearDeliveries();
-            GetUp();
+            _holdParcelTrip = false;
+            try
+            {
+                if (_parcel == null || !_parcelLanded) throw new Exception("няма кашон");
+                SetIdle();
+                Relax(Scenes.Reading);
+                if (_trip == null) throw new Exception("не тръгна първо към кашона");
+                if (!_trip.StayPut || _trip.Scene != Scenes.Reading) throw new Exception("забрави какво му казах");
+            }
+            finally
+            {
+                ClearDeliveries();
+                GetUp();
+            }
         }, 300);
         double tripX = 0;
         await step("доставка: спира четенето и отива", () =>
         {
+            ClearDeliveries();
+            SetIdle();
             StartScene(Scenes.Reading, quiet: true);
             tripX = _x;
             Deliver("📦", "Тест", size: 0);

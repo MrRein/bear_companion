@@ -51,13 +51,14 @@ public sealed partial class PetWindow
         }
         if (_parcel.Step(dt)) _parcelLanded = true;
         // Кацна: щом може, мечокът спира каквото прави и отива до кашона.
-        if (_parcelLanded && !_parcelOpening && _trip == null && CanGoToParcel) StartParcelTrip();
+        if (_parcelLanded && !_parcelOpening && _trip == null && !_holdParcelTrip && CanGoToParcel) StartParcelTrip();
     }
 
     /// <summary>Какво правеше, преди да тръгне към кашона (за да продължи после).</summary>
     private sealed record ParcelTrip(double At, double X, bool FacingLeft, Scene? Scene, double SceneLeft, bool Auto, bool StayPut);
 
     private ParcelTrip? _trip;
+    private bool _holdParcelTrip;   // самопроверка: да не тръгва сам към кашона
 
     private bool CanGoToParcel =>
         !IsAsleep && _eating == null && !WaitingForFood && !CookFinale
