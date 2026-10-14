@@ -23,21 +23,24 @@ public sealed partial class PetWindow
         {
             int w = 0;
             foreach (var slot in Clothes.Slots)
-            {
-                if (Clothes.Worn(_save, slot) is not { } g) continue;
-                w += g.SlotId switch
-                {
-                    "shirt" => g.Fluffy ? 2 : g.LongSleeves ? 1 : 0,
-                    "hat" => g.Id is "beanie" or "nightcap" ? 1 : 0,
-                    "neck" => g.Id.StartsWith("scarf") ? 1 : 0,
-                    "gloves" => g.Fluffy || g.Id is "mittens" or "mint_mittens" or "winter" ? 1 : 0,
-                    "shoes" => g.Id is "boots" ? 1 : 0,
-                    _ => 0,
-                };
-            }
+                if (Clothes.Worn(_save, slot) is { } g) w += WarmthOf(g);
             return w;
         }
     }
+
+    private static int WarmthOf(Garment g) => g.SlotId switch
+    {
+        "shirt" => g.Fluffy ? 2 : g.LongSleeves ? 1 : 0,
+        "hat" => g.Id is "beanie" or "nightcap" ? 1 : 0,
+        "neck" => g.Id.StartsWith("scarf") ? 1 : 0,
+        "gloves" => g.Fluffy || g.Id is "mittens" or "mint_mittens" or "winter" ? 1 : 0,
+        "shoes" => g.Id is "boots" ? 1 : 0,
+        _ => 0,
+    };
+
+    /// <summary>Колко топло би бил, ако облече най-топлото, което има (по едно за всяко място).</summary>
+    private int BestWarmth => Clothes.Slots.Sum(slot =>
+        Clothes.All.Where(g => g.SlotId == slot.Id && Clothes.Owns(_save, g)).Select(WarmthOf).DefaultIfEmpty(0).Max());
 
     /// <summary>
     /// Колко му е студено: 0 – над 20°C, 1 – хладно (15–20), 2 – студено (10–15),
@@ -66,17 +69,9 @@ public sealed partial class PetWindow
         get
         {
             if (_tempC is not { } t) return null;
-            string feel;
-            if (Hot) feel = Warmth >= 2 ? "горещо му е в тези дрехи" : "топло е, но е облечен леко";
-            else if (!Cold) feel = "приятно му е";
-            else
-            {
-                string how = ColdLevel switch { 1 => "хладно е", 2 => "студено е", 3 => "много е студено", _ => "мраз е" };
-                if (Comfortable) feel = $"{how}, но му е топличко";
-                else if (!DressedWarmEnough && WantsHeater && !_save.HeaterOn) feel = $"{how} – иска печицата и по-топли дрехи";
-                else if (!DressedWarmEnough) feel = $"{how} – иска по-топли дрехи";
-                else feel = $"{how} – иска печицата";
-            }
+            // Само как е навън – без какво точно иска.
+            string feel = Hot ? "горещо е" : !Cold ? "приятно е"
+                : ColdLevel switch { 1 => "хладно е", 2 => "студено е", 3 => "много е студено", _ => "мраз е" };
             string sky = Weather.KindText(t) is { } k ? $", {k}" : "";
             return $"🌡 {t:0}°C{sky} · {feel}";
         }
@@ -102,7 +97,7 @@ public sealed partial class PetWindow
         AskHeaterCloser(now);
         if (now < _nextWarmthLine || _tempC == null) return;
         // Колкото му е по-неудобно, толкова по-често казва (40–80 мин, а в мраза без дрехи – 15–30).
-        int gap = Comfortable ? 70 : ColdLevel >= 3 ? 25 : ColdLevel == 2 ? 40 : 55;
+        int gap = Comfortable ? 100 : ColdLevel >= 3 ? 45 : ColdLevel == 2 ? 60 : 80;
         _nextWarmthLine = now + gap * 60 + _rng.Next(gap * 60);
         if (IsQuiet || InFocus || IsResting || Cooks || _state is BearState.Drag or BearState.Falling) return;
         TalkAboutWeather();
@@ -130,9 +125,13 @@ public sealed partial class PetWindow
         if (Cold)
         {
             int lvl = ColdLevel;
+            // Няма печица: моли за нея само ако имате лешници за нея (и то не винаги);
+            // иначе просто говори за времето.
             if (WantsHeater && !Kitchen.Owns(_save, Kitchen.Heater))
             {
-                Say(Lines.Pick(lvl >= 3 ? Lines.FreezingNoHeater : Lines.ColdNoHeater, o), 7);
+                int price = Kitchen.Find(Kitchen.Heater)?.Price ?? 30;
+                if (_save.Hazelnuts >= price && _rng.Next(2) == 0) Say(Lines.Pick(lvl >= 3 ? Lines.FreezingNoHeater : Lines.ColdNoHeater, o), 7);
+                else Say(R.Pick(lvl >= 2 ? "weather.cold" : "weather.cool", o), 4);
                 return;
             }
             if (WantsHeater && !_save.HeaterOn)
@@ -141,7 +140,8 @@ public sealed partial class PetWindow
                 _heaterAskUntil = Now + 120;
                 return;
             }
-            if (!DressedWarmEnough)
+            // Иска по-топли дрехи само ако има такива в гардероба (иначе – за времето).
+            if (!DressedWarmEnough && BestWarmth > Warmth)
             {
                 Say(Lines.Pick(lvl switch
                 {
@@ -150,6 +150,11 @@ public sealed partial class PetWindow
                     3 => Lines.VeryColdWantsMore,
                     _ => Lines.FrostWantsEverything,
                 }, o), 6);
+                return;
+            }
+            if (!DressedWarmEnough)
+            {
+                Say(R.Pick(lvl >= 2 ? "weather.cold" : "weather.cool", o), 4);
                 return;
             }
             Say(Lines.Pick(lvl >= 2 ? Lines.WarmInWinter : Lines.CoolButFine, o), 4);

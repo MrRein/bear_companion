@@ -311,7 +311,7 @@ public sealed partial class PetWindow : Window
 
         if (!IsQuiet && !InFocus && !WaitingForFood && now > _nextChatter)
         {
-            _nextChatter = now + 1500 + _rng.Next(1200);
+            _nextChatter = now + 2400 + _rng.Next(1800);
             Mutter(MoodLine() ?? Lines.Chat(_save.OwnerName), 6);
         }
 
@@ -1118,7 +1118,7 @@ public sealed partial class PetWindow : Window
     {
         if (IsQuiet || Now - _lastSpoke < 45) return;
         // Не казва на глас всяко нещо, което почва (ambient): около половината.
-        if (!food && _rng.Next(10) < 5) return;
+        if (!food && _rng.Next(10) < 6) return;
         // Докато се готви, говори само за храната.
         if (!food && _cook is { Popped: false }) text = CookingChatter();
         Say(text, seconds);
@@ -1136,7 +1136,7 @@ public sealed partial class PetWindow : Window
         Say(text, seconds);
     }
 
-    private const double MutterGap = 420;
+    private const double MutterGap = 600;
     private double _lastMutter = -1000;
 
     private void HideBubble() => _bubble.Visibility = Visibility.Collapsed;

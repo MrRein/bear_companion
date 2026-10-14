@@ -40,7 +40,7 @@ public static class Kitchen
     public const string KitchenShelf = "Кухня", FunShelf = "Хобита", FurnitureShelf = "Мебели", HelpShelf = "Подобрения";
 
     /// <summary>Безплатните боровинки се берат най-много веднъж на толкова минути.</summary>
-    public const int BerryMinutes = 30;
+    public const int BerryMinutes = 10;
 
     public static readonly Food[] Foods =
     {
@@ -90,6 +90,21 @@ public static class Kitchen
         new("veggies", "Печени зеленчуци", "🫑", 30, 0, 3, 3, Grill, Array.Empty<string>()),
         new("grilled_bread", "Скарени филийки с мед", "🥖", 25, 0, 2, 2, Grill, Array.Empty<string>()) { Prep = Oven },
     };
+
+    /// <summary>
+    /// Какво му се яде днес: 1–2 ястия от тези, които може да се сготвят (уред и
+    /// рецепта ги има). Различно всеки ден, но едно и също през деня.
+    /// </summary>
+    public static Food[] Cravings(SaveData save)
+    {
+        var can = Foods.Where(f => f.Cost > 0 && CanCook(f, save)).OrderBy(f => f.Id).ToList();
+        if (can.Count == 0) return Array.Empty<Food>();
+        var day = new Random(DateTime.Today.Year * 1000 + DateTime.Today.DayOfYear + 31);
+        var picks = can.OrderBy(_ => day.Next()).Take(can.Count >= 4 ? 2 : 1).ToArray();
+        return picks;
+    }
+
+    public static bool IsCraving(Food f, SaveData save) => Cravings(save).Contains(f);
 
     /// <summary>Пие се (седнал, с чаша), а не се яде.</summary>
     public static bool IsDrink(Food f) => f.Id is "tea" or "coffee" or "lemonade" or "cocoa" or "linden_tea" or "espresso" or "latte"

@@ -86,7 +86,7 @@ public sealed partial class PetWindow
         }
         if (!IsQuiet && now > _nextChatter)
         {
-            _nextChatter = now + 1500 + _rng.Next(1200);
+            _nextChatter = now + 2400 + _rng.Next(1800);
             Mutter(Lines.Pick(Scenes.Sit.During, _save.OwnerName), 4);
         }
     }

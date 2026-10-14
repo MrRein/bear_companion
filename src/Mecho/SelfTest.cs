@@ -585,6 +585,23 @@ public sealed partial class PetWindow
             Say(R.Pick("welcome.back", _save.OwnerName), 1);
             SetIdle();
         }, 500);
+        await step("желания и какво му се яде", () =>
+        {
+            _nextWish = 0;
+            UpdateWishes(Now);
+            var c = Kitchen.Cravings(_save);
+            if (c.Any(f => !Kitchen.CanCook(f, _save))) throw new Exception("иска нещо, което не може да се сготви");
+            double full = _save.Fullness;
+            _save.Fullness = 10;
+            Ask(Conversations.Next(this));
+            _chat?.UpdateLayout();
+            _chat?.Hide();
+            _save.Fullness = full;
+            for (int i = 0; i < 20; i++) MoodLine();
+            if (c.Length > 0) DoneLine(c[0]);
+            var plain = new System.Windows.Controls.TextBlock();
+            Ui.SetRichText(plain, "*прозява се* Добре… *търка очи*");
+        }, 300);
         await step("предложение за работа", () => { Ask(Conversations.WorkOffer(this)); _chat?.UpdateLayout(); _chat?.Hide(); }, 500);
         await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);
         await step("сън в леглото", GoToSleep, 1500);

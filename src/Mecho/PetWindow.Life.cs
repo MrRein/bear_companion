@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 
@@ -32,6 +33,7 @@ public sealed partial class PetWindow
         UpdateVisitor(now);
         UpdateDelivery(now);
         UpdateSkyTalk(now);
+        UpdateWishes(now);
     }
 
     // ── 1. Сутрешен ритуал ──
@@ -295,7 +297,7 @@ public sealed partial class PetWindow
     private void UpdateSkyTalk(double now)
     {
         if (now < _nextSkyTalk) return;
-        _nextSkyTalk = now + Minutes(90, 180);
+        _nextSkyTalk = now + Minutes(150, 270);
         if (Weather.Kind(_tempC) is not { } kind || IsAsleep || InFocus) return;
         Mutter(R.Pick("weather." + kind, _save.OwnerName), 5);
     }
@@ -343,10 +345,41 @@ public sealed partial class PetWindow
     /// <summary>Понякога вместо обикновена приказка казва как се чувства днес.</summary>
     private string? MoodLine()
     {
+        // Понякога казва какво му се яде днес (само от отключеното).
+        if (_rng.Next(5) == 0 && Kitchen.Cravings(_save) is { Length: > 0 } c)
+            return R.Pick("craving", _save.OwnerName).Replace("{ястие}", c[_rng.Next(c.Length)].Name.ToLowerInvariant());
         if (_rng.Next(4) != 0) return null;
         int joy = JoyToday;
         if (joy >= 3) return R.Pick("mood.great", _save.OwnerName);
         if (joy == 0 && DateTime.Now.Hour >= 13) return R.Pick("mood.quiet", _save.OwnerName);
         return null;
+    }
+
+    // ── Желания: гардеробът е с предимство; иначе – нещо, за което стигат лешниците ──
+
+    private double _nextWish = 60 * 60;
+
+    /// <summary>
+    /// Рядко (на 2–4 ч) казва какво би искал: без гардероб – че някой ден ще е
+    /// хубаво да го вземат (а събрали ли сте лешници за него – че е време);
+    /// с гардероб – нещо от магазина, за което стигат лешниците.
+    /// </summary>
+    private void UpdateWishes(double now)
+    {
+        if (now < _nextWish) return;
+        _nextWish = now + Minutes(120, 240);
+        if (IsQuiet || InFocus || IsAsleep || Cooks) return;
+        string o = _save.OwnerName;
+        var wardrobe = Kitchen.Find(Kitchen.Wardrobe);
+        if (wardrobe != null && !Kitchen.Owns(_save, Kitchen.Wardrobe))
+        {
+            if (_save.Hazelnuts >= wardrobe.Price) Mutter(R.Pick("wish.wardrobe.ready", o), 6);
+            else if (_rng.Next(2) == 0) Mutter(R.Pick("wish.wardrobe", o), 5);
+            return;
+        }
+        var affordable = Kitchen.Upgrades.Where(u => !Kitchen.Owns(_save, u.Id) && u.Price <= _save.Hazelnuts).ToList();
+        if (affordable.Count == 0) return;
+        var pick = affordable[_rng.Next(affordable.Count)];
+        Mutter(R.Pick("wish.item", o).Replace("{нещо}", $"{pick.Icon} {pick.Name.ToLowerInvariant()}"), 5);
     }
 }

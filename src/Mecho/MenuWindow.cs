@@ -86,6 +86,9 @@ public sealed class MenuWindow : Window
     private Button _pomStart = null!, _pomStop = null!;
     private TextBlock _timerTime = null!;
     private TextBox _timerLabel = null!, _timerMinutes = null!;
+    private TextBlock _timerReward = null!;
+    private double _timerChoice;
+    private readonly List<(double Minutes, Border Chip)> _timerChips = new();
     private Button _timerStop = null!;
     private Border _workChip = null!;
     private bool _timerWork = true;
@@ -455,8 +458,7 @@ public sealed class MenuWindow : Window
         }, icon: "menu");
         _relaxMore.ToolTip = Tip("Избери какво точно да прави");
         _relaxMore.Margin = new Thickness(0, 0, 6, 6);
-        DockPanel.SetDock(_relaxMore, Dock.Right);
-        relax.Children.Add(_relaxMore);
+        // Без списък: мечокът сам избира какво да прави (вж. „Почивай си“).
         _relaxButton = Wide(Button("Почивай си", () =>
         {
             if (_pet.RelaxesRandomly) _pet.GetUp();
@@ -465,7 +467,6 @@ public sealed class MenuWindow : Window
         }, icon: "couch"));
         relax.Children.Add(_relaxButton);
         p.Children.Add(relax);
-        p.Children.Add(_relaxGrid);
 
         // „Работи си“: същото, но с работа (бюро, тефтер, настолна игра, статив).
         var work = new DockPanel();
@@ -476,8 +477,7 @@ public sealed class MenuWindow : Window
         }, icon: "menu");
         _workMore.ToolTip = Tip("Избери с какво точно да работи");
         _workMore.Margin = new Thickness(0, 0, 6, 6);
-        DockPanel.SetDock(_workMore, Dock.Right);
-        work.Children.Add(_workMore);
+        // Без списък: мечокът сам избира с какво да работи.
         _workButton = Wide(Button("Работи си", () =>
         {
             if (_pet.WorksRandomly) _pet.GetUp();
@@ -486,7 +486,6 @@ public sealed class MenuWindow : Window
         }, icon: "pencil"));
         work.Children.Add(_workButton);
         p.Children.Add(work);
-        p.Children.Add(_workGrid);
 
         // SOS: мечокът дава нещо за мотивация (листът е motivation.md в GitHub).
         var sos = Wide(Button("SOS: мотивация", () =>
@@ -880,6 +879,8 @@ public sealed class MenuWindow : Window
     private void BuildDailyOffer()
     {
         var s = _pet.Save;
+        // Без гардероб офертата я няма изобщо (в нея са само дрехи, тапети и дамаски).
+        if (!DailyOffer.HasWardrobe(s)) return;
         var left = DailyOffer.Left;
         // Офертата е на по-тъмна подложка, за да се отделя от разделите отдолу.
         var box = new StackPanel();
@@ -1634,12 +1635,19 @@ public sealed class MenuWindow : Window
         p.Children.Add(_workChip);
         UpdateWorkChip();
 
+        // Избираш времето (цъкане или свое число) и чак тогава „Пусни“.
         var presets = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
         foreach (int m in new[] { 5, 10, 15, 30, 45, 60 })
         {
             int minutes = m;
-            var chip = Chip($"{m} мин", () => _pet.StartTimer(minutes, _timerLabel.Text, _timerWork));
+            var chip = Chip($"{m} мин", () =>
+            {
+                _timerChoice = minutes;
+                _timerMinutes.Clear();
+                UpdateTimerChoice();
+            });
             chip.Margin = new Thickness(0, 0, 6, 6);
+            _timerChips.Add((minutes, chip));
             presets.Children.Add(chip);
         }
         p.Children.Add(presets);
@@ -1651,6 +1659,12 @@ public sealed class MenuWindow : Window
         {
             if (e.Key == Key.Enter) StartCustomTimer();
         };
+        _timerMinutes.TextChanged += (_, _) =>
+        {
+            _timerMinutes.ClearValue(Control.BorderBrushProperty);
+            if (TypedMinutes() is { } typed) _timerChoice = typed;
+            UpdateTimerChoice();
+        };
         custom.Children.Add(_timerMinutes);
         custom.Children.Add(new TextBlock { Text = "мин", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 8, 0) });
         var start = Button("Пусни", StartCustomTimer, primary: true, icon: "play");
@@ -1660,6 +1674,10 @@ public sealed class MenuWindow : Window
         _timerStop.Margin = new Thickness(6, 0, 0, 0);
         custom.Children.Add(_timerStop);
         p.Children.Add(custom);
+        _timerReward = new TextBlock { Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap };
+        p.Children.Add(_timerReward);
+        _timerChoice = 25;
+        UpdateTimerChoice();
 
         p.Children.Add(new TextBlock
         {
@@ -1677,14 +1695,34 @@ public sealed class MenuWindow : Window
         SetOn(_workChip, _timerWork);
     }
 
-    private void StartCustomTimer()
+    /// <summary>Написаното число минути (или null, ако не е число).</summary>
+    private double? TypedMinutes()
     {
         string text = _timerMinutes.Text.Trim().Replace(',', '.');
-        if (double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double m) && m > 0 && m <= 24 * 60)
+        return double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double m) && m > 0 && m <= 24 * 60
+            ? m : null;
+    }
+
+    /// <summary>Избраното време свети, а под него пише колко лешника носи.</summary>
+    private void UpdateTimerChoice()
+    {
+        foreach (var (m, chip) in _timerChips) SetOn(chip, Math.Abs(m - _timerChoice) < 0.01 && _timerMinutes.Text.Trim().Length == 0);
+        int nuts = _pet.NutsFor(_timerChoice);
+        SetRichText(_timerReward, $"Избрано: {_timerChoice:0.#} мин  ·  ще получиш {nuts} 🌰");
+    }
+
+    /// <summary>„Пусни“: пуска таймера с избраното време.</summary>
+    private void StartCustomTimer()
+    {
+        if (_timerMinutes.Text.Trim().Length > 0 && TypedMinutes() == null)
         {
-            _pet.StartTimer(m, _timerLabel.Text, _timerWork);
-            _timerMinutes.Clear();
+            // Написано е нещо, което не е число: червена рамка за миг.
+            _timerMinutes.BorderBrush = Brushes.IndianRed;
+            return;
         }
+        if (_timerChoice <= 0) return;
+        _pet.StartTimer(_timerChoice, _timerLabel.Text, _timerWork);
+        _timerMinutes.Clear();
     }
 
     // ───────────────────────── Още ─────────────────────────
@@ -1828,7 +1866,7 @@ public sealed class MenuWindow : Window
                 break;
             default:
                 _pomTime.Text = $"{(int)_pet.FocusLength.TotalMinutes:00}:00";
-                _pomStatus.Text = "Готова ли си? " + _pet.PomodoroMode.Hint;
+                SetRichText(_pomStatus, $"Готова ли си? {_pet.PomodoroMode.Hint} Носи {_pet.PomodoroNuts} 🌰.");
                 break;
         }
         _pomStart.Visibility = s.PomodoroPhase == PomodoroPhase.Focus ? Visibility.Collapsed : Visibility.Visible;

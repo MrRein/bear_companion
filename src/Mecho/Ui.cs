@@ -242,17 +242,39 @@ public static class Ui
         block.Inlines.Clear();
         var plain = new System.Text.StringBuilder();
         bool skipSpace = false;
+        // *действие* (напр. „*прозява се*“) е на тъмносив фон, без звездичките.
+        bool action = false;
+        void Flush()
+        {
+            if (plain.Length == 0) return;
+            var run = new System.Windows.Documents.Run(plain.ToString());
+            if (action)
+            {
+                run.Background = ActionBack;
+                run.Foreground = ActionInk;
+            }
+            block.Inlines.Add(run);
+            plain.Clear();
+        }
         var e = System.Globalization.StringInfo.GetTextElementEnumerator(text);
         while (e.MoveNext())
         {
             string el = e.GetTextElement().Replace("\uFE0F", "");
+            if (el == "*")
+            {
+                Flush();
+                action = !action;
+                if (action) plain.Append('\u2009');   // тънка рамка отляво
+                else
+                {
+                    // тънко място отдясно на фона: добавяме го към последния тъмен Run
+                    if (block.Inlines.LastInline is System.Windows.Documents.Run last && last.Background == ActionBack) last.Text += "\u2009";
+                }
+                continue;
+            }
             if (EmojiIcons.TryGetValue(el, out var icon) && LoadIcon(icon) != null)
             {
-                if (plain.Length > 0)
-                {
-                    block.Inlines.Add(new System.Windows.Documents.Run(plain.ToString()));
-                    plain.Clear();
-                }
+                Flush();
                 var image = Icon(icon);
                 image.Margin = new Thickness(1, 0, 1, 0);
                 block.Inlines.Add(new System.Windows.Documents.InlineUIContainer(image)
@@ -272,7 +294,18 @@ public static class Ui
                 plain.Append(el);
             }
         }
-        if (plain.Length > 0) block.Inlines.Add(new System.Windows.Documents.Run(plain.ToString()));
+        Flush();
+    }
+
+    /// <summary>Фонът и цветът на *действията* в балончетата.</summary>
+    public static readonly Brush ActionBack = Frozen(Color.FromRgb(0x4A, 0x46, 0x44));
+    public static readonly Brush ActionInk = Frozen(Color.FromRgb(0xF2, 0xEE, 0xE6));
+
+    private static Brush Frozen(Color c)
+    {
+        var b = new SolidColorBrush(c);
+        b.Freeze();
+        return b;
     }
 
     private static bool IsEmoji(string el) =>

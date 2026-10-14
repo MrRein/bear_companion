@@ -207,18 +207,32 @@ public sealed partial class PetWindow
         var last = CurrentFun;
         if (_onTrampoline) EndBounce(null);
         if (_inScene) LeaveScene();
-        StartRandomWork(last);
+        var started = StartRandomWork(last);
+        SayIntent(started, Scenes.Work);
         _idleSince = Now;
         Persist();
     }
 
+    /// <summary>
+    /// Казва какво мисли да прави („Ще си поработя по идеи за настолна игра.“).
+    /// Ако още нищо не е отключено от тези занимания – че трябва да поработят за лешници.
+    /// </summary>
+    private void SayIntent(Scene scene, Scene[] all)
+    {
+        string line = R.Pick($"scene.{scene.Id}.intent", _save.OwnerName);
+        bool fewUnlocked = all.All(s => s.Unlock == null || !Scenes.IsUnlocked(s, _save));
+        if (fewUnlocked) line += " " + R.Pick("need.nuts", _save.OwnerName);
+        Say(line, 5);
+    }
+
     /// <summary>Следващото работно занимание (различно от предното), за 10–20 минути.</summary>
-    private void StartRandomWork(Scene? last)
+    private Scene StartRandomWork(Scene? last, bool quiet = true)
     {
         var options = Scenes.Work.Where(f => Scenes.IsUnlocked(f, _save) && f != last).ToList();
         var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Desk;
-        StartScene(scene, quiet: false);
+        StartScene(scene, quiet: quiet);
         _sceneUntil = Now + 600 + _rng.Next(600);
+        return scene;
     }
 
     /// <summary>„Почивай си“: прави различни неща за почивка едно след друго, докато не стане.</summary>
@@ -237,22 +251,24 @@ public sealed partial class PetWindow
         var last = CurrentFun;
         if (_onTrampoline) EndBounce(null);
         if (_inScene) LeaveScene();
-        StartRandomRelax(last);
+        var started = StartRandomRelax(last);
+        SayIntent(started, Scenes.Fun);
         _idleSince = Now;
         Persist();
     }
 
     /// <summary>Следващото случайно кътче (по възможност различно от предното), за 3–6 минути.</summary>
-    private void StartRandomRelax(Scene? last)
+    private Scene StartRandomRelax(Scene? last, bool quiet = true)
     {
         var options = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save) && f != last).ToList();
         var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Reading;
-        if (scene == Scenes.Trampoline) StartTrampoline(180 + _rng.Next(180));
+        if (scene == Scenes.Trampoline) StartTrampoline(180 + _rng.Next(180), quiet: quiet);
         else
         {
-            StartScene(scene, quiet: false);
+            StartScene(scene, quiet: quiet);
             _sceneUntil = Now + 180 + _rng.Next(180);
         }
+        return scene;
     }
 
     /// <summary>Забавлението, което прави в момента (избрано от Тут или само), или null.</summary>
@@ -423,7 +439,7 @@ public sealed partial class PetWindow
 
         if (!dozing && !IsQuiet && !InFocus && scene.During.Length > 0 && now > _nextChatter)
         {
-            _nextChatter = now + (stay ? 1500 : 300) + _rng.Next(stay ? 1200 : 300);
+            _nextChatter = now + (stay ? 2400 : 480) + _rng.Next(stay ? 1800 : 480);
             // На настолната игра и на бюрото понякога си говори за игрите.
             bool games = scene == Scenes.Board || scene == Scenes.Desk || scene == Scenes.Write;
             Mutter(Lines.Pick(games && _rng.Next(2) == 0 ? Lines.Chatter : scene.During, _save.OwnerName), 5);

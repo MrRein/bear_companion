@@ -94,18 +94,32 @@ public static class Conversations
             Reply("🍯 Не, продължаваме", R.Any("conv.stopfocus.no")));
     }
 
+    /// <summary>
+    /// Гладен е: не всички храни, а най-много три – това, което му се яде днес,
+    /// безплатните боровинки (ако храстът е дал) и нещо евтино. Ако няма нищо
+    /// за готвене – казва, че трябва да поработят за лешници.
+    /// </summary>
     private static ChatQuestion Hungry(PetWindow pet)
     {
         var s = pet.Save;
-        var options = Kitchen.Foods
-            .Where(f => f.Fullness >= 10 && Kitchen.CanCook(f, s))
-            .Select(f => new ChatOption(
+        var picks = new List<Food>();
+        picks.AddRange(Kitchen.Cravings(s));
+        var berries = Kitchen.Foods.First(f => f.Cost == 0);
+        if (Kitchen.BerriesIn(s) == 0) picks.Add(berries);
+        var cheap = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 10 && Kitchen.CanCook(f, s) && !picks.Contains(f))
+            .OrderBy(f => Kitchen.CostOf(f, s)).FirstOrDefault();
+        if (cheap != null && picks.Count < 3) picks.Add(cheap);
+        var options = picks.Take(3).Select(f => new ChatOption(
                 Kitchen.CostOf(f, s) == 0 ? $"{f.Icon} {f.Name} (безплатни)" : $"{f.Icon} {f.Name} ({Kitchen.CostOf(f, s)} 🌰)",
                 p => p.Cook(f)))
             .ToList();
         options.Add(new ChatOption("🍳 Отвори кухнята", p => p.OpenMenu(MenuWindow.FoodTab)));
         options.Add(Reply("По-късно", "Добре… *къркор*"));
-        return new ChatQuestion("Гладен съм… ще ме нахраниш ли?", options.ToArray());
+        bool nothing = picks.All(f => f.Cost == 0) && Kitchen.Cravings(s).Length == 0;
+        string ask = Kitchen.Cravings(s) is { Length: > 0 } c
+            ? R.Pick("hungry.craving", s.OwnerName).Replace("{ястие}", c[0].Name.ToLowerInvariant())
+            : nothing ? R.Pick("hungry.nothing", s.OwnerName) : "Гладен съм… ще ме нахраниш ли?";
+        return new ChatQuestion(ask, options.ToArray());
     }
 
     private static ChatQuestion HowAreYou(PetWindow pet) => new($"Как си днес, {pet.Save.OwnerName}?",

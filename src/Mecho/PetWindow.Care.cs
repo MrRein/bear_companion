@@ -170,19 +170,19 @@ public sealed partial class PetWindow
         {
             if (_save.Fullness < 25)
             {
-                _nextNeedLine = now + 1200 + _rng.Next(600);
+                _nextNeedLine = now + 1800 + _rng.Next(1200);
                 var meal = CurrentMeal;
                 Say(Lines.Pick(meal == "lunch" ? Lines.LunchTime : meal == "dinner" ? Lines.DinnerTime : Lines.Hungry, _save.OwnerName), 5);
             }
             else if (LateNight && _save.Energy < 50)
             {
-                _nextNeedLine = now + 900 + _rng.Next(600);
+                _nextNeedLine = now + 1500 + _rng.Next(900);
                 Say(Lines.Pick(Lines.Bedtime, _save.OwnerName), 5);
             }
             else if (_save.Energy < TiredBelow)
             {
                 // Колкото е по-уморен, толкова по-често го казва.
-                _nextNeedLine = now + (_save.Energy < 12 ? 900 : 1500) + _rng.Next(600);
+                _nextNeedLine = now + (_save.Energy < 12 ? 1500 : 2400) + _rng.Next(1200);
                 Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 5);
             }
         }
@@ -455,6 +455,12 @@ public sealed partial class PetWindow
     }
 
     private static string Earned(int nuts) => nuts > 0 ? $" +{nuts} 🌰" : "";
+
+    /// <summary>Колко лешника ще донесат толкова минути работа (с остатъка от миналия път).</summary>
+    public int NutsFor(double minutes) => minutes <= 0 ? 0 : (int)Math.Floor((_save.FocusMinutesBank + minutes) / 10 + 1e-9);
+
+    /// <summary>Колко лешника носи едно мечо-доро от избрания вид (със слушалките +1).</summary>
+    public int PomodoroNuts => NutsFor(FocusLength.TotalMinutes) + (Kitchen.Owns(_save, Kitchen.Headphones) ? 1 : 0);
 
     public void StopPomodoro()
     {
