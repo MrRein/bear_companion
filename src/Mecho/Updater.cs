@@ -24,7 +24,22 @@ public sealed class Updater
 
     public static int CurrentVersion => Assembly.GetExecutingAssembly().GetName().Version?.Build ?? 0;
 
+    /// <summary>Версията за хората: „1.0.3“ (вътрешно номерът е този на сглобяването – виж build.yml).</summary>
+    public static string CurrentName
+    {
+        get
+        {
+            var info = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            if (string.IsNullOrEmpty(info)) return CurrentVersion.ToString();
+            int plus = info.IndexOf('+');
+            return plus >= 0 ? info[..plus] : info;
+        }
+    }
+
     public int LatestVersion { get; private set; }
+
+    /// <summary>Новата версия за хората (от заглавието „Версия 1.0.3“).</summary>
+    public string LatestName { get; private set; } = "";
     public bool IsAvailable => LatestVersion > CurrentVersion && _zipUrl != null;
     public bool IsBusy { get; private set; }
 
@@ -52,6 +67,8 @@ public sealed class Updater
                 .Select(a => a.GetProperty("browser_download_url").GetString())
                 .FirstOrDefault();
             LatestVersion = latest;
+            string title = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+            LatestName = title.StartsWith("Версия ") ? title["Версия ".Length..].Trim() : latest.ToString();
             return IsAvailable ? Result.Available : Result.UpToDate;
         }
         catch (Exception)

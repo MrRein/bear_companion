@@ -91,15 +91,15 @@ public sealed class TrayIcon : IDisposable
             quiet.Text = _pet.IsQuiet ? "Може да говориш" : "Тихо за 1 час";
             autostart.Checked = _save.StartWithWindows;
             update.Text = _pet.Updater.IsAvailable
-                ? $"Обнови до версия {_pet.Updater.LatestVersion}"
-                : $"Провери за обновление (сега: {Updater.CurrentVersion})";
+                ? $"Обнови до версия {_pet.Updater.LatestName}"
+                : $"Провери за обновление (сега: {Updater.CurrentName})";
             update.Enabled = !_pet.Updater.IsBusy;
         };
 
         _icon = new Forms.NotifyIcon
         {
             Icon = LoadIcon(),
-            Text = $"Мечо, версия {Updater.CurrentVersion}",
+            Text = $"Мечо, версия {Updater.CurrentName}",
             ContextMenuStrip = menu,
             Visible = true,
         };

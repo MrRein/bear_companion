@@ -45,7 +45,7 @@ public static class CrashLog
         {
             System.IO.Directory.CreateDirectory(SaveData.Folder);
             System.IO.File.AppendAllText(Path,
-                $"── {DateTime.Now:yyyy-MM-dd HH:mm:ss}  версия {Updater.CurrentVersion}\n{ex}\n\n");
+                $"── {DateTime.Now:yyyy-MM-dd HH:mm:ss}  версия {Updater.CurrentName}\n{ex}\n\n");
         }
         catch (Exception)
         {

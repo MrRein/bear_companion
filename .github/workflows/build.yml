@@ -1,6 +1,8 @@
 # Всяко качване сглобява Mecho.exe (с папката assets) в Mecho.zip.
-# От основния клон се пуска и нова версия (Release) vN, където N е номерът на
-# сглобяването. Мечокът сам проверява за нея и може да се обнови.
+# От основния клон се пуска и нова версия (Release). За хората версията е
+# 1.0.K (K = номерът на сглобяването – 103, т.е. сглобяване 103 е 1.0.0); тагът
+# остава vN (N = номерът на сглобяването), защото по него мечокът сравнява
+# версиите (и старите версии също го разбират). Мечокът сам проверява и се обновява.
 name: Build
 
 on:
@@ -15,7 +17,12 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      SEMVER_BASE: 103
     steps:
+      - name: Version
+        shell: bash
+        run: echo "SEMVER=1.0.$(( ${{ github.run_number }} - SEMVER_BASE ))" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
@@ -25,7 +32,7 @@ jobs:
           dotnet publish src/Mecho -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true -p:DebugType=none
-          -p:Version=0.1.${{ github.run_number }} -o publish/Mecho
+          -p:Version=0.1.${{ github.run_number }} -p:InformationalVersion=${{ env.SEMVER }} -o publish/Mecho
       # Пуска мечока в режим на самопроверка (менюто, магазина, кътчетата,
       # готвенето, гардероба). Ако нещо гърми, версия не излиза.
       - name: Self-test
@@ -49,4 +56,4 @@ jobs:
           NOTES: ${{ github.event.head_commit.message }}
         run: |
           gh release create "v${{ github.run_number }}" publish/Mecho.zip \
-            --title "Версия ${{ github.run_number }}" --notes "${NOTES:-Нова версия}"
+            --title "Версия ${{ env.SEMVER }}" --notes "${NOTES:-Нова версия}"

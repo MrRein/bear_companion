@@ -130,7 +130,7 @@
     },
     "focus_tired": {
       "file": "focus_tired.png",
-      "fps": 6,
+      "fps": 8,
       "loop": true
     },
     "bounce": {

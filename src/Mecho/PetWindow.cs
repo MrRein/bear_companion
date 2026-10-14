@@ -654,10 +654,10 @@ public sealed partial class PetWindow : Window
         {
             case Updater.Result.Available when manual || _announcedVersion != _updater.LatestVersion:
                 _announcedVersion = _updater.LatestVersion;
-                Say($"Има нова версия ({_updater.LatestVersion})! Десен бутон върху мен → „Обнови“.", 8);
+                Say($"Има нова версия ({_updater.LatestName})! Десен бутон върху мен → „Обнови“.", 8);
                 break;
             case Updater.Result.UpToDate when manual:
-                Say($"Имам най-новата версия ({Updater.CurrentVersion}). Ура!");
+                Say($"Имам най-новата версия ({Updater.CurrentName}). Ура!");
                 break;
             case Updater.Result.Failed when manual:
                 Say("Не успях да проверя. Има ли интернет?");

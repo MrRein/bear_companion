@@ -1856,7 +1856,7 @@ public sealed class MenuWindow : Window
         p.Children.Add(sizeLabel);
         p.Children.Add(slider);
 
-        p.Children.Add(MutedText($"Мечо, версия {Updater.CurrentVersion}. Шрифт Pixeloid (GGBotNet, SIL OFL)."));
+        p.Children.Add(MutedText($"Мечо, версия {Updater.CurrentName}. Шрифт Pixeloid (GGBotNet, SIL OFL)."));
         return p;
     }
 
@@ -1969,8 +1969,8 @@ public sealed class MenuWindow : Window
         _timerStop.Visibility = _pet.TimerRunning ? Visibility.Visible : Visibility.Collapsed;
 
         // Още
-        if (_pet.Updater.IsAvailable) SetButton(_updateButton, $"Обнови до версия {_pet.Updater.LatestVersion}", "update");
-        else SetButton(_updateButton, $"Провери за обновление (сега: {Updater.CurrentVersion})", "update");
+        if (_pet.Updater.IsAvailable) SetButton(_updateButton, $"Обнови до версия {_pet.Updater.LatestName}", "update");
+        else SetButton(_updateButton, $"Провери за обновление (сега: {Updater.CurrentName})", "update");
         _updateButton.IsEnabled = !_pet.Updater.IsBusy;
     }
 
