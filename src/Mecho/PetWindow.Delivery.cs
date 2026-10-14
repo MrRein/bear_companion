@@ -132,6 +132,16 @@ public sealed partial class PetWindow
         });
     }
 
+    /// <summary>Самопроверка: маха чакащите доставки и кашона.</summary>
+    private void ClearDeliveries()
+    {
+        _deliveries.Clear();
+        _parcel?.Close();
+        _parcel = null;
+        _parcelItem = null;
+        _trip = null;
+    }
+
     private void DropParcel(Delivery d)
     {
         var area = Area;

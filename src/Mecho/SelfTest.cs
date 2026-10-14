@@ -653,6 +653,7 @@ public sealed partial class PetWindow
             foreach (var id in removed) if (!_save.Owned.Contains(id)) _save.Owned.Add(id);
             _save.GoalId = null;
             _save.GoalChoices.Clear();
+            ClearDeliveries();
         }, 800);
         await step("предложение за работа", () => { Ask(Conversations.WorkOffer(this)); _chat?.UpdateLayout(); _chat?.Hide(); }, 500);
         await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);
