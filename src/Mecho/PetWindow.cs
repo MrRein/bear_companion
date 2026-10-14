@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -1218,6 +1219,9 @@ public sealed partial class PetWindow : Window
 
     private const double MutterGap = 600;
     private double _lastMutter = -1000;
+
+    /// <summary>Самопроверка: какво пише в балончето.</summary>
+    internal string BubbleTextForTest => string.Concat(_bubbleText.Inlines.OfType<System.Windows.Documents.Run>().Select(r => r.Text));
 
     private void HideBubble()
     {

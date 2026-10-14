@@ -386,7 +386,9 @@ public sealed partial class PetWindow
             double friction = Math.Exp(-2.6 * dt);
             f.VelocityX *= friction;
             f.VelocityY *= friction;
-            NativeMethods.MoveWindow(f, x, y);
+            // Храната се мести с дробни DIP (цели пиксели я спираха, докато още лети).
+            f.Left = x;
+            f.Top = y;
 
             if (f.Thrown && bear.IntersectsWith(f.Bounds))
             {

@@ -287,7 +287,9 @@ public sealed partial class PetWindow
                     _save.CoffeeTimes.Clear();
                     Cook(f);
                     StartPendingCook();
-                    if (_cook?.Tool != f.Prep) throw new Exception("не почна от " + f.Prep);
+                    if (_cook?.Tool != f.Prep)
+                        throw new Exception($"не почна от {f.Prep} (каза: „{BubbleTextForTest}“; готви: {_cook?.Food.Id}, яде: {_eating?.Id}, " +
+                            $"пие: {_inScene && _scene == Scenes.Drink}, спи: {IsResting}, лешници: {_save.Hazelnuts}, храна: {_food.Count}, състояние: {_state})");
                 }, 1000);
                 await step($"готви {f.Id}: втори уред", () =>
                 {
