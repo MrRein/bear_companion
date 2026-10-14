@@ -65,6 +65,9 @@ public sealed class SaveData
     /// <summary>Денят, в който сутринта се е събудил бодър (енергия 100).</summary>
     public string MorningRefill { get; set; } = "";
 
+    /// <summary>Купени, но още неотворени (идват с доставка; отключват се при отварянето).</summary>
+    public List<string> Ordered { get; set; } = new();
+
     // Умора (виж PetWindow.Energy.cs)
     public string DayKind { get; set; } = "";           // какъв ден е (вижда се само в Developer)
     public string DayKindDate { get; set; } = "";

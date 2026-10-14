@@ -154,6 +154,7 @@ public sealed partial class PetWindow
         await step("рецепти от страници", () =>
         {
             var t = new SaveData();
+            if (Recipes.Next(t) != null || Recipes.AddPage(t) != null) throw new Exception("страници без нито един уред");
             // Учат се само рецепти за уреди, които ги има: с всички уреди – всички рецепти.
             foreach (var u in Kitchen.Upgrades) t.Owned.Add(u.Id);
             int learned = 0, pages = 0;
@@ -188,12 +189,36 @@ public sealed partial class PetWindow
             _save.Owned.Remove(Kitchen.Pot);
             _save.Owned.Remove(Kitchen.RecipeId(Kitchen.Foods.First(f => f.Id == "popcorn")));
             Buy(pot);
-            if (!Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "popcorn"), _save)) throw new Exception("тенджерата дойде без рецепта");
+            if (Kitchen.Owns(_save, Kitchen.Pot)) throw new Exception("тенджерата е отключена преди доставката");
+            if (GoalChoices.Any(u => u.Id == Kitchen.Pot)) throw new Exception("поръчаната тенджера пак е в магазина");
             _nextDelivery = 0;
         }, 2500);
         await step("доставката пада", () => { if (_parcel == null) throw new Exception("няма кашон"); }, 3000);
         await step("доставката се отваря", () => { OpenParcel(); }, 2500);
-        await step("доставката свърши", () => { if (_parcel != null) throw new Exception("кашончето остана"); _trip = null; SetIdle(); }, 300);
+        await step("доставката свърши", () =>
+        {
+            if (_parcel != null) throw new Exception("кашончето остана");
+            if (!Kitchen.Owns(_save, Kitchen.Pot) || _save.Ordered.Contains(Kitchen.Pot)) throw new Exception("тенджерата не се отключи");
+            if (!Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "popcorn"), _save)) throw new Exception("тенджерата дойде без рецепта");
+            _trip = null;
+            SetIdle();
+        }, 300);
+        await step("доставка: „само да отворя доставката“", () =>
+        {
+            Deliver("📦", "Тест", size: 0);
+            _nextDelivery = 0;
+        }, 2500);
+        await step("доставка: каза му да почива", () =>
+        {
+            if (_parcel == null) throw new Exception("няма кашон");
+            _trip = null;
+            SetIdle();
+            Relax(Scenes.Reading);
+            if (_trip == null) throw new Exception("не тръгна първо към кашона");
+            if (!_trip.StayPut || _trip.Scene != Scenes.Reading) throw new Exception("забрави какво му казах");
+            ClearDeliveries();
+            GetUp();
+        }, 300);
         double tripX = 0;
         await step("доставка: спира четенето и отива", () =>
         {
@@ -640,6 +665,9 @@ public sealed partial class PetWindow
             if (Goal?.Id != Kitchen.Wardrobe) throw new Exception("гардеробът не стана цел");
             _save.Hazelnuts += Goal.Price;
             TakeGoal();
+            if (Kitchen.Owns(_save, Kitchen.Wardrobe)) throw new Exception("гардеробът е отключен преди доставката");
+            if (GoalChoices.Any(u => u.Id == Kitchen.Wardrobe)) throw new Exception("поръчаният гардероб пак е в избора");
+            ReceiveOrdersNow();
             if (!Kitchen.Owns(_save, Kitchen.Wardrobe)) throw new Exception("гардеробът не се купи");
             if (WardrobeBonus.Any(id => !_save.OwnedClothes.Contains(id))) throw new Exception("гардеробът дойде без тениската и дънките");
             var c = GoalChoices;
@@ -652,6 +680,7 @@ public sealed partial class PetWindow
             _menu!.SelfTestShop();
             _save.Hazelnuts += d.Price;
             TakeGoal();
+            ReceiveOrdersNow();
             if (!Kitchen.Owns(_save, d.Id)) throw new Exception("целта не се купи");
             if (GoalChoices.Count == 0 && Goal == null && !AllGoalsDone) throw new Exception("няма нов избор");
             _menu!.Hide();

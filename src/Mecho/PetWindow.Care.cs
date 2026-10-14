@@ -423,9 +423,11 @@ public sealed partial class PetWindow
         _save.PomodoroEndsAt = DateTime.Now + FocusLength;
         // Ако е уморен, EnterWorkMode казва „ти поработи, аз ще посънча“ и той дрямва.
         EndBreakRelax();
-        if (!IsExhausted) Say(WorkStartLine(), 4);
+        // Казва и колко лешника ще донесе (само тук: тогава наистина ги получаваш).
+        if (!IsExhausted) Say(WorkStartLine() + " " + R.Pick("focus.nuts", _save.OwnerName).Replace("{число}", PomodoroNuts.ToString()), 5);
         EnterWorkMode();
         MaybeFlow();
+        OpenParcelFirst();
         NotifyCare();
         Persist();
     }
@@ -516,6 +518,7 @@ public sealed partial class PetWindow
         _save.TimerIsWork = work;
         Say($"⏰ Пускам таймер за {minutes:0.#} мин.{(_save.TimerLabel.Length > 0 ? $" ({_save.TimerLabel})" : "")}", 3);
         if (work) EnterWorkMode();
+        OpenParcelFirst();
         NotifyCare();
         Persist();
     }

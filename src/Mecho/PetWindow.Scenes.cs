@@ -173,6 +173,7 @@ public sealed partial class PetWindow
         if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) StartScene(scene, quiet: false);
         _sceneUntil = 0;
         _idleSince = Now;
+        OpenParcelFirst();
         Persist();
     }
 
@@ -210,20 +211,12 @@ public sealed partial class PetWindow
         var started = StartRandomWork(last);
         SayIntent(started, Scenes.Work);
         _idleSince = Now;
+        OpenParcelFirst();
         Persist();
     }
 
-    /// <summary>
-    /// Казва какво мисли да прави („Ще си поработя по идеи за настолна игра.“).
-    /// Ако още нищо не е отключено от тези занимания – че трябва да поработят за лешници.
-    /// </summary>
-    private void SayIntent(Scene scene, Scene[] all)
-    {
-        string line = R.Pick($"scene.{scene.Id}.intent", _save.OwnerName);
-        bool fewUnlocked = all.All(s => s.Unlock == null || !Scenes.IsUnlocked(s, _save));
-        if (fewUnlocked) line += " " + R.Pick("need.nuts", _save.OwnerName);
-        Say(line, 5);
-    }
+    /// <summary>Казва какво мисли да прави („Ще си поработя по идеи за настолна игра.“).</summary>
+    private void SayIntent(Scene scene, Scene[] all) => Say(R.Pick($"scene.{scene.Id}.intent", _save.OwnerName), 5);
 
     /// <summary>Следващото работно занимание (различно от предното), за 10–20 минути.</summary>
     private Scene StartRandomWork(Scene? last, bool quiet = true)
@@ -254,6 +247,7 @@ public sealed partial class PetWindow
         var started = StartRandomRelax(last);
         SayIntent(started, Scenes.Fun);
         _idleSince = Now;
+        OpenParcelFirst();
         Persist();
     }
 

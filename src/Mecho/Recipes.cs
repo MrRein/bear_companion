@@ -32,9 +32,13 @@ public static class Recipes
     /// Учат се само рецепти за уредите, които вече има (иначе няма с какво да се сготвят).
     private static Food[] Unknown(SaveData s) => Kitchen.Foods.Where(f => f.Cost > 0 && !Kitchen.IsDefaultRecipe(f) && !Kitchen.HasRecipe(f, s) && Kitchen.HasTool(f, s)).ToArray();
 
-    /// <summary>Следващата рецепта (избира я, ако още няма). null = знае всички.</summary>
+    /// <summary>Страници се събират чак след първия купен кухненски уред.</summary>
+    public static bool Started(SaveData s) => Kitchen.Upgrades.Any(u => u.Shelf == Kitchen.KitchenShelf && Kitchen.Owns(s, u.Id));
+
+    /// <summary>Следващата рецепта (избира я, ако още няма). null = знае всички (или още няма уред).</summary>
     public static Food? Next(SaveData s)
     {
+        if (!Started(s)) return null;
         var current = Kitchen.Foods.FirstOrDefault(f => f.Id == s.NextRecipe);
         if (current != null && !Kitchen.HasRecipe(current, s)) return current;
         var unknown = Unknown(s);

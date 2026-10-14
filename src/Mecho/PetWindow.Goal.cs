@@ -42,15 +42,15 @@ public sealed partial class PetWindow
     public bool AllGoalsDone => Goal == null && GoalChoices.Count == 0;
 
     private IEnumerable<Upgrade> GoalPool(IEnumerable<string> except) =>
-        Kitchen.Upgrades.Where(u => !Kitchen.Owns(_save, u.Id) && u.Id != Kitchen.Wardrobe && !except.Contains(u.Id));
+        Kitchen.Upgrades.Where(u => !OwnsOrOrdered(u.Id) && u.Id != Kitchen.Wardrobe && !except.Contains(u.Id));
 
     /// <summary>Подрежда целта: първо гардеробът; после избор от три.</summary>
     private void EnsureGoal()
     {
-        if (_save.GoalId != null && Kitchen.Owns(_save, _save.GoalId)) _save.GoalId = null;
-        _save.GoalChoices.RemoveAll(id => Kitchen.Owns(_save, id) || Kitchen.Find(id) == null);
+        if (_save.GoalId != null && OwnsOrOrdered(_save.GoalId)) _save.GoalId = null;
+        _save.GoalChoices.RemoveAll(id => OwnsOrOrdered(id) || Kitchen.Find(id) == null);
         if (_save.GoalId != null) return;
-        if (!Kitchen.Owns(_save, Kitchen.Wardrobe))
+        if (!OwnsOrOrdered(Kitchen.Wardrobe))
         {
             // Началото: само гардеробът може да се избере.
             if (_save.GoalChoices.Count != 1 || _save.GoalChoices[0] != Kitchen.Wardrobe)
@@ -64,7 +64,7 @@ public sealed partial class PetWindow
     private void NewGoalChoices()
     {
         var choices = new List<string>();
-        var tools = FirstTools.Where(t => !Kitchen.Owns(_save, t)).ToList();
+        var tools = FirstTools.Where(t => !OwnsOrOrdered(t)).ToList();
         if (tools.Count > 0) choices.Add(tools[_rng.Next(tools.Count)]);
         var pool = GoalPool(choices).OrderBy(_ => _rng.Next()).ToList();
         foreach (var u in pool)

@@ -59,7 +59,6 @@ public sealed class MenuWindow : Window
             Child = grid,
             VerticalAlignment = VerticalAlignment.Top,
             Cursor = Cursors.Hand,
-            ToolTip = Tip("Цъкни, за да смениш тапета"),
         };
         box.MouseLeftButtonUp += (_, _) => _pet.NextBackdrop();
         return box;
@@ -299,7 +298,6 @@ public sealed class MenuWindow : Window
             Margin = new Thickness(4, 0, 0, 6),
             Background = Brushes.Transparent,
             Cursor = Cursors.SizeAll,
-            ToolTip = Tip("Хвани ме оттук, за да ме преместиш"),
         };
         grid.MouseLeftButtonDown += (_, e) =>
         {
@@ -336,14 +334,12 @@ public sealed class MenuWindow : Window
         nutRow.Children.Add(_nuts);
         var nuts = Pill(nutRow);
         nuts.Margin = new Thickness(0, 0, 8, 0);
-        nuts.ToolTip = Tip("Лешници: за задачи и за работа.");
         Grid.SetColumn(nuts, 1);
         grid.Children.Add(nuts);
 
         var close = Chip("✕", Hide);
         // Червеното ✕ е пикселна иконка; фонът е светъл, за да се вижда.
         close.VerticalAlignment = VerticalAlignment.Center;
-        close.ToolTip = Tip("Затвори (Esc)");
         Grid.SetColumn(close, 2);
         grid.Children.Add(close);
         return grid;
@@ -437,14 +433,12 @@ public sealed class MenuWindow : Window
             _pet.GetUp();
             Refresh(true);
         }, icon: "walk"));
-        _couchButton.ToolTip = Tip("Става от кътчето и пак се разхожда.");
         actions.Children.Add(_couchButton);
         _heaterButton = Wide(Button("", () =>
         {
             _pet.SetHeater(!_pet.Save.HeaterOn);
             Refresh(false);
         }, icon: "sun"));
-        _heaterButton.ToolTip = Tip("Печицата: мечокът я обича, когато навън е студено.");
         actions.Children.Add(_heaterButton);
         p.Children.Add(actions);
 
@@ -456,7 +450,6 @@ public sealed class MenuWindow : Window
             _relaxOpen = !_relaxOpen;
             Refresh(true);
         }, icon: "menu");
-        _relaxMore.ToolTip = Tip("Избери какво точно да прави");
         _relaxMore.Margin = new Thickness(0, 0, 6, 6);
         // Без списък: мечокът сам избира какво да прави (вж. „Почивай си“).
         _relaxButton = Wide(Button("Почивай си", () =>
@@ -475,7 +468,6 @@ public sealed class MenuWindow : Window
             _workOpen = !_workOpen;
             Refresh(true);
         }, icon: "menu");
-        _workMore.ToolTip = Tip("Избери с какво точно да работи");
         _workMore.Margin = new Thickness(0, 0, 6, 6);
         // Без списък: мечокът сам избира с какво да работи.
         _workButton = Wide(Button("Работи си", () =>
@@ -494,7 +486,6 @@ public sealed class MenuWindow : Window
             _pet.Sos();
         }, icon: "heart"));
         sos.Margin = new Thickness(0, 0, 6, 6);
-        sos.ToolTip = Tip("Когато не ти се работи.");
         p.Children.Add(sos);
         return new ScrollViewer { Content = p, MaxHeight = 600 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
@@ -511,15 +502,9 @@ public sealed class MenuWindow : Window
         bool auto = _pet.AutoMode;
         bool random = _pet.RelaxesRandomly;
         SetOn(_relaxButton, random);
-        _relaxButton.ToolTip = Tip(random
-            ? (auto ? "Сам реши да си почине. Цъкни, за да спре." : "Почива си и сменя заниманията сам. Цъкни пак, за да спре.")
-            : "Мечокът почива и сам сменя заниманията.");
         SetOn(_relaxMore, _relaxOpen);
         bool working = _pet.WorksRandomly;
         SetOn(_workButton, working);
-        _workButton.ToolTip = Tip(working
-            ? (auto ? "Сам реши да поработи. Цъкни, за да спре." : "Работи си и сменя заниманията сам. Цъкни пак, за да спре.")
-            : "Мечокът си работи сам.");
         SetOn(_workMore, _workOpen);
         FillSceneGrid(_relaxGrid, _relaxOpen, Scenes.Fun, chosen, random);
         FillSceneGrid(_workGrid, _workOpen, Scenes.Work, chosen, working);
@@ -543,14 +528,7 @@ public sealed class MenuWindow : Window
                 Refresh(true);
             }, primary: chosen == sc && !random, icon: unlocked ? sc.Icon : "lock"));
             b.HorizontalContentAlignment = HorizontalAlignment.Left;
-            if (!unlocked)
-            {
-                var item = Kitchen.Find(sc.Unlock!);
-                b.IsEnabled = false;
-                b.ToolTip = Tip($"Заключено. Трябва „{item?.Name}“.");
-                ToolTipService.SetShowOnDisabled(b, true);
-            }
-            else if (chosen == sc && !random) b.ToolTip = Tip("Сега прави това. Цъкни пак, за да спре.");
+            if (!unlocked) b.IsEnabled = false;
             grid.Children.Add(b);
         }
     }
@@ -601,7 +579,6 @@ public sealed class MenuWindow : Window
         var colour = value >= 50 ? Good : value >= 25 ? Okay : Bad;
         for (int i = 0; i < segments.Length; i++) segments[i].Background = i < filled ? colour : Empty;
         text.Text = word;
-        ((FrameworkElement)segments[0].Parent).ToolTip = Tip($"{value:0} от 100");
     }
 
     // ───────────────────────── Храна ─────────────────────────
@@ -689,6 +666,7 @@ public sealed class MenuWindow : Window
     {
         var s = _pet.Save;
         _recipeProgress.Children.Clear();
+        if (!Recipes.Started(s)) return;
         var next = Recipes.Next(s);
         if (next == null)
         {
@@ -755,9 +733,6 @@ public sealed class MenuWindow : Window
             });
         }
         int gain = (int)Math.Round(after - now);
-        row.ToolTip = Tip(gain > 0
-            ? $"+{gain} {what} ({now:0} → {after:0})" + (note != null ? ". " + note : "")
-            : $"Няма да добави {what}" + (note != null ? ". " + note : ""));
         return row;
     }
 
@@ -770,7 +745,6 @@ public sealed class MenuWindow : Window
         Padding = new Thickness(6 * U, 2, 8 * U, 2),
         Margin = new Thickness(2, 0, 2, 0),
         Child = IconText(icon, value, bold: true),
-        ToolTip = Tip($"{value} {what}"),
     };
 
     // ───────────────────────── Магазин ─────────────────────────
@@ -849,7 +823,6 @@ public sealed class MenuWindow : Window
             }, primary: ready, icon: "nut");
             buy.IsEnabled = ready;
             buy.Margin = new Thickness(8, 0, 0, 0);
-            if (!ready) buy.ToolTip = Tip($"Още {goal.Price - s.Hazelnuts} лешника.");
             DockPanel.SetDock(buy, Dock.Right);
             row.Children.Add(buy);
             var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
@@ -905,7 +878,6 @@ public sealed class MenuWindow : Window
             }, icon: "update");
             reroll.HorizontalAlignment = HorizontalAlignment.Center;
             reroll.Margin = new Thickness(0, 4, 0, 0);
-            reroll.ToolTip = Tip("Веднъж на избор.");
             details.Children.Add(reroll);
         }
         var pick = Button("Избери", () =>
@@ -913,7 +885,7 @@ public sealed class MenuWindow : Window
             _pet.ChooseGoal(u.Id);
             Refresh(true);
         }, primary: true);
-        return MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, details, pick, dim: false, u.Description);
+        return MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, details, pick, dim: false, null);
     }
 
     /// <summary>Заключена „?“: в началото до гардероба.</summary>
@@ -1132,11 +1104,9 @@ public sealed class MenuWindow : Window
         };
         tile.MouseEnter += (_, _) => tile.Background = Hover;
         tile.MouseLeave += (_, _) => tile.Background = Tile;
-        if (why != null)
+        if (why != null && (dim || !action.IsEnabled))
         {
-            // Подсказката излиза и над изключения бутон.
-            tile.ToolTip = Tip(why);
-            action.ToolTip = Tip(why);
+            // Подсказката излиза и над изключения бутон (само за заключеното).
             ToolTipService.SetShowOnDisabled(action, true);
             ToolTipService.SetInitialShowDelay(tile, 200);
         }
@@ -1161,7 +1131,6 @@ public sealed class MenuWindow : Window
         _pajamaChip = Chip("", () => _pet.SetPajamas(!_pet.Save.PajamasAtNight));
         _pajamaChip.HorizontalAlignment = HorizontalAlignment.Left;
         _pajamaChip.Margin = new Thickness(0, 6 * U, 0, 0);
-        _pajamaChip.ToolTip = Tip("Вечер Мечо сам облича пижама.");
         right.Children.Add(_pajamaChip);
         right.Children.Add(new TextBlock
         {
@@ -1226,7 +1195,6 @@ public sealed class MenuWindow : Window
             if (g != null)
             {
                 var off = Chip("✕", () => _pet.TakeOff(slot));
-                off.ToolTip = Tip("Свали");
                 off.VerticalAlignment = VerticalAlignment.Center;
                 DockPanel.SetDock(off, Dock.Right);
                 row.Children.Add(off);
@@ -1359,7 +1327,6 @@ public sealed class MenuWindow : Window
             });
             _sizeButtons[i].Margin = new Thickness(0, 0, 6, 0);
             _sizeButtons[i].VerticalAlignment = VerticalAlignment.Center;
-            _sizeButtons[i].ToolTip = Tip($"Носи {labels[i].Split(' ')[1].TrimStart('+')} лешника");
             sizes.Children.Add(_sizeButtons[i]);
         }
         var add = Button("Добави", AddTask, primary: true, icon: "plus");
@@ -1382,7 +1349,6 @@ public sealed class MenuWindow : Window
             _showHistory = !_showHistory;
             Refresh(true);
         });
-        _historyButton.ToolTip = Tip("Всички свършени задачи по дни");
         DockPanel.SetDock(_historyButton, Dock.Right);
         bottom.Children.Add(_historyButton);
         _taskSummary = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
@@ -1445,7 +1411,8 @@ public sealed class MenuWindow : Window
             BuildTaskHistory();
             return;
         }
-        var tasks = _pet.Save.Tasks.OrderBy(t => t.Done).ToList();
+        // Свършените се виждат само в „История“.
+        var tasks = _pet.Save.Tasks.Where(t => !t.Done).ToList();
         if (tasks.Count == 0)
             _taskList.Children.Add(MutedText("Няма задачи."));
 
@@ -1482,7 +1449,6 @@ public sealed class MenuWindow : Window
 
             var del = Chip("✕", () => _pet.DeleteTask(t));
             del.VerticalAlignment = VerticalAlignment.Center;
-            del.ToolTip = Tip("Изтрий");
             Grid.SetColumn(del, 2);
             row.Children.Add(del);
 
@@ -1586,7 +1552,6 @@ public sealed class MenuWindow : Window
 
             var del = Chip("✕", () => _pet.DeleteNote(n));
             del.VerticalAlignment = VerticalAlignment.Top;
-            del.ToolTip = Tip("Изтрий");
             Grid.SetColumn(del, 1);
             grid.Children.Add(del);
 
@@ -1611,7 +1576,6 @@ public sealed class MenuWindow : Window
             string id = mode.Id;
             var chip = Chip(mode.Name, () => _pet.SetPomodoroMode(id));
             chip.Margin = new Thickness(0, 0, 6, 4);
-            chip.ToolTip = Tip(mode.Hint);
             _pomModes.Add((id, chip));
             modes.Children.Add(chip);
         }
@@ -1654,7 +1618,6 @@ public sealed class MenuWindow : Window
         });
         _workChip.HorizontalAlignment = HorizontalAlignment.Left;
         _workChip.Margin = new Thickness(0, 8, 0, 0);
-        _workChip.ToolTip = Tip("Работен: мечокът работи с теб.");
         p.Children.Add(_workChip);
         UpdateWorkChip();
 

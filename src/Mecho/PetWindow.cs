@@ -193,6 +193,7 @@ public sealed partial class PetWindow : Window
         _nextUpdateCheck = Now + 60;
         StartFreeCycle(sitNow: false);
         LearnOwnedDefaultRecipes();
+        ResumeOrders();
         ResumeCooking();
         if (_save.StayPut)
         {

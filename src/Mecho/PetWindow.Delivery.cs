@@ -132,6 +132,26 @@ public sealed partial class PetWindow
         });
     }
 
+    /// <summary>Самопроверка: отваря веднага всички поръчки (без кашон).</summary>
+    private void ReceiveOrdersNow()
+    {
+        while (_deliveries.Count > 0) _deliveries.Dequeue().OnOpen?.Invoke();
+        if (_parcelItem is { } d) d.OnOpen?.Invoke();
+        ClearDeliveries();
+    }
+
+    /// <summary>
+    /// Каже ли му Тут да прави нещо, а има доставка: „Само да отворя доставката!“ –
+    /// отваря я и после прави каквото му е казано.
+    /// </summary>
+    private void OpenParcelFirst()
+    {
+        if (_parcel == null || _parcelOpening) return;
+        _trip = null;
+        Say(R.Pick("delivery.first", _save.OwnerName), 3);
+        if (_parcelLanded && CanGoToParcel) StartParcelTrip();
+    }
+
     /// <summary>Самопроверка: маха чакащите доставки и кашона.</summary>
     private void ClearDeliveries()
     {

@@ -207,23 +207,50 @@ public sealed partial class PetWindow
     /// <summary>Купува уред или подобрение с лешници.</summary>
     public void Buy(Upgrade upgrade)
     {
-        if (Kitchen.Owns(_save, upgrade.Id)) return;
+        if (OwnsOrOrdered(upgrade.Id)) return;
         if (_save.Hazelnuts < upgrade.Price)
         {
             Say($"{upgrade.Icon} {upgrade.Name} струва {upgrade.Price} 🌰. Имаме {_save.Hazelnuts}. Още малко работа!", 4);
             return;
         }
         _save.Hazelnuts -= upgrade.Price;
-        _save.Owned.Add(upgrade.Id);
-        LearnDefaultRecipe(upgrade.Id);
+        _save.Ordered.Add(upgrade.Id);
         GoalBought(upgrade.Id);
         Say(R.Pick("delivery.ordered", _save.OwnerName), 4);
-        // Идва с доставка: като отвори кашончето, казва какво е и го пробва.
+        Order(upgrade);
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>Поръчката идва с доставка; отключва се чак когато мечокът отвори кашона.</summary>
+    private void Order(Upgrade upgrade) =>
+        Deliver(upgrade.Icon, upgrade.Name, size: SizeOf(upgrade.Id), onOpen: () => Receive(upgrade));
+
+    /// <summary>Нещо, купено, но още неотворено (вече не се предлага в магазина).</summary>
+    private bool OwnsOrOrdered(string id) => Kitchen.Owns(_save, id) || _save.Ordered.Contains(id);
+
+    /// <summary>При пускане: неотворените поръчки пак идват.</summary>
+    private void ResumeOrders()
+    {
+        foreach (var id in _save.Ordered.ToList())
+        {
+            if (Kitchen.Find(id) is { } u && !Kitchen.Owns(_save, id)) Order(u);
+            else _save.Ordered.Remove(id);
+        }
+    }
+
+    /// <summary>Отвори кашона: нещото вече е негово (уредът – с рецептата си, гардеробът – с дрехи).</summary>
+    private void Receive(Upgrade upgrade)
+    {
+        _save.Ordered.Remove(upgrade.Id);
+        if (!_save.Owned.Contains(upgrade.Id)) _save.Owned.Add(upgrade.Id);
+        LearnDefaultRecipe(upgrade.Id);
         // Гардеробът идва с подарък: червена тениска и два чифта дънки.
         if (upgrade.Id == Kitchen.Wardrobe)
             foreach (var id in WardrobeBonus)
                 if (!_save.OwnedClothes.Contains(id)) _save.OwnedClothes.Add(id);
-        Deliver(upgrade.Icon, upgrade.Name, size: SizeOf(upgrade.Id), onOpen: () =>
+        NotifyCare();
+        Persist();
         {
             Say(upgrade.Id == Kitchen.Wardrobe
                 ? $"Ура! {upgrade.Icon} {upgrade.Name}! И вътре има червена тениска и дънки!"
@@ -235,9 +262,7 @@ public sealed partial class PetWindow
             if (scene != null && !InFocus && !_save.StayPut && !IsAsleep && _state is not (BearState.Drag or BearState.Falling))
                 StartScene(scene, 180 + _rng.Next(120));
             else if (CanAnimateFreely) Play("dance", length: 3);
-        });
-        NotifyCare();
-        Persist();
+        }
     }
 
     /// <summary>Тут пусна храна. Ако е върху мечока, той я изяжда; иначе пада на земята.</summary>
