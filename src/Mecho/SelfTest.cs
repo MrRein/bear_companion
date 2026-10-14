@@ -825,14 +825,16 @@ public sealed partial class PetWindow
             _chat?.UpdateLayout();
             _chat?.Hide();
             _nextNapAsk = double.MaxValue;
-            _save.Energy = 30;
+            _save.Energy = 50;   // не „уморен“: иначе прозявката е по-бавна
             TakeNap(1);
-        }, 2500);
+            if (_save.NapUntil == DateTime.MinValue) throw new Exception("не легна да дремне");
+        }, 4000);
         await step("умора: дреме", () =>
         {
-            if (!IsAsleep) throw new Exception("не заспа");
+            bool asleep = IsAsleep;
             _save.NapUntil = DateTime.Now;
-        }, 800);
+            if (!asleep) throw new Exception("не заспа");
+        }, 1000);
         await step("умора: събуди се от дрямката", () =>
         {
             if (IsAsleep || _save.NapUntil != DateTime.MinValue) throw new Exception("не стана от дрямката");
