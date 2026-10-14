@@ -271,9 +271,18 @@ public sealed partial class PetWindow : Window
         }
 
         if (_bubble.Visibility == Visibility.Visible && now > _bubbleUntil) HideBubble();
-        UpdateTimerTag();
-        UpdateFrame();
-        UpdateLayoutAndWindow();
+        // Докато Тут пише (клавиатура, мишката стои), прозорецът се прерисува
+        // само веднъж на 2 с: честото прерисуване на прозрачния прозорец „винаги
+        // отгоре“ караше курсора да премигва.
+        _calm = Calm(now);
+        if (_freezeUntil > now) _calm = true;
+        if (!_calm || now - _lastDraw > 2)
+        {
+            _lastDraw = now;
+            UpdateTimerTag();
+            UpdateFrame();
+            UpdateLayoutAndWindow();
+        }
 
         if (now > _nextUpdateCheck)
         {
@@ -295,12 +304,35 @@ public sealed partial class PetWindow : Window
     /// докато само се анимира на място; 5, докато спи. Така спокойният мечок
     /// почти не товари процесора.
     /// </summary>
+    private bool _calm;
+    private double _lastDraw, _cursorMovedAt, _freezeUntil;
+    private System.Drawing.Point _typingCursor;
+
+    /// <summary>Тут пише: имало е натискане скоро, а мишката не е мърдала 2 с (и мечокът стои на място).</summary>
+    private bool Calm(double now)
+    {
+        var pos = System.Windows.Forms.Cursor.Position;
+        if (pos != _typingCursor)
+        {
+            _typingCursor = pos;
+            _cursorMovedAt = now;
+            return false;
+        }
+        if (!_save.CalmWhileTyping) return false;
+        if (_state is not (BearState.Idle or BearState.Couch or BearState.Sleep or BearState.Busy)) return false;
+        return now - _cursorMovedAt > 2 && NativeMethods.IdleSeconds() < 2;
+    }
+
+    /// <summary>Developer: спира прерисуването за малко (за търсене на премигване).</summary>
+    internal void DevFreezeDrawing(double seconds) => _freezeUntil = Now + seconds;
+
     private void PaceTimer()
     {
         bool moving = _state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
             || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || Dressing || CookShaking || _cook is { Window.IsFalling: true }
             || _food.Exists(f => f.VelocityX != 0 || f.VelocityY != 0);
-        int ms = moving ? 33
+        int ms = _calm ? 200
+            : moving ? 33
             : IsAsleep && _bubble.Visibility != Visibility.Visible && _food.Count == 0 ? 200
             : 66;
         if ((int)_timer.Interval.TotalMilliseconds != ms) _timer.Interval = TimeSpan.FromMilliseconds(ms);
@@ -421,14 +453,6 @@ public sealed partial class PetWindow : Window
             Say(Lines.Pick(Lines.WelcomeBack, _save.OwnerName));
             Play("happy");
         }
-        // Дрямка: става сам, щом се наспи. Нощем (22–7 ч.) спи до сутринта.
-        else if (!_sleepIsAway && _save.Energy >= 100 && !NightSleep)
-        {
-            _save.SleepingByChoice = false;
-            Say(Lines.Pick(Lines.WokeUp, _save.OwnerName));
-            Play("happy");
-            NotifyCare();
-        }
     }
 
     private void UpdateFalling(double dt)
@@ -514,43 +538,13 @@ public sealed partial class PetWindow : Window
         SetState(BearState.Sleep, "sleep");
     }
 
-    public void GoToSleep()
-    {
-        if (IsAsleep || OnCouchMission || BusyEating()) return;
-        // Не заспива, докато нещо се готви: ще загори!
-        if (_cook != null || _pendingCook != null)
-        {
-            Say(Lines.Pick(Lines.NoSleepCooking, _save.OwnerName), 4);
-            return;
-        }
-        if (_save.Energy >= 95)
-        {
-            Say(R.Any("sleep.nottired"), 3);
-            return;
-        }
-        _save.SleepingByChoice = true;
-        _save.NapUntil = DateTime.MinValue;
-        if (NightSleep) _save.WentToBed = DateTime.Now;
-        Say(Lines.Pick(Lines.GoingToSleep, _save.OwnerName));
-        Play("yawn", then: "sleep");
-        Persist();
-    }
+    public void SetQuiet(bool quiet) => SetQuietFor(quiet ? 60 : 0);
 
-    public void WakeUp()
+    /// <summary>Тихо за толкова минути (0 = пак говори).</summary>
+    public void SetQuietFor(double minutes)
     {
-        _save.SleepingByChoice = false;
-        _save.NapUntil = DateTime.MinValue;
-        if (IsAsleep || _afterBusy == "sleep")
-        {
-            Say(Lines.Pick(Lines.WokeUp, _save.OwnerName));
-            Play("happy");
-        }
-        Persist();
-    }
-
-    public void SetQuiet(bool quiet)
-    {
-        _save.QuietUntil = quiet ? DateTime.Now.AddHours(1) : DateTime.MinValue;
+        bool quiet = minutes > 0;
+        _save.QuietUntil = quiet ? DateTime.Now.AddMinutes(minutes) : DateTime.MinValue;
         if (quiet) HideBubble();
         else Say("Пак мога да говоря!");
         Persist();

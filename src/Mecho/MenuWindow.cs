@@ -412,27 +412,46 @@ public sealed class MenuWindow : Window
         p.Children.Add(Ribbon("Какво да правим?"));
         var actions = new UniformGrid { Columns = 4 };
         actions.Children.Add(Wide(Button("Нахрани", () => SelectTab(FoodTab), icon: "food")));
+        // Приспи: отваря избор колко да спи (вечер – и „Лягай за деня“). Спи ли – буди го.
         _sleepButton = Wide(Button("", () =>
         {
             if (_pet.IsAsleep) _pet.WakeUp();
-            else _pet.GoToSleep();
+            else _sleepOpen = !_sleepOpen;
+            _quietOpen = false;
             Refresh(false);
         }));
         actions.Children.Add(_sleepButton);
         actions.Children.Add(Wide(Button("Погали", _pet.Pet, icon: "heart")));
-        actions.Children.Add(Wide(Button("Зар", _pet.RollDice, icon: "dice")));
+        // Тихо: избор за колко (30 мин, 1 ч, 2 ч). Тих ли е – пак говори.
         _quietButton = Wide(Button("", () =>
         {
-            _pet.SetQuiet(!_pet.IsQuiet);
+            if (_pet.IsQuiet) _pet.SetQuietFor(0);
+            else _quietOpen = !_quietOpen;
+            _sleepOpen = false;
             Refresh(false);
         }));
         actions.Children.Add(_quietButton);
-        actions.Children.Add(Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil")));
-        _couchButton = Wide(Button("Стани", () =>
+        // „Почивай си“ / „Работи си“: мечокът сам сменя заниманията, докато не спре.
+        _relaxButton = Wide(Button("Почивай си", () =>
         {
-            _pet.GetUp();
+            if (_pet.RelaxesRandomly) _pet.GetUp();
+            else _pet.RelaxRandom();
             Refresh(true);
-        }, icon: "walk"));
+        }, icon: "couch"));
+        actions.Children.Add(_relaxButton);
+        _workButton = Wide(Button("Работи си", () =>
+        {
+            if (_pet.WorksRandomly) _pet.GetUp();
+            else _pet.WorkRandom();
+            Refresh(true);
+        }, icon: "pencil"));
+        actions.Children.Add(_workButton);
+        // Спри: спира каквото прави (кътче, батут, разходка) – таймерите си текат.
+        _couchButton = Wide(Button("Спри", () =>
+        {
+            _pet.StopDoing();
+            Refresh(true);
+        }, icon: "stop"));
         actions.Children.Add(_couchButton);
         _heaterButton = Wide(Button("", () =>
         {
@@ -440,44 +459,28 @@ public sealed class MenuWindow : Window
             Refresh(false);
         }, icon: "sun"));
         actions.Children.Add(_heaterButton);
+        // Рисувай – само със статива.
+        _drawButton = Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil"));
+        actions.Children.Add(_drawButton);
         p.Children.Add(actions);
 
-        // „Почивай си“: мечокът сменя кътчетата сам. С ☰ се отваря списъкът и
-        // Тут избира нещо конкретно. И в двата случая стои така до „Стани“.
-        var relax = new DockPanel { Margin = new Thickness(0, 6 * U, 0, 0) };
-        _relaxMore = Button("", () =>
+        // Колко да спи: 3 готови + свое число (минути); вечер отпред – „Лягай за деня“.
+        _sleepOptions.Margin = new Thickness(0, 2, 0, 6);
+        p.Children.Add(_sleepOptions);
+        _quietOptions.Margin = new Thickness(0, 2, 0, 6);
+        foreach (var (label, minutes) in new[] { ("30 мин", 30), ("1 ч", 60), ("2 ч", 120) })
         {
-            _relaxOpen = !_relaxOpen;
-            Refresh(true);
-        }, icon: "menu");
-        _relaxMore.Margin = new Thickness(0, 0, 6, 6);
-        // Без списък: мечокът сам избира какво да прави (вж. „Почивай си“).
-        _relaxButton = Wide(Button("Почивай си", () =>
-        {
-            if (_pet.RelaxesRandomly) _pet.GetUp();
-            else _pet.RelaxRandom();
-            Refresh(true);
-        }, icon: "couch"));
-        relax.Children.Add(_relaxButton);
-        p.Children.Add(relax);
-
-        // „Работи си“: същото, но с работа (бюро, тефтер, настолна игра, статив).
-        var work = new DockPanel();
-        _workMore = Button("", () =>
-        {
-            _workOpen = !_workOpen;
-            Refresh(true);
-        }, icon: "menu");
-        _workMore.Margin = new Thickness(0, 0, 6, 6);
-        // Без списък: мечокът сам избира с какво да работи.
-        _workButton = Wide(Button("Работи си", () =>
-        {
-            if (_pet.WorksRandomly) _pet.GetUp();
-            else _pet.WorkRandom();
-            Refresh(true);
-        }, icon: "pencil"));
-        work.Children.Add(_workButton);
-        p.Children.Add(work);
+            int m = minutes;
+            var chip = Chip(label, () =>
+            {
+                _pet.SetQuietFor(m);
+                _quietOpen = false;
+                Refresh(false);
+            });
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            _quietOptions.Children.Add(chip);
+        }
+        p.Children.Add(_quietOptions);
 
         // SOS: мечокът дава нещо за мотивация (листът е motivation.md в GitHub).
         var sos = Wide(Button("SOS: мотивация", () =>
@@ -490,9 +493,62 @@ public sealed class MenuWindow : Window
         return new ScrollViewer { Content = p, MaxHeight = 600 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 
+    private readonly WrapPanel _sleepOptions = new(), _quietOptions = new();
+    private bool _sleepOpen, _quietOpen;
+    private Button _drawButton = null!;
+    private string _sleepOptionsKey = "";
+
+    /// <summary>Изборът колко да спи (строи се наново, когато вечерта дойде).</summary>
+    private void BuildSleepOptions()
+    {
+        bool late = PetWindow.LateForBed;
+        string key = late ? "late" : "day";
+        if (key == _sleepOptionsKey) return;
+        _sleepOptionsKey = key;
+        _sleepOptions.Children.Clear();
+        void Add(UIElement e)
+        {
+            if (e is FrameworkElement f) f.Margin = new Thickness(0, 0, 6, 4);
+            _sleepOptions.Children.Add(e);
+        }
+        if (late)
+            Add(Button("Лягай за деня", () =>
+            {
+                _pet.SleepForDay();
+                _sleepOpen = false;
+                Refresh(false);
+            }, primary: true, icon: "moon"));
+        foreach (var (label, minutes) in new[] { ("20 мин", 20), ("1 ч", 60), ("2 ч", 120) })
+        {
+            int m = minutes;
+            Add(Chip(label, () =>
+            {
+                _pet.Sleep(m);
+                _sleepOpen = false;
+                Refresh(false);
+            }));
+        }
+        var own = NewTextInput();
+        own.Width = 60 * U;
+        own.VerticalAlignment = VerticalAlignment.Center;
+        Add(WithHint(own, "мин"));
+        Add(Chip("Спи", () =>
+        {
+            if (!double.TryParse(own.Text.Trim().Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var m) || m <= 0 || m > 24 * 60)
+            {
+                own.BorderBrush = Bad;
+                return;
+            }
+            _pet.Sleep(m);
+            own.Clear();
+            _sleepOpen = false;
+            Refresh(false);
+        }));
+    }
+
     private readonly UniformGrid _relaxGrid = new() { Columns = 2 };
     private readonly UniformGrid _workGrid = new() { Columns = 2 };
-    private Button _relaxButton = null!, _relaxMore = null!, _workButton = null!, _workMore = null!;
+    private Button _relaxButton = null!, _workButton = null!;
     private bool _relaxOpen, _workOpen;
 
     private void BuildRelaxButtons()
@@ -502,10 +558,8 @@ public sealed class MenuWindow : Window
         bool auto = _pet.AutoMode;
         bool random = _pet.RelaxesRandomly;
         SetOn(_relaxButton, random);
-        SetOn(_relaxMore, _relaxOpen);
         bool working = _pet.WorksRandomly;
         SetOn(_workButton, working);
-        SetOn(_workMore, _workOpen);
         FillSceneGrid(_relaxGrid, _relaxOpen, Scenes.Fun, chosen, random);
         FillSceneGrid(_workGrid, _workOpen, Scenes.Work, chosen, working);
     }
@@ -615,13 +669,12 @@ public sealed class MenuWindow : Window
             if (f.Tool != null)
             {
                 double secs = PetWindow.CookSeconds(f.Tool);
-                effects.Children.Add(new TextBlock
-                {
-                    Text = (f.Tool == Kitchen.Jug ? "разбърква се " : "готви се ") + (secs % 60 == 0 ? $"{secs / 60:0} мин" : $"{secs:0} с"),
-                    Foreground = Muted,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 2, 0, 0),
-                });
+                // Часовниче и колко време се готви.
+                var time = IconText("clock", secs % 60 == 0 ? $"{secs / 60:0} мин" : $"{secs:0} с");
+                time.HorizontalAlignment = HorizontalAlignment.Center;
+                time.Margin = new Thickness(0, 2, 0, 0);
+                time.Opacity = 0.75;
+                effects.Children.Add(time);
             }
 
             Button action;
@@ -984,7 +1037,7 @@ public sealed class MenuWindow : Window
         if (owned) why = "Вече е в гардероба.";
         var art = _pet.GarmentPreview(g);
         int scale = Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 3, 8);
-        return MakeTile(art, g.Name, Description(owned ? "" : "Отива в гардероба."), action, dim: false, why, owned, scale);
+        return MakeTile(art, g.Name, Description(""), action, dim: false, why, owned, scale);
     }
 
     private Border BackdropTile(Backdrop b)
@@ -1562,6 +1615,15 @@ public sealed class MenuWindow : Window
     // ───────────────────────── Време ─────────────────────────
 
     private readonly List<(string Id, Border Chip)> _pomModes = new();
+    private readonly List<(int Count, Border Chip)> _pomSeries = new();
+    private static readonly Brush BreakInk = MakeBreakInk();
+
+    private static Brush MakeBreakInk()
+    {
+        var b = new SolidColorBrush(Color.FromRgb(60, 130, 50));
+        b.Freeze();
+        return b;
+    }   // зелени цифри в почивката
 
     private UIElement BuildPomodoroTab()
     {
@@ -1580,6 +1642,19 @@ public sealed class MenuWindow : Window
             modes.Children.Add(chip);
         }
         p.Children.Add(modes);
+        // Колко подред: след всяко – зелена почивка, после само почва следващото.
+        var series = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+        var seriesLabel = new TextBlock { Text = "Подред:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 4) };
+        series.Children.Add(seriesLabel);
+        for (int n = 1; n <= 4; n++)
+        {
+            int count = n;
+            var chip = Chip(n.ToString(), () => _pet.SetPomodoroSeries(count));
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            _pomSeries.Add((count, chip));
+            series.Children.Add(chip);
+        }
+        p.Children.Add(series);
         _pomTime = new TextBlock { FontFamily = MonoFont, FontSize = Huge, HorizontalAlignment = HorizontalAlignment.Center };
         _pomStatus = new TextBlock { HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
         p.Children.Add(new Border
@@ -1823,9 +1898,16 @@ public sealed class MenuWindow : Window
         if (_pet.IsAsleep) SetButton(_sleepButton, "Събуди", "sun");
         else SetButton(_sleepButton, "Приспи", "moon");
         _sleepButton.IsEnabled = _pet.CanSleep;
-        _couchButton.IsEnabled = _pet.StaysPut || _pet.CurrentFun != null;
+        if (_pet.IsAsleep) _sleepOpen = false;
+        if (_pet.IsQuiet) _quietOpen = false;
+        BuildSleepOptions();
+        SetOn(_sleepButton, _sleepOpen);
+        SetOn(_quietButton, _quietOpen);
+        _sleepOptions.Visibility = _sleepOpen ? Visibility.Visible : Visibility.Collapsed;
+        _quietOptions.Visibility = _quietOpen ? Visibility.Visible : Visibility.Collapsed;
+        _drawButton.Visibility = Kitchen.Owns(s, Kitchen.Easel) ? Visibility.Visible : Visibility.Collapsed;
         if (_pet.IsQuiet) SetButton(_quietButton, "Говори", "bell");
-        else SetButton(_quietButton, "Тихо 1 ч", "quiet");
+        else SetButton(_quietButton, "Тихо", "quiet");
 
         // Храна и магазин
         _foodInfo.Text = "Занеси сготвеното при мечока.";
@@ -1843,15 +1925,15 @@ public sealed class MenuWindow : Window
         {
             case PomodoroPhase.Focus:
                 _pomTime.Text = $"{(int)left.TotalMinutes:00}:{left.Seconds:00}";
-                _pomStatus.Text = "Работим заедно. Мечокът мълчи.";
+                _pomStatus.Text = s.PomodoroSeries > 1 ? $"Работим заедно ({_pet.PomodoroNumber} от {s.PomodoroSeries})." : "Работим заедно.";
                 break;
             case PomodoroPhase.Break:
                 _pomTime.Text = $"{(int)left.TotalMinutes:00}:{left.Seconds:00}";
-                _pomStatus.Text = "Почивка: стани, раздвижи се, пийни вода.";
+                _pomStatus.Text = s.PomodoroSeriesLeft > 0 ? $"Почивка. После – {_pet.PomodoroNumber + 1} от {s.PomodoroSeries}." : "Почивка: стани, раздвижи се, пийни вода.";
                 break;
             default:
                 _pomTime.Text = $"{(int)_pet.FocusLength.TotalMinutes:00}:00";
-                SetRichText(_pomStatus, $"Готова ли си? {_pet.PomodoroMode.Hint} Носи {_pet.PomodoroNuts} 🌰.");
+                SetRichText(_pomStatus, $"{_pet.PomodoroMode.Hint} Носи {_pet.PomodoroNuts} 🌰.");
                 break;
         }
         _pomStart.Visibility = s.PomodoroPhase == PomodoroPhase.Focus ? Visibility.Collapsed : Visibility.Visible;
@@ -1865,6 +1947,15 @@ public sealed class MenuWindow : Window
             chip.Opacity = running && id != _pet.PomodoroMode.Id ? 0.5 : 1;
             chip.BorderThickness = id == _pet.PomodoroMode.Id ? Sunken : running ? Flat : Raised;
         }
+        foreach (var (count, chip) in _pomSeries)
+        {
+            bool on = count == s.PomodoroSeries;
+            SetOn(chip, on);
+            chip.IsHitTestVisible = !running;
+            chip.Opacity = running && !on ? 0.5 : 1;
+            chip.BorderThickness = on ? Sunken : running ? Flat : Raised;
+        }
+        _pomTime.Foreground = s.PomodoroPhase == PomodoroPhase.Break ? BreakInk : Ink;
         _pomStop.Visibility = s.PomodoroPhase == PomodoroPhase.Off ? Visibility.Collapsed : Visibility.Visible;
         _pomToday.Text = $"Днес: {s.PomodorosToday}   ·   Общо: {s.PomodorosTotal}";
 

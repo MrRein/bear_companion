@@ -703,6 +703,58 @@ public sealed partial class PetWindow
         await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);
         await step("сън в леглото", GoToSleep, 1500);
         await step("събуди", WakeUp, 1000);
+        await step("сън: за определено време", () =>
+        {
+            _save.Energy = 50;
+            Sleep(90);
+            if (_save.NapUntil < DateTime.Now.AddMinutes(89)) throw new Exception("не легна за 90 мин");
+        }, 3500);
+        await step("сън: казва кога ще стане", () =>
+        {
+            if (!IsAsleep) throw new Exception("не заспа");
+            if (!WakeText.StartsWith("след")) throw new Exception("не казва кога ще стане: " + WakeText);
+            Ask(Conversations.Next(this));
+            _chat?.UpdateLayout();
+            _chat?.Hide();
+            WakeUp();
+        }, 1000);
+        await step("сън: лягай за деня", () =>
+        {
+            if (IsAsleep || _save.NapUntil != DateTime.MinValue) throw new Exception("не стана");
+            SleepForDay();
+            var until = _save.NapUntil;
+            if (!_save.SleepForDay || until.Hour < 8 || until.Hour > 10 || until <= DateTime.Now) throw new Exception("за деня: става в " + until);
+            WakeUp();
+            if (_save.SleepForDay || _save.SleepingByChoice) throw new Exception("не се събуди");
+            SetIdle();
+        }, 1500);
+        await step("спри: спира каквото прави", () =>
+        {
+            Relax(Scenes.Reading);
+            StopDoing();
+            if (_inScene || _save.StayPut) throw new Exception("не спря");
+        }, 300);
+        await step("мечо-доро подред", () =>
+        {
+            SetPomodoroSeries(2);
+            StartFocus();
+            if (PomodoroNumber != 1) throw new Exception("не е първото");
+            _save.PomodoroEndsAt = DateTime.Now;
+            UpdatePomodoro();
+            if (_save.PomodoroPhase != PomodoroPhase.Break) throw new Exception("няма почивка");
+            UpdateTimerTag();
+            _save.PomodoroEndsAt = DateTime.Now;
+            UpdatePomodoro();
+            if (_save.PomodoroPhase != PomodoroPhase.Focus || PomodoroNumber != 2) throw new Exception("второто не почна само");
+            _save.PomodoroEndsAt = DateTime.Now;
+            UpdatePomodoro();
+            _save.PomodoroEndsAt = DateTime.Now;
+            UpdatePomodoro();
+            if (_save.PomodoroPhase != PomodoroPhase.Off) throw new Exception("поредицата не свърши");
+            SetPomodoroSeries(1);
+            GetUp();
+            SetIdle();
+        }, 500);
         await step("не заспива сам", () =>
         {
             if (IsAsleep) throw new Exception("още спи");

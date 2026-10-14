@@ -46,6 +46,29 @@ public sealed partial class PetWindow
     }
 
     private double _nextNeedLine;
+
+    // Табелката над мечока: мед – работа/таймер; зелена – почивка между мечо-дората.
+    private static readonly Brush TagWork = Frozen(Color.FromRgb(255, 214, 102));
+    private static readonly Brush TagBreak = Frozen(Color.FromRgb(140, 205, 120));
+
+    private static Brush Frozen(Color c)
+    {
+        var b = new SolidColorBrush(c);
+        b.Freeze();
+        return b;
+    }
+
+    /// <summary>Колко мечо-дора подред (1–4); сменя се, докато не тече.</summary>
+    public void SetPomodoroSeries(int count)
+    {
+        if (_save.PomodoroPhase != PomodoroPhase.Off) return;
+        _save.PomodoroSeries = Math.Clamp(count, 1, 4);
+        Persist();
+        NotifyCare();
+    }
+
+    /// <summary>Кое поред е текущото мечо-доро (1-во от 4 …).</summary>
+    public int PomodoroNumber => _save.PomodoroSeries - _save.PomodoroSeriesLeft;
     private readonly Border _timerTag = new();
     private readonly TextBlock _timerText = new();
 
@@ -64,7 +87,7 @@ public sealed partial class PetWindow
         _timerText.FontFamily = Ui.MonoFont;
         _timerText.Foreground = new SolidColorBrush(Color.FromRgb(59, 36, 20));
         _timerTag.Child = _timerText;
-        _timerTag.Background = new SolidColorBrush(Color.FromRgb(255, 214, 102));
+        _timerTag.Background = TagWork;
         _timerTag.BorderBrush = new SolidColorBrush(Color.FromRgb(59, 36, 20));
         _timerTag.BorderThickness = new Thickness(2);
         _timerTag.CornerRadius = new CornerRadius(3);
@@ -191,8 +214,6 @@ public sealed partial class PetWindow
     /// <summary>Късно е (след 22:00): иска да спи.</summary>
     private static bool LateNight => DateTime.Now.Hour >= 22 || DateTime.Now.Hour < 6;
 
-    /// <summary>Нощен сън (22:00–7:00): не е дрямка, спи до сутринта.</summary>
-    private static bool NightSleep => DateTime.Now.Hour >= 22 || DateTime.Now.Hour < 7;
 
     // ───────────────────────── Обяд и вечеря ─────────────────────────
 
@@ -417,7 +438,14 @@ public sealed partial class PetWindow
 
     private static TimeSpan Max(TimeSpan a, TimeSpan b) => a > b ? a : b;
 
+    /// <summary>Тут пуска мечо-доро (поредицата почва отначало).</summary>
     public void StartFocus()
+    {
+        _save.PomodoroSeriesLeft = Math.Max(0, _save.PomodoroSeries - 1);
+        BeginFocus();
+    }
+
+    private void BeginFocus()
     {
         _save.PomodoroPhase = PomodoroPhase.Focus;
         _save.PomodoroEndsAt = DateTime.Now + FocusLength;
@@ -460,6 +488,7 @@ public sealed partial class PetWindow
         bool wasFocus = InFocus;
         int nuts = wasFocus ? PayForMinutes((FocusLength - PomodoroLeft).TotalMinutes) : 0;
         _save.PomodoroPhase = PomodoroPhase.Off;
+        _save.PomodoroSeriesLeft = 0;
         EndBreakRelax();
         if (!InFocus) LeaveWorkMode();
         Say((wasFocus ? "Добре, спираме. Ще продължим после." : "Почивката свърши по-рано. Хайде!") + Earned(nuts), 3);
@@ -495,8 +524,17 @@ public sealed partial class PetWindow
         {
             _save.PomodoroPhase = PomodoroPhase.Off;
             EndBreakRelax();
-            Say(Lines.Pick(Lines.BreakDone, _save.OwnerName), 6);
-            if (CanAnimateFreely) Play("happy");
+            if (_save.PomodoroSeriesLeft > 0)
+            {
+                // Поредица: след почивката почва следващото.
+                _save.PomodoroSeriesLeft--;
+                BeginFocus();
+            }
+            else
+            {
+                Say(Lines.Pick(Lines.BreakDone, _save.OwnerName), 6);
+                if (CanAnimateFreely) Play("happy");
+            }
         }
         NotifyCare();
         Persist();
@@ -565,6 +603,8 @@ public sealed partial class PetWindow
     /// Скрит ли е мечокът, а тече мечо-доро или таймер: малка табелка в долния десен
     /// ъгъл (над часовника) показва колко остава. Клик върху нея връща мечока.
     /// </summary>
+    private Brush? _badgeBack;
+
     private void UpdateTimerBadge(System.Collections.Generic.List<string> parts)
     {
         bool show = !IsVisible && parts.Count > 0;
@@ -578,6 +618,7 @@ public sealed partial class PetWindow
             _timerBadgeText = Ui.RichText("", bold: true);
             _timerBadgeText.FontFamily = Ui.MonoFont;
             var pill = Ui.Pill(_timerBadgeText);
+            _badgeBack = pill.Background;
             pill.Cursor = System.Windows.Input.Cursors.Hand;
             pill.ToolTip = Ui.Tip("Мечокът е скрит, но времето тече. Цъкни, за да го покажеш.");
             _timerBadge = new Window
@@ -611,6 +652,11 @@ public sealed partial class PetWindow
             _timerBadgeShown = text;
             Ui.SetRichText(_timerBadgeText!, text);
         }
+        if (_timerBadge.Content is Border badge)
+        {
+            var back = _save.PomodoroPhase == PomodoroPhase.Break ? TagBreak : _badgeBack;
+            if (!ReferenceEquals(badge.Background, back)) badge.Background = back;
+        }
         if (!_timerBadge.IsVisible) _timerBadge.Show();
         // Над часовника: долният десен ъгъл на главния екран (над лентата със задачите).
         var area = SystemParameters.WorkArea;
@@ -641,6 +687,8 @@ public sealed partial class PetWindow
             _timerTagShown = text;
             Ui.SetRichText(_timerText, text);
         }
+        var back = _save.PomodoroPhase == PomodoroPhase.Break ? TagBreak : TagWork;
+        if (!ReferenceEquals(_timerTag.Background, back)) _timerTag.Background = back;
         _timerTag.Visibility = Visibility.Visible;
     }
 }

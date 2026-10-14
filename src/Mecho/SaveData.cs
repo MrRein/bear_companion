@@ -81,6 +81,8 @@ public sealed class SaveData
     public DateTime WokeAt { get; set; }                // кога се събуди тази сутрин
     public DateTime NapUntil { get; set; } = DateTime.MinValue;   // дрямка до (MinValue = не дреме)
     public double NapCap { get; set; } = 100;           // дрямката го вдига дотук
+    public bool SleepForDay { get; set; }
+    public bool CalmWhileTyping { get; set; } = true;   // докато Тут пише – почти не се прерисува (курсорът премигваше)               // „Лягай за деня“: спи до сутринта
 
     /// <summary>Вечерта, в която в 22:00 енергията вече е паднала.</summary>
     public string NightDropDay { get; set; } = "";
@@ -111,6 +113,8 @@ public sealed class SaveData
 
     /// <summary>Видът мечо-доро: "25" (25/5), "52" (52/17) или "90" (90/20).</summary>
     public string PomodoroMode { get; set; } = "25";
+    public int PomodoroSeries { get; set; } = 1;        // колко мечо-дора подред (почивката е между тях)
+    public int PomodoroSeriesLeft { get; set; }         // още колко след текущото
     public DateTime PomodoroEndsAt { get; set; }
 
     // Обикновен таймер (MinValue = не тече)

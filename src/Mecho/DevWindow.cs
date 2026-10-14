@@ -141,6 +141,14 @@ public sealed partial class PetWindow
             int value = v;
             yield return (needs, $"Енергия {value}", () => { _save.Energy = value; NotifyCare(); });
         }
+        const string draw = "Премигване (тест)";
+        yield return (draw, "Спокоен, докато пиша: вкл/изкл", () =>
+        {
+            _save.CalmWhileTyping = !_save.CalmWhileTyping;
+            Say(_save.CalmWhileTyping ? "Докато пишеш, ще стоя мирно." : "Ще се движа и докато пишеш.", 3);
+        });
+        yield return (draw, "Без прерисуване 30 с", () => DevFreezeDrawing(30));
+        yield return (draw, "Без прерисуване 2 мин", () => DevFreezeDrawing(120));
         const string tired = "Умора и вид на деня";
         foreach (var k in Enum.GetValues<DayKind>())
         {

@@ -271,6 +271,15 @@ public sealed partial class PetWindow
     /// <summary>Кътчето, в което Тут го е оставила (или null).</summary>
     public Scene? ChosenScene => _save.StayPut && !RelaxesRandomly && !WorksRandomly ? Scenes.ById(_save.StayScene) : null;
 
+    /// <summary>„Спри“: спира каквото прави (кътче, батут, разходка, пеперуда). Таймерите си текат.</summary>
+    public void StopDoing()
+    {
+        if (IsAsleep || BusyEating()) return;
+        GetUp();
+        _freeUntil = Now + Minutes(10, 20);
+        if (_state is BearState.Walk or BearState.Chase || (_state == BearState.Busy && _afterBusy != "sleep")) SetIdle();
+    }
+
     /// <summary>Става от дивана и диванът изчезва.</summary>
     public void GetUp()
     {

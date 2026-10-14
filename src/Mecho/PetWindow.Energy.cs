@@ -378,41 +378,6 @@ public sealed partial class PetWindow
         return true;
     }
 
-    /// <summary>Дрямка за толкова минути: става сам, по-бодър (но не догоре).</summary>
-    public void TakeNap(int minutes)
-    {
-        if (IsAsleep || BusyEating()) return;
-        if (_cook != null || _pendingCook != null)
-        {
-            Say(Lines.Pick(Lines.NoSleepCooking, _save.OwnerName), 4);
-            return;
-        }
-        if (_save.Energy >= 90)
-        {
-            Say(R.Any("sleep.nottired"), 3);
-            return;
-        }
-        if (_inScene) LeaveScene();
-        _save.NapUntil = DateTime.Now.AddMinutes(minutes);
-        _save.NapCap = Math.Min(100, _save.Energy + minutes * 1.8 + 5);
-        _save.SleepingByChoice = true;
-        Say(R.Pick("nap.going", _save.OwnerName).Replace("{число}", minutes.ToString()), 4);
-        Play("yawn", then: "sleep");
-        Persist();
-    }
-
-    /// <summary>Вика се от UpdateSleep: дрямката свърши ли – става.</summary>
-    private bool NapOver()
-    {
-        if (_save.NapUntil == DateTime.MinValue || DateTime.Now < _save.NapUntil) return false;
-        _save.NapUntil = DateTime.MinValue;
-        _save.SleepingByChoice = false;
-        Say(R.Pick("nap.woke", _save.OwnerName), 5);
-        Play("happy");
-        NotifyCare();
-        return true;
-    }
-
     // ── Почивка при мечо-доро ──
 
     private bool _breakRelax;

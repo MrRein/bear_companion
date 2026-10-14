@@ -32,7 +32,8 @@ public static class Conversations
 
         if (pet.IsAsleep)
         {
-            return new ChatQuestion(Lines.Pick(Lines.PokedAsleep, name),
+            string when = pet.WakeText;
+            return new ChatQuestion(Lines.Pick(Lines.PokedAsleep, name) + (when.Length > 0 ? $" (ще стане {when})" : ""),
                 new ChatOption("☀️ Събуди го", p => p.WakeUp()),
                 new ChatOption("🤫 Остави го да спи", _ => { }));
         }
@@ -44,7 +45,7 @@ public static class Conversations
             int nap = pet.NapMinutes;
             var options = new List<ChatOption>
             {
-                h is >= 7 and < 20 ? new($"😴 Дремни {nap} мин", p => p.TakeNap(nap)) : new("🌙 Да, лека нощ", p => p.GoToSleep()),
+                PetWindow.LateForBed ? new("🌙 Лягай за деня", p => p.SleepForDay()) : new($"😴 Дремни {nap} мин", p => p.TakeNap(nap)),
             };
             // Кафе и чай, ако има с какво да ги направи.
             options.AddRange(Kitchen.Foods
