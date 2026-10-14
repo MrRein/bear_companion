@@ -72,7 +72,11 @@ public sealed class SaveData
     public bool AutoMode { get; set; }
     public string JoyDay { get; set; } = "";        // за кой ден са JoyFlags
     public int JoyFlags { get; set; }               // днес: 1 – галиха го, 2 – нахраниха го, 4 – работиха заедно
-    public string RitualDay { get; set; } = "";     // сутрешният ритуал (веднъж на ден)
+    public string RitualDay { get; set; } = "";
+    public string? DreamId { get; set; }                        // мечтата на Мечо (виж PetWindow.Dreams.cs)
+    public List<string> DreamChoices { get; set; } = new();     // трите неща за избор
+    public bool DreamRerollUsed { get; set; }                   // „презареди“ вече е ползвано за този избор
+    public int DreamsDone { get; set; }                         // колко мечти са сбъднати     // сутрешният ритуал (веднъж на ден)
 
     /// <summary>Къде е (по интернет връзката) – за температурата.</summary>
     public double WeatherLat { get; set; } = double.NaN;

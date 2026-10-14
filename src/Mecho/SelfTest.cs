@@ -602,6 +602,32 @@ public sealed partial class PetWindow
             var plain = new System.Windows.Controls.TextBlock();
             Ui.SetRichText(plain, "*прозява се* Добре… *търка очи*");
         }, 300);
+        await step("мечтата на Мечо", () =>
+        {
+            var removed = new[] { Kitchen.Wardrobe, Kitchen.Pot, Kitchen.Pan, Kitchen.Radio, Kitchen.Easel, Kitchen.YogaMat }
+                .Where(id => _save.Owned.Remove(id)).ToList();
+            _save.DreamId = null;
+            _save.DreamChoices.Clear();
+            if (Dream?.Id != Kitchen.Wardrobe) throw new Exception("първата мечта не е гардеробът");
+            _save.Owned.Add(Kitchen.Wardrobe);
+            var c = DreamChoices;
+            if (c.Count != 3) throw new Exception("изборът не е от три");
+            if (!c.Any(u => u.Id is Kitchen.Pot or Kitchen.Pan)) throw new Exception("няма тенджера/тиган в избора");
+            RerollDream(c[0].Id);
+            if (!DreamRerollUsed) throw new Exception("„Друго“ не сработи");
+            ChooseDream(DreamChoices[1].Id);
+            var d = Dream ?? throw new Exception("не се избра мечта");
+            OpenMenu(MenuWindow.BearTab);
+            _menu!.UpdateLayout();
+            _save.Hazelnuts += d.Price;
+            TakeDream();
+            if (!Kitchen.Owns(_save, d.Id)) throw new Exception("мечтата не се купи");
+            if (DreamChoices.Count == 0 && Dream == null && !AllDreamsDone) throw new Exception("няма нов избор");
+            _menu!.Hide();
+            foreach (var id in removed) if (!_save.Owned.Contains(id)) _save.Owned.Add(id);
+            _save.DreamId = null;
+            _save.DreamChoices.Clear();
+        }, 800);
         await step("предложение за работа", () => { Ask(Conversations.WorkOffer(this)); _chat?.UpdateLayout(); _chat?.Hide(); }, 500);
         await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);
         await step("сън в леглото", GoToSleep, 1500);

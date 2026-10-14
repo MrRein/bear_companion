@@ -360,26 +360,21 @@ public sealed partial class PetWindow
     private double _nextWish = 60 * 60;
 
     /// <summary>
-    /// Рядко (на 2–4 ч) казва какво би искал: без гардероб – че някой ден ще е
-    /// хубаво да го вземат (а събрали ли сте лешници за него – че е време);
-    /// с гардероб – нещо от магазина, за което стигат лешниците.
+    /// Мечтата: стигнат ли лешниците – казва го веднага (веднъж); иначе рядко (на
+    /// 2–4 ч) споменава за какво мечтае.
     /// </summary>
     private void UpdateWishes(double now)
     {
-        if (now < _nextWish) return;
-        _nextWish = now + Minutes(120, 240);
-        if (IsQuiet || InFocus || IsAsleep || Cooks) return;
-        string o = _save.OwnerName;
-        var wardrobe = Kitchen.Find(Kitchen.Wardrobe);
-        if (wardrobe != null && !Kitchen.Owns(_save, Kitchen.Wardrobe))
+        if (IsQuiet || InFocus || IsAsleep) return;
+        if (!_dreamReadySaid && Dream is { } d && _save.Hazelnuts >= d.Price && now > 20)
         {
-            if (_save.Hazelnuts >= wardrobe.Price) Mutter(R.Pick("wish.wardrobe.ready", o), 6);
-            else if (_rng.Next(2) == 0) Mutter(R.Pick("wish.wardrobe", o), 5);
+            _dreamReadySaid = true;
+            Say(R.Pick("dream.ready", _save.OwnerName).Replace("{нещо}", $"{d.Icon} {d.Name.ToLowerInvariant()}"), 6);
             return;
         }
-        var affordable = Kitchen.Upgrades.Where(u => !Kitchen.Owns(_save, u.Id) && u.Price <= _save.Hazelnuts).ToList();
-        if (affordable.Count == 0) return;
-        var pick = affordable[_rng.Next(affordable.Count)];
-        Mutter(R.Pick("wish.item", o).Replace("{нещо}", $"{pick.Icon} {pick.Name.ToLowerInvariant()}"), 5);
+        if (now < _nextWish) return;
+        _nextWish = now + Minutes(120, 240);
+        if (Cooks) return;
+        TalkAboutDream();
     }
 }

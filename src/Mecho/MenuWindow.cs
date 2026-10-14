@@ -413,6 +413,9 @@ public sealed class MenuWindow : Window
         top.Children.Add(stats);
         p.Children.Add(top);
 
+        // Мечтата на Мечо: една цел с лента (или избор от три).
+        p.Children.Add(_dreamBox);
+
         p.Children.Add(Ribbon("Какво да правим?"));
         var actions = new UniformGrid { Columns = 4 };
         actions.Children.Add(Wide(Button("Нахрани", () => SelectTab(FoodTab), icon: "food")));
@@ -560,6 +563,108 @@ public sealed class MenuWindow : Window
         b.HorizontalAlignment = HorizontalAlignment.Stretch;
         b.Margin = new Thickness(0, 0, 6, 6);
         return b;
+    }
+
+    // ───────────────────────── Мечтата на Мечо ─────────────────────────
+
+    private readonly StackPanel _dreamBox = new() { Margin = new Thickness(0, 8, 0, 0) };
+    private string _dreamKey = "";
+
+    /// <summary>Мечтата: лента, която се пълни с лешниците, и „Вземи“; или избор от три неща.</summary>
+    private void BuildDream()
+    {
+        var s = _pet.Save;
+        var dream = _pet.Dream;
+        var choices = _pet.DreamChoices;
+        int filled = dream == null ? 0 : (int)Math.Min(Segments, Math.Floor((double)s.Hazelnuts / dream.Price * Segments));
+        string key = $"{dream?.Id}|{string.Join(",", choices.Select(c => c.Id))}|{_pet.DreamRerollUsed}|{filled}|{(dream != null && s.Hazelnuts >= dream.Price)}|{s.Hazelnuts}";
+        if (key == _dreamKey) return;
+        _dreamKey = key;
+        _dreamBox.Children.Clear();
+        var ribbon = Ribbon(_pet.DreamsDone > 0 ? $"Мечтата на Мечо  ·  сбъднати: {_pet.DreamsDone}" : "Мечтата на Мечо", "heart");
+        _dreamBox.Children.Add(ribbon);
+
+        if (dream != null)
+        {
+            var row = new DockPanel { Margin = new Thickness(0, 2, 0, 4) };
+            var img = Pixel(_pet.PropImage("shop_" + dream.Id), 3);
+            img.Margin = new Thickness(0, 0, 8, 0);
+            DockPanel.SetDock(img, Dock.Left);
+            row.Children.Add(img);
+            bool ready = s.Hazelnuts >= dream.Price;
+            var take = Button(ready ? "Вземи" : $"{Math.Min(s.Hazelnuts, dream.Price)}/{dream.Price} 🌰", () =>
+            {
+                _pet.TakeDream();
+                Refresh(true);
+            }, primary: ready, icon: ready ? "gift" : null);
+            take.IsEnabled = ready;
+            take.Margin = new Thickness(8, 0, 0, 0);
+            DockPanel.SetDock(take, Dock.Right);
+            row.Children.Add(take);
+            var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            info.Children.Add(new TextBlock { Text = dream.Name, FontWeight = FontWeights.Bold });
+            var track = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            for (int i = 0; i < Segments; i++)
+                track.Children.Add(new Border
+                {
+                    Width = 14 * U, Height = 14 * U, Margin = new Thickness(0, 0, 2, 0),
+                    BorderBrush = Ink, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(2),
+                    Background = i < filled ? Good : Empty,
+                });
+            info.Children.Add(track);
+            row.Children.Add(info);
+            row.ToolTip = Tip(dream.Description);
+            _dreamBox.Children.Add(row);
+            return;
+        }
+
+        if (choices.Count == 0)
+        {
+            _dreamBox.Children.Add(MutedText("Всички мечти са сбъднати! Мечокът е най-щастливият мечок."));
+            return;
+        }
+
+        _dreamBox.Children.Add(MutedText(_pet.DreamRerollUsed
+            ? "Избери следващата мечта:"
+            : "Избери следващата мечта (едното можеш веднъж да смениш с „Друго“):"));
+        var grid = new UniformGrid { Columns = 3 };
+        foreach (var u in choices)
+        {
+            var up = u;
+            var cell = new StackPanel { Margin = new Thickness(0, 4, 6, 0) };
+            var art = new Border
+            {
+                Background = TileArt, BorderBrush = WoodDark, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(4), Child = Pixel(_pet.PropImage("shop_" + up.Id), 3),
+            };
+            art.ToolTip = Tip(up.Description);
+            cell.Children.Add(art);
+            cell.Children.Add(new TextBlock { Text = up.Name, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
+            cell.Children.Add(RichText($"{up.Price} 🌰"));
+            ((TextBlock)cell.Children[^1]).HorizontalAlignment = HorizontalAlignment.Center;
+            var pick = Button("Избери", () =>
+            {
+                _pet.ChooseDream(up.Id);
+                Refresh(true);
+            }, primary: true);
+            pick.HorizontalAlignment = HorizontalAlignment.Stretch;
+            pick.Margin = new Thickness(0, 4, 0, 0);
+            cell.Children.Add(pick);
+            if (!_pet.DreamRerollUsed)
+            {
+                var reroll = Button("Друго", () =>
+                {
+                    _pet.RerollDream(up.Id);
+                    Refresh(true);
+                }, icon: "update");
+                reroll.HorizontalAlignment = HorizontalAlignment.Stretch;
+                reroll.Margin = new Thickness(0, 4, 0, 0);
+                reroll.ToolTip = Tip("Сменя това с друго (само веднъж на избор).");
+                cell.Children.Add(reroll);
+            }
+            grid.Children.Add(cell);
+        }
+        _dreamBox.Children.Add(grid);
     }
 
     private static UIElement Bar(string icon, string label, out Border[] segments, out TextBlock value)
@@ -1810,6 +1915,7 @@ public sealed class MenuWindow : Window
         // Мечо
         _portrait.Source = _pet.Portrait;
         _portraitBg.Source = _modelBg.Source = _pet.BackdropImage(_pet.CurrentBackdrop);
+        BuildDream();
         _mood.Text = _pet.IsAsleep ? "Ззз… спи сладко" :
             s.Fullness < 25 ? "Гладен е!" :
             s.Energy < PetWindow.TiredBelow ? "Много е уморен" :
