@@ -12,8 +12,6 @@ public sealed partial class PetWindow
     // Колко бързо се променят нуждите (точки на час).
     private const double HungerAwake = 22;     // сит → гладен за ~3,5 часа
     private const double HungerAsleep = 4;
-    private const double TiredAwake = 8;       // от 100 сутрин до ~40 следобед: уморен е рядко
-    private const double TiredWorking = 12;    // докато работи: ~5 енергия за едно мечо-доро
     private const double RestAsleep = 240;     // от 20 до 100 за ~20 минути дрямка (с легло: 10)
 
     private double RestRate => RestAsleep * (Kitchen.Owns(_save, Kitchen.Bed) ? 2 : 1);
@@ -109,14 +107,15 @@ public sealed partial class PetWindow
         if (_save.MorningRefill == today || now.Hour < 5 || now.Hour >= 12) return;
         if (!fromStart && NativeMethods.IdleSeconds() < 3 * 3600) return;
         _save.MorningRefill = today;
-        _save.Energy = 100;
+        _save.Energy = MorningEnergy();
+        _save.WokeAt = DateTime.Now;
     }
 
     /// <summary>В 22:00 енергията пада рязко (веднъж на вечер): доспива му се.</summary>
     private void NightDrop()
     {
         var now = DateTime.Now;
-        if (now.Hour < 22 || IsAsleep) return;
+        if (now.Hour < (Today == DayKind.NightOwl ? 23 : 22) || IsAsleep) return;
         string today = now.ToString("yyyy-MM-dd");
         if (_save.NightDropDay == today) return;
         _save.NightDropDay = today;
@@ -152,10 +151,9 @@ public sealed partial class PetWindow
     {
         double h = dt / 3600;
         _save.Fullness = Math.Clamp(_save.Fullness - (IsAsleep ? HungerAsleep : HungerAwake) * h, 0, 100);
-        // Спи (Тут го е сложила): почива. Дреме над книжката: енергията стои.
-        double tiring = (_scene == Scenes.Focus ? TiredWorking : TiredAwake) * NightTiredness;
-        double change = IsAsleep ? RestRate : _anim == "read_sleep" ? 0 : -tiring;
-        _save.Energy = Math.Clamp(_save.Energy + change * h, 0, 100);
+        // Умора и почивка (виж PetWindow.Energy.cs).
+        EnsureDayKind();
+        UpdateEnergy(dt, now);
         MorningRefresh(fromStart: false);
         NightDrop();
 
@@ -189,18 +187,6 @@ public sealed partial class PetWindow
     }
 
     // ───────────────────────── Нощ ─────────────────────────
-
-    /// <summary>След 22:00 се уморява по-бързо, след 22:30 – много бързо (до сутринта).</summary>
-    private static double NightTiredness
-    {
-        get
-        {
-            // След 22:00 пада много бързо (кафето вдига най-много до половината,
-            // но след това пак бързо пада).
-            var t = DateTime.Now.TimeOfDay;
-            return t >= new TimeSpan(22, 0, 0) || t < new TimeSpan(6, 0, 0) ? 4 : 1;
-        }
-    }
 
     /// <summary>Късно е (след 22:00): иска да спи.</summary>
     private static bool LateNight => DateTime.Now.Hour >= 22 || DateTime.Now.Hour < 6;
@@ -288,6 +274,7 @@ public sealed partial class PetWindow
         }
         Say(Lines.Pick(Lines.Petted, _save.OwnerName), 3);
         Joy(JoyPetted);
+        PetEnergy();
         if (CanAnimateFreely) Play("happy");
     }
 
@@ -333,6 +320,7 @@ public sealed partial class PetWindow
         }
 
         Joy(JoyWorked);
+        if (task.Size >= 3) Pride();
         Say(Lines.Pick(task.Size switch { 3 => Lines.BigTaskDone, 2 => Lines.TaskDone, _ => Lines.SmallTaskDone }, _save.OwnerName) +
             $" +{task.Reward} 🌰" + page, 4);
 
@@ -434,8 +422,10 @@ public sealed partial class PetWindow
         _save.PomodoroPhase = PomodoroPhase.Focus;
         _save.PomodoroEndsAt = DateTime.Now + FocusLength;
         // Ако е уморен, EnterWorkMode казва „ти поработи, аз ще посънча“ и той дрямва.
-        if (!IsExhausted) Say(Lines.Pick(Lines.FocusStart, _save.OwnerName), 4);
+        EndBreakRelax();
+        if (!IsExhausted) Say(WorkStartLine(), 4);
         EnterWorkMode();
+        MaybeFlow();
         NotifyCare();
         Persist();
     }
@@ -468,6 +458,7 @@ public sealed partial class PetWindow
         bool wasFocus = InFocus;
         int nuts = wasFocus ? PayForMinutes((FocusLength - PomodoroLeft).TotalMinutes) : 0;
         _save.PomodoroPhase = PomodoroPhase.Off;
+        EndBreakRelax();
         if (!InFocus) LeaveWorkMode();
         Say((wasFocus ? "Добре, спираме. Ще продължим после." : "Почивката свърши по-рано. Хайде!") + Earned(nuts), 3);
         NotifyCare();
@@ -483,7 +474,7 @@ public sealed partial class PetWindow
         {
             _save.PomodorosTotal++;
             _save.PomodorosToday++;
-            int nuts = PayForMinutes(FocusLength.TotalMinutes);
+            int nuts = PayForMinutes(FocusLength.TotalMinutes) + LazyBonus();
             if (Kitchen.Owns(_save, Kitchen.Headphones))
             {
                 _save.Hazelnuts++;
@@ -494,12 +485,14 @@ public sealed partial class PetWindow
             // Понякога (1 на 5) – страница от готварската книга.
             string page = _rng.Next(5) == 0 ? FindRecipePage() : "";
             Joy(JoyWorked);
+            if (_save.PomodorosToday % 3 == 0) Pride();
             Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts) + page, 8);
-            if (!InFocus) RelaxAfterWork();
+            if (!InFocus) StartBreakRelax();
         }
         else
         {
             _save.PomodoroPhase = PomodoroPhase.Off;
+            EndBreakRelax();
             Say(Lines.Pick(Lines.BreakDone, _save.OwnerName), 6);
             if (CanAnimateFreely) Play("happy");
         }

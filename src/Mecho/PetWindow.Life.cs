@@ -51,7 +51,7 @@ public sealed partial class PetWindow
             Say(R.Any("ritual.stretch"), 3);
             Play("yoga", length: 2.5, after: () =>
             {
-                Say(Lines.Greeting(_save.OwnerName) + " " + R.Any("ritual.ready"), 5);
+                Say(Lines.Greeting(_save.OwnerName) + " " + MorningLine(), 5);
                 Play("happy");
             });
         });

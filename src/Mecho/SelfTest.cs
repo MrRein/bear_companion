@@ -94,6 +94,11 @@ public sealed partial class PetWindow
     /// <summary>Стъпките на самопроверката (имат достъп до всичко вътре в мечока).</summary>
     internal async Task SelfTestSteps(Func<string, Action, int, Task> step)
     {
+        await step("умора: обикновен ден за теста", () =>
+        {
+            _nextNapAsk = double.MaxValue;
+            SetDayKind(DayKind.Normal);
+        }, 100);
         await step("гардеробът е заключен", () =>
         {
             OpenMenu(MenuWindow.WardrobeTab);
@@ -703,8 +708,107 @@ public sealed partial class PetWindow
             _save.Energy = 10;
             MorningRefresh(fromStart: true);
             int hour = DateTime.Now.Hour;
-            if (hour is >= 5 and < 12 ? _save.Energy != 100 : _save.Energy != 10) throw new Exception("сутрешната енергия е " + _save.Energy);
+            if (hour is >= 5 and < 12 ? _save.Energy != MorningEnergy() : _save.Energy != 10) throw new Exception("сутрешната енергия е " + _save.Energy);
+            _save.WentToBed = DateTime.Today.AddHours(2);
+            if (MorningEnergy() > 65) throw new Exception("легнал в 2 ч., а сутрин е бодър");
+            _save.WentToBed = default;
+            SetDayKind(DayKind.BadNight);
+            if (MorningEnergy() > 70) throw new Exception("не е спал добре, а е бодър");
+            SetDayKind(DayKind.Normal);
             _save.Energy = 80;
+        }, 200);
+        await step("умора: видът на деня", () =>
+        {
+            var seen = new HashSet<DayKind>();
+            for (int i = 0; i < 400; i++) seen.Add(PickDayKind(DateTime.Today));
+            if (seen.Count < 5) throw new Exception("малко видове дни: " + seen.Count);
+            _save.LastLazy = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
+            for (int i = 0; i < 300; i++)
+                if (PickDayKind(DateTime.Today) == DayKind.Lazy) throw new Exception("мързелив два дни подред");
+            _save.LastLazy = "";
+            _save.DayKindDate = "";
+            EnsureDayKind();
+            if (_save.DayKindDate != DateTime.Today.ToString("yyyy-MM-dd")) throw new Exception("денят не се избра");
+            SetDayKind(DayKind.Normal);
+        }, 200);
+        await step("умора: часът", () =>
+        {
+            var d = new DateTime(2026, 10, 14);   // сряда
+            if (TimeFactor(d.AddHours(10), DayKind.Normal) >= 1) throw new Exception("сутрин не е свеж");
+            if (TimeFactor(d.AddHours(14), DayKind.Normal) <= 1) throw new Exception("следобед не отпада");
+            if (TimeFactor(d.AddHours(20), DayKind.Normal) <= 1) throw new Exception("вечер не му се доспива");
+            if (TimeFactor(d.AddHours(23), DayKind.Normal) < 4) throw new Exception("късно не е изморен");
+            if (TimeFactor(d.AddHours(22.5), DayKind.NightOwl) >= 1) throw new Exception("нощната птица е уморена в 22:30");
+        }, 100);
+        await step("умора: работата уморява, почивката помага", () =>
+        {
+            _save.Energy = 60;
+            StartFocus();
+            if (EnergyRate() >= 0) throw new Exception("работата не уморява");
+            double normal = EnergyRate();
+            SetDayKind(DayKind.Energetic);
+            if (EnergyRate() <= normal) throw new Exception("енергичният се уморява колкото обикновения");
+            SetDayKind(DayKind.Lazy);
+            if (EnergyRate() >= normal) throw new Exception("мързеливият се уморява по-малко");
+            if (!InFocus || _scene != Scenes.Focus) throw new Exception("мързеливият отказа работа");
+            SetDayKind(DayKind.Normal);
+            StopPomodoro();
+            GetUp();
+            StartScene(Scenes.Reading, quiet: true);
+            _save.Energy = 40;
+            double tired = EnergyRate();
+            _save.Energy = 70;
+            double ok = EnergyRate();
+            _save.Energy = 85;
+            double fresh = EnergyRate();
+            if (!(tired > ok && ok > 0 && fresh == 0)) throw new Exception($"почивката: {tired:0.0} / {ok:0.0} / {fresh:0.0}");
+            _save.Energy = 40;
+            DevOverload();
+            GetUp();
+            StartFocus();
+            double over = EnergyRate();
+            _workStreak = 0;
+            if (over >= EnergyRate()) throw new Exception("претовареният не се уморява повече");
+            StopPomodoro();
+            GetUp();
+            _save.Energy = 80;
+        }, 300);
+        await step("умора: почивка при мечо-доро", () =>
+        {
+            StartFocus();
+            _save.PomodoroEndsAt = DateTime.Now;
+            UpdatePomodoro();
+            if (_save.PomodoroPhase != PomodoroPhase.Break) throw new Exception("няма почивка");
+        }, 4000);
+        await step("умора: почива си в почивката", () =>
+        {
+            if (!(_onTrampoline || (_inScene && _scene != null && Scenes.Fun.Contains(_scene))))
+                throw new Exception("не седна да почива");
+            _save.PomodoroEndsAt = DateTime.Now;
+            UpdatePomodoro();
+            if (_inScene || _onTrampoline) throw new Exception("не стана след почивката");
+            SetIdle();
+        }, 300);
+        await step("умора: пита за дрямка", () =>
+        {
+            AskNap(20);
+            if (!TakeNapQuestion()) throw new Exception("няма въпрос");
+            _chat?.UpdateLayout();
+            _chat?.Hide();
+            _nextNapAsk = double.MaxValue;
+            _save.Energy = 30;
+            TakeNap(1);
+        }, 2500);
+        await step("умора: дреме", () =>
+        {
+            if (!IsAsleep) throw new Exception("не заспа");
+            _save.NapUntil = DateTime.Now;
+        }, 800);
+        await step("умора: събуди се от дрямката", () =>
+        {
+            if (IsAsleep || _save.NapUntil != DateTime.MinValue) throw new Exception("не стана от дрямката");
+            _save.Energy = 80;
+            SetIdle();
         }, 200);
         await step("вдигнат по време на работа", () =>
         {

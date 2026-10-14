@@ -412,6 +412,8 @@ public sealed partial class PetWindow : Window
             _anim = "sleep";
             _animTime = 0;
         }
+        // Дрямката свърши: става сам.
+        if (NapOver()) return;
         // Заспал, защото Тут я нямаше. Щом се върне, се събужда.
         if (_sleepIsAway && NativeMethods.IdleSeconds() < 2)
         {
@@ -526,6 +528,8 @@ public sealed partial class PetWindow : Window
             return;
         }
         _save.SleepingByChoice = true;
+        _save.NapUntil = DateTime.MinValue;
+        if (NightSleep) _save.WentToBed = DateTime.Now;
         Say(Lines.Pick(Lines.GoingToSleep, _save.OwnerName));
         Play("yawn", then: "sleep");
         Persist();
@@ -534,6 +538,7 @@ public sealed partial class PetWindow : Window
     public void WakeUp()
     {
         _save.SleepingByChoice = false;
+        _save.NapUntil = DateTime.MinValue;
         if (IsAsleep || _afterBusy == "sleep")
         {
             Say(Lines.Pick(Lines.WokeUp, _save.OwnerName));
@@ -739,6 +744,7 @@ public sealed partial class PetWindow : Window
         if (!InFocus && TakeOffer()) return;
         if (TakeLunchQuestion()) return;
         if (TakeHeaterQuestion()) return;
+        if (TakeNapQuestion()) return;
         if (StartleFromDoze()) return;
         if (BusyEating()) return;
 

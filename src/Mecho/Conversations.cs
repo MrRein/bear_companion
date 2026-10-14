@@ -39,7 +39,13 @@ public static class Conversations
         if (s.Fullness < 25) return Hungry(pet);
         if (s.Energy < PetWindow.TiredBelow)
         {
-            var options = new List<ChatOption> { new("🌙 Да, лека нощ", p => p.GoToSleep()) };
+            // Денем – дрямка за малко; вечер – лека нощ.
+            int h = DateTime.Now.Hour;
+            int nap = pet.NapMinutes;
+            var options = new List<ChatOption>
+            {
+                h is >= 7 and < 20 ? new($"😴 Дремни {nap} мин", p => p.TakeNap(nap)) : new("🌙 Да, лека нощ", p => p.GoToSleep()),
+            };
             // Кафе и чай, ако има с какво да ги направи.
             options.AddRange(Kitchen.Foods
                 .Where(f => f.Energy > 0 && Kitchen.CanCook(f, s))

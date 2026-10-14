@@ -206,8 +206,8 @@ public static class Kitchen
     public const double FoodEnergyCap = 50;
 
     /// <summary>Енергията след храна с толкова енергия.</summary>
-    public static double EnergyAfter(double energy, double gain) =>
-        gain <= 0 || energy >= FoodEnergyCap ? energy : Math.Min(FoodEnergyCap, energy + gain);
+    public static double EnergyAfter(double energy, double gain, double cap = FoodEnergyCap) =>
+        gain <= 0 || energy >= cap ? energy : Math.Min(cap, energy + gain);
 
     public static double FullnessOf(Food food, SaveData save) => food.Fullness * (Owns(save, Cookbook) ? 1.25 : 1);
 

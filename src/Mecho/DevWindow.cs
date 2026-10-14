@@ -113,7 +113,7 @@ public sealed class DevWindow : Window
         var s = _pet.Save;
         string gift = s.GiftPending ? "чака да се отвори" : s.GiftAt == DateTime.MinValue ? "днес няма / вече е" : $"в {s.GiftAt:HH:mm}";
         _status.Text = $"Лешници {s.Hazelnuts} · Ситост {s.Fullness:0} · Енергия {s.Energy:0} · Подарък: {gift} · " +
-                       $"Купени: {s.Owned.Count} неща, {s.OwnedClothes.Count} дрехи · Задачи общо {s.TasksDoneTotal}";
+                       $"Купени: {s.Owned.Count} неща, {s.OwnedClothes.Count} дрехи · Задачи общо {s.TasksDoneTotal}\n{_pet.EnergyDebug}";
     }
 }
 
@@ -141,6 +141,23 @@ public sealed partial class PetWindow
             int value = v;
             yield return (needs, $"Енергия {value}", () => { _save.Energy = value; NotifyCare(); });
         }
+        const string tired = "Умора и вид на деня";
+        foreach (var k in Enum.GetValues<DayKind>())
+        {
+            var kind = k;
+            yield return (tired, "Ден: " + DayKindName(kind), () => SetDayKind(kind));
+        }
+        yield return (tired, "Нов ден (случаен)", () => { _save.DayKindDate = ""; EnsureDayKind(); NotifyCare(); });
+        yield return (tired, "Претоварен", DevOverload);
+        yield return (tired, "В ритъм", DevFlow);
+        yield return (tired, "Пита за дрямка", () => { DevAskNap(); TakeNapQuestion(); });
+        yield return (tired, "Дрямка 1 мин", () => TakeNap(1));
+        yield return (tired, "Почивка от мечо-доро", () =>
+        {
+            if (!InFocus) StartFocus();
+            _save.PomodoroEndsAt = DateTime.Now;
+            UpdatePomodoro();
+        });
 
         yield return (gifts, "Донеси подарък сега", DevGiftNow);
         yield return (gifts, "Подарък направо в средата", DevGiftDrop);

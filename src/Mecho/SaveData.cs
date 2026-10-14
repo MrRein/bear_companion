@@ -65,6 +65,20 @@ public sealed class SaveData
     /// <summary>Денят, в който сутринта се е събудил бодър (енергия 100).</summary>
     public string MorningRefill { get; set; } = "";
 
+    // Умора (виж PetWindow.Energy.cs)
+    public string DayKind { get; set; } = "";           // какъв ден е (вижда се само в Developer)
+    public string DayKindDate { get; set; } = "";
+    public string LastLazy { get; set; } = "";          // последният мързелив ден (не два подред)
+    public double Fatigue { get; set; }                 // умора от седмицата (0–5)
+    public bool WasDrained { get; set; }                // вчера е капнал (под 15)
+    public double DayLowEnergy { get; set; } = 100;
+    public double WorkMinutesToday { get; set; }
+    public DateTime WentToBed { get; set; }             // кога го сложи да спи снощи
+    public string LateCoffee { get; set; } = "";        // денят, в който пи кафе след 17 ч.
+    public DateTime WokeAt { get; set; }                // кога се събуди тази сутрин
+    public DateTime NapUntil { get; set; } = DateTime.MinValue;   // дрямка до (MinValue = не дреме)
+    public double NapCap { get; set; } = 100;           // дрямката го вдига дотук
+
     /// <summary>Вечерта, в която в 22:00 енергията вече е паднала.</summary>
     public string NightDropDay { get; set; } = "";
 

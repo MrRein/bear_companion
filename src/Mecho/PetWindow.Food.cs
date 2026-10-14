@@ -261,7 +261,11 @@ public sealed partial class PetWindow
         }
 
         _save.Fullness = Math.Min(100, _save.Fullness + food.Fullness);
-        _save.Energy = Kitchen.EnergyAfter(_save.Energy, food.Energy);
+        // Не е спал добре: кафето му помага повече (до 70).
+        bool coffee = food.Food.Energy >= 30;
+        _save.Energy = Kitchen.EnergyAfter(_save.Energy, food.Energy, coffee && Today == DayKind.BadNight ? 70 : Kitchen.FoodEnergyCap);
+        if (coffee && DateTime.Now.Hour >= 17) _save.LateCoffee = DateTime.Today.ToString("yyyy-MM-dd");
+        MaybeFeast();
         var bite = food.Art;
         food.Close();
         _food.Remove(food);

@@ -41,7 +41,7 @@ public sealed partial class PetWindow
     /// <summary>Избира почивка или работа за следващия блок (по часовника, с малко случайност).</summary>
     private void PickAutoMode()
     {
-        double work = WorkChance(DateTime.Now);
+        double work = AutoWorkChance();
         bool working = _rng.NextDouble() < work;
         _save.StayPut = true;
         _save.AutoMode = true;
@@ -67,6 +67,27 @@ public sealed partial class PetWindow
         if (t < At(13, 30)) return 0.1;
         if (t < At(18, 0)) return 0.8;
         return 0.2;
+    }
+
+    /// <summary>
+    /// Шансът за работа според часа, деня и енергията: мързелив – рядко; енергичен
+    /// – по-често; игрив – повече игра; петък следобед – по-скоро почива; уморен –
+    /// почива (капнал – само почива).
+    /// </summary>
+    private double AutoWorkChance()
+    {
+        var now = DateTime.Now;
+        double w = WorkChance(now) * Today switch
+        {
+            DayKind.Lazy => 0.35,
+            DayKind.Energetic => 1.25,
+            DayKind.Playful => 0.6,
+            _ => 1,
+        };
+        if (now.DayOfWeek == DayOfWeek.Friday && now.Hour >= 15) w *= 0.6;
+        if (_save.Energy < 15) w = 0;
+        else if (_save.Energy < TiredBelow) w *= 0.5;
+        return Math.Clamp(w, 0, 0.95);
     }
 
     /// <summary>Тут го изключи („Стани“ или „Да, спри“): разхожда се, а след 30–45 мин пак решава сам.</summary>
@@ -97,7 +118,7 @@ public sealed partial class PetWindow
     private void MaybeOfferWork(double now)
     {
         if (now < _nextOffer) return;
-        _nextOffer = now + Minutes(90, 150);
+        _nextOffer = now + (Today == DayKind.Energetic ? Minutes(45, 90) : Today == DayKind.Lazy ? Minutes(150, 240) : Minutes(90, 150));
         if (IsQuiet || InFocus || TimerRunning || IsAsleep || LateNight || NativeMethods.IdleSeconds() > 120) return;
         Say(Lines.Pick(Lines.WorkOffer, _save.OwnerName), 8);
         _offerUntil = now + 180;
