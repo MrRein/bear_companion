@@ -206,8 +206,8 @@ public sealed partial class PetWindow
         AnnounceRecipe(food);
     }
 
-    /// <summary>Дрехите, които идват с гардероба.</summary>
-    internal static readonly string[] WardrobeBonus = { "tee_red", "jeans", "jeans_blue" };
+    /// <summary>Дрехите, които идват с гардероба: червена тениска и дънки.</summary>
+    internal static readonly string[] WardrobeBonus = { "tee_red", "jeans" };
 
     /// <summary>Купува уред или подобрение с лешници.</summary>
     public void Buy(Upgrade upgrade)
@@ -250,7 +250,7 @@ public sealed partial class PetWindow
         _save.Ordered.Remove(upgrade.Id);
         if (!_save.Owned.Contains(upgrade.Id)) _save.Owned.Add(upgrade.Id);
         LearnDefaultRecipe(upgrade.Id);
-        // Гардеробът идва с подарък: червена тениска и два чифта дънки.
+        // Гардеробът идва с подарък: червена тениска и дънки.
         if (upgrade.Id == Kitchen.Wardrobe)
             foreach (var id in WardrobeBonus)
                 if (!_save.OwnedClothes.Contains(id)) _save.OwnedClothes.Add(id);

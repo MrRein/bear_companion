@@ -590,6 +590,39 @@ public sealed partial class PetWindow
             if (AutoMode || _inScene) throw new Exception("не спря");
         }, 500);
         await step("работи си", () => { WorkRandom(); if (!WorksRandomly) throw new Exception("не работи"); }, 1000);
+        await step("цъкнат: реплики според заниманието и състоянието", () =>
+        {
+            double energy = _save.Energy, full = _save.Fullness;
+            var ids = Scenes.All.Select(s => (s.Id, Group: Scenes.Work.Contains(s) ? "work" : "relax")).Append(("sit", "relax")).Append(("focus", "work"));
+            foreach (var (id, group) in ids)
+            {
+                if (!R.Has("poke." + id)) throw new Exception("няма реплики за " + id);
+                foreach (var (e, f) in new[] { (80.0, 80.0), (10.0, 80.0), (80.0, 10.0), (10.0, 10.0) })
+                {
+                    _save.Energy = e;
+                    _save.Fullness = f;
+                    if (string.IsNullOrWhiteSpace(PokeLine(id, group))) throw new Exception($"празна реплика за {id} ({e}/{f})");
+                }
+            }
+            _save.Energy = energy;
+            _save.Fullness = full;
+        }, 200);
+        await step("цъкнат: първо казва нещо, второто пита дали да спре", () =>
+        {
+            _offerUntil = 0;
+            _lunchAskUntil = 0;
+            _heaterAskUntil = 0;
+            _napAskUntil = 0;
+            _lastActionPoke = -100;
+            _save.Energy = 60;
+            Relax(Scenes.Reading);
+            OnLeftClick();
+            if (ChatIsOpen) throw new Exception("първото цъкване пита, вместо да каже нещо");
+            OnLeftClick();
+            if (!ChatIsOpen) throw new Exception("второто цъкване не пита дали да спре");
+            _chat!.Hide();
+            GetUp();
+        }, 500);
         await step("цъкнат, докато работи си", () =>
         {
             Ask(Conversations.StopAction(this, CurrentActionName));

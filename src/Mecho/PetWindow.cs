@@ -837,17 +837,46 @@ public sealed partial class PetWindow : Window
             else
             {
                 _lastFocusPoke = Now;
-                Say(Lines.Pick(Lines.FocusPoked, _save.OwnerName), 3);
+                Say(PokeLine("focus", "work"), 4);
             }
             return;
         }
-        // Прави нещо (кътче, хоби, работа си): пита дали да спре.
+        // Прави нещо (кътче, хоби, работа си): първото цъкване – казва нещо според
+        // заниманието и как се чувства; второто (до 20 с) – пита дали да спре.
         if (InAction)
         {
-            Ask(Conversations.StopAction(this, CurrentActionName));
+            if (Now - _lastActionPoke < 20)
+            {
+                _lastActionPoke = -100;
+                Ask(Conversations.StopAction(this, CurrentActionName));
+            }
+            else
+            {
+                _lastActionPoke = Now;
+                Say(PokeLine(CurrentActionId, Scenes.Work.Contains(_scene) ? "work" : "relax"), 5);
+            }
             return;
         }
         Ask(Conversations.Next(this));
+    }
+
+    private double _lastActionPoke = -100;
+
+    /// <summary>Какво прави (за репликите при цъкване): id на кътчето или „trampoline“.</summary>
+    private string CurrentActionId => _onTrampoline ? "trampoline" : _scene?.Id ?? "sit";
+
+    /// <summary>
+    /// Реплика при цъкване според заниманието и как се чувства: уморен (енергия под
+    /// 35), гладен (ситост под 25) или и двете. Ако за заниманието няма раздел,
+    /// взима общия за работа/почивка (виж repliki.txt, „ЦЪКНАТ, ДОКАТО ПРАВИ НЕЩО“).
+    /// </summary>
+    internal string PokeLine(string id, string group)
+    {
+        bool tired = _save.Energy < TiredBelow, hungry = _save.Fullness < 25;
+        string state = tired && hungry ? ".both" : tired ? ".tired" : hungry ? ".hungry" : "";
+        foreach (var key in new[] { $"poke.{id}{state}", $"poke.{group}{state}", $"poke.{id}", $"poke.{group}" })
+            if (R.Has(key)) return R.Pick(key, _save.OwnerName);
+        return Lines.Pick(Lines.FocusPoked, _save.OwnerName);
     }
 
     /// <summary>Прави нещо (кътче, хоби, „Почивай си“/„Работи си“), а не просто се разхожда.</summary>
