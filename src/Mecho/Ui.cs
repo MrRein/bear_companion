@@ -288,7 +288,7 @@ public static class Ui
     }
 
     /// <summary>Цветът на *действията* в балончетата.</summary>
-    public static readonly Brush ActionInk = Frozen(Color.FromRgb(0xB1, 0xB1, 0xB1));
+    public static readonly Brush ActionInk = Frozen(Color.FromRgb(0x8E, 0x8E, 0x8E));
 
     private static Brush Frozen(Color c)
     {

@@ -20,7 +20,7 @@
     },
     "yawn": {
       "file": "yawn.png",
-      "fps": 3,
+      "fps": 8,
       "loop": false
     },
     "eat": {
@@ -130,7 +130,7 @@
     },
     "focus_tired": {
       "file": "focus_tired.png",
-      "fps": 1.5,
+      "fps": 4,
       "loop": true
     },
     "bounce": {
@@ -140,7 +140,7 @@
     },
     "sit": {
       "file": "sit.png",
-      "fps": 2,
+      "fps": 4,
       "loop": true
     },
     "cook": {

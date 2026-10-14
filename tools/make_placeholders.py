@@ -19,7 +19,8 @@ LAYERS = os.path.join(os.path.dirname(__file__), "..", "assets", "clothes", "lay
 # Анимациите, които вече са нарисувани на ръка: скриптът не ги пипа (нито
 # шаблоните им за дрехи; тях ги прави tools/auto_clothes.py или Тут).
 HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "dice", "bounce", "eat", "fall",
-              "happy", "sad", "think", "tired", "walk_tired", "sleep_peek"}
+              "happy", "sad", "think", "tired", "walk_tired", "sleep_peek",
+              "cook", "drink", "eat_hold", "focus", "focus_tired", "juggle", "sit", "yawn"}
 
 # Нарисувани от Тут анимации, които нямат placeholder: име → (кадри в секунда, повтаря ли се).
 EXTRA_DRAWN = {"sit_drinking": (10, True), "sit_drinking_sip": (10, False), "sit_drinking_blow": (10, False)}
