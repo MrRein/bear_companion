@@ -199,7 +199,7 @@ public sealed partial class PetWindow
                 _menu!.UpdateLayout();
             }, 400);
         }
-        await step("магазин: всички раздели", () => _menu!.SelfTestShop(), 400);
+        await step("магазин: целта и офертата", () => _menu!.SelfTestShop(), 400);
         await step("задачи и история", () =>
         {
             AddTask("Тестова задача", 2);
@@ -602,31 +602,39 @@ public sealed partial class PetWindow
             var plain = new System.Windows.Controls.TextBlock();
             Ui.SetRichText(plain, "*прозява се* Добре… *търка очи*");
         }, 300);
-        await step("мечтата на Мечо", () =>
+        await step("целта в магазина", () =>
         {
             var removed = new[] { Kitchen.Wardrobe, Kitchen.Pot, Kitchen.Pan, Kitchen.Radio, Kitchen.Easel, Kitchen.YogaMat }
                 .Where(id => _save.Owned.Remove(id)).ToList();
-            _save.DreamId = null;
-            _save.DreamChoices.Clear();
-            if (Dream?.Id != Kitchen.Wardrobe) throw new Exception("първата мечта не е гардеробът");
-            _save.Owned.Add(Kitchen.Wardrobe);
-            var c = DreamChoices;
+            _save.GoalId = null;
+            _save.GoalChoices.Clear();
+            if (Goal != null || GoalChoices.Count != 1 || GoalChoices[0].Id != Kitchen.Wardrobe)
+                throw new Exception("в началото изборът не е само гардеробът");
+            RerollGoal(Kitchen.Wardrobe);
+            if (GoalRerollUsed || GoalChoices[0].Id != Kitchen.Wardrobe) throw new Exception("гардеробът се смени с „Друго“");
+            OpenMenu(MenuWindow.ShopTab);
+            _menu!.UpdateLayout();
+            ChooseGoal(Kitchen.Wardrobe);
+            if (Goal?.Id != Kitchen.Wardrobe) throw new Exception("гардеробът не стана цел");
+            _save.Hazelnuts += Goal.Price;
+            TakeGoal();
+            if (!Kitchen.Owns(_save, Kitchen.Wardrobe)) throw new Exception("гардеробът не се купи");
+            var c = GoalChoices;
             if (c.Count != 3) throw new Exception("изборът не е от три");
             if (!c.Any(u => u.Id is Kitchen.Pot or Kitchen.Pan)) throw new Exception("няма тенджера/тиган в избора");
-            RerollDream(c[0].Id);
-            if (!DreamRerollUsed) throw new Exception("„Друго“ не сработи");
-            ChooseDream(DreamChoices[1].Id);
-            var d = Dream ?? throw new Exception("не се избра мечта");
-            OpenMenu(MenuWindow.BearTab);
-            _menu!.UpdateLayout();
+            RerollGoal(c[0].Id);
+            if (!GoalRerollUsed) throw new Exception("„Друго“ не сработи");
+            ChooseGoal(GoalChoices[1].Id);
+            var d = Goal ?? throw new Exception("не се избра цел");
+            _menu!.SelfTestShop();
             _save.Hazelnuts += d.Price;
-            TakeDream();
-            if (!Kitchen.Owns(_save, d.Id)) throw new Exception("мечтата не се купи");
-            if (DreamChoices.Count == 0 && Dream == null && !AllDreamsDone) throw new Exception("няма нов избор");
+            TakeGoal();
+            if (!Kitchen.Owns(_save, d.Id)) throw new Exception("целта не се купи");
+            if (GoalChoices.Count == 0 && Goal == null && !AllGoalsDone) throw new Exception("няма нов избор");
             _menu!.Hide();
             foreach (var id in removed) if (!_save.Owned.Contains(id)) _save.Owned.Add(id);
-            _save.DreamId = null;
-            _save.DreamChoices.Clear();
+            _save.GoalId = null;
+            _save.GoalChoices.Clear();
         }, 800);
         await step("предложение за работа", () => { Ask(Conversations.WorkOffer(this)); _chat?.UpdateLayout(); _chat?.Hide(); }, 500);
         await step("обяд", () => { UpdateMeals(); ThankForMeal(); }, 300);

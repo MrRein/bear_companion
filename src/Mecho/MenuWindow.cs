@@ -413,9 +413,6 @@ public sealed class MenuWindow : Window
         top.Children.Add(stats);
         p.Children.Add(top);
 
-        // Мечтата на Мечо: една цел с лента (или избор от три).
-        p.Children.Add(_dreamBox);
-
         p.Children.Add(Ribbon("Какво да правим?"));
         var actions = new UniformGrid { Columns = 4 };
         actions.Children.Add(Wide(Button("Нахрани", () => SelectTab(FoodTab), icon: "food")));
@@ -565,108 +562,6 @@ public sealed class MenuWindow : Window
         return b;
     }
 
-    // ───────────────────────── Мечтата на Мечо ─────────────────────────
-
-    private readonly StackPanel _dreamBox = new() { Margin = new Thickness(0, 8, 0, 0) };
-    private string _dreamKey = "";
-
-    /// <summary>Мечтата: лента, която се пълни с лешниците, и „Вземи“; или избор от три неща.</summary>
-    private void BuildDream()
-    {
-        var s = _pet.Save;
-        var dream = _pet.Dream;
-        var choices = _pet.DreamChoices;
-        int filled = dream == null ? 0 : (int)Math.Min(Segments, Math.Floor((double)s.Hazelnuts / dream.Price * Segments));
-        string key = $"{dream?.Id}|{string.Join(",", choices.Select(c => c.Id))}|{_pet.DreamRerollUsed}|{filled}|{(dream != null && s.Hazelnuts >= dream.Price)}|{s.Hazelnuts}";
-        if (key == _dreamKey) return;
-        _dreamKey = key;
-        _dreamBox.Children.Clear();
-        var ribbon = Ribbon(_pet.DreamsDone > 0 ? $"Мечтата на Мечо  ·  сбъднати: {_pet.DreamsDone}" : "Мечтата на Мечо", "heart");
-        _dreamBox.Children.Add(ribbon);
-
-        if (dream != null)
-        {
-            var row = new DockPanel { Margin = new Thickness(0, 2, 0, 4) };
-            var img = Pixel(_pet.PropImage("shop_" + dream.Id), 3);
-            img.Margin = new Thickness(0, 0, 8, 0);
-            DockPanel.SetDock(img, Dock.Left);
-            row.Children.Add(img);
-            bool ready = s.Hazelnuts >= dream.Price;
-            var take = Button(ready ? "Вземи" : $"{Math.Min(s.Hazelnuts, dream.Price)}/{dream.Price} 🌰", () =>
-            {
-                _pet.TakeDream();
-                Refresh(true);
-            }, primary: ready, icon: ready ? "gift" : null);
-            take.IsEnabled = ready;
-            take.Margin = new Thickness(8, 0, 0, 0);
-            DockPanel.SetDock(take, Dock.Right);
-            row.Children.Add(take);
-            var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            info.Children.Add(new TextBlock { Text = dream.Name, FontWeight = FontWeights.Bold });
-            var track = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
-            for (int i = 0; i < Segments; i++)
-                track.Children.Add(new Border
-                {
-                    Width = 14 * U, Height = 14 * U, Margin = new Thickness(0, 0, 2, 0),
-                    BorderBrush = Ink, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(2),
-                    Background = i < filled ? Good : Empty,
-                });
-            info.Children.Add(track);
-            row.Children.Add(info);
-            row.ToolTip = Tip(dream.Description);
-            _dreamBox.Children.Add(row);
-            return;
-        }
-
-        if (choices.Count == 0)
-        {
-            _dreamBox.Children.Add(MutedText("Всички мечти са сбъднати! Мечокът е най-щастливият мечок."));
-            return;
-        }
-
-        _dreamBox.Children.Add(MutedText(_pet.DreamRerollUsed
-            ? "Избери следващата мечта:"
-            : "Избери следващата мечта (едното можеш веднъж да смениш с „Друго“):"));
-        var grid = new UniformGrid { Columns = 3 };
-        foreach (var u in choices)
-        {
-            var up = u;
-            var cell = new StackPanel { Margin = new Thickness(0, 4, 6, 0) };
-            var art = new Border
-            {
-                Background = TileArt, BorderBrush = WoodDark, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(4), Child = Pixel(_pet.PropImage("shop_" + up.Id), 3),
-            };
-            art.ToolTip = Tip(up.Description);
-            cell.Children.Add(art);
-            cell.Children.Add(new TextBlock { Text = up.Name, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
-            cell.Children.Add(RichText($"{up.Price} 🌰"));
-            ((TextBlock)cell.Children[^1]).HorizontalAlignment = HorizontalAlignment.Center;
-            var pick = Button("Избери", () =>
-            {
-                _pet.ChooseDream(up.Id);
-                Refresh(true);
-            }, primary: true);
-            pick.HorizontalAlignment = HorizontalAlignment.Stretch;
-            pick.Margin = new Thickness(0, 4, 0, 0);
-            cell.Children.Add(pick);
-            if (!_pet.DreamRerollUsed)
-            {
-                var reroll = Button("Друго", () =>
-                {
-                    _pet.RerollDream(up.Id);
-                    Refresh(true);
-                }, icon: "update");
-                reroll.HorizontalAlignment = HorizontalAlignment.Stretch;
-                reroll.Margin = new Thickness(0, 4, 0, 0);
-                reroll.ToolTip = Tip("Сменя това с друго (само веднъж на избор).");
-                cell.Children.Add(reroll);
-            }
-            grid.Children.Add(cell);
-        }
-        _dreamBox.Children.Add(grid);
-    }
-
     private static UIElement Bar(string icon, string label, out Border[] segments, out TextBlock value)
     {
         var grid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
@@ -759,8 +654,8 @@ public sealed class MenuWindow : Window
             {
                 // Рецептата я знае, но уредът го няма.
                 var tool = Kitchen.Find(f.Tool!);
-                action = Button(tool?.Name ?? "Заключено", () => OpenShop(0), icon: "lock");
-                why = $"Знаеш рецептата, но трябва „{tool?.Name}“ от магазина (Кухня): {tool?.Price} лешника. Цъкни, за да отидеш там.";
+                action = Button(tool?.Name ?? "Заключено", () => OpenShop(), icon: "lock");
+                why = $"Знаеш рецептата, но трябва „{tool?.Name}“: {tool?.Price} лешника. Избери го в магазина, когато се появи. Цъкни, за да отидеш там.";
             }
             else if (cost == 0 && Kitchen.BerriesIn(s) > 0)
             {
@@ -889,28 +784,13 @@ public sealed class MenuWindow : Window
         return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 
-    // Разделите на магазина: всеки е бутон горе; в него са плочките (и кутии „?“
-    // за неща, които ще дойдат по-късно).
-    // Дрехите, тапетите и скиновете не са в раздел: те са в офертата на деня отгоре.
-    private static readonly (string Name, string Icon, int Mystery)[] ShopCategories =
-    {
-        (Kitchen.KitchenShelf, "pot", 2), (Kitchen.FunShelf, "easel", 2), (Kitchen.FurnitureShelf, "couch", 2),
-    };
-
-    private const int FurnitureCategory = 2;
-    private int _shopCategory;
-
-    /// <summary>Самопроверка: строи всеки раздел на магазина.</summary>
+    /// <summary>Самопроверка: строи магазина (целта и офертата).</summary>
     internal void SelfTestShop()
     {
         SelectTab(ShopTab);
-        for (int i = 0; i < ShopCategories.Length; i++)
-        {
-            _shopCategory = i;
-            BuildShopTiles();
-            UpdateLayout();
-        }
-        _shopCategory = 0;
+        _goalKey = "";
+        BuildShopTiles();
+        UpdateLayout();
     }
 
     /// <summary>Самопроверка: историята на задачите.</summary>
@@ -924,57 +804,125 @@ public sealed class MenuWindow : Window
         Refresh(true);
     }
 
-    /// <summary>Отваря магазина на даден раздел (например „Дрехи“ от гардероба).</summary>
-    private void OpenShop(int category)
-    {
-        _shopCategory = category;
-        SelectTab(ShopTab);
-    }
+    /// <summary>Отваря магазина (например от гардероба или от заключена храна).</summary>
+    private void OpenShop() => SelectTab(ShopTab);
 
+    // Магазинът е от две части: „Събираме за…“ (избор от 3 неща, лентата се пълни
+    // с лешниците) и офертата на деня (дрехи, тапети, скинове – след гардероба).
     private void BuildShopTiles()
     {
-        var s = _pet.Save;
         _shopTiles.Children.Clear();
-
-        // Офертата на деня: първа, над разделите.
+        _goalKey = "";
+        BuildGoal();
+        _shopTiles.Children.Add(_goalBox);
         BuildDailyOffer();
+    }
 
-        var bar = new UniformGrid { Columns = ShopCategories.Length, Margin = new Thickness(0, 14 * U, 0, 10 * U) };
-        for (int i = 0; i < ShopCategories.Length; i++)
+    private readonly StackPanel _goalBox = new() { Margin = new Thickness(0, 0, 0, 12) };
+    private string _goalKey = "";
+
+    /// <summary>Целта: лента, която се пълни с лешниците, и „Купи“; или избор от три неща.</summary>
+    private void BuildGoal()
+    {
+        var s = _pet.Save;
+        var goal = _pet.Goal;
+        var choices = _pet.GoalChoices;
+        int filled = goal == null ? 0 : (int)Math.Min(Segments, Math.Floor((double)s.Hazelnuts / goal.Price * Segments));
+        string key = $"{goal?.Id}|{string.Join(",", choices.Select(c => c.Id))}|{_pet.GoalRerollUsed}|{filled}|{s.Hazelnuts}";
+        if (key == _goalKey) return;
+        _goalKey = key;
+        _goalBox.Children.Clear();
+        _goalBox.Children.Add(Ribbon("Събираме за…", "nut"));
+
+        if (goal != null)
         {
-            int index = i;
-            var (name, icon, _) = ShopCategories[i];
-            var label = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            var image = Icon(icon, 2);
-            image.HorizontalAlignment = HorizontalAlignment.Center;
-            label.Children.Add(image);
-            label.Children.Add(new TextBlock { Text = name, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 3, 0, 0) });
-            var chip = new Border
+            var row = new DockPanel { Margin = new Thickness(0, 2, 0, 4) };
+            var img = Pixel(_pet.PropImage("shop_" + goal.Id), 4);
+            img.Margin = new Thickness(0, 0, 10, 0);
+            DockPanel.SetDock(img, Dock.Left);
+            row.Children.Add(img);
+            bool ready = s.Hazelnuts >= goal.Price;
+            var buy = Button(ready ? $"Купи  {goal.Price}" : $"{Math.Min(s.Hazelnuts, goal.Price)}/{goal.Price}", () =>
             {
-                Background = i == _shopCategory ? Honey : PaperDark,
-                BorderBrush = Ink,
-                BorderThickness = i == _shopCategory ? Sunken : Raised,
-                CornerRadius = new CornerRadius(5),
-                Padding = new Thickness(2, 5 * U, 2, 5 * U),
-                Margin = new Thickness(0, 0, 6, 0),
-                Cursor = Cursors.Hand,
-                Child = label,
-            };
-            chip.MouseEnter += (_, _) => { if (index != _shopCategory) chip.Background = Hover; };
-            chip.MouseLeave += (_, _) => { if (index != _shopCategory) chip.Background = PaperDark; };
-            chip.MouseLeftButtonUp += (_, _) =>
-            {
-                _shopCategory = index;
-                BuildShopTiles();
-            };
-            bar.Children.Add(chip);
+                _pet.TakeGoal();
+                Refresh(true);
+            }, primary: ready, icon: "nut");
+            buy.IsEnabled = ready;
+            buy.Margin = new Thickness(8, 0, 0, 0);
+            if (!ready) buy.ToolTip = Tip($"Още {goal.Price - s.Hazelnuts} лешника. Работете заедно с таймера или мечо-дорото!");
+            DockPanel.SetDock(buy, Dock.Right);
+            row.Children.Add(buy);
+            var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            info.Children.Add(new TextBlock { Text = goal.Name, FontWeight = FontWeights.Bold });
+            info.Children.Add(new TextBlock { Text = goal.Description, Foreground = Muted, TextWrapping = TextWrapping.Wrap });
+            var track = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            for (int i = 0; i < Segments; i++)
+                track.Children.Add(new Border
+                {
+                    Width = 14 * U, Height = 14 * U, Margin = new Thickness(0, 0, 2, 0),
+                    BorderBrush = Ink, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(2),
+                    Background = i < filled ? Good : Empty,
+                });
+            info.Children.Add(track);
+            row.Children.Add(info);
+            _goalBox.Children.Add(row);
+            return;
         }
-        _shopTiles.Children.Add(bar);
 
-        var (shelf, _, mystery) = ShopCategories[_shopCategory];
-        var tiles = NewShopGrid();
-        foreach (var u in Kitchen.Upgrades.Where(u => u.Shelf == shelf)) tiles.Children.Add(UpgradeTile(u));
-        for (int i = 0; i < mystery; i++) tiles.Children.Add(MysteryTile());
+        if (choices.Count == 0)
+        {
+            _goalBox.Children.Add(MutedText("Имаш всичко! Скоро ще има още неща."));
+            return;
+        }
+
+        bool start = choices.Count == 1 && choices[0].Id == Kitchen.Wardrobe;
+        _goalBox.Children.Add(MutedText(start
+            ? "Избери за какво да събираме лешници. Почваме с гардероба!"
+            : _pet.GoalRerollUsed
+                ? "Избери за какво да събираме лешници:"
+                : "Избери за какво да събираме лешници (едното можеш веднъж да смениш с „Друго“):"));
+        var grid = new UniformGrid { Columns = 3 };
+        if (start) grid.Children.Add(LockedChoice());
+        foreach (var u in choices) grid.Children.Add(GoalChoice(u, canReroll: !start && !_pet.GoalRerollUsed));
+        if (start) grid.Children.Add(LockedChoice());
+        _goalBox.Children.Add(grid);
+    }
+
+    /// <summary>Едно от трите неща за избор: картинка, цена, „Избери“ (и „Друго“).</summary>
+    private Border GoalChoice(Upgrade u, bool canReroll)
+    {
+        var details = new StackPanel();
+        var price = RichText($"{u.Price} 🌰");
+        price.HorizontalAlignment = HorizontalAlignment.Center;
+        details.Children.Add(price);
+        details.Children.Add(Description(u.Description));
+        if (canReroll)
+        {
+            var reroll = Button("Друго", () =>
+            {
+                _pet.RerollGoal(u.Id);
+                Refresh(true);
+            }, icon: "update");
+            reroll.HorizontalAlignment = HorizontalAlignment.Center;
+            reroll.Margin = new Thickness(0, 4, 0, 0);
+            reroll.ToolTip = Tip("Сменя това с друго (само веднъж на избор).");
+            details.Children.Add(reroll);
+        }
+        var pick = Button("Избери", () =>
+        {
+            _pet.ChooseGoal(u.Id);
+            Refresh(true);
+        }, primary: true);
+        return MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, details, pick, dim: false, u.Description);
+    }
+
+    /// <summary>Заключена „?“: в началото до гардероба.</summary>
+    private Border LockedChoice()
+    {
+        var action = Button("Заключено", () => { }, icon: "lock");
+        action.IsEnabled = false;
+        return MakeTile(_pet.PropImage("mystery"), "???", Description("Ще се отключи след гардероба."), action, dim: true,
+            "Първо гардеробът! После тук ще има избор.");
     }
 
     /// <summary>
@@ -987,7 +935,7 @@ public sealed class MenuWindow : Window
         // Без гардероб офертата я няма изобщо (в нея са само дрехи, тапети и дамаски).
         if (!DailyOffer.HasWardrobe(s)) return;
         var left = DailyOffer.Left;
-        // Офертата е на по-тъмна подложка, за да се отделя от разделите отдолу.
+        // Офертата е на по-тъмна подложка, за да се отделя от целта отгоре.
         var box = new StackPanel();
         _shopTiles.Children.Add(new Border
         {
@@ -1024,19 +972,12 @@ public sealed class MenuWindow : Window
             {
                 Text = DailyOffer.HasWardrobe(s)
                     ? "Днес няма нищо ново: имаш всичко! Утре пак погледни."
-                    : "Купи гардероб от „Мебели“: тогава тук всеки ден ще има дрехи, аксесоари и тапети.",
+                    : "Купи гардероба: тогава тук всеки ден ще има дрехи, аксесоари и тапети.",
                 Foreground = Ink,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(2, 6 * U, 0, 0),
             });
         }
-    }
-
-    private UniformGrid NewShopGrid()
-    {
-        var grid = new UniformGrid { Columns = 3 };
-        _shopTiles.Children.Add(grid);
-        return grid;
     }
 
     /// <summary>Бутон „Купи N“ (изключен с обяснение, ако не стигат лешниците).</summary>
@@ -1060,20 +1001,6 @@ public sealed class MenuWindow : Window
         TextAlignment = TextAlignment.Center,
         TextWrapping = TextWrapping.Wrap,
     };
-
-    private Border UpgradeTile(Upgrade u)
-    {
-        bool owned = Kitchen.Owns(_pet.Save, u.Id);
-        string? why = null;
-        Button action;
-        if (owned)
-        {
-            action = Button("Купено", () => { });
-            action.IsEnabled = false;
-        }
-        else action = BuyButton(u.Price, () => _pet.Buy(u), out why);
-        return MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, Description(u.Description), action, dim: false, why, owned);
-    }
 
     private Border GarmentShopTile(Garment g)
     {
@@ -1124,20 +1051,11 @@ public sealed class MenuWindow : Window
             if (!hasItem)
             {
                 action.IsEnabled = false;
-                why = skin.Item == Kitchen.Bed ? "Първо купи леглото (Мебели)." : "Първо купи дивана (Мебели).";
+                why = skin.Item == Kitchen.Bed ? "Първо купи леглото." : "Първо купи дивана.";
             }
         }
         string note = shop ? (skin.Item == Kitchen.Bed ? "Скин за леглото." : "Скин за дивана.") : "";
         return MakeTile(_pet.SkinImage(skin), skin.Name, Description(note), action, dim: false, why, owned && (used || !shop), 2);
-    }
-
-    /// <summary>Кутия „?“: нещо ново, което ще дойде с обновление.</summary>
-    private Border MysteryTile()
-    {
-        var action = Button("Скоро", () => { }, icon: "question");
-        action.IsEnabled = false;
-        return MakeTile(_pet.PropImage("mystery"), "???", Description("Нещо ново ще дойде тук."), action, dim: true,
-            "Тайна! Ще се появи с някое следващо обновление.");
     }
 
     /// <summary>
@@ -1258,16 +1176,16 @@ public sealed class MenuWindow : Window
         _wardrobeBody.Children.Add(_wardrobeShelves);
         p.Children.Add(_wardrobeBody);
 
-        // Без гардероб: заключено, с бутон към „Мебели“.
+        // Без гардероб: заключено, с бутон към магазина.
         _wardrobeLock.Children.Add(Ribbon("Гардеробът е заключен", "lock"));
         _wardrobeLock.Children.Add(new TextBlock
         {
-            Text = "Купи гардероб от магазина (Мебели). Тогава ще има дрехи, аксесоари и тапети в офертата на деня, а и в подаръците.",
+            Text = "Избери гардероба в магазина и събери лешници за него. Тогава ще има дрехи, аксесоари и тапети в офертата на деня, а и в подаръците.",
             Foreground = Muted,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(2, 0, 0, 10 * U),
         });
-        var go = Button("Към Мебели", () => OpenShop(FurnitureCategory), primary: true, icon: "shop");
+        var go = Button("Към магазина", () => OpenShop(), primary: true, icon: "shop");
         go.HorizontalAlignment = HorizontalAlignment.Center;
         _wardrobeLock.Children.Add(go);
         p.Children.Add(_wardrobeLock);
@@ -1399,7 +1317,7 @@ public sealed class MenuWindow : Window
             empty = $"Още нямаш {slot.Name.ToLowerInvariant()}. Нови неща излизат в офертата на деня в магазина.";
         }
         if (grid.Children.Count == 0) _wardrobeShelves.Children.Add(MutedText(empty));
-        var more = Button("Офертата на деня", () => OpenShop(_shopCategory), icon: "shop");
+        var more = Button("Офертата на деня", () => OpenShop(), icon: "shop");
         more.HorizontalAlignment = HorizontalAlignment.Center;
         more.Margin = new Thickness(0, 10 * U, 0, 0);
         _wardrobeShelves.Children.Add(more);
@@ -1915,7 +1833,7 @@ public sealed class MenuWindow : Window
         // Мечо
         _portrait.Source = _pet.Portrait;
         _portraitBg.Source = _modelBg.Source = _pet.BackdropImage(_pet.CurrentBackdrop);
-        BuildDream();
+        BuildGoal();
         _mood.Text = _pet.IsAsleep ? "Ззз… спи сладко" :
             s.Fullness < 25 ? "Гладен е!" :
             s.Energy < PetWindow.TiredBelow ? "Много е уморен" :

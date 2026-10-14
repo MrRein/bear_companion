@@ -125,12 +125,13 @@ public sealed partial class PetWindow
         if (Cold)
         {
             int lvl = ColdLevel;
-            // Няма печица: моли за нея само ако имате лешници за нея (и то не винаги);
-            // иначе просто говори за времето.
+            // Няма печица: моли за нея само ако е в избора/целта в магазина и имате
+            // лешници за нея (и то не винаги); иначе просто говори за времето.
             if (WantsHeater && !Kitchen.Owns(_save, Kitchen.Heater))
             {
                 int price = Kitchen.Find(Kitchen.Heater)?.Price ?? 30;
-                if (_save.Hazelnuts >= price && _rng.Next(2) == 0) Say(Lines.Pick(lvl >= 3 ? Lines.FreezingNoHeater : Lines.ColdNoHeater, o), 7);
+                bool offered = Goal?.Id == Kitchen.Heater || GoalChoices.Any(u => u.Id == Kitchen.Heater);
+                if (offered && _save.Hazelnuts >= price && _rng.Next(2) == 0) Say(Lines.Pick(lvl >= 3 ? Lines.FreezingNoHeater : Lines.ColdNoHeater, o), 7);
                 else Say(R.Pick(lvl >= 2 ? "weather.cold" : "weather.cool", o), 4);
                 return;
             }

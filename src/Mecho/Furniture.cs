@@ -4,7 +4,7 @@ namespace Mecho;
 
 /// <summary>
 /// Скин за мебел (диван или легло): друга рисунка assets/props/&lt;предмет&gt;_&lt;Id&gt;.png.
-/// Класическият е безплатен; другите се купуват в магазина („Мебели“) и се
+/// Класическият е безплатен; другите се купуват в магазина и се
 /// сменят в гардероба.
 /// </summary>
 public sealed record Skin(string Item, string Id, string Name, int Price)

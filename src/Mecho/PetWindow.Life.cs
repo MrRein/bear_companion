@@ -360,21 +360,21 @@ public sealed partial class PetWindow
     private double _nextWish = 60 * 60;
 
     /// <summary>
-    /// Мечтата: стигнат ли лешниците – казва го веднага (веднъж); иначе рядко (на
-    /// 2–4 ч) споменава за какво мечтае.
+    /// Целта в магазина: стигнат ли лешниците – казва го веднага (веднъж); иначе
+    /// рядко (на 2–4 ч) споменава за какво събираме.
     /// </summary>
     private void UpdateWishes(double now)
     {
         if (IsQuiet || InFocus || IsAsleep) return;
-        if (!_dreamReadySaid && Dream is { } d && _save.Hazelnuts >= d.Price && now > 20)
+        if (!_goalReadySaid && Goal is { } d && _save.Hazelnuts >= d.Price && now > 20)
         {
-            _dreamReadySaid = true;
-            Say(R.Pick("dream.ready", _save.OwnerName).Replace("{нещо}", $"{d.Icon} {d.Name.ToLowerInvariant()}"), 6);
+            _goalReadySaid = true;
+            Say(R.Pick("goal.ready", _save.OwnerName).Replace("{нещо}", $"{d.Icon} {d.Name.ToLowerInvariant()}"), 6);
             return;
         }
         if (now < _nextWish) return;
         _nextWish = now + Minutes(120, 240);
         if (Cooks) return;
-        TalkAboutDream();
+        TalkAboutGoal();
     }
 }

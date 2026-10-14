@@ -213,7 +213,7 @@ public sealed partial class PetWindow
         _save.Hazelnuts -= upgrade.Price;
         _save.Owned.Add(upgrade.Id);
         LearnDefaultRecipe(upgrade.Id);
-        DreamBought(upgrade.Id);
+        GoalBought(upgrade.Id);
         Say(R.Pick("delivery.ordered", _save.OwnerName), 4);
         // Идва с доставка: като отвори кашончето, казва какво е и го пробва.
         Deliver(upgrade.Icon, upgrade.Name, size: SizeOf(upgrade.Id), onOpen: () =>
