@@ -307,6 +307,18 @@ public sealed partial class PetWindow : Window
 
     private void UpdateIdle(double now)
     {
+        // Отиде до кашона: нищо друго, докато не се върне на мястото си (ако нещо
+        // го е спряло по пътя – продължава; след 90 с пак е свободен).
+        if (_trip != null)
+        {
+            if (now - _trip.At > 90) _trip = null;
+            else
+            {
+                if (_stateTime > 2) ContinueParcelTrip();
+                return;
+            }
+        }
+
         // Сам не ляга (като тамагочи): Тут го слага да спи. Уморен само казва, че му се спи.
 
         if (!IsQuiet && !InFocus && !WaitingForFood && now > _nextChatter)
@@ -643,6 +655,7 @@ public sealed partial class PetWindow : Window
     /// </summary>
     private void LiftUp()
     {
+        _trip = null;
         _dragAsleep = IsAsleep;
         _dragAway = _sleepIsAway;
         if (_dragAsleep)

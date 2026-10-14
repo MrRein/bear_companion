@@ -188,7 +188,24 @@ public sealed partial class PetWindow
         }, 2500);
         await step("доставката пада", () => { if (_parcel == null) throw new Exception("няма кашон"); }, 3000);
         await step("доставката се отваря", () => { OpenParcel(); }, 2500);
-        await step("доставката свърши", () => { if (_parcel != null) throw new Exception("кашончето остана"); SetIdle(); }, 300);
+        await step("доставката свърши", () => { if (_parcel != null) throw new Exception("кашончето остана"); _trip = null; SetIdle(); }, 300);
+        double tripX = 0;
+        await step("доставка: спира четенето и отива", () =>
+        {
+            StartScene(Scenes.Reading, quiet: true);
+            tripX = _x;
+            Deliver("📦", "Тест", size: 0);
+            _nextDelivery = 0;
+        }, 2500);
+        await step("доставка: тръгна към кашона", () => { if (_trip == null || _inScene) throw new Exception("не тръгна към кашона"); }, 6000);
+        await step("доставка: отваря", () => { if (_parcel != null) OpenParcel(); }, 9000);
+        await step("доставка: върна се да чете", () =>
+        {
+            if (_parcel != null) throw new Exception("кашончето остана");
+            if (_trip != null || !_inScene || _scene != Scenes.Reading) throw new Exception("не се върна в кътчето");
+            if (Math.Abs(_x - tripX) > 2) throw new Exception("не е на старото място");
+            GetUp();
+        }, 300);
         await step("отключи всичко", DevUnlockAll, 200);
         for (int tab = 0; tab <= MenuWindow.MoreTab; tab++)
         {
@@ -619,6 +636,7 @@ public sealed partial class PetWindow
             _save.Hazelnuts += Goal.Price;
             TakeGoal();
             if (!Kitchen.Owns(_save, Kitchen.Wardrobe)) throw new Exception("гардеробът не се купи");
+            if (WardrobeBonus.Any(id => !_save.OwnedClothes.Contains(id))) throw new Exception("гардеробът дойде без тениската и дънките");
             var c = GoalChoices;
             if (c.Count != 3) throw new Exception("изборът не е от три");
             if (!c.Any(u => u.Id is Kitchen.Pot or Kitchen.Pan)) throw new Exception("няма тенджера/тиган в избора");

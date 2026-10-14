@@ -69,7 +69,7 @@ public sealed class CookerWindow : Window
         stack.Children.Add(_tag);
         stack.Children.Add(_image);
         Content = stack;
-        Hint = "Готви се. Хвани го, за да го преместиш; цъкни, ако искаш да го спреш.";
+        Hint = "Готви се.";
 
         SourceInitialized += (_, _) => NativeMethods.MakeToolWindow(new WindowInteropHelper(this).Handle);
         // Хващаш го и го местиш (таймерът е с него); кратко цъкване пита дали да спре.

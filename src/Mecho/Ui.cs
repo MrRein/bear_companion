@@ -242,17 +242,13 @@ public static class Ui
         block.Inlines.Clear();
         var plain = new System.Text.StringBuilder();
         bool skipSpace = false;
-        // *действие* (напр. „*прозява се*“) е на тъмносив фон, без звездичките.
+        // *действие* (напр. „*прозява се*“) е със сиви букви, без звездичките.
         bool action = false;
         void Flush()
         {
             if (plain.Length == 0) return;
             var run = new System.Windows.Documents.Run(plain.ToString());
-            if (action)
-            {
-                run.Background = ActionBack;
-                run.Foreground = ActionInk;
-            }
+            if (action) run.Foreground = ActionInk;
             block.Inlines.Add(run);
             plain.Clear();
         }
@@ -264,12 +260,6 @@ public static class Ui
             {
                 Flush();
                 action = !action;
-                if (action) plain.Append('\u2009');   // тънка рамка отляво
-                else
-                {
-                    // тънко място отдясно на фона: добавяме го към последния тъмен Run
-                    if (block.Inlines.LastInline is System.Windows.Documents.Run last && last.Background == ActionBack) last.Text += "\u2009";
-                }
                 continue;
             }
             if (EmojiIcons.TryGetValue(el, out var icon) && LoadIcon(icon) != null)
@@ -297,9 +287,8 @@ public static class Ui
         Flush();
     }
 
-    /// <summary>Фонът и цветът на *действията* в балончетата.</summary>
-    public static readonly Brush ActionBack = Frozen(Color.FromRgb(0x4A, 0x46, 0x44));
-    public static readonly Brush ActionInk = Frozen(Color.FromRgb(0xF2, 0xEE, 0xE6));
+    /// <summary>Цветът на *действията* в балончетата.</summary>
+    public static readonly Brush ActionInk = Frozen(Color.FromRgb(0xB1, 0xB1, 0xB1));
 
     private static Brush Frozen(Color c)
     {

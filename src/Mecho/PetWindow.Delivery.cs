@@ -5,9 +5,10 @@ using System.Linq;
 namespace Mecho;
 
 // Доставка: купиш ли уред или мебел от магазина, след малко отгоре пада кашон
-// (малък, среден или голям) до мечока. Той отива и го отваря; цъкнеш ли кашона –
-// отваря се веднага. Нещото е твое още при купуването; доставката е за радост
-// (и чак тогава мечокът го пробва). Дрехите и дамаските са без доставка.
+// (малък, среден или голям) до мечока. Той спира каквото прави, отива до кашона,
+// отваря го и се връща на мястото си да продължи (кътче, работа, батут). Цъкнеш
+// ли кашона – отваря се веднага. Нещото е твое още при купуването; доставката е
+// за радост. Дрехите и дамаските са без доставка.
 public sealed partial class PetWindow
 {
     private sealed record Delivery(string Icon, string Name, Action? OnOpen, int Size);
@@ -48,23 +49,87 @@ public sealed partial class PetWindow
             DropParcel(_deliveries.Dequeue());
             return;
         }
-        if (_parcel.Step(dt) && !_parcelLanded)
+        if (_parcel.Step(dt)) _parcelLanded = true;
+        // Кацна: щом може, мечокът спира каквото прави и отива до кашона.
+        if (_parcelLanded && !_parcelOpening && _trip == null && CanGoToParcel) StartParcelTrip();
+    }
+
+    /// <summary>Какво правеше, преди да тръгне към кашона (за да продължи после).</summary>
+    private sealed record ParcelTrip(double At, double X, bool FacingLeft, Scene? Scene, double SceneLeft, bool Auto, bool StayPut);
+
+    private ParcelTrip? _trip;
+
+    private bool CanGoToParcel =>
+        !IsAsleep && _eating == null && !WaitingForFood && !CookFinale
+        && _state is BearState.Idle or BearState.Walk or BearState.Couch or BearState.Bounce;
+
+    private void StartParcelTrip()
+    {
+        if (_parcel == null) return;
+        var scene = _onTrampoline ? Scenes.Trampoline : _inScene ? _scene : null;
+        double left = _onTrampoline ? (_bounceUntil > 0 ? Math.Max(1, _bounceUntil - Now) : 0) : _sceneUntil > 0 ? Math.Max(1, _sceneUntil - Now) : 0;
+        _trip = new ParcelTrip(Now, _x, _facingLeft, scene, left, _autoBlock, _save.StayPut);
+        // Спира временно: без LeaveScene, за да не почне нов свободен ритъм.
+        if (_onTrampoline) EndBounce(null);
+        if (_inScene)
         {
-            _parcelLanded = true;
-            // Кацна: мечокът отива до кашона и го отваря (ако може).
-            if (CanAnimateFreely && !_inScene && !InFocus && _eating == null && _state is BearState.Idle or BearState.Walk)
-            {
-                double cx = _parcel.CenterX;
-                int side = _x < cx ? -1 : 1;
-                var (w, _) = BoxSize(_parcelItem?.Size ?? 1);
-                WalkTo(cx + side * (SpriteWidth * 0.45 + w * PixelSize / 2), () =>
-                {
-                    _facingLeft = side > 0;
-                    OpenParcel();
-                });
-            }
-            else Later(4, OpenParcel);
+            _cup = null;
+            _inScene = false;
+            _scene = null;
+            _sceneUntil = 0;
+            _autoBlock = false;
         }
+        GoToParcel();
+    }
+
+    private void GoToParcel()
+    {
+        if (_parcel == null) return;
+        double cx = _parcel.CenterX;
+        int side = _x < cx ? -1 : 1;
+        var (w, _) = BoxSize(_parcelItem?.Size ?? 1);
+        WalkTo(cx + side * (SpriteWidth * 0.45 + w * PixelSize / 2), () =>
+        {
+            _facingLeft = side > 0;
+            OpenParcel();
+        });
+    }
+
+    /// <summary>
+    /// Пътят до кашона се е прекъснал (стои, а още не е свършил): продължава –
+    /// до кашона, ако още е там, иначе обратно на мястото си.
+    /// </summary>
+    private void ContinueParcelTrip()
+    {
+        if (_parcel == null) ReturnFromParcel();
+        else if (!_parcelOpening) GoToParcel();
+    }
+
+    /// <summary>Отвори кашона: връща се на мястото си и продължава каквото правеше.</summary>
+    private void ReturnFromParcel()
+    {
+        if (_trip is not { } t) return;
+        // Спал, вдигнат, или пък тъкмо пробва новото нещо: не се връща.
+        if (IsAsleep || _inScene || _onTrampoline || _state is BearState.Drag or BearState.Falling or BearState.Jump)
+        {
+            _trip = null;
+            return;
+        }
+        WalkTo(t.X, () =>
+        {
+            _trip = null;
+            _facingLeft = t.FacingLeft;
+            _save.StayPut = t.StayPut;
+            if (t.Scene == null || (t.Scene == Scenes.Focus && !InFocus)) return;
+            if (t.Scene == Scenes.Trampoline)
+            {
+                StartTrampoline(t.SceneLeft, quiet: true);
+                return;
+            }
+            StartScene(t.Scene, quiet: true);
+            if (t.SceneLeft > 0) _sceneUntil = Now + t.SceneLeft;
+            _autoBlock = t.Auto;
+        });
     }
 
     private void DropParcel(Delivery d)
@@ -92,7 +157,7 @@ public sealed partial class PetWindow
         var (w, h) = BoxSize(d.Size);
         _parcel.SetArt(_lib.GetProp(BoxArt(d.Size, true), w, h, 0).Image, PixelSize);
         Say($"{R.Pick("delivery.opened", _save.OwnerName)} {d.Icon} {d.Name}!", 5);
-        if (CanAnimateFreely && !_inScene && !InFocus && _state != BearState.Busy) Play("happy");
+        if (CanAnimateFreely && !_inScene && _state != BearState.Busy) Play("happy");
         Later(1.5, () =>
         {
             _parcel?.Close();
@@ -100,6 +165,7 @@ public sealed partial class PetWindow
             _parcelItem = null;
             _nextDelivery = Now + 2;
             d.OnOpen?.Invoke();
+            ReturnFromParcel();
         });
     }
 

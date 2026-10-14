@@ -59,7 +59,7 @@ public sealed class MenuWindow : Window
             Child = grid,
             VerticalAlignment = VerticalAlignment.Top,
             Cursor = Cursors.Hand,
-            ToolTip = Tip("Цъкни, за да смениш тапета (нови тапети излизат в офертата на деня)"),
+            ToolTip = Tip("Цъкни, за да смениш тапета"),
         };
         box.MouseLeftButtonUp += (_, _) => _pet.NextBackdrop();
         return box;
@@ -336,7 +336,7 @@ public sealed class MenuWindow : Window
         nutRow.Children.Add(_nuts);
         var nuts = Pill(nutRow);
         nuts.Margin = new Thickness(0, 0, 8, 0);
-        nuts.ToolTip = Tip("Лешници: печелят се със задачи и с работа (всеки 10 минути мечо-доро или таймер = 1). Харчат се за храна и в магазина.");
+        nuts.ToolTip = Tip("Лешници: за задачи и за работа.");
         Grid.SetColumn(nuts, 1);
         grid.Children.Add(nuts);
 
@@ -494,7 +494,7 @@ public sealed class MenuWindow : Window
             _pet.Sos();
         }, icon: "heart"));
         sos.Margin = new Thickness(0, 0, 6, 6);
-        sos.ToolTip = Tip("Когато не ти се работи: мечокът ти дава идея за мотивация (сайт, видео или мисъл).");
+        sos.ToolTip = Tip("Когато не ти се работи.");
         p.Children.Add(sos);
         return new ScrollViewer { Content = p, MaxHeight = 600 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
@@ -513,13 +513,13 @@ public sealed class MenuWindow : Window
         SetOn(_relaxButton, random);
         _relaxButton.ToolTip = Tip(random
             ? (auto ? "Сам реши да си почине. Цъкни, за да спре." : "Почива си и сменя заниманията сам. Цъкни пак, за да спре.")
-            : "Мечокът почива и сам сменя заниманията (четене, чай, музика…).");
+            : "Мечокът почива и сам сменя заниманията.");
         SetOn(_relaxMore, _relaxOpen);
         bool working = _pet.WorksRandomly;
         SetOn(_workButton, working);
         _workButton.ToolTip = Tip(working
             ? (auto ? "Сам реши да поработи. Цъкни, за да спре." : "Работи си и сменя заниманията сам. Цъкни пак, за да спре.")
-            : "Мечокът си работи: бюро, тефтер, настолна игра, статив.");
+            : "Мечокът си работи сам.");
         SetOn(_workMore, _workOpen);
         FillSceneGrid(_relaxGrid, _relaxOpen, Scenes.Fun, chosen, random);
         FillSceneGrid(_workGrid, _workOpen, Scenes.Work, chosen, working);
@@ -547,7 +547,7 @@ public sealed class MenuWindow : Window
             {
                 var item = Kitchen.Find(sc.Unlock!);
                 b.IsEnabled = false;
-                b.ToolTip = Tip($"Заключено. Трябва „{item?.Name}“ от магазина ({item?.Price} лешника).");
+                b.ToolTip = Tip($"Заключено. Трябва „{item?.Name}“.");
                 ToolTipService.SetShowOnDisabled(b, true);
             }
             else if (chosen == sc && !random) b.ToolTip = Tip("Сега прави това. Цъкни пак, за да спре.");
@@ -633,7 +633,7 @@ public sealed class MenuWindow : Window
             if (f.Fullness >= 5) effects.Children.Add(GainBar("honey", s.Fullness, Math.Min(100, s.Fullness + full), "ситост"));
             if (f.Energy > 0)
                 effects.Children.Add(GainBar("energy", s.Energy, Kitchen.EnergyAfter(s.Energy, f.Energy), "енергия",
-                    s.Energy >= Kitchen.FoodEnergyCap ? "Над половината енергия се трупа само със сън." : "Храната дава енергия до половината; догоре само със сън."));
+                    s.Energy >= Kitchen.FoodEnergyCap ? "Догоре – само със сън." : "Догоре – само със сън."));
 
             if (f.Tool != null)
             {
@@ -655,13 +655,13 @@ public sealed class MenuWindow : Window
                 // Рецептата я знае, но уредът го няма.
                 var tool = Kitchen.Find(f.Tool!);
                 action = Button(tool?.Name ?? "Заключено", () => OpenShop(), icon: "lock");
-                why = $"Знаеш рецептата, но трябва „{tool?.Name}“: {tool?.Price} лешника. Избери го в магазина, когато се появи. Цъкни, за да отидеш там.";
+                why = $"Трябва „{tool?.Name}“.";
             }
             else if (cost == 0 && Kitchen.BerriesIn(s) > 0)
             {
                 action = Button($"{Kitchen.BerriesIn(s)} мин", () => { }, icon: "hourglass");
                 action.IsEnabled = false;
-                why = $"Храстът още не е дал нови боровинки. Пак след {Kitchen.BerriesIn(s)} мин.";
+                why = $"Пак след {Kitchen.BerriesIn(s)} мин.";
             }
             else
             {
@@ -674,7 +674,7 @@ public sealed class MenuWindow : Window
                 if (s.Hazelnuts < cost)
                 {
                     action.IsEnabled = false;
-                    why = $"Трябват {cost} лешника, а имаш {s.Hazelnuts}. Свърши някоя задача или пусни мечо-доро.";
+                    why = $"Трябват {cost} лешника, а имаш {s.Hazelnuts}.";
                 }
             }
             _foodTiles.Children.Add(MakeTile(_pet.PropImage("food_" + f.Id), f.Name, effects, action, locked, why));
@@ -692,7 +692,7 @@ public sealed class MenuWindow : Window
         var next = Recipes.Next(s);
         if (next == null)
         {
-            _recipeProgress.Children.Add(MutedText("Знаеш всички рецепти! Нови ще дойдат с обновление."));
+            _recipeProgress.Children.Add(MutedText("Знаеш всички рецепти!"));
             return;
         }
         int need = Recipes.PagesFor(next);
@@ -719,7 +719,7 @@ public sealed class MenuWindow : Window
         _recipeProgress.Children.Add(row);
         _recipeProgress.Children.Add(new TextBlock
         {
-            Text = "Коя е – изненада. Страници се намират след мечо-доро, понякога след трудна задача или в подаръка.",
+            Text = "Коя е – изненада.",
             Foreground = Muted,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(2, 4, 0, 0),
@@ -849,7 +849,7 @@ public sealed class MenuWindow : Window
             }, primary: ready, icon: "nut");
             buy.IsEnabled = ready;
             buy.Margin = new Thickness(8, 0, 0, 0);
-            if (!ready) buy.ToolTip = Tip($"Още {goal.Price - s.Hazelnuts} лешника. Работете заедно с таймера или мечо-дорото!");
+            if (!ready) buy.ToolTip = Tip($"Още {goal.Price - s.Hazelnuts} лешника.");
             DockPanel.SetDock(buy, Dock.Right);
             row.Children.Add(buy);
             var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
@@ -880,7 +880,7 @@ public sealed class MenuWindow : Window
             ? "Избери за какво да събираме лешници. Почваме с гардероба!"
             : _pet.GoalRerollUsed
                 ? "Избери за какво да събираме лешници:"
-                : "Избери за какво да събираме лешници (едното можеш веднъж да смениш с „Друго“):"));
+                : "Избери за какво да събираме лешници:"));
         var grid = new UniformGrid { Columns = 3 };
         if (start) grid.Children.Add(LockedChoice());
         foreach (var u in choices) grid.Children.Add(GoalChoice(u, canReroll: !start && !_pet.GoalRerollUsed));
@@ -905,7 +905,7 @@ public sealed class MenuWindow : Window
             }, icon: "update");
             reroll.HorizontalAlignment = HorizontalAlignment.Center;
             reroll.Margin = new Thickness(0, 4, 0, 0);
-            reroll.ToolTip = Tip("Сменя това с друго (само веднъж на избор).");
+            reroll.ToolTip = Tip("Веднъж на избор.");
             details.Children.Add(reroll);
         }
         var pick = Button("Избери", () =>
@@ -949,7 +949,7 @@ public sealed class MenuWindow : Window
         box.Children.Add(Ribbon("Оферта на деня", "gift"));
         box.Children.Add(new TextBlock
         {
-            Text = $"Нови неща след {(int)left.TotalHours} ч {left.Minutes} мин (в 00:00).",
+            Text = $"Нови неща след {(int)left.TotalHours} ч {left.Minutes} мин.",
             Foreground = Ink,
             Margin = new Thickness(2, 0, 0, 6 * U),
         });
@@ -971,8 +971,8 @@ public sealed class MenuWindow : Window
             box.Children.Add(new TextBlock
             {
                 Text = DailyOffer.HasWardrobe(s)
-                    ? "Днес няма нищо ново: имаш всичко! Утре пак погледни."
-                    : "Купи гардероба: тогава тук всеки ден ще има дрехи, аксесоари и тапети.",
+                    ? "Днес няма нищо ново."
+                    : "Първо гардеробът.",
                 Foreground = Ink,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(2, 6 * U, 0, 0),
@@ -989,7 +989,7 @@ public sealed class MenuWindow : Window
         if (nuts < price)
         {
             action.IsEnabled = false;
-            why = $"Трябват {price} лешника, а имаш {nuts}. Още {price - nuts}!";
+            why = $"Още {price - nuts} лешника.";
         }
         return action;
     }
@@ -1009,7 +1009,7 @@ public sealed class MenuWindow : Window
         Button action = owned
             ? Button("В гардероба", () => SelectTab(WardrobeTab), icon: "wardrobe")
             : BuyButton(g.Price, () => _pet.BuyGarment(g), out why);
-        if (owned) why = "Вече е в гардероба. Цъкни, за да го облечеш.";
+        if (owned) why = "Вече е в гардероба.";
         var art = _pet.GarmentPreview(g);
         int scale = Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 3, 8);
         return MakeTile(art, g.Name, Description(owned ? "" : "Отива в гардероба."), action, dim: false, why, owned, scale);
@@ -1161,11 +1161,11 @@ public sealed class MenuWindow : Window
         _pajamaChip = Chip("", () => _pet.SetPajamas(!_pet.Save.PajamasAtNight));
         _pajamaChip.HorizontalAlignment = HorizontalAlignment.Left;
         _pajamaChip.Margin = new Thickness(0, 6 * U, 0, 0);
-        _pajamaChip.ToolTip = Tip("Вечер (22:00–7:00) и когато заспи вечер, Мечо сам облича пижама и нощна шапка.");
+        _pajamaChip.ToolTip = Tip("Вечер Мечо сам облича пижама.");
         right.Children.Add(_pajamaChip);
         right.Children.Add(new TextBlock
         {
-            Text = "Дрехите се купуват от офертата на деня в магазина и идват тук. Облечи някоя и мечокът ще се преоблече зад вратата на гардероба.",
+            Text = "Облечи нещо на мечока.",
             Foreground = Muted,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 6 * U, 0, 0),
@@ -1180,7 +1180,7 @@ public sealed class MenuWindow : Window
         _wardrobeLock.Children.Add(Ribbon("Гардеробът е заключен", "lock"));
         _wardrobeLock.Children.Add(new TextBlock
         {
-            Text = "Избери гардероба в магазина и събери лешници за него. Тогава ще има дрехи, аксесоари и тапети в офертата на деня, а и в подаръците.",
+            Text = "Първо гардеробът – избери го в магазина.",
             Foreground = Muted,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(2, 0, 0, 10 * U),
@@ -1286,14 +1286,14 @@ public sealed class MenuWindow : Window
                 else action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
                 grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, null, owned: used, artScale: 2));
             }
-            empty = "Нови тапети излизат в офертата на деня в магазина.";
+            empty = "Нови тапети има в офертата на деня.";
         }
         else if (_wardrobeSection == "furniture")
         {
             foreach (var item in new[] { Kitchen.Couch, Kitchen.Bed })
                 if (Kitchen.Owns(s, item))
                     foreach (var skin in Furniture.SkinsFor(item).Where(k => Furniture.Owns(s, k))) grid.Children.Add(SkinTile(skin, shop: false));
-            empty = "Нови скинове за дивана и леглото излизат в офертата на деня.";
+            empty = "Нови скинове има в офертата на деня.";
         }
         else
         {
@@ -1314,7 +1314,7 @@ public sealed class MenuWindow : Window
                 };
                 grid.Children.Add(MakeTile(art, g.Name, details, action, dim: false, null, owned: worn, artScale: scale));
             }
-            empty = $"Още нямаш {slot.Name.ToLowerInvariant()}. Нови неща излизат в офертата на деня в магазина.";
+            empty = $"Още нямаш {slot.Name.ToLowerInvariant()}.";
         }
         if (grid.Children.Count == 0) _wardrobeShelves.Children.Add(MutedText(empty));
         var more = Button("Офертата на деня", () => OpenShop(), icon: "shop");
@@ -1447,7 +1447,7 @@ public sealed class MenuWindow : Window
         }
         var tasks = _pet.Save.Tasks.OrderBy(t => t.Done).ToList();
         if (tasks.Count == 0)
-            _taskList.Children.Add(MutedText("Няма задачи. Напиши какво ще правиш днес, а мечокът ще ти пази списъка."));
+            _taskList.Children.Add(MutedText("Няма задачи."));
 
         foreach (var task in tasks)
         {
@@ -1557,7 +1557,7 @@ public sealed class MenuWindow : Window
         _noteList.Children.Clear();
         if (_pet.Save.Notes.Count == 0)
         {
-            _noteList.Children.Add(MutedText("Тефтерът е празен. Запиши идея, телефон, мисъл, която те разсейва… Мечокът ще я пази."));
+            _noteList.Children.Add(MutedText("Тефтерът е празен."));
             return;
         }
         foreach (var note in _pet.Save.Notes.ToList())
@@ -1654,7 +1654,7 @@ public sealed class MenuWindow : Window
         });
         _workChip.HorizontalAlignment = HorizontalAlignment.Left;
         _workChip.Margin = new Thickness(0, 8, 0, 0);
-        _workChip.ToolTip = Tip("Работен: мечокът сяда на бюрото, слага очила и работи сериозно с теб. Изключи го за таймер за чай или пране.");
+        _workChip.ToolTip = Tip("Работен: мечокът работи с теб.");
         p.Children.Add(_workChip);
         UpdateWorkChip();
 
@@ -1865,10 +1865,8 @@ public sealed class MenuWindow : Window
         else SetButton(_quietButton, "Тихо 1 ч", "quiet");
 
         // Храна и магазин
-        _foodInfo.Text = "Сготвеното се появява из екрана: занеси го при мечока с мишката.";
-        _shopInfo.Text = "Купеното остава завинаги. Лешниците се печелят " +
-                         "със задачи и с работа: всеки 10 мин мечо-доро или таймер = 1" +
-                         (s.FocusMinutesBank >= 1 ? $" (събрани {s.FocusMinutesBank:0} мин към следващия)." : ".");
+        _foodInfo.Text = "Занеси сготвеното при мечока.";
+        _shopInfo.Visibility = Visibility.Collapsed;
         if (rebuild)
         {
             // Строи се само отвореният таб; другите – когато се отворят.

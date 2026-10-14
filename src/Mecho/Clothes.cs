@@ -103,6 +103,7 @@ public static class Clothes
         new("sweater_mint", "Ментов пуловер на точки", "shirt", 50, C(150, 215, 190), C(250, 250, 250), Pattern.Dots) { LongSleeves = true, Fluffy = true },
 
         new("jeans", "Дънки", "pants", 20, C(70, 100, 170), C(70, 100, 170)),
+        new("jeans_blue", "Сини дънки", "pants", 20, C(95, 145, 220), C(95, 145, 220)),
         new("brown", "Кафяви панталонки", "pants", 14, C(120, 80, 50), C(120, 80, 50)),
         new("plaid", "Карирани панталони", "pants", 30, C(200, 70, 70), C(60, 50, 60), Pattern.Checks),
         new("pants_black", "Черни панталони", "pants", 20, C(60, 55, 60), C(60, 55, 60)),

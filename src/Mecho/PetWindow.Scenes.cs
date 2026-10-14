@@ -158,7 +158,7 @@ public sealed partial class PetWindow
         if (!Scenes.IsUnlocked(scene, _save))
         {
             var item = scene.Unlock == null ? null : Kitchen.Find(scene.Unlock);
-            Say($"Нямам {item?.Name.ToLowerInvariant()}… Може да ми го купиш от магазина за {item?.Price} 🌰.", 4);
+            Say($"Нямам {item?.Name.ToLowerInvariant()}…", 3);
             return;
         }
         if (InFocus)

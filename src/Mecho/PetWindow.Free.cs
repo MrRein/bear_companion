@@ -99,7 +99,7 @@ public sealed partial class PetWindow
         if (now < _nextOffer) return;
         _nextOffer = now + Minutes(90, 150);
         if (IsQuiet || InFocus || TimerRunning || IsAsleep || LateNight || NativeMethods.IdleSeconds() > 120) return;
-        Say(Lines.Pick(Lines.WorkOffer, _save.OwnerName) + " (цъкни ме)", 8);
+        Say(Lines.Pick(Lines.WorkOffer, _save.OwnerName), 8);
         _offerUntil = now + 180;
     }
 

@@ -137,7 +137,7 @@ public sealed partial class PetWindow
             }
             if (WantsHeater && !_save.HeaterOn)
             {
-                Say(Lines.Pick(Lines.HeaterPlease, o) + " (цъкни ме)", 8);
+                Say(Lines.Pick(Lines.HeaterPlease, o), 8);
                 _heaterAskUntil = Now + 120;
                 return;
             }
@@ -229,7 +229,7 @@ public sealed partial class PetWindow
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _heaterWindow = new CookerWindow("Печица");
             _heaterWindow.SetTime(null);
-            _heaterWindow.Hint = "Печицата грее. Хвани я, за да я преместиш; цъкни, за да я изгасиш.";
+            _heaterWindow.Hint = "Печицата грее.";
             _heaterWindow.Clicked += () => Ask(new ChatQuestion("Да изключа ли печицата?",
                 new ChatOption("Изключи я", p => p.SetHeater(false)),
                 new ChatOption("Не, нека грее", p => p.Say(R.Any("heater.keep"), 3))));

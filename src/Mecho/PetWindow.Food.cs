@@ -201,6 +201,9 @@ public sealed partial class PetWindow
         AnnounceRecipe(food);
     }
 
+    /// <summary>Дрехите, които идват с гардероба.</summary>
+    internal static readonly string[] WardrobeBonus = { "tee_red", "jeans", "jeans_blue" };
+
     /// <summary>Купува уред или подобрение с лешници.</summary>
     public void Buy(Upgrade upgrade)
     {
@@ -216,9 +219,15 @@ public sealed partial class PetWindow
         GoalBought(upgrade.Id);
         Say(R.Pick("delivery.ordered", _save.OwnerName), 4);
         // Идва с доставка: като отвори кашончето, казва какво е и го пробва.
+        // Гардеробът идва с подарък: червена тениска и два чифта дънки.
+        if (upgrade.Id == Kitchen.Wardrobe)
+            foreach (var id in WardrobeBonus)
+                if (!_save.OwnedClothes.Contains(id)) _save.OwnedClothes.Add(id);
         Deliver(upgrade.Icon, upgrade.Name, size: SizeOf(upgrade.Id), onOpen: () =>
         {
-            Say($"Ура! {upgrade.Icon} {upgrade.Name}! {upgrade.Description}", 6);
+            Say(upgrade.Id == Kitchen.Wardrobe
+                ? $"Ура! {upgrade.Icon} {upgrade.Name}! И вътре има червена тениска и дънки!"
+                : $"Ура! {upgrade.Icon} {upgrade.Name}!", 5);
             // Диванът идва веднага, ако тъкмо чете на земята.
             if (upgrade.Id == Kitchen.Couch && _inScene && _scene == Scenes.Reading) LoadSceneArt(Scenes.Reading);
             // Ново нещо за почивка: веднага го пробва (ако не работите).

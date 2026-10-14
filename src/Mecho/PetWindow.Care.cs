@@ -254,7 +254,7 @@ public sealed partial class PetWindow
     {
         if (!_lunchAskPending || CurrentMeal != "lunch" || IsResting || InFocus || IsQuiet || _state == BearState.Drag) return;
         _lunchAskPending = false;
-        Say(Lines.Fill(R.Any("lunch.ask"), _save.OwnerName) + " (цъкни ме)", 10);
+        Say(Lines.Fill(R.Any("lunch.ask"), _save.OwnerName), 10);
         _lunchAskUntil = Now + 120;
     }
 
