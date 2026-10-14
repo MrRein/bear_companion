@@ -748,13 +748,6 @@ public sealed class MenuWindow : Window
             });
         row.Children.Add(new TextBlock { Text = $"  {s.RecipePages}/{need} страници", VerticalAlignment = VerticalAlignment.Center });
         _recipeProgress.Children.Add(row);
-        _recipeProgress.Children.Add(new TextBlock
-        {
-            Text = "Коя е – изненада.",
-            Foreground = Muted,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(2, 4, 0, 0),
-        });
     }
 
     /// <summary>Значка: иконка и число (например мед +24).</summary>
