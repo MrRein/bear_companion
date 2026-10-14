@@ -49,6 +49,11 @@ public sealed partial class PetWindow
         _heaterWindow?.SetAway(!show);
         _visitor?.SetAway(!show);
         _parcel?.SetAway(!show);
+        if (!show)
+        {
+            _bubbleWindow.Conceal();
+            _butterflyWindow.Conceal();
+        }
         if (_trampWindow != null)
         {
             if (!show && _trampWindow.IsVisible) _trampWindow.Hide();
@@ -381,8 +386,7 @@ public sealed partial class PetWindow
             double friction = Math.Exp(-2.6 * dt);
             f.VelocityX *= friction;
             f.VelocityY *= friction;
-            f.Left = x;
-            f.Top = y;
+            NativeMethods.MoveWindow(f, x, y);
 
             if (f.Thrown && bear.IntersectsWith(f.Bounds))
             {

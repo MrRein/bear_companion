@@ -70,7 +70,7 @@ public sealed class PropWindow : Window
         if (!IsVisible) Show();
     }
 
-    public void MoveTo(double centerX) => Left = centerX - Width / 2;
+    public void MoveTo(double centerX) => NativeMethods.MoveWindow(this, centerX - Width / 2, Top);
 }
 
 // Батутът като мини игра: мечокът си подскача. Хванеш ли батута, скача повече

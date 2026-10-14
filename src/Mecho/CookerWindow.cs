@@ -140,7 +140,10 @@ public sealed class CookerWindow : Window
         _image.Source = art;
         _image.Width = art.PixelWidth * pixelSize;
         _image.Height = art.PixelHeight * pixelSize;
+        _sizeDirty = true;
     }
+
+    private bool _sizeDirty = true;
 
     /// <summary>Остава време (null = скрий табелката).</summary>
     public void SetTime(string? text)
@@ -194,10 +197,15 @@ public sealed class CookerWindow : Window
 
     private void Reposition()
     {
-        UpdateLayout();
+        // Размерът се мери само когато рисунката се смени (UpdateLayout всеки кадър,
+        // докато пада, беше скъп); местенето е наведнъж (x и y заедно).
+        if (_sizeDirty || ActualWidth <= 0)
+        {
+            UpdateLayout();
+            _sizeDirty = ActualWidth <= 0;
+        }
         double w = ActualWidth > 0 ? ActualWidth : _image.Width;
         double h = ActualHeight > 0 ? ActualHeight : _image.Height;
-        Left = _centerX - w / 2 + _shake;
-        Top = _bottom - h;
+        NativeMethods.MoveWindow(this, _centerX - w / 2 + _shake, _bottom - h);
     }
 }

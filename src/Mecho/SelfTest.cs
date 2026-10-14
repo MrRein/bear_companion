@@ -386,6 +386,39 @@ public sealed partial class PetWindow
             SpawnFood(Kitchen.Foods[0], 1, 0, new Point(_x, _bearRect.Top), fromCooker: false);
             foreach (var f in _food) f.DevAge(FoodLifetime + 1);
         }, 600);
+        await step("балончето: веднага над мечока", () =>
+        {
+            Say("Тест на балончето – трябва да е точно над мечока.", 3);
+            if (!_bubbleWindow.IsVisible) throw new Exception("балончето не се показа");
+            double bottom = _bubbleWindow.Top + _bubbleWindow.ActualHeight;
+            double mid = _bubbleWindow.Left + _bubbleWindow.ActualWidth / 2;
+            if (bottom > _bearRect.Top + 1 || Math.Abs(mid - (_bearRect.Left + _bearRect.Width / 2)) > _bearRect.Width + 300)
+                throw new Exception($"балончето не е над мечока ({_bubbleWindow.Left:0},{_bubbleWindow.Top:0} спрямо {_bearRect})");
+            if (Width > 400 * Math.Max(1, BearScale / 3.0)) throw new Exception("прозорецът на мечока е твърде голям: " + Width);
+        }, 300);
+        await step("балончето: скрива се с мечока", () =>
+        {
+            Hide();
+            if (_bubbleWindow.IsVisible) throw new Exception("балончето остана без мечока");
+            Show();
+            HideBubble();
+            if (_bubbleWindow.IsVisible) throw new Exception("балончето не се скри");
+        }, 300);
+        await step("пеперуда: в свой прозорец", () =>
+        {
+            SetIdle();
+            StartChase();
+        }, 600);
+        await step("пеперуда: лети", () =>
+        {
+            if (!_butterflyWindow.IsVisible) throw new Exception("пеперудата не се вижда");
+            _bfActive = false;
+            SetIdle();
+        }, 300);
+        await step("пеперуда: отлетя", () =>
+        {
+            if (_butterflyWindow.IsVisible) throw new Exception("пеперудата остана");
+        }, 200);
         await step("скрий мечока", () =>
         {
             if (_food.Count > 0) throw new Exception("храната не се разчисти");

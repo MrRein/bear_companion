@@ -42,14 +42,28 @@ public sealed partial class PetWindow
         get
         {
             EnsureDayKind();
-            return Enum.TryParse<DayKind>(_save.DayKind, out var k) ? k : DayKind.Normal;
+            // Пита се много пъти в кадъра: помним го, докато записът не се смени.
+            if (!ReferenceEquals(_dayKindParsedFrom, _save.DayKind))
+            {
+                _dayKindParsedFrom = _save.DayKind;
+                _dayKind = Enum.TryParse<DayKind>(_save.DayKind, out var k) ? k : DayKind.Normal;
+            }
+            return _dayKind;
         }
     }
 
+    private string? _dayKindParsedFrom;
+    private DayKind _dayKind;
+    private DateTime _dayChecked;
+
     private void EnsureDayKind()
     {
-        string today = Day(DateTime.Today);
+        // Денят се сменя веднъж в денонощието: не правим низ за датата всеки кадър.
+        var date = DateTime.Today;
+        if (date == _dayChecked && _save.DayKindDate.Length > 0) return;
+        string today = Day(date);
         if (_save.DayKindDate != today) RollOverDay(today);
+        _dayChecked = date;
     }
 
     /// <summary>Нов ден: вчерашната работа влиза в „умората от седмицата“ и се избира видът на деня.</summary>
@@ -118,9 +132,17 @@ public sealed partial class PetWindow
         get
         {
             var d = DateTime.Today;
-            return 0.85 + new Random(d.Year * 1000 + d.DayOfYear + 31).NextDouble() * 0.3;
+            if (d != _jitterDay)
+            {
+                _jitterDay = d;
+                _jitter = 0.85 + new Random(d.Year * 1000 + d.DayOfYear + 31).NextDouble() * 0.3;
+            }
+            return _jitter;
         }
     }
+
+    private static DateTime _jitterDay;
+    private static double _jitter = 1;
 
     /// <summary>
     /// Колко бързо се уморява в този час: сутрин е свеж (×0,7), следобед отпада

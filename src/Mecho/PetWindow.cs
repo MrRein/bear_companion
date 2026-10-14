@@ -43,6 +43,7 @@ public sealed partial class PetWindow : Window
     private readonly Image _side = new();   // предметът до мечока (компютър, статив…)
     private readonly Border _bubble;
     private readonly TextBlock _bubbleText;
+    private readonly OverlayWindow _bubbleWindow;
     private readonly DispatcherTimer _timer;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly Updater _updater = new();
@@ -145,7 +146,8 @@ public sealed partial class PetWindow : Window
         _root.Children.Add(_sprite);
         _root.Children.Add(_carry);
         _root.Children.Add(_held);
-        _root.Children.Add(_bubble);
+        // Балончето е в свой малък прозорец (виж OverlayWindow).
+        _bubbleWindow = new OverlayWindow(_bubble);
         Content = _root;
         InitCare();
         InitActivities();
@@ -181,13 +183,22 @@ public sealed partial class PetWindow : Window
         PreviewMouseLeftButtonUp += (_, _) => Dispatcher.BeginInvoke(RaiseCompanions, DispatcherPriority.Background);
 
         _timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
-        _timer.Tick += (_, _) => Tick();
+        _timer.Tick += (_, _) =>
+        {
+            // Докато се движи, цикълът върви с кадрите; таймерът е само резерва.
+            if (_rendering && Now - _lastTime < 0.05) return;
+            Tick();
+        };
+        Closed += (_, _) => CompositionTarget.Rendering -= OnRendering;
     }
 
     private double Now => _clock.Elapsed.TotalSeconds;
 
     private void OnStart()
     {
+        // Балончето и пеперудата стоят над мечока (собственик = мечокът).
+        _bubbleWindow.Owner = this;
+        _butterflyWindow.Owner = this;
         _lastTime = Now;
         _nextChatter = Now + 600 + _rng.Next(600);
         _nextUpdateCheck = Now + 60;
@@ -276,7 +287,8 @@ public sealed partial class PetWindow : Window
         // отгоре“ караше курсора да премигва.
         _calm = Calm(now);
         if (_freezeUntil > now) _calm = true;
-        if (!_calm || now - _lastDraw > 2)
+        if (!IsVisible) UpdateTimerTag();   // скрит: само табелката до часовника
+        else if (!_calm || now - _lastDraw > 2)
         {
             _lastDraw = now;
             UpdateTimerTag();
@@ -326,16 +338,56 @@ public sealed partial class PetWindow : Window
     /// <summary>Developer: спира прерисуването за малко (за търсене на премигване).</summary>
     internal void DevFreezeDrawing(double seconds) => _freezeUntil = Now + seconds;
 
+    /// <summary>
+    /// Колко често върви цикълът. Докато нещо се движи – с всеки кадър на екрана
+    /// (CompositionTarget.Rendering, до 60 пъти в секунда): равномерно, без
+    /// накъсване (DispatcherTimer тиктака през 15,6 мс и стъпките бяха неравни).
+    /// Иначе с таймер: 15 пъти в секунда, докато само се анимира на място; 5,
+    /// докато спи или Тут пише; 2, докато е скрит. Така спокойният мечок почти не
+    /// товари процесора.
+    /// </summary>
     private void PaceTimer()
     {
-        bool moving = _state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
+        bool moving = IsVisible && !_calm && (_state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
             || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || Dressing || CookShaking || _cook is { Window.IsFalling: true }
-            || _food.Exists(f => f.VelocityX != 0 || f.VelocityY != 0);
-        int ms = _calm ? 200
-            : moving ? 33
+            || FoodMoving());
+        UseRendering(moving);
+        int ms = moving ? 100   // резервен (ако екранът не рисува кадри)
+            : !IsVisible ? 500
+            : _calm ? 200
             : IsAsleep && _bubble.Visibility != Visibility.Visible && _food.Count == 0 ? 200
             : 66;
         if ((int)_timer.Interval.TotalMilliseconds != ms) _timer.Interval = TimeSpan.FromMilliseconds(ms);
+    }
+
+    private bool FoodMoving()
+    {
+        foreach (var f in _food)
+            if (f.VelocityX != 0 || f.VelocityY != 0) return true;
+        return false;
+    }
+
+    private bool _rendering;
+    private TimeSpan _lastRenderingTime;
+
+    private void UseRendering(bool on)
+    {
+        if (on == _rendering) return;
+        _rendering = on;
+        if (on) CompositionTarget.Rendering += OnRendering;
+        else CompositionTarget.Rendering -= OnRendering;
+    }
+
+    /// <summary>Кадър на екрана: един цикъл (не повече от ~60 в секунда).</summary>
+    private void OnRendering(object? sender, EventArgs e)
+    {
+        if (e is RenderingEventArgs r)
+        {
+            if (r.RenderingTime == _lastRenderingTime) return;   // същият кадър
+            _lastRenderingTime = r.RenderingTime;
+        }
+        if (Now - _lastTime < 0.014) return;
+        Tick();
     }
 
     private void UpdateIdle(double now)
@@ -937,16 +989,17 @@ public sealed partial class PetWindow : Window
         if (!ReferenceEquals(_sprite.RenderTransform, flip)) _sprite.RenderTransform = flip;
     }
 
-    // Прозорецът на мечока е с постоянен размер и върви точно с мечока. Ако се
-    // разтягаше и следеше пеперудата или балончето, Windows понякога местеше или
-    // оразмеряваше прозореца кадър по-рано от рисунката: мечокът трепереше, а
-    // балончето се отрязваше.
-    // По-голям мечок иска по-голям прозорец (за балончето и пеперудата).
-    private double WindowW => 600 * Math.Max(1, BearScale / 3.0);
-    private double WindowH => 340 * Math.Max(1, BearScale / 3.0);
+    // Прозорецът на мечока е с постоянен размер и върви точно с мечока (стъпалата
+    // му са винаги на едно място в него). Опитахме да го разтягаме според нуждата –
+    // всяко преоразмеряване на прозрачен прозорец за кадър рисуваше мечока на грешно
+    // място (премигване). Прозрачният прозорец се прерисува целият при всяка промяна,
+    // затова е колкото трябва за мечока, кътчето, леглото и табелката, а балончето и
+    // пеперудата са в свои малки прозорци (OverlayWindow).
+    private double WindowW => 100 * PixelSize;
+    private double WindowH => 80 * PixelSize + 30;
     private Rect _window;
 
-    /// <summary>Нарежда мечока, дивана, табелката, балончето и пеперудата в прозореца.</summary>
+    /// <summary>Нарежда мечока, дивана, табелката, балончето и пеперудата.</summary>
     private void UpdateLayoutAndWindow()
     {
         var area = Area;
@@ -965,8 +1018,10 @@ public sealed partial class PetWindow : Window
 
         Rect seat = Rect.Empty, side = Rect.Empty;
         bool hasSeat = _inScene && _seatProp != null, hasSide = _inScene && _sideProp != null;
-        _seat.Visibility = hasSeat ? Visibility.Visible : Visibility.Collapsed;
-        _side.Visibility = hasSide ? Visibility.Visible : Visibility.Collapsed;
+        var seatVis = hasSeat ? Visibility.Visible : Visibility.Collapsed;
+        var sideVis = hasSide ? Visibility.Visible : Visibility.Collapsed;
+        if (_seat.Visibility != seatVis) _seat.Visibility = seatVis;
+        if (_side.Visibility != sideVis) _side.Visibility = sideVis;
         if (hasSeat) seat = new Rect(xs - _seat.Width / 2, ys - _seat.Height, _seat.Width, _seat.Height);
         if (hasSide)
         {
@@ -988,53 +1043,60 @@ public sealed partial class PetWindow : Window
             above = tag.Top - 3;
         }
 
-        Rect bubble = Rect.Empty;
-        if (_bubble.Visibility == Visibility.Visible)
-        {
-            _bubble.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            var size = _bubble.DesiredSize;
-            // Балончето стои и в екрана, и в прозореца.
-            double minX = Math.Max(area.Left, _window.Left) + 4;
-            double maxX = Math.Min(area.Right, _window.Right) - 4 - size.Width;
-            double minY = Math.Max(area.Top, _window.Top) + 4;
-            double left = Math.Clamp(xs - size.Width / 2, minX, Math.Max(minX, maxX));
-            double top = above - size.Height;
-            if (top < minY)
-            {
-                // Горе няма място (вдигнат е до горния ръб): балончето отива встрани от мечока.
-                left = bear.Right + 6 <= maxX ? bear.Right + 6 : bear.Left - 6 - size.Width;
-                left = Math.Clamp(left, minX, Math.Max(minX, maxX));
-                top = Math.Max(minY, bear.Top);
-            }
-            bubble = new Rect(left, top, size.Width, size.Height);
-        }
-
-        Rect butterfly = ButterflyRect;
         var nuts = JuggleRects(bear);
         var carry = CarryRect(bear);
         var held = HeldRect(bear);
 
-        // Прозорецът е с постоянен размер и върви точно с мечока (стъпалата му са
-        // винаги на едно място в него). Опитахме да го смаляваме до мечока и да
-        // го уголемяваме за балончето – но всяко преоразмеряване на прозрачен
-        // прозорец за един кадър рисува мечока на грешно място (премигване).
         var sprite = new Rect(bear.Left, bear.Top - Dresser.HatRoom * PixelSize, bear.Width, _sprite.Height);
         Place(_sprite, sprite, _window.Left, _window.Top, dpi);
         if (hasSeat) Place(_seat, seat, _window.Left, _window.Top, dpi);
         if (!bed.IsEmpty) Place(_bed, bed, _window.Left, _window.Top, dpi);
         if (hasSide) Place(_side, side, _window.Left, _window.Top, dpi);
-        if (!bubble.IsEmpty) Place(_bubble, bubble, _window.Left, _window.Top, dpi);
         if (!tag.IsEmpty) Place(_timerTag, tag, _window.Left, _window.Top, dpi);
         if (!carry.IsEmpty) Place(_carry, carry, _window.Left, _window.Top, dpi);
         if (!held.IsEmpty) Place(_held, held, _window.Left, _window.Top, dpi);
-        if (!butterfly.IsEmpty) Place(_butterfly, butterfly, _window.Left, _window.Top, dpi);
         for (int i = 0; i < nuts.Length; i++)
             if (_juggleNuts[i].Visibility == Visibility.Visible) Place(_juggleNuts[i], nuts[i], _window.Left, _window.Top, dpi);
 
         if (Math.Abs(Width - _window.Width) > 0.01) Width = _window.Width;
         if (Math.Abs(Height - _window.Height) > 0.01) Height = _window.Height;
-        if (Math.Abs(Left - _window.Left) > 0.001) Left = _window.Left;
-        if (Math.Abs(Top - _window.Top) > 0.001) Top = _window.Top;
+        // x и y наведнъж, в цели пиксели (Left и Top поотделно го местеха два пъти).
+        NativeMethods.MoveWindow(this, _window.Left, _window.Top);
+
+        PlaceBubble(area, bear, above);
+        PlaceButterfly();
+    }
+
+    /// <summary>Балончето: над мечока (над табелката), винаги в екрана.</summary>
+    private void PlaceBubble(Rect area, Rect bear, double above)
+    {
+        if (_bubble.Visibility != Visibility.Visible || !IsVisible)
+        {
+            _bubbleWindow.Conceal();
+            return;
+        }
+        var size = _bubbleWindow.Measure();
+        double minX = area.Left + 4;
+        double maxX = area.Right - 4 - size.Width;
+        double minY = area.Top + 4;
+        double left = Math.Clamp(bear.Left + bear.Width / 2 - size.Width / 2, minX, Math.Max(minX, maxX));
+        double top = above - size.Height;
+        if (top < minY)
+        {
+            // Горе няма място (вдигнат е до горния ръб): балончето отива встрани от мечока.
+            left = bear.Right + 6 <= maxX ? bear.Right + 6 : bear.Left - 6 - size.Width;
+            left = Math.Clamp(left, minX, Math.Max(minX, maxX));
+            top = Math.Max(minY, bear.Top);
+        }
+        _bubbleWindow.Place(left, top);
+    }
+
+    /// <summary>Пеперудата: в своя прозорец, само докато лети.</summary>
+    private void PlaceButterfly()
+    {
+        var r = ButterflyRect;
+        if (r.IsEmpty || !IsVisible) _butterflyWindow.Conceal();
+        else _butterflyWindow.Place(r.Left, r.Top);
     }
 
     private static void Place(UIElement element, Rect screen, double winLeft, double winTop, double dpi)
@@ -1105,11 +1167,15 @@ public sealed partial class PetWindow : Window
     {
         Ui.SetRichText(_bubbleText, text);
         _bubble.Visibility = Visibility.Visible;
+        // Нарежда балончето веднага (не на следващия кадър): иначе се мяркаше на
+        // старото място и после подскачаше.
+        UpdateLayoutAndWindow();
         // Балончето не бива да остава под панела, храната или друг прозорец „винаги отгоре“.
         if (!ChatIsOpen)
         {
             NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
             RaiseCompanions();
+            if (_bubbleWindow.IsVisible) NativeMethods.BringToTop(new WindowInteropHelper(_bubbleWindow).Handle);
         }
         _bubbleUntil = Now + seconds + text.Length * 0.04;
         _lastSpoke = Now;
@@ -1153,5 +1219,9 @@ public sealed partial class PetWindow : Window
     private const double MutterGap = 600;
     private double _lastMutter = -1000;
 
-    private void HideBubble() => _bubble.Visibility = Visibility.Collapsed;
+    private void HideBubble()
+    {
+        _bubble.Visibility = Visibility.Collapsed;
+        _bubbleWindow.Conceal();
+    }
 }

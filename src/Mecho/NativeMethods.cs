@@ -25,7 +25,36 @@ internal static class NativeMethods
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
 
     private static readonly IntPtr HWND_TOPMOST = new(-1);
-    private const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10;
+    private const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10, SWP_NOOWNERZORDER = 0x200;
+
+    /// <summary>
+    /// Мести прозореца наведнъж (x и y заедно, в цели физически пиксели). Window.Left
+    /// и Window.Top поотделно го местеха два пъти в кадъра (накъсване), а и при
+    /// дробни DIP мечокът потрепваше с пиксел. Ако вече е там – нищо не прави.
+    /// </summary>
+    public static void MoveWindow(System.Windows.Window w, double left, double top)
+    {
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(w).Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            w.Left = left;
+            w.Top = top;
+            return;
+        }
+        double dpi = System.Windows.Media.VisualTreeHelper.GetDpi(w).DpiScaleX;
+        int x = (int)Math.Round(left * dpi), y = (int)Math.Round(top * dpi);
+        if (GetWindowRect(hwnd, out var r) && r.Left == x && r.Top == y) return;
+        SetWindowPos(hwnd, IntPtr.Zero, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left, Top, Right, Bottom;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
 
     /// <summary>Слага прозореца най-отгоре (над другите „винаги отгоре“), без да му дава фокус.</summary>
     public static void BringToTop(IntPtr hwnd)

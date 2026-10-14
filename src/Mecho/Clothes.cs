@@ -235,7 +235,9 @@ public sealed class Dresser
 
     public BitmapSource Frame(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit)
     {
-        string key = string.Join(",", Clothes.Slots.Select(s => outfit.TryGetValue(s.Id, out var id) ? id : "")) + "|" + Book;
+        // Ключът за облеклото се прави наново само ако нещо се е сменило (иначе
+        // всеки кадър правеше нов низ с LINQ).
+        string key = SameOutfit(outfit) ? _lastKey : MakeKey(outfit);
         if (!ReferenceEquals(lib, _lib))
         {
             _previews.Clear();
@@ -266,6 +268,36 @@ public sealed class Dresser
         if (_cache.Count > 400) _cache.Clear();
         _cache[(anim, index)] = done;
         return done;
+    }
+
+    private string?[] _lastValues = Array.Empty<string?>();
+    private string? _lastBook;
+    private string _lastKey = "";
+
+    private bool SameOutfit(IReadOnlyDictionary<string, string> outfit)
+    {
+        var slots = Clothes.Slots;
+        if (_lastValues.Length != slots.Length || _lastBook != Book) return false;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            outfit.TryGetValue(slots[i].Id, out var id);
+            if (id != _lastValues[i]) return false;
+        }
+        return true;
+    }
+
+    private string MakeKey(IReadOnlyDictionary<string, string> outfit)
+    {
+        var slots = Clothes.Slots;
+        _lastValues = new string?[slots.Length];
+        for (int i = 0; i < slots.Length; i++)
+        {
+            outfit.TryGetValue(slots[i].Id, out var id);
+            _lastValues[i] = id;
+        }
+        _lastBook = Book;
+        _lastKey = string.Join(",", _lastValues.Select(v => v ?? "")) + "|" + Book;
+        return _lastKey;
     }
 
     private readonly Dictionary<string, BitmapSource?> _previews = new();

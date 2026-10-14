@@ -96,13 +96,11 @@ public sealed class GiftWindow : Window
         {
             // Дъга нагоре към средата.
             double k = _t / 0.8, ease = 1 - (1 - k) * (1 - k);
-            Left = _from.X + (_to.X - _from.X) * ease;
-            Top = _from.Y + (_to.Y - _from.Y) * ease - Math.Sin(Math.PI * k) * 80;
+            NativeMethods.MoveWindow(this, _from.X + (_to.X - _from.X) * ease, _from.Y + (_to.Y - _from.Y) * ease - Math.Sin(Math.PI * k) * 80);
             return;
         }
         // Чака: подскача леко.
-        Left = _to.X;
-        Top = _to.Y - Math.Abs(Math.Sin(_t * 3)) * 10;
+        NativeMethods.MoveWindow(this, _to.X, _to.Y - Math.Abs(Math.Sin(_t * 3)) * 10);
     }
 
     /// <summary>Отворен: капакът хвръква, отдолу излиза какво има вътре.</summary>
