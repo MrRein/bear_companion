@@ -714,7 +714,7 @@ public sealed class MenuWindow : Window
 
     private readonly StackPanel _recipeProgress = new() { Margin = new Thickness(0, 12, 0, 0) };
 
-    /// <summary>„Следваща рецепта (лесна): ▮▮▯ 2/3 страници“ – коя е, е тайна.</summary>
+    /// <summary>„Следваща рецепта: ▮▮▯ 2/3 страници“ – коя е, е тайна.</summary>
     private void BuildRecipeProgress()
     {
         var s = _pet.Save;
@@ -731,7 +731,7 @@ public sealed class MenuWindow : Window
         row.Children.Add(Icon("book", 2));
         row.Children.Add(new TextBlock
         {
-            Text = $"  Следваща рецепта ({Recipes.Difficulty(need)}): ",
+            Text = "  Следваща рецепта: ",
             FontWeight = FontWeights.Bold,
             VerticalAlignment = VerticalAlignment.Center,
         });
