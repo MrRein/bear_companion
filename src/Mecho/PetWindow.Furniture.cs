@@ -52,17 +52,29 @@ public sealed partial class PetWindow
     public void UseSkin(Skin skin)
     {
         if (!Furniture.Owns(_save, skin)) return;
+        _save.Skins[skin.Item] = skin.Id;
         if (skin.Item == Kitchen.Bed) _save.BedSkin = skin.Id;
-        else _save.CouchSkin = skin.Id;
+        if (skin.Item == Kitchen.Couch) _save.CouchSkin = skin.Id;
         _bedProp = null;
+        _nextHeaterFrame = 0;                       // печицата – веднага с новата рисунка
+        _lampWindow?.Close();                       // лампата се показва наново
+        _lampWindow = null;
         // Седи на дивана: сменя се веднага.
         if (_inScene && _scene != null && _scene.Seat == "couch") LoadSceneArt(_scene);
         Persist();
         NotifyCare();
     }
 
-    public System.Windows.Media.Imaging.BitmapSource SkinImage(Skin skin) =>
-        _lib.GetProp(skin.Prop, skin.Item == Kitchen.Bed ? 46 : 48, skin.Item == Kitchen.Bed ? 16 : 24, 0).Image;
+    /// <summary>Картинката на скина (за плочката в магазина и гардероба).</summary>
+    public System.Windows.Media.Imaging.BitmapSource SkinImage(Skin skin) => skin.Item switch
+    {
+        Kitchen.Bed => _lib.GetProp(skin.Prop, 46, 16, 0).Image,
+        Kitchen.Couch => _lib.GetProp(skin.Prop, 48, 24, 0).Image,
+        Kitchen.Heater => _lib.GetProp(skin.Prop, 20, 22, 0).Image,
+        Kitchen.Lamp => _lib.GetProp(skin.Prop, 14, 30, 0).Image,
+        Kitchen.Guitar => _lib.Clothes("tool_" + skin.Prop) ?? _lib.GetProp("shop_guitar", 16, 16, 0).Image,
+        _ => _lib.GetProp(skin.Prop, 22, 24, 0).Image,
+    };
 
     // ── Пижамата ──
 
@@ -89,7 +101,7 @@ public sealed partial class PetWindow
             night.Remove(Clothes.Glasses.Id);
             night.Remove(Clothes.Neck.Id);
             night.Remove(Clothes.Gloves.Id);
-            foreach (var (slot, id) in Clothes.Pajamas) night[slot] = id;
+            foreach (var (slot, id) in Clothes.PajamaOutfit(Clothes.CurrentPajama(_save))) night[slot] = id;
             return WithCup(night);
         }
     }
@@ -103,6 +115,33 @@ public sealed partial class PetWindow
         if (!IsAsleep) Mutter(now ? "*облича пижамата* Време е за сън скоро…" : "*съблича пижамата* Добро утро!", 4);
         NotifyCare();
     }
+
+    public void BuyPajama(PajamaSet p)
+    {
+        if (Clothes.Owns(_save, p) || _save.Hazelnuts < p.Price) return;
+        _save.Hazelnuts -= p.Price;
+        _save.OwnedClothes.Add(p.Key);
+        UsePajama(p);
+        Say($"Нова пижама! {p.Name}. Чакам вечерта!", 4);
+    }
+
+    public void UsePajama(PajamaSet p)
+    {
+        if (!Clothes.Owns(_save, p)) return;
+        _save.Pajama = p.Id;
+        Persist();
+        NotifyCare();
+    }
+
+    /// <summary>Мечокът с пижамата (за плочката в гардероба и магазина).</summary>
+    public System.Windows.Media.Imaging.BitmapSource PajamaPreview(PajamaSet p)
+    {
+        // Пази се отделно: иначе всяка пижама би изтрила от кеша облеклото, което носи сега.
+        if (_pajamaPreviews.TryGetValue(p.Id, out var img)) return img;
+        return _pajamaPreviews[p.Id] = new Dresser().Frame(_lib, "idle", 0, Clothes.PajamaOutfit(p));
+    }
+
+    private readonly Dictionary<string, System.Windows.Media.Imaging.BitmapSource> _pajamaPreviews = new();
 
     public void SetPajamas(bool on)
     {

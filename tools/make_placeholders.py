@@ -1343,6 +1343,187 @@ for _tool, _fn in COOKERS.items():
         PROP_LIST[f"cook_{_tool}{_suffix}"] = (prop(22, 24, _fn(_i)), 0)
 
 
+# ── Скинове (временни: оцветени копия на класическия; Тут ги рисува истински) ──
+
+def tint(img, color, strength=0.75, pattern=None, accent=WHITE):
+    """Оцветява всичко без контура и пламъчетата към color (светлото остава светло)."""
+    out = img.copy()
+    px = out.load()
+    keep = {OUTLINE, FLAME, FLAME2, (255, 150, 60, 255), (255, 200, 90, 255), (220, 220, 220, 255)}
+    for y in range(out.height):
+        for x in range(out.width):
+            p = px[x, y]
+            if not p[3] or p in keep:
+                continue
+            lum = (0.3 * p[0] + 0.59 * p[1] + 0.11 * p[2]) / 255
+            target = [min(255, int(c * (0.45 + 0.8 * lum))) for c in color[:3]]
+            px[x, y] = tuple(int(p[i] * (1 - strength) + target[i] * strength) for i in range(3)) + (p[3],)
+    if pattern == "dots":
+        for y in range(2, out.height - 2, 4):
+            for x in range(2 + (y // 4) % 2 * 2, out.width - 2, 4):
+                if px[x, y][3] and px[x, y] != OUTLINE and px[x - 1, y] != OUTLINE and px[x + 1, y] != OUTLINE:
+                    px[x, y] = accent
+    return out
+
+
+# Скинове на уредите: уред → {скин: (цвят, шарка)}. Името на рисунката е cook_<уред>_<скин>[_b|_open].
+COOKER_SKINS = {
+    "pot": {"enamel": ((90, 150, 220, 255), "dots"), "copper": ((215, 120, 60, 255), None)},
+    "pan": {"cast_iron": ((60, 60, 70, 255), None), "pink": ((240, 140, 170, 255), None)},
+    "oven": {"retro": ((120, 200, 190, 255), None), "wood": ((170, 100, 60, 255), None)},
+    "coffee_machine": {"moka": ((200, 200, 210, 255), None), "retro": ((220, 70, 70, 255), None)},
+    "kettle": {"whistle": ((230, 80, 70, 255), None), "glass": ((200, 235, 245, 255), None)},
+    "mixer": {"mint": ((150, 215, 190, 255), None), "hand": ((200, 170, 120, 255), None)},
+    "sandwich": {"red": ((210, 60, 60, 255), None), "waffle": ((230, 180, 90, 255), "dots")},
+    "icecream": {"cart": ((250, 230, 240, 255), "dots"), "pink": ((240, 150, 180, 255), None)},
+    "grill": {"kettle": ((50, 50, 60, 255), None), "camp": ((150, 110, 70, 255), None)},
+}
+for _tool, _skins in COOKER_SKINS.items():
+    for _skin, (_color, _pattern) in _skins.items():
+        for _suffix in ["", "_b", "_open"]:
+            PROP_LIST[f"cook_{_tool}_{_skin}{_suffix}"] = (tint(PROP_LIST[f"cook_{_tool}{_suffix}"][0], _color, pattern=_pattern), 0)
+
+HEATER_SKINS = {
+    "fireplace": ((200, 190, 180, 255), None),
+    "tiles": ((90, 140, 200, 255), "dots"),
+    "retro": ((230, 220, 200, 255), None),
+    "cozy": ((90, 90, 100, 255), None),
+}
+for _skin, (_color, _pattern) in HEATER_SKINS.items():
+    for _suffix in ["", "_b", "_off"]:
+        _base = "heater" + _suffix
+        PROP_LIST[f"heater_{_skin}{_suffix}"] = (tint(PROP_LIST[_base][0], _color, 0.9, pattern=_pattern), 0)
+
+
+def lamp(kind):
+    """Лампа 14 x 30, свети. Видовете: classic (лампион), mushroom, lantern, moon, lava, candle."""
+    img = Image.new("RGBA", (14, 30), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    glow, light = (255, 236, 150, 255), (255, 250, 210, 255)
+    if kind == "classic":
+        d.polygon([(3, 2), (10, 2), (12, 9), (1, 9)], fill=(240, 200, 120, 255), outline=OUTLINE)
+        d.line((4, 8, 9, 8), fill=light)
+        d.rectangle((6, 10, 7, 27), fill=WOOD)
+        d.rectangle((3, 27, 10, 29), fill=WOOD, outline=OUTLINE)
+    elif kind == "mushroom":
+        oval(d, (1, 12, 12, 21), (220, 60, 60, 255))
+        for x, y in [(4, 14), (8, 13), (10, 17), (5, 18)]:
+            d.point((x, y), fill=WHITE)
+        d.rectangle((5, 21, 8, 28), fill=light, outline=OUTLINE)
+        d.line((3, 29, 10, 29), fill=OUTLINE)
+    elif kind == "lantern":
+        d.arc((4, 8, 9, 14), 180, 360, fill=OUTLINE)
+        d.rectangle((3, 12, 10, 26), fill=(60, 60, 70, 255), outline=OUTLINE)
+        d.rectangle((4, 15, 9, 24), fill=glow)
+        d.line((6, 18, 6, 22), fill=(255, 160, 60, 255))
+        d.rectangle((2, 26, 11, 29), fill=(60, 60, 70, 255), outline=OUTLINE)
+    elif kind == "moon":
+        oval(d, (1, 10, 12, 21), glow)
+        oval(d, (5, 9, 14, 19), (0, 0, 0, 0), outline=None)
+        d.rectangle((5, 21, 8, 27), fill=WOOD)
+        d.rectangle((2, 27, 11, 29), fill=WOOD, outline=OUTLINE)
+    elif kind == "lava":
+        d.polygon([(4, 9), (9, 9), (11, 24), (2, 24)], fill=(120, 60, 160, 255), outline=OUTLINE)
+        oval(d, (4, 12, 7, 15), (255, 120, 80, 255), outline=None)
+        oval(d, (6, 18, 9, 22), (255, 160, 80, 255), outline=None)
+        d.rectangle((3, 6, 10, 9), fill=GREY, outline=OUTLINE)
+        d.rectangle((2, 24, 11, 29), fill=GREY, outline=OUTLINE)
+    elif kind == "candle":
+        oval(d, (5, 14, 8, 19), (255, 200, 80, 255), outline=None)
+        d.point((6, 15), fill=WHITE)
+        d.rectangle((4, 19, 9, 27), fill=(250, 245, 230, 255), outline=OUTLINE)
+        d.rectangle((1, 27, 12, 29), fill=(200, 160, 60, 255), outline=OUTLINE)
+    return img
+
+
+LAMP_SKINS = ["mushroom", "lantern", "moon", "lava", "candle"]
+PROP_LIST["lamp"] = (lamp("classic"), 0)
+for _skin in LAMP_SKINS:
+    PROP_LIST[f"lamp_{_skin}"] = (lamp(_skin), 0)
+
+
+def yarn_basket(d):
+    """Кошница с прежда 16 x 12: три кълбета, една нишка виси."""
+    for x, c in [(3, (240, 140, 150, 255)), (8, (120, 180, 220, 255)), (11, (250, 200, 80, 255))]:
+        oval(d, (x - 2, 1, x + 2, 5), c)
+    d.rectangle((1, 5, 14, 11), fill=(190, 140, 80, 255), outline=OUTLINE)
+    for x in range(3, 14, 3):
+        d.line((x, 6, x, 10), fill=(150, 100, 55, 255))
+    d.line((2, 8, 14, 8), fill=(150, 100, 55, 255))
+    d.line((14, 3, 15, 7), fill=(240, 140, 150, 255))
+
+
+PROP_LIST["yarn_basket"] = (prop(16, 12, yarn_basket), 0)
+
+
+def guitar_tool(body, kind="classic"):
+    """Китарата в лапите, 27 x 27: средата (13,13) е там, където лапата дрънка по струните."""
+    img = Image.new("RGBA", (27, 27), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    neck = (110, 70, 40, 255)
+    small = kind == "ukulele"
+    nx = 21 if small else 24
+    d.line((12, 15, nx, 4 if not small else 7), fill=neck, width=2)                 # грифът
+    d.rectangle((nx - 1, (2 if not small else 5), nx + 1, (5 if not small else 8)), fill=OUTLINE)  # главата
+    if kind == "electric":
+        d.polygon([(4, 12), (11, 10), (14, 14), (12, 22), (5, 22), (3, 17)], fill=body, outline=OUTLINE)
+        d.rectangle((7, 15, 10, 16), fill=WHITE)
+    elif kind == "star":
+        cx, cy = 9, 16
+        pts = [(cx, cy - 7), (cx + 2, cy - 2), (cx + 7, cy - 2), (cx + 3, cy + 1), (cx + 5, cy + 6),
+               (cx, cy + 3), (cx - 5, cy + 6), (cx - 3, cy + 1), (cx - 7, cy - 2), (cx - 2, cy - 2)]
+        d.polygon(pts, fill=body, outline=OUTLINE)
+        d.point((cx, cy), fill=OUTLINE)
+    elif small:
+        oval(d, (6, 11, 13, 17), body)
+        oval(d, (5, 15, 13, 22), body)
+        d.point((9, 17), fill=OUTLINE)
+    else:
+        oval(d, (5, 9, 14, 17), body)
+        oval(d, (3, 14, 14, 24), body)
+        oval(d, (7, 15, 10, 18), OUTLINE, outline=None)
+    return img
+
+
+GUITARS = {
+    "": ((210, 150, 80, 255), "classic"),
+    "_electric": ((210, 50, 50, 255), "electric"),
+    "_ukulele": ((230, 180, 110, 255), "ukulele"),
+    "_blue": ((80, 130, 210, 255), "classic"),
+    "_star": ((250, 200, 60, 255), "star"),
+}
+
+
+def knitting_tool():
+    """Куките с плетката, 27 x 27, средата е между лапите."""
+    img = Image.new("RGBA", (27, 27), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle((9, 13, 17, 17), fill=(240, 140, 150, 255), outline=OUTLINE)     # плетката
+    for x in range(10, 17, 2):
+        d.point((x, 15), fill=(255, 200, 210, 255))
+    d.line((6, 8, 13, 14), fill=GREY)                                             # куките
+    d.line((20, 8, 14, 14), fill=GREY)
+    d.point((6, 8), fill=OUTLINE)
+    d.point((20, 8), fill=OUTLINE)
+    d.line((13, 18, 12, 22), fill=(240, 140, 150, 255))                         # нишката
+    return img
+
+
+def save_tools():
+    """Предметите в лапите (assets/clothes/tool_*.png), които Тут още не е нарисувала."""
+    done = os.path.join(os.path.dirname(__file__), "..", "done_art")
+    folder = os.path.join(os.path.dirname(__file__), "..", "assets", "clothes")
+    tools = {f"guitar{_sfx}": guitar_tool(*_args) for _sfx, _args in GUITARS.items()}
+    tools["knitting"] = knitting_tool()
+    for name, img in tools.items():
+        if not os.path.exists(os.path.join(done, f"{name}.png")):
+            img.save(os.path.join(folder, f"tool_{name}.png"))
+
+
+_g = guitar_tool(*GUITARS[""])
+PROP_LIST["shop_guitar"] = (_g.crop(_g.getbbox()).resize((16, 16), Image.NEAREST), 0)
+
+
 def derive_sleep_peek():
     """
     „Сънливо надига глава“ от нарисувания sleep.png на Тут: главата (лявата
@@ -1806,6 +1987,12 @@ def save_backgrounds():
 def main():
     os.makedirs(OUT, exist_ok=True)
     manifest = {"frameWidth": SIZE, "frameHeight": SIZE, "scale": 3, "animations": {}}
+    # Скоростите, нагласени на ръка в anim.json, остават.
+    try:
+        with open(os.path.join(OUT, "anim.json"), encoding="utf-8") as fh:
+            old = json.load(fh)["animations"]
+    except (OSError, ValueError, KeyError):
+        old = {}
     preview = Image.new("RGBA", (SIZE * 4 + 5, (SIZE + 1) * len(ANIMS)), (90, 120, 90, 255))
     for row, (name, (frames, fps, loop)) in enumerate(ANIMS.items()):
         if name in HAND_DRAWN:
@@ -1826,8 +2013,12 @@ def main():
         manifest["animations"][name] = {"file": f"{name}.png", "fps": fps, "loop": loop}
     if "sleep_peek" not in HAND_DRAWN:
         derive_sleep_peek()
-    derive_eat_hold()
+    if not os.path.exists(os.path.join(os.path.dirname(__file__), "..", "done_art", "eat_hold.png")):
+        derive_eat_hold()
     manifest["animations"]["eat_hold"] = {"file": "eat_hold.png", "fps": 1, "loop": True}
+    for name, entry in old.items():
+        manifest["animations"][name] = entry if name in manifest["animations"] or os.path.exists(os.path.join(OUT, entry.get("file", name + ".png"))) else None
+    manifest["animations"] = {k: v for k, v in manifest["animations"].items() if v}
     manifest["animations"]["sleep_peek"] = {"file": "sleep_peek.png", "fps": 3, "loop": False}
     with open(os.path.join(OUT, "anim.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2, ensure_ascii=False)
@@ -1835,7 +2026,8 @@ def main():
     # Иконки за магазина от предметите за почивка: смалени до 16 x 16.
     for shop, src in [("shop_easel", "easel"), ("shop_computer", "computer"), ("shop_yoga_mat", "mat"),
                       ("shop_plant", "plant"), ("shop_radio", "radio"), ("shop_board_game", "table_board"), ("shop_trampoline", "trampoline"),
-                      ("shop_couch", "couch"), ("shop_bed_real", "bed"), ("shop_wardrobe", "wardrobe"), ("shop_heater", "heater")]:
+                      ("shop_couch", "couch"), ("shop_bed_real", "bed"), ("shop_wardrobe", "wardrobe"), ("shop_heater", "heater"),
+                      ("shop_yarn_basket", "yarn_basket"), ("shop_lamp", "lamp")]:
         img, _ = PROP_LIST[src]
         icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
         scale = min(1.0, 16 / img.width, 16 / img.height)
@@ -1853,6 +2045,7 @@ def main():
         fh.write("\n")
 
     save_hats()
+    save_tools()
     save_backgrounds()
     preview.resize((preview.width * 4, preview.height * 4), Image.NEAREST).save(
         os.path.join(os.path.dirname(__file__), "placeholders_preview.png"))

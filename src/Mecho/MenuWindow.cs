@@ -66,6 +66,7 @@ public sealed class MenuWindow : Window
     private Border[] _fullBar = null!, _energyBar = null!;
     private TextBlock _fullText = null!, _energyText = null!, _mood = null!, _weather = null!;
     private Button _heaterButton = null!;
+    private Button _lampButton = null!;
     private Button _sleepButton = null!, _couchButton = null!, _quietButton = null!;
     // Мрежа по 3: всички плочки в един ред са еднакво високи, бутоните са на една линия.
     private readonly UniformGrid _foodTiles = new() { Columns = 3 };
@@ -459,6 +460,13 @@ public sealed class MenuWindow : Window
             Refresh(false);
         }, icon: "sun"));
         actions.Children.Add(_heaterButton);
+        // Лампата: само вечер (свети сама, тук се гаси и пали).
+        _lampButton = Wide(Button("", () =>
+        {
+            _pet.SetLamp(!_pet.LampOn);
+            Refresh(false);
+        }, icon: "lamp"));
+        actions.Children.Add(_lampButton);
         // Рисувай – само със статива.
         _drawButton = Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil"));
         actions.Children.Add(_drawButton);
@@ -981,6 +989,7 @@ public sealed class MenuWindow : Window
                 case Garment g: grid.Children.Add(GarmentShopTile(g)); break;
                 case Backdrop b: grid.Children.Add(BackdropTile(b)); break;
                 case Skin k: grid.Children.Add(SkinTile(k, shop: true)); break;
+                case PajamaSet p: grid.Children.Add(PajamaTile(p, shop: true)); break;
             }
         }
         if (grid.Children.Count > 0) box.Children.Add(grid);
@@ -1049,7 +1058,24 @@ public sealed class MenuWindow : Window
         return MakeTile(_pet.BackdropImage(b), b.Name, Description("Тапет за портрета на Мечо."), action, dim: false, why, owned, 2);
     }
 
-    /// <summary>Скин за диван/легло: в магазина се купува, в гардероба се слага.</summary>
+    /// <summary>Пижама: в магазина се купува (и става избраната), в гардероба се избира.</summary>
+    private Border PajamaTile(PajamaSet p, bool shop)
+    {
+        var s = _pet.Save;
+        bool owned = Clothes.Owns(s, p), used = Clothes.CurrentPajama(s) == p;
+        string? why = null;
+        Button action;
+        if (used)
+        {
+            action = Button("Избрана", () => { });
+            action.IsEnabled = false;
+        }
+        else if (owned) action = Button("Избери", () => _pet.UsePajama(p), primary: true);
+        else action = BuyButton(p.Price, () => _pet.BuyPajama(p), out why);
+        return MakeTile(_pet.PajamaPreview(p), p.Name, Description(shop ? "Пижама за вечерта." : ""), action, dim: false, why, owned && (used || !shop), 2);
+    }
+
+    /// <summary>Скин за мебел или уред: в магазина се купува, в гардероба се слага.</summary>
     private Border SkinTile(Skin skin, bool shop)
     {
         var s = _pet.Save;
@@ -1069,10 +1095,10 @@ public sealed class MenuWindow : Window
             if (!hasItem)
             {
                 action.IsEnabled = false;
-                why = skin.Item == Kitchen.Bed ? "Първо купи леглото." : "Първо купи дивана.";
+                why = $"Първо купи „{Kitchen.Find(skin.Item)?.Name}“.";
             }
         }
-        string note = shop ? (skin.Item == Kitchen.Bed ? "Скин за леглото." : "Скин за дивана.") : "";
+        string note = shop ? $"За „{Kitchen.Find(skin.Item)?.Name}“." : "";
         return MakeTile(_pet.SkinImage(skin), skin.Name, Description(note), action, dim: false, why, owned && (used || !shop), 2);
     }
 
@@ -1262,8 +1288,9 @@ public sealed class MenuWindow : Window
 
         // Раздели: всеки вид дреха/аксесоар, тапетите и мебелите (ако има диван или легло).
         var sections = Clothes.Shelves.Select(slot => (Id: slot.Id, Name: slot.Name, Icon: slot.Icon)).ToList();
+        sections.Add(("pajamas", "Пижами", "pajama"));
         sections.Add(("wallpapers", "Тапети", "picture"));
-        if (Kitchen.Owns(s, Kitchen.Couch) || Kitchen.Owns(s, Kitchen.Bed)) sections.Add(("furniture", "Мебели", "couch"));
+        if (Furniture.ByItem.Keys.Any(item => Kitchen.Owns(s, item))) sections.Add(("furniture", "Мебели и уреди", "couch"));
         if (!sections.Any(x => x.Id == _wardrobeSection)) _wardrobeSection = sections[0].Id;
 
         var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
@@ -1302,9 +1329,14 @@ public sealed class MenuWindow : Window
             }
             empty = "Нови тапети има в офертата на деня.";
         }
+        else if (_wardrobeSection == "pajamas")
+        {
+            foreach (var p in Clothes.PajamaSets.Where(p => Clothes.Owns(s, p))) grid.Children.Add(PajamaTile(p, shop: false));
+            empty = "Нови пижами има в офертата на деня.";
+        }
         else if (_wardrobeSection == "furniture")
         {
-            foreach (var item in new[] { Kitchen.Couch, Kitchen.Bed })
+            foreach (var item in Furniture.ByItem.Keys)
                 if (Kitchen.Owns(s, item))
                     foreach (var skin in Furniture.SkinsFor(item).Where(k => Furniture.Owns(s, k))) grid.Children.Add(SkinTile(skin, shop: false));
             empty = "Нови скинове има в офертата на деня.";
@@ -1894,6 +1926,8 @@ public sealed class MenuWindow : Window
         _weather.Visibility = weather == null ? Visibility.Collapsed : Visibility.Visible;
         _heaterButton.Visibility = Kitchen.Owns(s, Kitchen.Heater) ? Visibility.Visible : Visibility.Collapsed;
         SetButton(_heaterButton, s.HeaterOn ? "Изгаси печицата" : "Печицата", "sun");
+        _lampButton.Visibility = Kitchen.Owns(s, Kitchen.Lamp) && PetWindow.IsDark(DateTime.Now) && !_pet.SleepsForDay ? Visibility.Visible : Visibility.Collapsed;
+        SetButton(_lampButton, _pet.LampOn ? "Изгаси лампата" : "Светни лампата", "lamp");
         if (_pet.IsAsleep) SetButton(_sleepButton, "Събуди", "sun");
         else SetButton(_sleepButton, "Приспи", "moon");
         _sleepButton.IsEnabled = _pet.CanSleep;

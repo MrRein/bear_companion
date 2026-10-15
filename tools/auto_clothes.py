@@ -365,7 +365,7 @@ def draft(anim, strip):
             dots[name].putpixel((f * SIZE + ax, ay), POINT_COLORS[name] + (255,))
     if not cups:
         del dots["cup"]
-    if anim.startswith("doing"):
+    if anim.startswith(("doing", "knit", "guitar")):
         dots["tool"] = tool_anchors(strip)
     else:
         del dots["tool"]
@@ -402,7 +402,7 @@ def nearest(rgb, table):
 def layers_from(anim, strip, paint):
     """От картата: сивите шаблони, точките и слоят „отпред“ в assets/clothes/layers."""
     names = list(LAYER.values()) + ["sleeves", "head", "face", "neck", "front"]
-    if anim.startswith("doing"):
+    if anim.startswith(("doing", "knit", "guitar")):
         names.append("tool")
     if anim.startswith("sit_drinking") or anim in ("eat", "eat_hold"):
         names.append("cup")

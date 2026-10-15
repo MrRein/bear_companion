@@ -123,6 +123,7 @@ public sealed partial class PetWindow
             foreach (var k in first)
                 if (DailyOffer.Resolve(k) is Garment g) t.OwnedClothes.Add(g.Id);
                 else if (DailyOffer.Resolve(k) is Backdrop b) t.Owned.Add("bg_" + b.Id);
+                else if (DailyOffer.Resolve(k) is PajamaSet p) t.OwnedClothes.Add(p.Key);
             t.OfferDay = "2000-01-01";
             var next = DailyOffer.Today(t);
             if (next.Any(first.Contains)) throw new Exception("купено излезе пак");
@@ -135,7 +136,63 @@ public sealed partial class PetWindow
             if (Furniture.Current(t, Kitchen.Couch).Id != Furniture.Classic) throw new Exception("некупен скин е сложен");
             t.Owned.Add("skin_couch_velvet");
             if (Furniture.Current(t, Kitchen.Couch).Id != "velvet") throw new Exception("купеният скин не е сложен");
+            // Новите скинове (печица, уреди, лампа, китара): всеки има рисунка.
+            foreach (var (item, skins) in Furniture.ByItem)
+            {
+                if (Kitchen.Find(item) == null) throw new Exception("скин за непознат предмет: " + item);
+                foreach (var k in skins)
+                {
+                    bool art = item == Kitchen.Guitar ? _lib.Clothes("tool_" + k.Prop) != null : _lib.HasProp(k.Prop);
+                    if (!art) throw new Exception("няма рисунка за скина " + k.Prop);
+                }
+            }
+            t.Skins[Kitchen.Pot] = "copper";
+            if (Furniture.CurrentArt(t, Kitchen.Pot, "_b") != "cook_pot_b") throw new Exception("некупен скин на уред");
+            t.Owned.Add("skin_pot_copper");
+            if (Furniture.CurrentArt(t, Kitchen.Pot, "_b") != "cook_pot_copper_b") throw new Exception("скинът на уреда не е сложен");
         }, 100);
+        await step("лампа: кога свети", () =>
+        {
+            if (!IsDark(new DateTime(2026, 1, 10, 17, 30, 0)) || IsDark(new DateTime(2026, 1, 10, 12, 0, 0))) throw new Exception("зимата");
+            if (IsDark(new DateTime(2026, 7, 10, 19, 0, 0)) || !IsDark(new DateTime(2026, 7, 10, 23, 0, 0))) throw new Exception("лятото");
+            if (!IsDark(new DateTime(2026, 7, 11, 3, 0, 0))) throw new Exception("нощем");
+            _save.Owned.Add(Kitchen.Lamp);
+            bool dark = IsDark(DateTime.Now);
+            UpdateLamp();
+            if (dark != (_lampWindow != null)) throw new Exception("лампата не следва тъмното");
+            if (dark)
+            {
+                SetLamp(false);
+                UpdateLamp();
+                if (_lampWindow != null) throw new Exception("изгасената лампа свети");
+                SetLamp(true);
+            }
+            _save.Owned.Remove(Kitchen.Lamp);
+            UpdateLamp();
+            if (_lampWindow != null) throw new Exception("лампа без лампа");
+        }, 300);
+        await step("плетене и китара", () =>
+        {
+            if (IsAsleep) WakeUp();
+            foreach (var (scene, item, tool) in new[] { (Scenes.Knit, Kitchen.YarnBasket, "knitting"), (Scenes.Guitar, Kitchen.Guitar, "guitar") })
+            {
+                if (!_save.Owned.Contains(item)) _save.Owned.Add(item);
+                StartScene(scene, 60);
+                if (_scene != scene) throw new Exception("не седна: " + scene.Id);
+                if (!EffectiveOutfit.TryGetValue(Clothes.Tool.Id, out var held) || held != tool) throw new Exception("няма предмет в лапите: " + scene.Id);
+                UpdateFrame();
+                LeaveScene();
+            }
+            _save.Skins[Kitchen.Guitar] = "ukulele";
+            _save.Owned.Add("skin_guitar_ukulele");
+            StartScene(Scenes.Guitar, 60);
+            if (!EffectiveOutfit.TryGetValue(Clothes.Tool.Id, out var uke) || uke != "guitar_ukulele") throw new Exception("скинът на китарата не се вижда");
+            UpdateFrame();
+            LeaveScene();
+            _save.Skins.Remove(Kitchen.Guitar);
+            _save.Owned.Remove(Kitchen.YarnBasket);
+            _save.Owned.Remove(Kitchen.Guitar);
+        }, 600);
         await step("видове мечо-доро", () =>
         {
             foreach (var mode in PomodoroModes)
@@ -534,9 +591,20 @@ public sealed partial class PetWindow
         await step("пижама", () =>
         {
             var night = new Dictionary<string, string>(_save.Outfit);
-            foreach (var (slot, id) in Clothes.Pajamas) night[slot] = id;
-            foreach (var anim in new[] { "idle", "sleep", "read_sleep" })
-                for (int i = 0; i < 4; i++) _dresser.Frame(_lib, anim, i, night);
+            foreach (var p in Clothes.PajamaSets)
+            {
+                foreach (var (slot, id) in Clothes.PajamaOutfit(p)) night[slot] = id;
+                foreach (var anim in new[] { "idle", "sleep", "read_sleep" })
+                    for (int i = 0; i < 4; i++) _dresser.Frame(_lib, anim, i, night);
+                if (Clothes.Find(p.Top) == null || Clothes.Find(p.Pants) == null) throw new Exception("пижама без дрехи: " + p.Id);
+            }
+            // Некупена пижама не се облича; купената – да.
+            _save.Pajama = "stars";
+            _save.OwnedClothes.Remove("pajama_stars");
+            if (Clothes.CurrentPajama(_save).Id != "classic") throw new Exception("некупена пижама");
+            _save.OwnedClothes.Add("pajama_stars");
+            if (Clothes.CurrentPajama(_save).Id != "stars") throw new Exception("купената пижама не е сложена");
+            _save.Pajama = "classic";
             SetPajamas(false);
             SetPajamas(true);
         }, 300);
@@ -545,6 +613,9 @@ public sealed partial class PetWindow
             foreach (var skin in Furniture.CouchSkins) UseSkin(skin);
             Relax(Scenes.Reading);
             foreach (var skin in Furniture.BedSkins) UseSkin(skin);
+            foreach (var skin in Furniture.ByItem.Values.SelectMany(x => x)) UseSkin(skin);
+            foreach (var p in Clothes.PajamaSets) { UsePajama(p); PajamaPreview(p); }
+            foreach (var skin in Furniture.ByItem.Values.SelectMany(x => x)) if (Furniture.Owns(_save, skin)) SkinImage(skin);
         }, 1000);
         await step("размер", () => { SetBearScale(5); SetBearScale(1); SetBearScale(3); }, 800);
         await step("съблечи", Undress, 1200);
@@ -1034,8 +1105,9 @@ public sealed partial class PetWindow
         foreach (var f in Kitchen.Foods) if (!_save.Owned.Contains(Kitchen.RecipeId(f))) _save.Owned.Add(Kitchen.RecipeId(f));
         foreach (var b in Backdrops.All) if (!_save.Owned.Contains("bg_" + b.Id)) _save.Owned.Add("bg_" + b.Id);
         foreach (var g in Clothes.All) if (!_save.OwnedClothes.Contains(g.Id)) _save.OwnedClothes.Add(g.Id);
-        foreach (var k in Furniture.CouchSkins.Concat(Furniture.BedSkins))
+        foreach (var k in Furniture.ByItem.Values.SelectMany(x => x))
             if (!_save.Owned.Contains($"skin_{k.Item}_{k.Id}")) _save.Owned.Add($"skin_{k.Item}_{k.Id}");
+        foreach (var p in Clothes.PajamaSets) if (!_save.OwnedClothes.Contains(p.Key)) _save.OwnedClothes.Add(p.Key);
         Persist();
         NotifyCare();
     }

@@ -473,6 +473,302 @@
       "file": "cook_jug_berry_open.png",
       "seat": 0
     },
+    "cook_pot_enamel": {
+      "file": "cook_pot_enamel.png",
+      "seat": 0
+    },
+    "cook_pot_enamel_b": {
+      "file": "cook_pot_enamel_b.png",
+      "seat": 0
+    },
+    "cook_pot_enamel_open": {
+      "file": "cook_pot_enamel_open.png",
+      "seat": 0
+    },
+    "cook_pot_copper": {
+      "file": "cook_pot_copper.png",
+      "seat": 0
+    },
+    "cook_pot_copper_b": {
+      "file": "cook_pot_copper_b.png",
+      "seat": 0
+    },
+    "cook_pot_copper_open": {
+      "file": "cook_pot_copper_open.png",
+      "seat": 0
+    },
+    "cook_pan_cast_iron": {
+      "file": "cook_pan_cast_iron.png",
+      "seat": 0
+    },
+    "cook_pan_cast_iron_b": {
+      "file": "cook_pan_cast_iron_b.png",
+      "seat": 0
+    },
+    "cook_pan_cast_iron_open": {
+      "file": "cook_pan_cast_iron_open.png",
+      "seat": 0
+    },
+    "cook_pan_pink": {
+      "file": "cook_pan_pink.png",
+      "seat": 0
+    },
+    "cook_pan_pink_b": {
+      "file": "cook_pan_pink_b.png",
+      "seat": 0
+    },
+    "cook_pan_pink_open": {
+      "file": "cook_pan_pink_open.png",
+      "seat": 0
+    },
+    "cook_oven_retro": {
+      "file": "cook_oven_retro.png",
+      "seat": 0
+    },
+    "cook_oven_retro_b": {
+      "file": "cook_oven_retro_b.png",
+      "seat": 0
+    },
+    "cook_oven_retro_open": {
+      "file": "cook_oven_retro_open.png",
+      "seat": 0
+    },
+    "cook_oven_wood": {
+      "file": "cook_oven_wood.png",
+      "seat": 0
+    },
+    "cook_oven_wood_b": {
+      "file": "cook_oven_wood_b.png",
+      "seat": 0
+    },
+    "cook_oven_wood_open": {
+      "file": "cook_oven_wood_open.png",
+      "seat": 0
+    },
+    "cook_coffee_machine_moka": {
+      "file": "cook_coffee_machine_moka.png",
+      "seat": 0
+    },
+    "cook_coffee_machine_moka_b": {
+      "file": "cook_coffee_machine_moka_b.png",
+      "seat": 0
+    },
+    "cook_coffee_machine_moka_open": {
+      "file": "cook_coffee_machine_moka_open.png",
+      "seat": 0
+    },
+    "cook_coffee_machine_retro": {
+      "file": "cook_coffee_machine_retro.png",
+      "seat": 0
+    },
+    "cook_coffee_machine_retro_b": {
+      "file": "cook_coffee_machine_retro_b.png",
+      "seat": 0
+    },
+    "cook_coffee_machine_retro_open": {
+      "file": "cook_coffee_machine_retro_open.png",
+      "seat": 0
+    },
+    "cook_kettle_whistle": {
+      "file": "cook_kettle_whistle.png",
+      "seat": 0
+    },
+    "cook_kettle_whistle_b": {
+      "file": "cook_kettle_whistle_b.png",
+      "seat": 0
+    },
+    "cook_kettle_whistle_open": {
+      "file": "cook_kettle_whistle_open.png",
+      "seat": 0
+    },
+    "cook_kettle_glass": {
+      "file": "cook_kettle_glass.png",
+      "seat": 0
+    },
+    "cook_kettle_glass_b": {
+      "file": "cook_kettle_glass_b.png",
+      "seat": 0
+    },
+    "cook_kettle_glass_open": {
+      "file": "cook_kettle_glass_open.png",
+      "seat": 0
+    },
+    "cook_mixer_mint": {
+      "file": "cook_mixer_mint.png",
+      "seat": 0
+    },
+    "cook_mixer_mint_b": {
+      "file": "cook_mixer_mint_b.png",
+      "seat": 0
+    },
+    "cook_mixer_mint_open": {
+      "file": "cook_mixer_mint_open.png",
+      "seat": 0
+    },
+    "cook_mixer_hand": {
+      "file": "cook_mixer_hand.png",
+      "seat": 0
+    },
+    "cook_mixer_hand_b": {
+      "file": "cook_mixer_hand_b.png",
+      "seat": 0
+    },
+    "cook_mixer_hand_open": {
+      "file": "cook_mixer_hand_open.png",
+      "seat": 0
+    },
+    "cook_sandwich_red": {
+      "file": "cook_sandwich_red.png",
+      "seat": 0
+    },
+    "cook_sandwich_red_b": {
+      "file": "cook_sandwich_red_b.png",
+      "seat": 0
+    },
+    "cook_sandwich_red_open": {
+      "file": "cook_sandwich_red_open.png",
+      "seat": 0
+    },
+    "cook_sandwich_waffle": {
+      "file": "cook_sandwich_waffle.png",
+      "seat": 0
+    },
+    "cook_sandwich_waffle_b": {
+      "file": "cook_sandwich_waffle_b.png",
+      "seat": 0
+    },
+    "cook_sandwich_waffle_open": {
+      "file": "cook_sandwich_waffle_open.png",
+      "seat": 0
+    },
+    "cook_icecream_cart": {
+      "file": "cook_icecream_cart.png",
+      "seat": 0
+    },
+    "cook_icecream_cart_b": {
+      "file": "cook_icecream_cart_b.png",
+      "seat": 0
+    },
+    "cook_icecream_cart_open": {
+      "file": "cook_icecream_cart_open.png",
+      "seat": 0
+    },
+    "cook_icecream_pink": {
+      "file": "cook_icecream_pink.png",
+      "seat": 0
+    },
+    "cook_icecream_pink_b": {
+      "file": "cook_icecream_pink_b.png",
+      "seat": 0
+    },
+    "cook_icecream_pink_open": {
+      "file": "cook_icecream_pink_open.png",
+      "seat": 0
+    },
+    "cook_grill_kettle": {
+      "file": "cook_grill_kettle.png",
+      "seat": 0
+    },
+    "cook_grill_kettle_b": {
+      "file": "cook_grill_kettle_b.png",
+      "seat": 0
+    },
+    "cook_grill_kettle_open": {
+      "file": "cook_grill_kettle_open.png",
+      "seat": 0
+    },
+    "cook_grill_camp": {
+      "file": "cook_grill_camp.png",
+      "seat": 0
+    },
+    "cook_grill_camp_b": {
+      "file": "cook_grill_camp_b.png",
+      "seat": 0
+    },
+    "cook_grill_camp_open": {
+      "file": "cook_grill_camp_open.png",
+      "seat": 0
+    },
+    "heater_fireplace": {
+      "file": "heater_fireplace.png",
+      "seat": 0
+    },
+    "heater_fireplace_b": {
+      "file": "heater_fireplace_b.png",
+      "seat": 0
+    },
+    "heater_fireplace_off": {
+      "file": "heater_fireplace_off.png",
+      "seat": 0
+    },
+    "heater_tiles": {
+      "file": "heater_tiles.png",
+      "seat": 0
+    },
+    "heater_tiles_b": {
+      "file": "heater_tiles_b.png",
+      "seat": 0
+    },
+    "heater_tiles_off": {
+      "file": "heater_tiles_off.png",
+      "seat": 0
+    },
+    "heater_retro": {
+      "file": "heater_retro.png",
+      "seat": 0
+    },
+    "heater_retro_b": {
+      "file": "heater_retro_b.png",
+      "seat": 0
+    },
+    "heater_retro_off": {
+      "file": "heater_retro_off.png",
+      "seat": 0
+    },
+    "heater_cozy": {
+      "file": "heater_cozy.png",
+      "seat": 0
+    },
+    "heater_cozy_b": {
+      "file": "heater_cozy_b.png",
+      "seat": 0
+    },
+    "heater_cozy_off": {
+      "file": "heater_cozy_off.png",
+      "seat": 0
+    },
+    "lamp": {
+      "file": "lamp.png",
+      "seat": 0
+    },
+    "lamp_mushroom": {
+      "file": "lamp_mushroom.png",
+      "seat": 0
+    },
+    "lamp_lantern": {
+      "file": "lamp_lantern.png",
+      "seat": 0
+    },
+    "lamp_moon": {
+      "file": "lamp_moon.png",
+      "seat": 0
+    },
+    "lamp_lava": {
+      "file": "lamp_lava.png",
+      "seat": 0
+    },
+    "lamp_candle": {
+      "file": "lamp_candle.png",
+      "seat": 0
+    },
+    "yarn_basket": {
+      "file": "yarn_basket.png",
+      "seat": 0
+    },
+    "shop_guitar": {
+      "file": "shop_guitar.png",
+      "seat": 0
+    },
     "food_popcorn_1": {
       "file": "food_popcorn_1.png",
       "seat": 0
@@ -579,6 +875,14 @@
     },
     "shop_heater": {
       "file": "shop_heater.png",
+      "seat": 0
+    },
+    "shop_yarn_basket": {
+      "file": "shop_yarn_basket.png",
+      "seat": 0
+    },
+    "shop_lamp": {
+      "file": "shop_lamp.png",
       "seat": 0
     }
   }

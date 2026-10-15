@@ -212,7 +212,8 @@ public sealed partial class PetWindow
     {
         if (s == Scenes.Tea) return 1.2;
         if (s == Scenes.Reading) return HasCouch ? 1.2 : 1;
-        if (s == Scenes.Music) return 1.1;
+        if (s == Scenes.Music || s == Scenes.Guitar) return 1.1;
+        if (s == Scenes.Knit) return 1.15;
         if (s == Scenes.Plant) return 0.9;
         if (s == Scenes.Gaming) return 0.7;
         if (s == Scenes.Yoga) return e >= 50 ? 1.2 : 0.7;
@@ -410,8 +411,8 @@ public sealed partial class PetWindow
         LeaveWorkMode();
         if (!CanAnimateFreely || IsAsleep) return;
         double seconds = Math.Max(30, (_save.PomodoroEndsAt - DateTime.Now).TotalSeconds);
-        var tired = new[] { Scenes.Tea, Scenes.Reading, Scenes.Music };
-        var fresh = new[] { Scenes.Yoga, Scenes.Trampoline, Scenes.Plant, Scenes.Gaming, Scenes.Music };
+        var tired = new[] { Scenes.Tea, Scenes.Reading, Scenes.Music, Scenes.Knit };
+        var fresh = new[] { Scenes.Yoga, Scenes.Trampoline, Scenes.Plant, Scenes.Gaming, Scenes.Music, Scenes.Guitar };
         var pool = (_save.Energy < 50 ? tired : fresh).Where(s => Scenes.IsUnlocked(s, _save)).ToList();
         if (pool.Count == 0) pool = tired.Where(s => Scenes.IsUnlocked(s, _save)).ToList();
         var scene = pool.Count > 0 ? pool[_rng.Next(pool.Count)] : Scenes.Reading;

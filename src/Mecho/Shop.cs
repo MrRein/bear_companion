@@ -5,10 +5,10 @@ using System.Linq;
 namespace Mecho;
 
 /// <summary>
-/// Офертата на деня: най-горе в магазина има 3 неща (дрехи и аксесоари, тапети,
-/// скинове за дивана и леглото), които се сменят всеки ден в 00:00. Купените не
-/// излизат. Дрехите и тапетите идват едва след като е купен гардеробът; скиновете –
-/// само ако има диван или легло.
+/// Офертата на деня: най-горе в магазина има 3 неща (дрехи и аксесоари, пижами,
+/// тапети, скинове за мебелите и уредите), които се сменят всеки ден в 00:00.
+/// Купените не излизат. Всичко идва едва след като е купен гардеробът; скинът –
+/// само ако предметът му е купен.
 /// </summary>
 public static class DailyOffer
 {
@@ -35,8 +35,9 @@ public static class DailyOffer
         {
             foreach (var g in Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(s, g))) Add("g:" + g.SlotId, "g:" + g.Id);
             foreach (var b in Backdrops.All.Where(b => b.Price > 0 && !Backdrops.Owns(s, b))) Add("bg", "bg:" + b.Id);
+            foreach (var p in Clothes.PajamaSets.Where(p => !Clothes.Owns(s, p))) Add("pj", "pj:" + p.Id);
         }
-        foreach (var item in new[] { Kitchen.Couch, Kitchen.Bed })
+        foreach (var item in Furniture.ByItem.Keys)
         {
             if (!Kitchen.Owns(s, item)) continue;
             foreach (var k in Furniture.SkinsFor(item).Where(k => k.Price > 0 && !Furniture.Owns(s, k))) Add("skin:" + item, $"skin:{item}:{k.Id}");
@@ -83,8 +84,10 @@ public static class DailyOffer
         var groups = Pool(s).Where(g => !used.Contains(g.Key)).ToList();
         while (s.OfferItems.Count < Count && groups.Count > 0)
         {
-            // Дрехите са по-често (много видове), но тапет и скин също имат шанс.
-            double Weight(string group) => group.StartsWith("g:") ? 1 : 1.5;
+            // Дрехите са по-често (много видове), но тапет, пижама и скин също имат шанс.
+            // Скиновете са на много предмети: общо да не изместват дрехите.
+            int skinGroups = Math.Max(1, groups.Count(g => g.Key.StartsWith("skin:")));
+            double Weight(string group) => group.StartsWith("g:") ? 1 : group.StartsWith("skin:") ? Math.Min(1.5, 4.0 / skinGroups) : 1.5;
             double roll = Rng.NextDouble() * groups.Sum(g => Weight(g.Key));
             int i = 0;
             for (; i < groups.Count - 1; i++)
@@ -109,6 +112,7 @@ public static class DailyOffer
         {
             "g" => Clothes.Find(parts[1]),
             "bg" => Backdrops.All.FirstOrDefault(b => b.Id == parts[1]),
+            "pj" => Clothes.PajamaSets.FirstOrDefault(p => p.Id == parts[1]),
             "skin" when parts.Length == 3 => Furniture.SkinsFor(parts[1]).FirstOrDefault(k => k.Id == parts[2]),
             _ => null,
         };

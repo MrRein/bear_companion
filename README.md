@@ -257,6 +257,20 @@ Sans / Bold / Mono (GGBotNet, SIL Open Font License) в `src/Mecho/fonts/`.
 анимации (`read`, `read_sleep`) се рисуват така, сякаш мечокът стои на земята;
 програмата сама го вдига на седалката.
 
+### Мебели и скинове
+
+`art_templates/props_sheet.png` (прави го `python tools/props_sheet.py`) показва
+всички мебели, уреди и скиновете им – с името на файла и размера под всяка
+рисунка. Скинът е същото име с `_<скин>` преди кадъра: `cook_pot_copper_b.png`,
+`heater_tiles_off.png`, `lamp_moon.png`. Китарата и куките са предмети в лапите
+(`assets/clothes/tool_guitar_<скин>.png`, 27×27, дръжката/лапата в средата).
+Скиновете са в `src/Mecho/Furniture.cs` (`ByItem`); временните рисунки ги прави
+`tools/make_placeholders.py` (оцветени копия), докато Тут не нарисува истинските.
+
+Нови анимации за хобитата (ако Тут иска): `knit` и `guitar` (по желание и
+`_tired`) – седнал на столче, без предмета; предметът се слага на точката
+`_tool` (`python tools/doing_sheet.py`).
+
 ### Нарисуваните от Тут
 
 Готовите рисунки се качват в папка `done_art/` в GitHub (Add file → Upload

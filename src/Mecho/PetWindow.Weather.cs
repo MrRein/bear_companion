@@ -94,6 +94,7 @@ public sealed partial class PetWindow
             }));
         }
         UpdateHeater(now);
+        UpdateLamp();
         AskHeaterCloser(now);
         if (now < _nextWarmthLine || _tempC == null) return;
         // Колкото му е по-неудобно, толкова по-често казва (40–80 мин, а в мраза без дрехи – 15–30).
@@ -242,14 +243,14 @@ public sealed partial class PetWindow
                 Persist();
             };
             _heaterWindow.SetAway(!IsVisible);
-            _heaterWindow.Place(_lib.GetProp("heater", 20, 22, 0).Image, PixelSize, x, area.Bottom);
+            _heaterWindow.Place(_lib.GetProp(Furniture.CurrentArt(_save, Kitchen.Heater), 20, 22, 0).Image, PixelSize, x, area.Bottom);
             _save.HeaterX = x;
         }
         _heaterWindow.Step(0.033);
         if (now > _nextHeaterFrame)
         {
             _nextHeaterFrame = now + 0.4;
-            string art = (int)(now / 0.4) % 2 == 0 ? "heater" : "heater_b";
+            string art = Furniture.CurrentArt(_save, Kitchen.Heater, (int)(now / 0.4) % 2 == 0 ? "" : "_b");
             _heaterWindow.SetArt(_lib.GetProp(art, 20, 22, 0).Image, PixelSize);
         }
     }

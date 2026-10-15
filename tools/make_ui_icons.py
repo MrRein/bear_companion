@@ -708,6 +708,58 @@ krrrk..krrrk
 krrk....krrk
 .kk......kk.
 ............""",
+    "yarn": """
+............
+....kkkk....
+..kkppppkk..
+.kpwppkpppk.
+.kppkpppwpk.
+kpppkppkpppk
+kpwpppkppppk
+kpppkpppkpk.
+.kpppppkppk.
+.kkpppppkk.m
+...kkkkk..m.
+.........m..""",
+    "guitar": """
+..........kk
+.........kmk
+........kmk.
+.......kmk..
+...kkkkmk...
+..kooookk...
+.koookoook..
+kooookkook..
+koookkoook..
+koooooook...
+.kooooookk..
+..kkkkkk....""",
+    "lamp": """
+....kkkk....
+...kyyyyk...
+..kyyyyyyk..
+.kyyyyyyyyk.
+.kkkkkkkkkk.
+.....kk.....
+.....kk.....
+.....kk.....
+.....kk.....
+.....kk.....
+...kkkkkk...
+...kmmmmk...""",
+    "pajama": """
+..kkk..kkk..
+.kuukkkkuuk.
+kuwuuuuuuwuk
+kuuuwuuwuuuk
+kkkuuuuuukkk
+..kuwuuuwk..
+..kuuuuuuk..
+..kuuwwuuk..
+..kuuk.kuuk.
+..kuwk.kwuk.
+..kuuk.kuuk.
+..kkkk.kkkk.""",
 }
 
 

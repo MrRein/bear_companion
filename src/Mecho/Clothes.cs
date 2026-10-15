@@ -18,6 +18,13 @@ public enum Anchor { Bottom, Center, Top }
 
 public enum Pattern { None, Stripes, Dots, Checks }
 
+/// <summary>Пижама: сет от горнище и долнище (скрити дрехи), купува се цяла.</summary>
+public sealed record PajamaSet(string Id, string Name, int Price, string Top, string Pants)
+{
+    /// <summary>Как се пази в купените дрехи (OwnedClothes).</summary>
+    public string Key => "pajama_" + Id;
+}
+
 /// <summary>
 /// Дреха. Шапката е рисунка assets/clothes/hat_&lt;Id&gt;.png, която сяда на точката
 /// от &lt;anim&gt;_head.png. Другите дрехи оцветяват сивия шаблон &lt;anim&gt;_&lt;слот&gt;.png
@@ -137,9 +144,22 @@ public static class Clothes
         new("bowtie", "Папийонка", "neck", 20, default, default),
         new("nut_necklace", "Колие с лешник", "neck", 45, default, default),
 
-        // Пижамата: облича се сама вечер (виж PetWindow.Wardrobe.cs), не се продава.
+        // Пижамите: облича се сама вечер (виж PetWindow.Furniture.cs). Купуват се като сет
+        // (PajamaSets), не поотделно, затова горнището и долнището са скрити.
         new("pj_top", "Пижама", "shirt", 0, C(150, 190, 235), C(250, 250, 255), Pattern.Dots) { Hidden = true, LongSleeves = true },
         new("pj_pants", "Пижама", "pants", 0, C(150, 190, 235), C(250, 250, 255), Pattern.Stripes) { Hidden = true },
+        new("pj_pink_top", "Пижама", "shirt", 0, C(245, 170, 190), C(255, 255, 255), Pattern.Dots) { Hidden = true, LongSleeves = true },
+        new("pj_pink_pants", "Пижама", "pants", 0, C(245, 170, 190), C(245, 170, 190)) { Hidden = true },
+        new("pj_stars_top", "Пижама", "shirt", 0, C(50, 60, 120), C(255, 220, 100), Pattern.Dots) { Hidden = true, LongSleeves = true },
+        new("pj_stars_pants", "Пижама", "pants", 0, C(50, 60, 120), C(255, 220, 100), Pattern.Dots) { Hidden = true },
+        new("pj_honey_top", "Пижама", "shirt", 0, C(250, 205, 90), C(240, 150, 60), Pattern.Checks) { Hidden = true, LongSleeves = true },
+        new("pj_honey_pants", "Пижама", "pants", 0, C(250, 205, 90), C(240, 150, 60), Pattern.Checks) { Hidden = true },
+        new("pj_mint_top", "Пижама", "shirt", 0, C(150, 215, 190), C(255, 255, 255), Pattern.Stripes) { Hidden = true, LongSleeves = true },
+        new("pj_mint_pants", "Пижама", "pants", 0, C(150, 215, 190), C(255, 255, 255), Pattern.Stripes) { Hidden = true },
+        new("pj_cloud_top", "Пижама", "shirt", 0, C(245, 240, 230), C(245, 240, 230)) { Hidden = true, LongSleeves = true, Fluffy = true },
+        new("pj_cloud_pants", "Пижама", "pants", 0, C(245, 240, 230), C(245, 240, 230)) { Hidden = true },
+        new("pj_forest_top", "Пижама", "shirt", 0, C(100, 160, 90), C(60, 100, 55), Pattern.Checks) { Hidden = true, LongSleeves = true },
+        new("pj_forest_pants", "Пижама", "pants", 0, C(70, 120, 65), C(70, 120, 65)) { Hidden = true },
         new("nightcap", "Нощна шапка", "hat", 0, default, default) { Hidden = true },
 
         // Напитките в лапата (виж PetWindow.Drinking.cs).
@@ -150,6 +170,7 @@ public static class Clothes
         new("paintbrush_red", "Червена четка", "tool", 0, default, default) { Hidden = true },
         new("paintbrush_blue", "Синя четка", "tool", 0, default, default) { Hidden = true },
         new("wateringcan", "Лейка", "tool", 0, default, default) { Hidden = true },
+        new("knitting", "Куки с прежда", "tool", 0, default, default) { Hidden = true },
     });
 
     /// <summary>
@@ -204,13 +225,45 @@ public static class Clothes
         catch { return C(214, 74, 70); }
     }
 
-    /// <summary>Пижамата (слот → дреха), която сменя облеклото вечер.</summary>
-    public static readonly Dictionary<string, string> Pajamas = new()
+    /// <summary>Пижамите (сетове): горнище и долнище, с нощната шапка и пантофите. Първата е безплатна.</summary>
+    public static readonly PajamaSet[] PajamaSets =
     {
-        ["shirt"] = "pj_top", ["pants"] = "pj_pants", ["hat"] = "nightcap", ["shoes"] = "slippers",
+        new("classic", "Синя пижама", 0, "pj_top", "pj_pants"),
+        new("pink", "Розова на точки", 20, "pj_pink_top", "pj_pink_pants"),
+        new("stars", "Звездна пижама", 25, "pj_stars_top", "pj_stars_pants"),
+        new("honey", "Медено каре", 25, "pj_honey_top", "pj_honey_pants"),
+        new("mint", "Ментова на райе", 20, "pj_mint_top", "pj_mint_pants"),
+        new("cloud", "Пухкава облачна", 35, "pj_cloud_top", "pj_cloud_pants"),
+        new("forest", "Горска каре", 25, "pj_forest_top", "pj_forest_pants"),
     };
 
-    public static Garment? Find(string? id) => id == null ? null : All.FirstOrDefault(g => g.Id == id);
+    public static PajamaSet PajamaById(string? id) => PajamaSets.FirstOrDefault(p => p.Id == id) ?? PajamaSets[0];
+
+    public static bool Owns(SaveData save, PajamaSet p) => p.Price == 0 || save.OwnedClothes.Contains(p.Key);
+
+    /// <summary>Избраната пижама, ако е купена (иначе синята).</summary>
+    public static PajamaSet CurrentPajama(SaveData save) => PajamaById(save.Pajama) is var p && Owns(save, p) ? p : PajamaSets[0];
+
+    /// <summary>Пижамата като дрехи (слот → дреха), които сменят облеклото вечер.</summary>
+    public static Dictionary<string, string> PajamaOutfit(PajamaSet p) => new()
+    {
+        ["shirt"] = p.Top, ["pants"] = p.Pants, ["hat"] = "nightcap", ["shoes"] = "slippers",
+    };
+
+    public static Garment? Find(string? id) => id == null ? null : All.FirstOrDefault(g => g.Id == id) ?? GuitarTool(id);
+
+    /// <summary>Китарата в лапите: guitar, guitar_electric… (рисунка tool_&lt;id&gt;.png, по една на скин).</summary>
+    private static readonly Dictionary<string, Garment> Guitars = new();
+
+    private static Garment? GuitarTool(string id)
+    {
+        if (!id.StartsWith("guitar")) return null;
+        lock (Guitars)
+        {
+            if (!Guitars.TryGetValue(id, out var g)) Guitars[id] = g = new Garment(id, "Китара", "tool", 0, default, default) { Hidden = true };
+            return g;
+        }
+    }
 
     public static bool Owns(SaveData save, Garment g) => save.OwnedClothes.Contains(g.Id);
 
@@ -230,8 +283,12 @@ public sealed class Dresser
     public const int HatRoom = 12;
 
     /// <summary>Анимации, в които лапите държат нещо пред гърдите: без шал/папийонка/колие.</summary>
+    /// <summary>Анимации с предмет в лапата (точката _tool): doing*, knit*, guitar*.</summary>
+    public static bool HoldsTool(string anim) => anim.StartsWith("doing") || anim.StartsWith("knit") || anim.StartsWith("guitar");
+
     public static readonly HashSet<string> HandsBusy = new()
     {
+        "knit", "knit_tired", "guitar", "guitar_tired",
         "read", "read_sleep", "game", "game_tired", "write", "write_tired", "work", "work_tired", "focus", "focus_tired",
         "focus_write", "paint", "doing", "doing_tired", "doing_sit", "doing_sit_tired", "water", "eat", "eat_hold", "drink",
         "sit_drinking", "sit_drinking_sip", "sit_drinking_blow", "cook", "cook_tired", "dice",

@@ -40,7 +40,12 @@ ANIMS = {
     "doing": ["wateringcan"],
     "doing_tired": ["wateringcan"],
 }
-NAMES = {"paintbrush_red": "червена четка", "paintbrush_blue": "синя четка", "wateringcan": "лейка"}
+# Плетене и китара: щом Тут нарисува анимациите, влизат и те.
+for _anim, _tools in {"knit": ["knitting"], "knit_tired": ["knitting"], "guitar": ["guitar"], "guitar_tired": ["guitar"]}.items():
+    if os.path.exists(os.path.join(BEAR, f"{_anim}.png")) and os.path.exists(os.path.join(ac.PAINT, f"{_anim}_tool.png")):
+        ANIMS[_anim] = _tools
+NAMES = {"paintbrush_red": "червена четка", "paintbrush_blue": "синя четка", "wateringcan": "лейка",
+         "knitting": "куки", "guitar": "китара"}
 
 
 def frames(img):

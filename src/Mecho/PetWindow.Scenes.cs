@@ -22,12 +22,15 @@ public sealed record Scene(
 
     /// <summary>Кой предмет от магазина го отключва (null = свободно).</summary>
     public string? Unlock { get; init; }
+
+    /// <summary>Анимацията, докато Тут не е нарисувала своята (Anim) – например doing_sit с предмет в лапата.</summary>
+    public string? Fallback { get; init; }
 }
 
 public static class Scenes
 {
     /// <summary>Забавленията: кътчета, в които сяда сам, когато скучае, или когато Тут му каже „Почивай си“.</summary>
-    public static Scene[] Fun => new[] { Reading, Gaming, Tea, Yoga, Plant, Music, Trampoline };
+    public static Scene[] Fun => new[] { Reading, Gaming, Tea, Yoga, Plant, Music, Knit, Guitar, Trampoline };
 
     /// <summary>Работа (без мечо-доро): „Работи си“ – бюро, тефтер, настолна игра, статив.</summary>
     public static Scene[] Work => new[] { Desk, Write, Board, Painting };
@@ -124,6 +127,20 @@ public static class Scenes
         R.Get("scene.music.during"),
         R.Get("scene.music.end"))
     { Name = "Слушай музика", Icon = "music", Unlock = Kitchen.Radio };
+
+    /// <summary>Плете на столче, кошницата с преждата е до него (куките са в лапите).</summary>
+    public static readonly Scene Knit = new("knit", "stool", "yarn_basket", -1, "knit",
+        R.Get("scene.knit.start"),
+        R.Get("scene.knit.during"),
+        R.Get("scene.knit.end"))
+    { Name = "Плети", Icon = "yarn", Unlock = Kitchen.YarnBasket, Fallback = "doing_sit" };
+
+    /// <summary>Свири на китара на столчето (китарата е в лапите; скинът ѝ се вижда).</summary>
+    public static readonly Scene Guitar = new("guitar", "stool", null, 0, "guitar",
+        R.Get("scene.guitar.start"),
+        R.Get("scene.guitar.during"),
+        R.Get("scene.guitar.end"))
+    { Name = "Свири на китара", Icon = "guitar", Unlock = Kitchen.Guitar, Fallback = "doing_sit" };
 
     public static readonly Scene Board = new("board", "stool", "table_board", 1, "work",
         R.Get("scene.board.start"),
@@ -318,7 +335,7 @@ public sealed partial class PetWindow
         _sceneUntil = 0;
         LoadSceneArt(scene);
         _facingLeft = false;
-        SetState(BearState.Couch, scene.Anim);
+        SetState(BearState.Couch, SceneAnim(scene));
         ClampX();
         if (IsExhausted && scene != Scenes.Focus && _rng.Next(2) == 0) Announce(Lines.Pick(Lines.SleepyDoing, _save.OwnerName), 3);
         else if (!quiet) Announce(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
@@ -334,9 +351,12 @@ public sealed partial class PetWindow
             return;
         }
         _facingLeft = false;
-        SetState(BearState.Couch, _scene.Anim);
+        SetState(BearState.Couch, SceneAnim(_scene));
         ClampX();
     }
+
+    /// <summary>Анимацията на кътчето: нарисуваната или временната (Fallback).</summary>
+    private string SceneAnim(Scene scene) => scene.Fallback != null && !_lib.Has(scene.Anim) ? scene.Fallback : scene.Anim;
 
     private void LeaveScene()
     {

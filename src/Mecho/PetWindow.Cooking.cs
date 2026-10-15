@@ -236,8 +236,9 @@ public sealed partial class PetWindow
 
     private System.Windows.Media.Imaging.BitmapSource CookerArtFor(Food food, string tool, string frame)
     {
-        string name = tool == Kitchen.Jug ? "jug_" + (food.Id == "juice_berry" ? "berry" : "orange") : tool;
-        return _lib.GetProp("cook_" + name + frame, 22, 24, 0).Image;
+        // Каничката е с цвета на сока; другите уреди – със сложения скин (cook_pot_copper…).
+        string name = tool == Kitchen.Jug ? "cook_jug_" + (food.Id == "juice_berry" ? "berry" : "orange") + frame : Furniture.CurrentArt(_save, tool, frame);
+        return _lib.GetProp(name, 22, 24, 0).Image;
     }
 
     private void UpdateCookingTag()

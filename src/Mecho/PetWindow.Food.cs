@@ -47,6 +47,7 @@ public sealed partial class PetWindow
         }
         _cook?.Window.SetAway(!show);
         _heaterWindow?.SetAway(!show);
+        _lampWindow?.SetAway(!show);
         _visitor?.SetAway(!show);
         _parcel?.SetAway(!show);
         if (!show)

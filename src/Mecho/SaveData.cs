@@ -42,7 +42,12 @@ public sealed class SaveData
     public List<string> MealsDone { get; set; } = new();      // "lunch:2026-10-11", "lunch-thanks:…" (виж Meals)
     public string CouchSkin { get; set; } = "classic";
     public string BedSkin { get; set; } = "classic";
-    public bool PajamasAtNight { get; set; } = true;            // пижама вечер (виж PetWindow.Wardrobe.cs)
+    public Dictionary<string, string> Skins { get; set; } = new(); // предмет → сложеният скин (виж Furniture)
+    public bool PajamasAtNight { get; set; } = true;            // пижама вечер (виж PetWindow.Furniture.cs)
+    public string Pajama { get; set; } = "classic";             // коя пижама облича вечер (виж Clothes.PajamaSets)
+    public bool LampOff { get; set; }                           // Тут изгаси лампата тази вечер (до сутринта)
+    public string LampOffDay { get; set; } = "";
+    public double LampX { get; set; } = double.NaN;
     public int BearScale { get; set; }                          // размер на мечока (0 = по подразбиране)
     public string Background { get; set; } = "meadow";         // фонът на портрета (виж Backdrops)
     public List<string> OwnedClothes { get; set; } = new();     // купени дрехи (виж Clothes)

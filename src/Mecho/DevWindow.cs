@@ -369,6 +369,8 @@ public sealed partial class PetWindow
         _save.Outfit.Clear();
         _save.Background = Backdrops.Default;
         _save.CouchSkin = _save.BedSkin = Furniture.Classic;
+        _save.Skins.Clear();
+        _save.Pajama = "classic";
         _save.StayPut = false;
         Persist();
         NotifyCare();

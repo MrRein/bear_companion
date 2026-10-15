@@ -35,6 +35,7 @@ public static class Kitchen
     // Предмети за почивка: всеки отключва кътче (виж Scenes).
     public const string Easel = "easel", Computer = "computer", YogaMat = "yoga_mat", PlantPot = "plant", Radio = "radio", BoardGame = "board_game";
     public const string Trampoline = "trampoline", Couch = "couch", Wardrobe = "wardrobe", Heater = "heater";
+    public const string YarnBasket = "yarn_basket", Guitar = "guitar", Lamp = "lamp";
 
     // Раздели в магазина
     public const string KitchenShelf = "Кухня", FunShelf = "Хобита", FurnitureShelf = "Мебели", HelpShelf = "Подобрения";
@@ -143,12 +144,15 @@ public static class Kitchen
         new(Easel, "Статив", "🎨", 30, "За рисуване.", FunShelf),
         new(Trampoline, "Батут", "🤸", 35, "За скачане.", FunShelf),
         new(Computer, "Компютър", "🎮", 50, "Игрички.", FunShelf),
+        new(YarnBasket, "Кошница с прежда", "🧶", 25, "За плетене.", FunShelf),
+        new(Guitar, "Китара", "🎸", 35, "Свири си песнички.", FunShelf),
 
         new(Headphones, "Слушалки", "🎧", 35, "+1 🌰 за мечо-доро.", HelpShelf),
         new(Couch, "Диван", "🛋️", 20, "Мек диван за четене.", FurnitureShelf),
         new(Bed, "Меко легло", "🛏️", 40, "Наспива се по-бързо.", FurnitureShelf),
         new(Heater, "Печица", "🔥", 30, "Топличко за зимата.", FurnitureShelf),
         new(Wardrobe, "Гардероб", "👕", 25, "Дрехи, аксесоари и тапети.", FurnitureShelf),
+        new(Lamp, "Лампа", "🪔", 25, "Свети вечер.", FurnitureShelf),
         new(Fridge, "Хладилник", "🧊", 50, "Ястията са с 1 🌰 по-евтини.", HelpShelf),
         new(Cookbook, "Готварска книга", "📖", 60, "Ястията засищат повече.", HelpShelf),
     };

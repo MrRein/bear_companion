@@ -151,7 +151,7 @@ public sealed partial class PetWindow
         if (owned.Count == 0) owned.Add(Scenes.Reading);
         double Weight(Scene f) =>
             (morning && (f == Scenes.Yoga || f == Scenes.Tea || f == Scenes.Plant) ? 3 : 1) *
-            (evening && (f == Scenes.Reading || f == Scenes.Music) ? 3 : 1) *
+            (evening && (f == Scenes.Reading || f == Scenes.Music || f == Scenes.Knit || f == Scenes.Guitar) ? 3 : 1) *
             (IsExhausted && (f == Scenes.Reading || f == Scenes.Tea) ? 3 : 1);
         double total = owned.Sum(Weight), roll = _rng.NextDouble() * total;
         var pick = owned[^1];

@@ -224,6 +224,7 @@ public static class Ui
         ["📻"] = "shop_radio", ["🎲"] = "dice", ["🎨"] = "shop_easel", ["🎮"] = "shop_computer", ["🤸"] = "shop_trampoline",
         ["💡"] = "pencil", ["📝"] = "notes", ["📋"] = "tasks", ["🛋"] = "couch", ["🎁"] = "gift", ["🚶"] = "walk", ["🔒"] = "lock",
         ["💤"] = "moon", ["🌙"] = "moon", ["☀"] = "sun", ["❤"] = "heart", ["♪"] = "music",
+        ["🧶"] = "shop_yarn_basket", ["🎸"] = "shop_guitar", ["🪔"] = "shop_lamp",
         ["🥄"] = "shop_mixer", ["🧇"] = "shop_sandwich", ["🍨"] = "shop_icecream", ["♨"] = "shop_grill",
         ["🍋"] = "food_lemonade", ["🥣"] = "food_soup", ["🌽"] = "food_corn", ["🍫"] = "food_cocoa", ["🌼"] = "food_linden_tea",
         ["🥚"] = "food_eggs", ["🥞"] = "food_pancakes", ["🫘"] = "food_espresso", ["🥛"] = "food_latte", ["🟤"] = "food_mocha",
