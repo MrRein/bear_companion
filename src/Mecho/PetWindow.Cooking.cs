@@ -294,6 +294,20 @@ public sealed partial class PetWindow
             }
 
             c.Window.Shake(CookShaking ? Math.Round(Math.Sin(now * 50)) * PixelSize : 0);
+            // Първата стъпка (рецепта в два уреда) е готова: мечокът сам я пренася във
+            // втория уред – отива до уреда и „цъка“ вместо Тут. Ако не може да дойде
+            // (спи, вдигнат е, работите), след 15 с го прави и без да идва.
+            if (now >= c.PopAt && c.Stage == 0 && !c.Forced && !c.Clicked)
+            {
+                if (at || !canCome || now > c.PopAt + 15)
+                {
+                    if (at) _facingLeft = c.Window.CenterX < _x;
+                    NextCookingStage(c);
+                    return;
+                }
+                c.Window.SetArt(CookerArt((int)(now / 0.3) % 2 == 0 ? "" : "_b"), PixelSize);
+                return;
+            }
             // Готово е: чака Тут да цъкне уреда. Мечокът стои до него и я вика.
             if (now >= c.PopAt && !c.Forced && !c.Clicked)
             {
