@@ -314,6 +314,21 @@ public sealed partial class PetWindow
             await step("изчисти храната", DevClearFood, 300);
         }
 
+        await step("два уреда: мечокът сам пренася", () =>
+        {
+            var two = Kitchen.Foods.First(f => f.Prep != null);
+            _save.CoffeeTimes.Clear();
+            Cook(two);
+            StartPendingCook();
+            if (_cook?.Stage != 0) throw new Exception("не почна от първия уред");
+            _cook.PopAt = Now - 16;   // готово отдавна: сам минава във втория уред
+        }, 1000);
+        await step("два уреда: във втория уред", () =>
+        {
+            if (_cook?.Stage != 1) throw new Exception("първата стъпка чака цъкане");
+            DevFinishCooking();
+        }, 4000);
+        await step("изчисти храната", DevClearFood, 300);
         await step("готвене: идва за края", () =>
         {
             TestCook(Kitchen.Foods.First(f => f.Tool == Kitchen.Pan));
