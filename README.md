@@ -314,7 +314,14 @@ files). Оттам се копират в `assets/bear/`, името им се �
 
 Лист само за новите анимации: `python tools/clothes_sheet.py new <анимации>` →
 `art_templates/clothes_sheet_new.png` (без дрехи) и `clothes_sheet_new_draft.png`
-(с картата). Маркираният се качва като `done_art/clothes_sheet_new.png` и се
+(с картата). Целият лист (всички анимации): `python tools/clothes_sheet.py`.
+
+Четката и лейката: `python tools/doing_sheet.py` → `art_templates/doing_sheet.png`.
+На реда „точка“ се мести синята точка (средата на предмета), под него се вижда
+как излиза в играта; най-долу са самите предмети (дръжката – в средния пиксел).
+Качва се като `done_art/doing_sheet.png` → `python tools/doing_sheet.py import`.
+
+Маркираният нов лист се качва като `done_art/clothes_sheet_new.png` и се
 чете с `python tools/clothes_sheet.py import done_art/clothes_sheet_new.png`.
 
 Как се поправя бъг (шал върху ръката, ръкавица на грешно място, обувки):

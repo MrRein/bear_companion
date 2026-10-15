@@ -1,0 +1,71 @@
+{
+ "rows": [
+  {
+   "kind": "dots",
+   "anim": "doing_sit",
+   "y": 4,
+   "frames": 4
+  },
+  {
+   "kind": "preview",
+   "anim": "doing_sit",
+   "tool": "paintbrush_red",
+   "y": 64,
+   "frames": 4
+  },
+  {
+   "kind": "preview",
+   "anim": "doing_sit",
+   "tool": "paintbrush_blue",
+   "y": 124,
+   "frames": 4
+  },
+  {
+   "kind": "dots",
+   "anim": "doing_sit_tired",
+   "y": 194,
+   "frames": 4
+  },
+  {
+   "kind": "preview",
+   "anim": "doing_sit_tired",
+   "tool": "paintbrush_red",
+   "y": 254,
+   "frames": 4
+  },
+  {
+   "kind": "preview",
+   "anim": "doing_sit_tired",
+   "tool": "paintbrush_blue",
+   "y": 314,
+   "frames": 4
+  },
+  {
+   "kind": "dots",
+   "anim": "doing",
+   "y": 384,
+   "frames": 4
+  },
+  {
+   "kind": "preview",
+   "anim": "doing",
+   "tool": "wateringcan",
+   "y": 444,
+   "frames": 4
+  },
+  {
+   "kind": "dots",
+   "anim": "doing_tired",
+   "y": 514,
+   "frames": 4
+  },
+  {
+   "kind": "preview",
+   "anim": "doing_tired",
+   "tool": "wateringcan",
+   "y": 574,
+   "frames": 4
+  }
+ ],
+ "tool_y": 660
+}
