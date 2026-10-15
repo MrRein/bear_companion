@@ -128,6 +128,9 @@ public sealed partial class PetWindow
             var next = DailyOffer.Today(t);
             if (next.Any(first.Contains)) throw new Exception("купено излезе пак");
             if (DailyOffer.Today(t).Any(k => k.StartsWith("skin:"))) throw new Exception("скин без диван/легло");
+            t.OfferItems = new List<string> { "skin:pot:copper" };
+            t.OfferDay = DateTime.Today.ToString("yyyy-MM-dd");
+            if (DailyOffer.Today(t).Contains("skin:pot:copper")) throw new Exception("друг вид на тенджера без тенджера");
             _menu!.Hide();
         }, 400);
         await step("скин по подразбиране", () =>

@@ -4,9 +4,10 @@ using System.Linq;
 namespace Mecho;
 
 /// <summary>
-/// Скин за предмет (диван, легло, печица, уред, китара, лампа): друга рисунка.
-/// Класическият е безплатен; другите се купуват в офертата на деня и се
-/// сменят в гардероба („Мебели и уреди“).
+/// Друг вид на предмет (диван, легло, печица, уред, китара, лампа): същото нещо,
+/// но друга версия (камина вместо печица, мока кана вместо кафе машина…).
+/// Класическият е безплатен; другите се купуват в офертата на деня (само щом
+/// предметът е купен) и се сменят в гардероба („Мебели и уреди“).
 /// </summary>
 public sealed record Skin(string Item, string Id, string Name, int Price)
 {
@@ -32,21 +33,21 @@ public static class Furniture
     public static readonly Skin[] CouchSkins =
     {
         new(Kitchen.Couch, Classic, "Червен диван", 0),
-        new(Kitchen.Couch, "velvet", "Син кадифен", 20),
-        new(Kitchen.Couch, "forest", "Горско зелен", 20),
-        new(Kitchen.Couch, "dots", "Розов на точки", 25),
-        new(Kitchen.Couch, "mint", "Мента на райе", 25),
-        new(Kitchen.Couch, "honey", "Меден", 25),
-        new(Kitchen.Couch, "leather", "Кожен капитоне", 35),
+        new(Kitchen.Couch, "velvet", "Кадифен диван с гърбица", 20),
+        new(Kitchen.Couch, "forest", "Горски с възглавнички", 20),
+        new(Kitchen.Couch, "dots", "Розово канапенце", 25),
+        new(Kitchen.Couch, "mint", "Дървена пейка на райе", 25),
+        new(Kitchen.Couch, "honey", "Пухкав меден диван", 25),
+        new(Kitchen.Couch, "leather", "Кожен честърфийлд", 35),
     };
 
     public static readonly Skin[] BedSkins =
     {
         new(Kitchen.Bed, Classic, "Синьо одеяло", 0),
-        new(Kitchen.Bed, "pink", "Розово", 20),
-        new(Kitchen.Bed, "forest", "Горско каре", 20),
-        new(Kitchen.Bed, "honey", "Медено каре", 25),
-        new(Kitchen.Bed, "stars", "Звездна нощ", 25),
+        new(Kitchen.Bed, "pink", "Легло с балдахин", 20),
+        new(Kitchen.Bed, "forest", "Легло от трупчета", 20),
+        new(Kitchen.Bed, "honey", "Ниско футонче", 25),
+        new(Kitchen.Bed, "stars", "Метално легло със звезди", 25),
     };
 
     private static Skin[] Of(string item, params (string Id, string Name, int Price)[] list) =>

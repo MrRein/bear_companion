@@ -1126,11 +1126,73 @@ PROP_LIST = {
     "food_potatoes": (food_potatoes(), 0),
     "wardrobe": (prop(26, 34, wardrobe), 0),
 }
+def couch_shape(img, shape, main, dark, accent):
+    """Друг вид диван (същата височина на седалката – 10 пиксела от земята)."""
+    d = ImageDraw.Draw(img)
+    if shape == "camel":          # облегалка с гърбица в средата
+        d.rounded_rectangle((14, 0, 33, 6), 3, fill=dark, outline=OUTLINE)
+        d.rectangle((15, 5, 32, 7), fill=dark)
+    elif shape == "pillows":      # възглавнички на облегалката, високи крачета
+        for x in (9, 20, 31):
+            d.rounded_rectangle((x, 6, x + 8, 12), 2, fill=accent or (240, 230, 200, 255), outline=OUTLINE)
+    elif shape == "loveseat":     # малко и кръгличко: ръцете са топчета
+        img2 = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        img2.paste(img.crop((0, 0, 48, 24)).resize((40, 24), Image.NEAREST), (4, 0))
+        img.paste(img2, (0, 0))
+        d.ellipse((2, 7, 10, 15), fill=main, outline=OUTLINE)
+        d.ellipse((38, 7, 46, 15), fill=main, outline=OUTLINE)
+    elif shape == "bench":        # дървена рамка като пейка
+        d.rectangle((0, 7, 47, 8), fill=WOOD, outline=OUTLINE)
+        d.rectangle((0, 7, 2, 23), fill=WOOD, outline=OUTLINE)
+        d.rectangle((45, 7, 47, 23), fill=WOOD, outline=OUTLINE)
+    elif shape == "blob":         # меко като торба: без отделни ръце
+        d.rounded_rectangle((0, 3, 47, 21), 9, fill=main, outline=OUTLINE)
+        d.rounded_rectangle((6, 12, 41, 20), 4, fill=(255, 230, 140, 255), outline=OUTLINE)
+        d.line((10, 7, 20, 7), fill=(255, 240, 180, 255))
+    elif shape == "chesterfield":  # ръцете колкото облегалката, навити
+        d.rounded_rectangle((0, 1, 8, 21), 4, fill=main, outline=OUTLINE)
+        d.rounded_rectangle((39, 1, 47, 21), 4, fill=main, outline=OUTLINE)
+        for y in (5, 10, 15):
+            d.point((4, y), fill=accent); d.point((43, y), fill=accent)
+    return img
+
+
+COUCH_SHAPES = {"velvet": "camel", "forest": "pillows", "dots": "loveseat", "mint": "bench", "honey": "blob", "leather": "chesterfield"}
+
+
+def bed_shape(img, shape, blanket, dark, accent):
+    """Друго легло (дюшекът е на същата височина – 7 пиксела от земята)."""
+    d = ImageDraw.Draw(img)
+    if shape == "canopy":         # с колонки и балдахин
+        d.rectangle((0, 0, 1, 15), fill=(240, 240, 240, 255), outline=OUTLINE)
+        d.rectangle((44, 0, 45, 15), fill=(240, 240, 240, 255), outline=OUTLINE)
+        d.rectangle((0, 0, 45, 1), fill=(250, 200, 215, 255), outline=OUTLINE)
+        for x in range(3, 44, 4):
+            d.point((x, 2), fill=(250, 200, 215, 255))
+    elif shape == "logs":         # от трупчета
+        for x0 in (0, 42):
+            for y in range(0 if x0 == 0 else 6, 16, 3):
+                d.ellipse((x0, y, x0 + 3, y + 2), fill=(140, 90, 50, 255), outline=OUTLINE)
+    elif shape == "futon":        # ниско, без крачета, дебел дюшек
+        d.rectangle((0, 0, 45, 6), fill=(0, 0, 0, 0))
+        d.rectangle((0, 12, 45, 15), fill=(200, 160, 100, 255), outline=OUTLINE)
+        d.rectangle((2, 4, 10, 8), fill=(255, 250, 230, 255), outline=OUTLINE)
+    elif shape == "metal":        # метална рамка с кръгла табла
+        d.rectangle((0, 0, 3, 15), fill=(0, 0, 0, 0))
+        d.arc((0, 0, 10, 14), 180, 270, fill=(60, 60, 80, 255), width=2)
+        d.line((0, 7, 0, 15), fill=(60, 60, 80, 255), width=2)
+        for x in (3, 6):
+            d.line((x, 2, x, 7), fill=(60, 60, 80, 255))
+    return img
+
+
+BED_SHAPES = {"pink": "canopy", "forest": "logs", "honey": "futon", "stars": "metal"}
+
 for _skin, _args in COUCH_SKINS.items():
-    PROP_LIST[f"couch_{_skin}"] = (couch(*_args), 10)
+    PROP_LIST[f"couch_{_skin}"] = (couch_shape(couch(*_args), COUCH_SHAPES.get(_skin), _args[0], _args[1], _args[4]), 10)
 PROP_LIST["bed"] = (bed(*BED_SKINS["classic"]), 7)
 for _skin, _args in BED_SKINS.items():
-    PROP_LIST[f"bed_{_skin}"] = (bed(*_args), 7)
+    PROP_LIST[f"bed_{_skin}"] = (bed_shape(bed(*_args), BED_SHAPES.get(_skin), _args[0], _args[1], _args[4]), 7)
 for _i, _name in enumerate(["heater_off", "heater", "heater_b"]):
     PROP_LIST[_name] = (prop(20, 22, heater(_i)), 0)
 
@@ -1366,33 +1428,377 @@ def tint(img, color, strength=0.75, pattern=None, accent=WHITE):
     return out
 
 
-# Скинове на уредите: уред → {скин: (цвят, шарка)}. Името на рисунката е cook_<уред>_<скин>[_b|_open].
+# ── Други видове на уредите и печицата (временни рисунки; Тут рисува истинските) ──
+# Кадри: 0 = готви (""), 1 = готви, втори кадър ("_b"), 2 = готово ("_open").
+STEAM = (220, 220, 220, 255)
+COPPER, COPPER_D = (215, 120, 60, 255), (160, 80, 40, 255)
+BLACK_IRON = (50, 50, 58, 255)
+
+
+def steam(d, frame, x1=7, x2=12, top=0):
+    if frame:
+        d.line((x1, top + 4, x1 - 1 + frame % 2, top), fill=STEAM)
+        d.line((x2, top + 3, x2 + 1 - frame % 2, top), fill=STEAM)
+
+
+def pot_enamel(frame):
+    """Емайлирана тенджера: бяла, кръгличка, на сини точки."""
+    def f(d):
+        stove(d, frame)
+        d.rounded_rectangle((3, 6, 16, 13), 3, fill=WHITE, outline=OUTLINE)
+        for x, y in [(5, 9), (9, 11), (13, 8), (12, 12)]:
+            d.point((x, y), fill=(70, 120, 210, 255))
+        d.line((1, 8, 3, 8), fill=OUTLINE); d.line((16, 8, 18, 8), fill=OUTLINE)
+        lift = 0 if frame == 2 else frame
+        d.rectangle((3, 4 - lift - (frame == 2) * 3, 16, 5 - lift - (frame == 2) * 3), fill=(70, 120, 210, 255), outline=OUTLINE)
+        steam(d, frame)
+    return f
+
+
+def pot_copper(frame):
+    """Медна тенджера: широка и ниска, с дълга дръжка."""
+    def f(d):
+        stove(d, frame)
+        d.rectangle((2, 8, 15, 13), fill=COPPER, outline=OUTLINE)
+        d.line((3, 9, 14, 9), fill=(240, 170, 110, 255))
+        d.line((15, 9, 20, 7), fill=COPPER_D, width=2)
+        if frame == 2:
+            d.rectangle((1, 2, 12, 3), fill=COPPER_D, outline=OUTLINE)
+        else:
+            d.rectangle((2, 6 - frame, 15, 7 - frame), fill=COPPER_D, outline=OUTLINE)
+        steam(d, frame)
+    return f
+
+
+def pan_cast_iron(frame):
+    """Чугунен тиган: черен, дълбок, с късата дръжка и ухо."""
+    def f(d):
+        stove(d, frame)
+        d.rectangle((2, 9, 15, 13), fill=BLACK_IRON, outline=OUTLINE)
+        d.line((15, 10, 19, 10), fill=BLACK_IRON, width=2)
+        d.point((1, 10), fill=OUTLINE)
+        for x in (4, 9):
+            oval(d, (x, 6 - (frame == 2) * 3, x + 4, 9 - (frame == 2) * 3), (240, 200, 90, 255))   # яйца
+        steam(d, frame, 5, 13)
+    return f
+
+
+def pan_pink(frame):
+    """Розов уок: дълбок, заоблен."""
+    def f(d):
+        stove(d, frame)
+        d.chord((1, 4, 17, 15), 0, 180, fill=(240, 140, 170, 255), outline=OUTLINE)
+        d.line((16, 9, 20, 6), fill=WOOD, width=2)
+        for x in (4, 8, 12):
+            d.point((x + frame, 7 - (frame == 2) * 3), fill=(110, 180, 80, 255))
+            d.point((x + 1, 8 - (frame == 2) * 3), fill=(230, 120, 60, 255))
+        steam(d, frame, 6, 12)
+    return f
+
+
+def oven_retro(frame):
+    """Ретро фурна: заоблена, ментова, кръгло прозорче и хромирани копчета."""
+    def f(d):
+        d.rounded_rectangle((1, 2, 20, 23), 4, fill=(120, 200, 190, 255), outline=OUTLINE)
+        for x in (5, 9, 13, 17):
+            d.point((x, 4), fill=(230, 230, 235, 255))
+        if frame == 2:
+            d.rectangle((0, 18, 21, 20), fill=(200, 200, 205, 255), outline=OUTLINE)
+            for x in (3, 9, 14):
+                oval(d, (x, 15, x + 4, 18), (230, 180, 70, 255))
+        oval(d, (5, 7, 16, 17), (60, 40, 30, 255))
+        if frame != 2:
+            oval(d, (7, 9, 14, 15), (240, 150, 60, 255) if frame else (220, 110, 40, 255), outline=None)
+        steam(d, frame, 7, 14)
+    return f
+
+
+def oven_wood(frame):
+    """Пещ на дърва: тухлен купол с огън в отвора."""
+    def f(d):
+        d.pieslice((0, 2, 21, 30), 180, 360, fill=(180, 90, 60, 255), outline=OUTLINE)
+        d.rectangle((0, 16, 21, 23), fill=(170, 160, 150, 255), outline=OUTLINE)
+        for y in (6, 10, 14):
+            d.line((4, y, 17, y), fill=(140, 65, 45, 255))
+        d.pieslice((6, 9, 15, 22), 180, 360, fill=(40, 25, 20, 255), outline=OUTLINE)
+        if frame == 2:
+            oval(d, (6, 12, 14, 16), (230, 180, 70, 255))     # пицата излиза
+        else:
+            d.point((9 + frame, 13), fill=FLAME); d.point((11, 14 - frame), fill=FLAME2); d.point((10, 15), fill=FLAME)
+        d.rectangle((9, 0, 12, 4), fill=(120, 110, 100, 255), outline=OUTLINE)   # комин
+        if frame:
+            d.point((10, 0), fill=STEAM)
+    return f
+
+
+def coffee_moka(frame):
+    """Мока кана на котлона: осмоъгълна, със заострен чучур."""
+    def f(d):
+        stove(d, frame)
+        d.polygon([(6, 14), (13, 14), (14, 10), (12, 8), (7, 8), (5, 10)], fill=(200, 200, 210, 255), outline=OUTLINE)
+        d.polygon([(7, 8), (12, 8), (13, 3), (6, 3)], fill=(185, 185, 195, 255), outline=OUTLINE)
+        d.rectangle((6, 1, 13, 3), fill=(160, 160, 170, 255), outline=OUTLINE)
+        d.line((5, 4, 4, 2), fill=OUTLINE)
+        d.line((13, 4, 16, 7), fill=OUTLINE); d.line((16, 7, 15, 10), fill=OUTLINE)
+        if frame:
+            d.point((4, 1), fill=(90, 55, 30, 255) if frame == 2 else STEAM)
+            d.point((3, 0), fill=STEAM)
+    return f
+
+
+def coffee_retro(frame):
+    """Ретро еспресо машина: червена, заоблена, с купол и лост."""
+    def f(d):
+        d.rounded_rectangle((2, 6, 17, 23), 4, fill=(210, 60, 60, 255), outline=OUTLINE)
+        d.pieslice((4, 1, 15, 12), 180, 360, fill=(200, 200, 210, 255), outline=OUTLINE)
+        d.point((9, 1), fill=OUTLINE)
+        d.line((16, 9, 20, 5 + frame * 2), fill=OUTLINE)            # лостът
+        d.rectangle((7, 11, 12, 13), fill=(200, 200, 210, 255), outline=OUTLINE)
+        d.rectangle((6, 17, 12, 21), fill=WHITE, outline=OUTLINE)
+        if frame == 1:
+            d.line((9, 14, 9, 16), fill=(90, 55, 30, 255))
+        if frame == 2:
+            d.line((7, 18, 11, 18), fill=(90, 55, 30, 255))
+            steam(d, 1, 8, 11, 12)
+    return f
+
+
+def kettle_whistle(frame):
+    """Свирещ чайник: червен, ъгловат, със свирка на чучура."""
+    def f(d):
+        stove(d, frame)
+        d.polygon([(4, 14), (15, 14), (13, 6), (6, 6)], fill=(230, 80, 70, 255), outline=OUTLINE)
+        d.line((14, 9, 18, 5), fill=OUTLINE)
+        d.rectangle((17, 3, 19, 5), fill=(200, 200, 210, 255), outline=OUTLINE)   # свирката
+        d.arc((6, 1, 13, 8), 180, 360, fill=OUTLINE)
+        if frame:
+            for k in range(frame + 1):
+                d.point((20, 2 - k), fill=STEAM)
+            d.line((20, 1, 21, 0), fill=STEAM)
+    return f
+
+
+def kettle_glass(frame):
+    """Стъклен чайник: вижда се чаят, който става все по-тъмен."""
+    def f(d):
+        stove(d, frame)
+        oval(d, (4, 5, 15, 14), (215, 238, 248, 255))
+        tea = [(230, 200, 120, 255), (210, 150, 70, 255), (180, 100, 40, 255)][frame]
+        oval(d, (6, 9, 13, 13), tea, outline=None)
+        d.line((15, 8, 19, 6), fill=OUTLINE)
+        d.rectangle((8, 3, 11, 5), fill=(200, 200, 210, 255), outline=OUTLINE)
+        steam(d, frame, 8, 11)
+    return f
+
+
+def mixer_mint(frame):
+    """Планетарен миксер: основа, рамо отгоре и купа."""
+    def f(d):
+        mint = (150, 215, 190, 255)
+        d.rectangle((2, 20, 17, 23), fill=mint, outline=OUTLINE)
+        d.rectangle((14, 6, 17, 20), fill=mint, outline=OUTLINE)
+        d.rounded_rectangle((3, 3 - (frame == 2) * 2, 17, 8 - (frame == 2) * 2), 2, fill=mint, outline=OUTLINE)
+        d.chord((3, 10, 14, 22), 0, 180, fill=(220, 225, 230, 255), outline=OUTLINE)
+        d.rectangle((5, 14, 12, 16), fill=(240, 200, 150, 255))
+        if frame != 2:
+            d.line((8 + frame, 8, 9 - frame, 15), fill=GREY)
+    return f
+
+
+def mixer_hand(frame):
+    """Купа и бъркалка на ръка."""
+    def f(d):
+        d.chord((1, 8, 18, 24), 0, 180, fill=(200, 170, 120, 255), outline=OUTLINE)
+        d.line((3, 16, 16, 16), fill=(240, 220, 180, 255))
+        if frame == 2:
+            oval(d, (6, 10, 13, 15), (250, 240, 220, 255))    # готово, на купчинка
+        else:
+            x = 7 + frame * 4
+            d.line((x, 2, x + 1, 14), fill=WOOD)
+            d.ellipse((x - 2, 11, x + 3, 16), outline=GREY)
+    return f
+
+
+def sandwich_red(frame):
+    """Червена преса за панини: дълги плочи и дръжка отпред."""
+    def f(d):
+        red = (210, 60, 60, 255)
+        d.rectangle((1, 16, 20, 22), fill=red, outline=OUTLINE)
+        if frame == 2:
+            d.polygon([(1, 16), (2, 5), (20, 5), (20, 16)], fill=red, outline=OUTLINE)
+            d.rectangle((3, 14, 18, 16), fill=(230, 180, 100, 255))
+            for x in range(4, 18, 3):
+                d.point((x, 15), fill=(160, 100, 50, 255))
+        else:
+            d.rectangle((1, 11, 20, 16), fill=red, outline=OUTLINE)
+            d.line((18, 12, 21, 9), fill=OUTLINE)
+        d.point((4, 19), fill=(250, 240, 120, 255) if frame == 1 else (120, 40, 40, 255))
+        steam(d, frame, 8, 14, 5)
+    return f
+
+
+def sandwich_waffle(frame):
+    """Гофретник: кръгъл, с решетка; отворен – вижда се гофретата."""
+    def f(d):
+        d.ellipse((2, 15, 18, 23), fill=(70, 70, 80, 255), outline=OUTLINE)
+        if frame == 2:
+            d.ellipse((3, 3, 19, 11), fill=(70, 70, 80, 255), outline=OUTLINE)
+            oval(d, (4, 14, 16, 20), (230, 180, 90, 255))
+            for x in range(6, 15, 3):
+                d.line((x, 15, x, 19), fill=(190, 130, 60, 255))
+        else:
+            d.ellipse((2, 11, 18, 18), fill=(90, 90, 100, 255), outline=OUTLINE)
+            d.line((17, 13, 21, 12), fill=OUTLINE)
+        d.point((5, 21), fill=(250, 80, 60, 255) if frame == 1 else (120, 40, 40, 255))
+        steam(d, frame, 7, 13, 6)
+    return f
+
+
+def icecream_cart(frame):
+    """Количка за сладолед: чадърче, кутия и колелца."""
+    def f(d):
+        d.pieslice((1, 0, 20, 10), 180, 360, fill=(240, 120, 150, 255), outline=OUTLINE)
+        for x in (5, 13):
+            d.line((x, 1, x + 1, 5), fill=WHITE)
+        d.line((10, 5, 10, 11), fill=OUTLINE)
+        d.rectangle((2, 11, 19, 19), fill=(250, 240, 230, 255), outline=OUTLINE)
+        d.line((3, 13, 18, 13), fill=(120, 190, 230, 255))
+        oval(d, (3, 18, 8, 23), GREY); oval(d, (13, 18, 18, 23), GREY)
+        if frame == 2:
+            oval(d, (8, 7, 13, 11), (250, 235, 200, 255))
+        elif frame == 1:
+            d.point((10, 15), fill=(240, 120, 150, 255))
+    return f
+
+
+def icecream_pink(frame):
+    """Машина за сладолед на фунийка: розова, с кранче."""
+    def f(d):
+        pink = (240, 150, 180, 255)
+        d.rectangle((3, 2, 17, 15), fill=pink, outline=OUTLINE)
+        d.rectangle((5, 4, 15, 8), fill=(250, 220, 230, 255), outline=OUTLINE)
+        d.rectangle((9, 15, 11, 17), fill=(200, 200, 210, 255), outline=OUTLINE)    # кранчето
+        d.rectangle((2, 21, 18, 23), fill=pink, outline=OUTLINE)
+        if frame == 2:
+            d.polygon([(8, 21), (12, 21), (10, 23)], fill=(220, 170, 90, 255))
+            oval(d, (8, 17, 12, 21), (250, 235, 200, 255))
+        elif frame == 1:
+            d.line((10, 18, 10, 20), fill=(250, 235, 200, 255))
+    return f
+
+
+def grill_kettle(frame):
+    """Кръгло барбекю: кълбо на три крачета с капак."""
+    def f(d):
+        d.line((5, 17, 3, 23), fill=OUTLINE); d.line((14, 17, 16, 23), fill=OUTLINE); d.line((10, 18, 10, 23), fill=OUTLINE)
+        d.chord((2, 4, 18, 20), 0, 180, fill=BLACK_IRON, outline=OUTLINE)
+        if frame == 2:
+            d.chord((2, 0, 18, 12), 180, 360, fill=BLACK_IRON, outline=OUTLINE)   # отворено
+            oval(d, (5, 9, 9, 12), (150, 80, 50, 255)); oval(d, (11, 9, 15, 12), (110, 180, 80, 255))
+        else:
+            d.chord((2, 4, 18, 20), 180, 360, fill=(70, 70, 80, 255), outline=OUTLINE)
+            d.rectangle((9, 3, 11, 4), fill=OUTLINE)
+            for x in range(4, 17, 3):
+                d.point((x, 12), fill=FLAME if (x + frame) % 2 else FLAME2)
+        steam(d, frame, 6, 14)
+    return f
+
+
+def grill_camp(frame):
+    """Огнище: камъчета в кръг, огън и шиш с наденички."""
+    def f(d):
+        for x in range(2, 19, 4):
+            oval(d, (x, 19, x + 3, 22), (150, 150, 155, 255))
+        d.line((4, 18, 9, 13), fill=WOOD, width=2); d.line((16, 18, 11, 13), fill=WOOD, width=2)
+        if frame != 2:
+            d.polygon([(7, 18), (10, 9 + frame), (13, 18)], fill=FLAME)
+            d.polygon([(9, 18), (10, 13 - frame), (11, 18)], fill=FLAME2)
+        else:
+            for x in (8, 10, 12):
+                d.point((x, 17), fill=(255, 150, 60, 255))
+        d.line((1, 7, 20, 7), fill=WOOD)                 # шишът
+        d.line((1, 7, 1, 18), fill=WOOD); d.line((20, 7, 20, 18), fill=WOOD)
+        for x in (5, 9, 13):
+            d.rectangle((x, 6, x + 2, 8), fill=(190, 90, 60, 255) if frame == 2 else (220, 140, 120, 255), outline=OUTLINE)
+        steam(d, frame, 6, 14)
+    return f
+
+
+# Уред → {вид: функция}. Името на рисунката е cook_<уред>_<вид>[_b|_open].
 COOKER_SKINS = {
-    "pot": {"enamel": ((90, 150, 220, 255), "dots"), "copper": ((215, 120, 60, 255), None)},
-    "pan": {"cast_iron": ((60, 60, 70, 255), None), "pink": ((240, 140, 170, 255), None)},
-    "oven": {"retro": ((120, 200, 190, 255), None), "wood": ((170, 100, 60, 255), None)},
-    "coffee_machine": {"moka": ((200, 200, 210, 255), None), "retro": ((220, 70, 70, 255), None)},
-    "kettle": {"whistle": ((230, 80, 70, 255), None), "glass": ((200, 235, 245, 255), None)},
-    "mixer": {"mint": ((150, 215, 190, 255), None), "hand": ((200, 170, 120, 255), None)},
-    "sandwich": {"red": ((210, 60, 60, 255), None), "waffle": ((230, 180, 90, 255), "dots")},
-    "icecream": {"cart": ((250, 230, 240, 255), "dots"), "pink": ((240, 150, 180, 255), None)},
-    "grill": {"kettle": ((50, 50, 60, 255), None), "camp": ((150, 110, 70, 255), None)},
+    "pot": {"enamel": pot_enamel, "copper": pot_copper},
+    "pan": {"cast_iron": pan_cast_iron, "pink": pan_pink},
+    "oven": {"retro": oven_retro, "wood": oven_wood},
+    "coffee_machine": {"moka": coffee_moka, "retro": coffee_retro},
+    "kettle": {"whistle": kettle_whistle, "glass": kettle_glass},
+    "mixer": {"mint": mixer_mint, "hand": mixer_hand},
+    "sandwich": {"red": sandwich_red, "waffle": sandwich_waffle},
+    "icecream": {"cart": icecream_cart, "pink": icecream_pink},
+    "grill": {"kettle": grill_kettle, "camp": grill_camp},
 }
 for _tool, _skins in COOKER_SKINS.items():
-    for _skin, (_color, _pattern) in _skins.items():
-        for _suffix in ["", "_b", "_open"]:
-            PROP_LIST[f"cook_{_tool}_{_skin}{_suffix}"] = (tint(PROP_LIST[f"cook_{_tool}{_suffix}"][0], _color, pattern=_pattern), 0)
+    for _skin, _fn in _skins.items():
+        for _i, _suffix in enumerate(["", "_b", "_open"]):
+            PROP_LIST[f"cook_{_tool}_{_skin}{_suffix}"] = (prop(22, 24, _fn(_i)), 0)
 
-HEATER_SKINS = {
-    "fireplace": ((200, 190, 180, 255), None),
-    "tiles": ((90, 140, 200, 255), "dots"),
-    "retro": ((230, 220, 200, 255), None),
-    "cozy": ((90, 90, 100, 255), None),
-}
-for _skin, (_color, _pattern) in HEATER_SKINS.items():
-    for _suffix in ["", "_b", "_off"]:
-        _base = "heater" + _suffix
-        PROP_LIST[f"heater_{_skin}{_suffix}"] = (tint(PROP_LIST[_base][0], _color, 0.9, pattern=_pattern), 0)
+
+def heater_fireplace(frame):
+    """Камина: тухлена, с полица и огън (frame 0 = изгасена)."""
+    def f(d):
+        d.rectangle((0, 3, 19, 21), fill=(180, 90, 60, 255), outline=OUTLINE)
+        for y in (7, 11, 15, 19):
+            d.line((1, y, 18, y), fill=(140, 65, 45, 255))
+        d.rectangle((0, 1, 19, 3), fill=WOOD, outline=OUTLINE)              # полицата
+        d.rectangle((4, 9, 15, 21), fill=(40, 25, 20, 255), outline=OUTLINE)
+        d.line((6, 20, 13, 19), fill=WOOD, width=2)                       # цепеници
+        if frame:
+            d.polygon([(6, 19), (9, 11 + frame), (13, 19)], fill=FLAME)
+            d.polygon([(8, 19), (10, 14 - frame), (11, 19)], fill=FLAME2)
+    return f
+
+
+def heater_tiles(frame):
+    """Кахлена печка: висока, на сини плочки, с вратичка."""
+    def f(d):
+        d.rectangle((3, 0, 16, 21), fill=(240, 240, 235, 255), outline=OUTLINE)
+        for y in range(2, 20, 4):
+            for x in range(5, 15, 4):
+                d.rectangle((x, y, x + 2, y + 2), outline=(70, 120, 200, 255))
+        d.rectangle((6, 13, 13, 18), fill=(60, 40, 35, 255), outline=OUTLINE)
+        if frame:
+            d.point((8 + frame, 16), fill=FLAME); d.point((10, 15), fill=FLAME2); d.point((9, 17), fill=FLAME)
+    return f
+
+
+def heater_retro(frame):
+    """Ретро радиатор: ребра на крачета; включен – ребрата светят оранжево."""
+    def f(d):
+        for x in range(1, 19, 3):
+            col = (230, 120, 60, 255) if frame and (x // 3 + frame) % 2 else (230, 220, 200, 255)
+            d.rounded_rectangle((x, 4, x + 2, 19), 1, fill=col, outline=OUTLINE)
+        d.line((1, 6, 19, 6), fill=OUTLINE)
+        d.rectangle((2, 20, 3, 21), fill=OUTLINE); d.rectangle((16, 20, 17, 21), fill=OUTLINE)
+        d.point((19, 9), fill=(250, 80, 60, 255) if frame else (120, 40, 40, 255))
+    return f
+
+
+def heater_cozy(frame):
+    """Пузеста печка с котлонче и кюнец."""
+    def f(d):
+        d.rectangle((8, 0, 11, 6), fill=BLACK_IRON, outline=OUTLINE)       # кюнец
+        d.ellipse((2, 5, 17, 20), fill=(70, 70, 80, 255), outline=OUTLINE)
+        d.rectangle((4, 5, 15, 7), fill=BLACK_IRON, outline=OUTLINE)
+        d.ellipse((6, 10, 13, 16), fill=(40, 30, 30, 255), outline=OUTLINE)
+        if frame:
+            d.point((9, 12 + frame % 2), fill=FLAME); d.point((10, 13), fill=FLAME2); d.point((8, 14), fill=FLAME)
+        d.rectangle((4, 19, 6, 21), fill=OUTLINE); d.rectangle((13, 19, 15, 21), fill=OUTLINE)
+    return f
+
+
+HEATER_SKINS = {"fireplace": heater_fireplace, "tiles": heater_tiles, "retro": heater_retro, "cozy": heater_cozy}
+for _skin, _fn in HEATER_SKINS.items():
+    for _suffix, _frame in [("", 1), ("_b", 2), ("_off", 0)]:
+        PROP_LIST[f"heater_{_skin}{_suffix}"] = (prop(20, 22, _fn(_frame)), 0)
 
 
 def lamp(kind):

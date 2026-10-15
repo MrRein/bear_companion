@@ -1072,8 +1072,8 @@ public sealed class MenuWindow : Window
             action.IsEnabled = false;
         }
         else if (owned) action = Button("Сложи", () => { _pet.UseUiTheme(t); BuildWardrobe(); }, primary: true);
-        else action = BuyButton(t.Price, () => _pet.BuyUiTheme(t), out why);
-        return MakeTile(UiThemes.Preview(t), t.Name, Description(shop ? "Скин за менюто." : ""), action, dim: false, why, owned && (used || !shop), 3);
+        else action = BuyButton(t.Price, () => { _pet.BuyUiTheme(t); BuildWardrobe(); }, out why);
+        return MakeTile(UiThemes.Preview(t), t.Name, Description(""), action, dim: false, why, owned && (used || !shop), 3);
     }
 
     /// <summary>Пижама: в магазина се купува (и става избраната), в гардероба се избира.</summary>
@@ -1116,7 +1116,7 @@ public sealed class MenuWindow : Window
                 why = $"Първо купи „{Kitchen.Find(skin.Item)?.Name}“.";
             }
         }
-        string note = shop ? $"За „{Kitchen.Find(skin.Item)?.Name}“." : "";
+        string note = shop ? $"Друг вид „{Kitchen.Find(skin.Item)?.Name}“." : "";
         return MakeTile(_pet.SkinImage(skin), skin.Name, Description(note), action, dim: false, why, owned && (used || !shop), 2);
     }
 
@@ -1350,8 +1350,9 @@ public sealed class MenuWindow : Window
         }
         else if (_wardrobeSection == "themes")
         {
-            foreach (var t in UiThemes.All.Where(t => UiThemes.Owns(s, t))) grid.Children.Add(ThemeTile(t, shop: false));
-            empty = "Нови скинове за менюто има в офертата на деня.";
+            // Всички скинове на менюто: купените се слагат, другите се купуват оттук.
+            foreach (var t in UiThemes.All) grid.Children.Add(ThemeTile(t, shop: !UiThemes.Owns(s, t)));
+            empty = "";
         }
         else if (_wardrobeSection == "pajamas")
         {
@@ -1363,7 +1364,7 @@ public sealed class MenuWindow : Window
             foreach (var item in Furniture.ByItem.Keys)
                 if (Kitchen.Owns(s, item))
                     foreach (var skin in Furniture.SkinsFor(item).Where(k => Furniture.Owns(s, k))) grid.Children.Add(SkinTile(skin, shop: false));
-            empty = "Нови скинове има в офертата на деня.";
+            empty = "Други видове има в офертата на деня.";
         }
         else
         {

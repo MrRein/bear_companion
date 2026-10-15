@@ -79,8 +79,9 @@ public static class DailyOffer
             s.OfferDay = today;
             s.OfferItems.Clear();
         }
-        // Купено или вече невалидно (без гардероб и т.н.) от днешните не се пипа;
-        // попълва се с групи, които още ги няма.
+        // Друг вид на нещо, което (вече) го няма – маха се (не излиза преди самото нещо).
+        s.OfferItems.RemoveAll(k => !Valid(s, k));
+        // Купено от днешните не се пипа; попълва се с групи, които още ги няма.
         var used = s.OfferItems.Select(GroupOf).ToHashSet();
         var groups = Pool(s).Where(g => !used.Contains(g.Key)).ToList();
         while (s.OfferItems.Count < Count && groups.Count > 0)
@@ -101,6 +102,14 @@ public static class DailyOffer
             groups.RemoveAt(i);
         }
         return s.OfferItems;
+    }
+
+    /// <summary>Може ли да стои в офертата: съществува и (за друг вид) предметът е купен.</summary>
+    private static bool Valid(SaveData s, string key)
+    {
+        var parts = key.Split(':');
+        if (Resolve(key) == null) return false;
+        return parts[0] != "skin" || Kitchen.Owns(s, parts[1]);
     }
 
     /// <summary>Колко остава до новата оферта (00:00).</summary>
