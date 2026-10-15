@@ -865,7 +865,18 @@ public sealed partial class PetWindow
             _chatOpenAtPress = false;
             if (ChatIsOpen) _chat!.Hide();
             _save.Energy = 60;
+            // Нищо от предишните стъпки да не пречи (яде, пие, работи, на разходка…).
+            if (_eating != null) { _eating = null; _held.Source = null; }
+            if (_inScene) LeaveScene();
+            if (_save.PomodoroPhase != PomodoroPhase.Off) StopPomodoro();
+            if (TimerRunning) StopTimer();
+            if (OnWalk) ReturnFromWalk(called: true);
+            DevClearFood();
+            HideBubble();
+            SetIdle();
             Relax(Scenes.Reading);
+            if (!InAction)
+                throw new Exception($"не седна да чете: фокус={InFocus}, кътче={_inScene}/{_scene?.Id}, състояние={_state}/{_anim}, яде={_eating != null}, храна={WaitingForFood}, разходка={OnWalk}, спи={IsAsleep}");
             OnLeftClick();
             if (ChatIsOpen) throw new Exception("първото цъкване пита, вместо да каже нещо");
             OnLeftClick();
