@@ -5,103 +5,203 @@
   "frames": 4
  },
  {
-  "anim": "dance",
+  "anim": "cook",
   "y": 36,
   "frames": 4
  },
  {
-  "anim": "dice",
+  "anim": "cook_tired",
   "y": 70,
-  "frames": 3
+  "frames": 4
  },
  {
-  "anim": "drag",
+  "anim": "dance",
   "y": 104,
   "frames": 4
  },
  {
-  "anim": "eat",
+  "anim": "dice",
   "y": 138,
-  "frames": 2
+  "frames": 3
  },
  {
-  "anim": "eat_hold",
+  "anim": "doing",
   "y": 172,
-  "frames": 1
+  "frames": 4
  },
  {
-  "anim": "fall",
+  "anim": "doing_sit",
   "y": 206,
-  "frames": 3
+  "frames": 4
  },
  {
-  "anim": "happy",
+  "anim": "doing_sit_tired",
   "y": 240,
-  "frames": 3
+  "frames": 4
  },
  {
-  "anim": "idle",
+  "anim": "doing_tired",
   "y": 274,
   "frames": 4
  },
  {
-  "anim": "read",
+  "anim": "drag",
   "y": 308,
-  "frames": 17
+  "frames": 4
  },
  {
-  "anim": "read_sleep",
+  "anim": "drink",
   "y": 342,
-  "frames": 2
+  "frames": 4
  },
  {
-  "anim": "sad",
+  "anim": "eat",
   "y": 376,
   "frames": 2
  },
  {
-  "anim": "sit_drinking",
+  "anim": "eat_hold",
   "y": 410,
+  "frames": 1
+ },
+ {
+  "anim": "fall",
+  "y": 444,
+  "frames": 3
+ },
+ {
+  "anim": "focus",
+  "y": 478,
+  "frames": 14
+ },
+ {
+  "anim": "focus_tired",
+  "y": 512,
+  "frames": 32
+ },
+ {
+  "anim": "focus_write",
+  "y": 546,
+  "frames": 16
+ },
+ {
+  "anim": "game",
+  "y": 580,
+  "frames": 16
+ },
+ {
+  "anim": "game_tired",
+  "y": 614,
+  "frames": 32
+ },
+ {
+  "anim": "happy",
+  "y": 648,
+  "frames": 3
+ },
+ {
+  "anim": "idle",
+  "y": 682,
+  "frames": 4
+ },
+ {
+  "anim": "juggle",
+  "y": 716,
+  "frames": 4
+ },
+ {
+  "anim": "read",
+  "y": 750,
+  "frames": 17
+ },
+ {
+  "anim": "read_sleep",
+  "y": 784,
+  "frames": 2
+ },
+ {
+  "anim": "sad",
+  "y": 818,
+  "frames": 2
+ },
+ {
+  "anim": "sit",
+  "y": 852,
+  "frames": 17
+ },
+ {
+  "anim": "sit_drinking",
+  "y": 886,
   "frames": 42
  },
  {
   "anim": "sit_drinking_blow",
-  "y": 444,
+  "y": 920,
   "frames": 20
  },
  {
   "anim": "sit_drinking_sip",
-  "y": 478,
+  "y": 954,
   "frames": 21
  },
  {
   "anim": "sleep",
-  "y": 512,
+  "y": 988,
   "frames": 4
  },
  {
   "anim": "sleep_peek",
-  "y": 546,
+  "y": 1022,
   "frames": 3
  },
  {
   "anim": "think",
-  "y": 580,
+  "y": 1056,
   "frames": 2
  },
  {
   "anim": "tired",
-  "y": 614,
+  "y": 1090,
   "frames": 4
  },
  {
   "anim": "walk",
-  "y": 648,
+  "y": 1124,
   "frames": 4
  },
  {
   "anim": "walk_tired",
-  "y": 682,
+  "y": 1158,
+  "frames": 4
+ },
+ {
+  "anim": "work",
+  "y": 1192,
+  "frames": 16
+ },
+ {
+  "anim": "work_tired",
+  "y": 1226,
+  "frames": 16
+ },
+ {
+  "anim": "write",
+  "y": 1260,
+  "frames": 16
+ },
+ {
+  "anim": "write_tired",
+  "y": 1294,
+  "frames": 16
+ },
+ {
+  "anim": "yawn",
+  "y": 1328,
+  "frames": 13
+ },
+ {
+  "anim": "yoga",
+  "y": 1362,
   "frames": 4
  }
 ]

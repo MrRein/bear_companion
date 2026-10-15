@@ -174,6 +174,9 @@ public sealed class SpriteLibrary
         }
     }
 
+    /// <summary>Има ли такава нарисувана анимация (от anim.json).</summary>
+    public bool Has(string name) => _files.ContainsKey(name) && _anims.ContainsKey(name);
+
     public SpriteAnimation Get(string name)
     {
         if (_anims.TryGetValue(name, out var a)) return a;

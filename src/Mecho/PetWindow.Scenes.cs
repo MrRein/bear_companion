@@ -95,7 +95,7 @@ public static class Scenes
         R.Get("scene.gaming.end"))
     { Name = "Играй на компютър", Icon = "game", Unlock = Kitchen.Computer };
 
-    public static readonly Scene Painting = new("painting", "stool", "easel", 1, "paint",
+    public static readonly Scene Painting = new("painting", "stool", "easel", 1, "doing_sit",   // с четка в лапата
         R.Get("scene.painting.start"),
         R.Get("scene.painting.during"),
         R.Get("scene.painting.end"))
@@ -113,13 +113,13 @@ public static class Scenes
         R.Get("scene.yoga.end"))
     { Name = "Прави йога", Icon = "yoga", Unlock = Kitchen.YogaMat };
 
-    public static readonly Scene Plant = new("plant", null, "plant", 1, "water",
+    public static readonly Scene Plant = new("plant", null, "plant", 1, "doing",   // с лейка в лапата
         R.Get("scene.plant.start"),
         R.Get("scene.plant.during"),
         R.Get("scene.plant.end"))
     { Name = "Полей цветето", Icon = "plant", Unlock = Kitchen.PlantPot };
 
-    public static readonly Scene Music = new("music", null, "radio", -1, "music",
+    public static readonly Scene Music = new("music", null, "radio", -1, "dance",   // танцува на музиката
         R.Get("scene.music.start"),
         R.Get("scene.music.during"),
         R.Get("scene.music.end"))
@@ -311,6 +311,8 @@ public sealed partial class PetWindow
             return;
         }
         if (_onTrampoline) EndBounce(null);
+        // Статив: всеки път с друга четка (червена или синя).
+        if (scene == Scenes.Painting) _brush = _rng.Next(2) == 0 ? "paintbrush_red" : "paintbrush_blue";
         _scene = scene;
         _inScene = true;
         _sceneUntil = 0;

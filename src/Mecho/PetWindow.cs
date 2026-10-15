@@ -1016,7 +1016,9 @@ public sealed partial class PetWindow : Window
     private void UpdateFrame()
     {
         _dresser.Book = TodaysBook;
-        var frame = _dresser.Frame(_lib, _anim, _lib.Get(_anim).IndexAt(_animTime), EffectiveOutfit);
+        // Уморен: ако е нарисувана уморена версия (game_tired, work_tired…) – нея.
+        string anim = IsExhausted && !IsResting && !_anim.EndsWith("_tired") && _lib.Has(_anim + "_tired") ? _anim + "_tired" : _anim;
+        var frame = _dresser.Frame(_lib, anim, _lib.Get(anim).IndexAt(_animTime), EffectiveOutfit);
         // Докато се преоблича, е скрит зад вратата на гардероба.
         _sprite.Visibility = Dressing || GiftAway ? Visibility.Hidden : Visibility.Visible;
         if (!ReferenceEquals(frame, _shownFrame))

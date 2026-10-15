@@ -341,7 +341,8 @@ PART_COLORS = {SHIRT: (255, 0, 0), PANTS: (0, 0, 255), SHOES: (255, 255, 0), GLO
 # Тъмночервеното е и ръкавът: оцветяват го само блузите с дълъг ръкав.
 FRONT_COLORS = {SHIRT: (128, 0, 0), GLOVES: (0, 128, 0), NONE: (128, 128, 128)}
 # Точките са в отделни ленти до картата (<anim>_head.png и т.н.), по един пиксел на кадър.
-POINT_COLORS = {"head": (255, 0, 255), "face": (0, 255, 255), "neck": (255, 255, 255), "cup": (255, 128, 0)}
+POINT_COLORS = {"head": (255, 0, 255), "face": (0, 255, 255), "neck": (255, 255, 255), "cup": (255, 128, 0),
+                "tool": (0, 128, 255)}   # tool: лапата, която държи четка/лейка (анимациите doing*)
 
 
 def draft(anim, strip):
@@ -364,7 +365,28 @@ def draft(anim, strip):
             dots[name].putpixel((f * SIZE + ax, ay), POINT_COLORS[name] + (255,))
     if not cups:
         del dots["cup"]
+    if anim.startswith("doing"):
+        dots["tool"] = tool_anchors(strip)
+    else:
+        del dots["tool"]
     return paint, dots
+
+
+def tool_anchors(strip):
+    """Лапата с предмета (четка, лейка) в doing*: най-десният пиксел козина в пояса на ръцете."""
+    out = Image.new("RGBA", strip.size, (0, 0, 0, 0))
+    for f in range(strip.width // SIZE):
+        frame = strip.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE))
+        ys = [y for y in range(SIZE) for x in range(SIZE) if frame.getpixel((x, y))[3]]
+        top, bottom = min(ys), max(ys)
+        best = None
+        for y in range(top + int((bottom - top) * 0.45), top + int((bottom - top) * 0.75) + 1):
+            xs = [x for x in range(SIZE) if frame.getpixel((x, y))[3]]
+            if xs and (best is None or max(xs) > best[0]):
+                best = (max(xs), y)
+        if best:
+            out.putpixel((f * SIZE + best[0] - 1, best[1]), POINT_COLORS["tool"] + (255,))
+    return out
 
 
 def nearest(rgb, table):
@@ -380,6 +402,8 @@ def nearest(rgb, table):
 def layers_from(anim, strip, paint):
     """От картата: сивите шаблони, точките и слоят „отпред“ в assets/clothes/layers."""
     names = list(LAYER.values()) + ["sleeves", "head", "face", "neck", "front"]
+    if anim.startswith("doing"):
+        names.append("tool")
     if anim.startswith("sit_drinking") or anim in ("eat", "eat_hold"):
         names.append("cup")
     layers = {n: Image.new("RGBA", strip.size, (0, 0, 0, 0)) for n in names}
@@ -412,7 +436,7 @@ def layers_from(anim, strip, paint):
         src = os.path.join(PAINT, f"{anim}_{name}.png")
         if os.path.exists(src):
             layers[name] = Image.open(src).convert("RGBA")
-        elif name in layers and name == "cup":
+        elif name in layers and name in ("cup", "tool"):
             del layers[name]
     os.makedirs(LAYERS, exist_ok=True)
     for name, img in layers.items():

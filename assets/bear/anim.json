@@ -40,7 +40,7 @@
     },
     "work": {
       "file": "work.png",
-      "fps": 3,
+      "fps": 5,
       "loop": true
     },
     "dice": {
@@ -75,7 +75,7 @@
     },
     "game": {
       "file": "game.png",
-      "fps": 4,
+      "fps": 6,
       "loop": true
     },
     "paint": {
@@ -115,7 +115,7 @@
     },
     "write": {
       "file": "write.png",
-      "fps": 3,
+      "fps": 5,
       "loop": true
     },
     "tired": {
@@ -177,6 +177,51 @@
       "file": "sleep_peek.png",
       "fps": 3,
       "loop": false
+    },
+    "focus_write": {
+      "file": "focus_write.png",
+      "fps": 6,
+      "loop": true
+    },
+    "game_tired": {
+      "file": "game_tired.png",
+      "fps": 6,
+      "loop": true
+    },
+    "work_tired": {
+      "file": "work_tired.png",
+      "fps": 4,
+      "loop": true
+    },
+    "write_tired": {
+      "file": "write_tired.png",
+      "fps": 4,
+      "loop": true
+    },
+    "cook_tired": {
+      "file": "cook_tired.png",
+      "fps": 4,
+      "loop": true
+    },
+    "doing": {
+      "file": "doing.png",
+      "fps": 4,
+      "loop": true
+    },
+    "doing_tired": {
+      "file": "doing_tired.png",
+      "fps": 3,
+      "loop": true
+    },
+    "doing_sit": {
+      "file": "doing_sit.png",
+      "fps": 4,
+      "loop": true
+    },
+    "doing_sit_tired": {
+      "file": "doing_sit_tired.png",
+      "fps": 3,
+      "loop": true
     }
   }
 }

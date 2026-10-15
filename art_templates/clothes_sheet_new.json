@@ -1,0 +1,107 @@
+[
+ {
+  "anim": "bounce",
+  "y": 2,
+  "frames": 4
+ },
+ {
+  "anim": "dance",
+  "y": 36,
+  "frames": 4
+ },
+ {
+  "anim": "dice",
+  "y": 70,
+  "frames": 3
+ },
+ {
+  "anim": "focus",
+  "y": 104,
+  "frames": 14
+ },
+ {
+  "anim": "focus_write",
+  "y": 138,
+  "frames": 16
+ },
+ {
+  "anim": "game",
+  "y": 172,
+  "frames": 16
+ },
+ {
+  "anim": "game_tired",
+  "y": 206,
+  "frames": 32
+ },
+ {
+  "anim": "happy",
+  "y": 240,
+  "frames": 3
+ },
+ {
+  "anim": "sleep",
+  "y": 274,
+  "frames": 4
+ },
+ {
+  "anim": "tired",
+  "y": 308,
+  "frames": 4
+ },
+ {
+  "anim": "walk_tired",
+  "y": 342,
+  "frames": 4
+ },
+ {
+  "anim": "work",
+  "y": 376,
+  "frames": 16
+ },
+ {
+  "anim": "work_tired",
+  "y": 410,
+  "frames": 16
+ },
+ {
+  "anim": "write",
+  "y": 444,
+  "frames": 16
+ },
+ {
+  "anim": "write_tired",
+  "y": 478,
+  "frames": 16
+ },
+ {
+  "anim": "yoga",
+  "y": 512,
+  "frames": 4
+ },
+ {
+  "anim": "cook_tired",
+  "y": 546,
+  "frames": 4
+ },
+ {
+  "anim": "doing",
+  "y": 580,
+  "frames": 4
+ },
+ {
+  "anim": "doing_tired",
+  "y": 614,
+  "frames": 4
+ },
+ {
+  "anim": "doing_sit",
+  "y": 648,
+  "frames": 4
+ },
+ {
+  "anim": "doing_sit_tired",
+  "y": 682,
+  "frames": 4
+ }
+]

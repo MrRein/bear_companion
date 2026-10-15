@@ -71,6 +71,7 @@ def build(anim, refs):
         paint = frames(Image.open(os.path.join(PAINT, r + ".png")).convert("RGBA"))
         library += [(r, i, b, p) for i, (b, p) in enumerate(zip(bear, paint))]
     out = Image.new("RGBA", strip.size, (0, 0, 0, 0))
+    matches = []
     for f, frame in enumerate(frames(strip)):
         best = None
         for name, i, b, p in library:
@@ -81,6 +82,7 @@ def build(anim, refs):
                         best = (sc, name, i, b, p, dx, dy)
         _, name, i, b, p, dx, dy = best
         print(f"{anim} кадър {f}: като {name} {i} ({dx:+d},{dy:+d})")
+        matches.append((name, i, dx, dy))
         fp, bp, pp = frame.load(), b.load(), p.load()
         label = {}
         unknown = []
@@ -108,6 +110,33 @@ def build(anim, refs):
         for (x, y), c in label.items():
             out.putpixel((f * SIZE + x, y), c)
     out.save(os.path.join(PAINT, anim + ".png"))
+    copy_dots(anim, strip.width // SIZE, matches)
+
+
+DOTS = ("head", "face", "neck", "cup")
+
+
+def copy_dots(anim, count, matches):
+    """Точките (шапка, очила, шал, чаша) – от същия кадър-образец, със същото отместване."""
+    for dot in DOTS:
+        out = Image.new("RGBA", (count * SIZE, SIZE), (0, 0, 0, 0))
+        found = False
+        for f, (name, i, dx, dy) in enumerate(matches):
+            path = os.path.join(PAINT, f"{name}_{dot}.png")
+            if not os.path.exists(path):
+                continue
+            src = Image.open(path).convert("RGBA")
+            for y in range(SIZE):
+                for x in range(SIZE):
+                    p = src.getpixel((i * SIZE + x, y)) if i * SIZE + x < src.width else (0, 0, 0, 0)
+                    if p[3] and 0 <= x + dx < SIZE and 0 <= y + dy < SIZE:
+                        out.putpixel((f * SIZE + x + dx, y + dy), p)
+                        found = True
+        target = os.path.join(PAINT, f"{anim}_{dot}.png")
+        if found:
+            out.save(target)
+        elif os.path.exists(target):
+            os.remove(target)
 
 
 def main():

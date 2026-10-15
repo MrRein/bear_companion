@@ -424,7 +424,7 @@ public sealed partial class PetWindow
         }
         if (now < _nextFocusSwitch) return;
         _nextFocusSwitch = now + 15 + _rng.Next(20);
-        string[] anims = { "focus", "focus", "think", "write" };
+        string[] anims = { "focus", "focus", "think", "focus_write" };
         string next = anims[_rng.Next(anims.Length)];
         if (next != _anim)
         {

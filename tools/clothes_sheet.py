@@ -2,6 +2,8 @@
 
     python tools/clothes_sheet.py              прави листовете в art_templates/
     python tools/clothes_sheet.py import       чете маркирания лист (done_art/clothes_sheet.png)
+    python tools/clothes_sheet.py new a b c    лист само с тези анимации (clothes_sheet_new*.png)
+    python tools/clothes_sheet.py import done_art/clothes_sheet_new.png
 
 art_templates/clothes_sheet.png – мечокът без дрехи, кадрите един до друг, по
 един ред на анимация (размерът е 1:1, пиксел за пиксел). Тут го отваря в
@@ -34,9 +36,9 @@ def anims():
     return sorted(mp.HAND_DRAWN | set(mp.EXTRA_DRAWN) | {"eat_hold"})
 
 
-def layout():
+def layout(names=None):
     rows, y = [], GAP
-    for name in anims():
+    for name in names or anims():
         frames = Image.open(os.path.join(BEAR, f"{name}.png")).width // SIZE
         rows.append({"anim": name, "y": y, "frames": frames})
         y += SIZE + GAP
@@ -48,9 +50,9 @@ def cell_x(f):
     return LABEL + f * (SIZE + GAP)
 
 
-def export():
+def export(names=None, out="clothes_sheet"):
     os.makedirs(OUTDIR, exist_ok=True)
-    rows, width, height = layout()
+    rows, width, height = layout(names)
     bg = (200, 200, 200, 255)
     bare = Image.new("RGBA", (width, height), bg)
     draft = Image.new("RGBA", (width, height), bg)
@@ -77,11 +79,11 @@ def export():
             for img in dots.values():
                 over.alpha_composite(img.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE)))
             draft.paste(over, (cell_x(f), r["y"]))
-    bare.save(os.path.join(OUTDIR, "clothes_sheet.png"))
-    draft.save(os.path.join(OUTDIR, "clothes_sheet_draft.png"))
-    with open(os.path.join(OUTDIR, "clothes_sheet.json"), "w", encoding="utf-8") as fh:
+    bare.save(os.path.join(OUTDIR, f"{out}.png"))
+    draft.save(os.path.join(OUTDIR, f"{out}_draft.png"))
+    with open(os.path.join(OUTDIR, f"{out}.json"), "w", encoding="utf-8") as fh:
         json.dump(rows, fh, indent=1)
-    print("art_templates/clothes_sheet.png, clothes_sheet_draft.png")
+    print(f"art_templates/{out}.png, {out}_draft.png")
 
 
 def close(a, b, tol=40):
@@ -104,6 +106,7 @@ POINT_MARKS = {
     "face": [(0, 255, 255), (0, 252, 255)],
     "neck": [(255, 255, 255)],
     "cup": [(255, 128, 0), (255, 149, 26)],
+    "tool": [(0, 128, 255), (0, 141, 255)],
 }
 
 
@@ -124,7 +127,11 @@ def point_of(rgb):
 
 def import_sheet(path):
     sheet = Image.open(path).convert("RGBA")
-    with open(os.path.join(OUTDIR, "clothes_sheet.json"), encoding="utf-8") as fh:
+    # clothes_sheet_new.png → clothes_sheet_new.json (листът казва кой ред коя анимация е).
+    name = os.path.splitext(os.path.basename(path))[0]
+    if not os.path.exists(os.path.join(OUTDIR, f"{name}.json")):
+        name = "clothes_sheet"
+    with open(os.path.join(OUTDIR, f"{name}.json"), encoding="utf-8") as fh:
         rows = json.load(fh)
     parts = {**{ac.LAYER[k]: v for k, v in ac.PART_COLORS.items()}}
     fronts = {ac.LAYER.get(k, "none"): v for k, v in ac.FRONT_COLORS.items()}
@@ -216,5 +223,7 @@ def import_sheet(path):
 if __name__ == "__main__":
     if sys.argv[1:2] == ["import"]:
         import_sheet(sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "done_art", "clothes_sheet.png"))
+    elif sys.argv[1:2] == ["new"]:
+        export(sys.argv[2:], "clothes_sheet_new")
     else:
         export()

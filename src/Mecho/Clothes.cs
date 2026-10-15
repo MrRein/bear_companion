@@ -53,13 +53,15 @@ public static class Clothes
 
     /// <summary>Напитката в лапата, докато пие (не е дреха; рисунка drink_&lt;id&gt;.png на точката _cup).</summary>
     public static readonly Slot Cup = new("cup", "Напитка", "tea", "cup", "drink", Anchor.Bottom);
+    /// <summary>Предметът в лапата (четка, лейка) в doing*: рисунка tool_&lt;id&gt;.png, дръжката в средата, на точката _tool.</summary>
+    public static readonly Slot Tool = new("tool", "Предмет", "pencil", "tool", "tool", Anchor.Center);
     public static readonly Slot Shirt = new("shirt", "Блузи", "shirt", "shirt");
     public static readonly Slot Pants = new("pants", "Панталони", "pants", "pants");
     public static readonly Slot Shoes = new("shoes", "Обувки", "shoe", "shoes");
     public static readonly Slot Gloves = new("gloves", "Ръкавици", "glove", "gloves");
 
     /// <summary>В този ред се рисуват (шапката е най-отгоре).</summary>
-    public static readonly Slot[] Slots = { Shoes, Pants, Shirt, Gloves, Neck, Glasses, Hat, Cup };
+    public static readonly Slot[] Slots = { Shoes, Pants, Shirt, Gloves, Neck, Glasses, Hat, Cup, Tool };
 
     /// <summary>В този ред са в гардероба.</summary>
     public static readonly Slot[] Shelves = { Hat, Glasses, Neck, Shirt, Pants, Shoes, Gloves };
@@ -129,6 +131,7 @@ public static class Clothes
         new("sun", "Слънчеви очила", "glasses", 25, default, default),
         new("heart", "Очила сърчица", "glasses", 30, default, default),
         new("artist", "Очила на художник", "glasses", 40, default, default),
+        new("gold", "Жълти очила", "glasses", 30, default, default),
         new("scarf_red", "Червен шал", "neck", 20, default, default),
         new("scarf_stripes", "Шал на райета", "neck", 25, default, default),
         new("bowtie", "Папийонка", "neck", 20, default, default),
@@ -144,6 +147,9 @@ public static class Clothes
         new("coffee", "Кафе", "cup", 0, default, default) { Hidden = true },
         new("juice_orange", "Портокалов сок", "cup", 0, default, default) { Hidden = true },
         new("juice_berry", "Боровинков сок", "cup", 0, default, default) { Hidden = true },
+        new("paintbrush_red", "Червена четка", "tool", 0, default, default) { Hidden = true },
+        new("paintbrush_blue", "Синя четка", "tool", 0, default, default) { Hidden = true },
+        new("wateringcan", "Лейка", "tool", 0, default, default) { Hidden = true },
     });
 
     /// <summary>
@@ -222,6 +228,14 @@ public static class Clothes
 public sealed class Dresser
 {
     public const int HatRoom = 12;
+
+    /// <summary>Анимации, в които лапите държат нещо пред гърдите: без шал/папийонка/колие.</summary>
+    public static readonly HashSet<string> HandsBusy = new()
+    {
+        "read", "read_sleep", "game", "game_tired", "write", "write_tired", "work", "work_tired", "focus", "focus_tired",
+        "focus_write", "paint", "doing", "doing_tired", "doing_sit", "doing_sit_tired", "water", "eat", "eat_hold", "drink",
+        "sit_drinking", "sit_drinking_sip", "sit_drinking_blow", "cook", "cook_tired", "dice",
+    };
 
     // Готовите кадри (мечокът с дрехите) – по облекло. Пазим няколко облекла: иначе
     // всяка смяна (чашата в лапата при пиене, пижамата…) изтриваше всичко и
@@ -399,8 +413,9 @@ public sealed class Dresser
         foreach (var slot in Clothes.Slots)
         {
             if (!outfit.TryGetValue(slot.Id, out var id) || Clothes.Find(id) is not { } g || g.SlotId != slot.Id) continue;
-            // Чете: книжката закрива шала и папийонката – не се рисуват.
-            if (slot == Clothes.Neck && lib.Layer(anim, "book") != null) continue;
+            // Лапите държат нещо пред гърдите (книжка, джойстик, молив, чаша, четка,
+            // лейка…): шалът, папийонката и колието не се рисуват – иначе са върху предмета.
+            if (slot == Clothes.Neck && (HandsBusy.Contains(anim) || lib.Layer(anim, "book") != null)) continue;
             // Чашата е най-отгоре: първо ръцете отпред се връщат над аксесоарите.
             if (slot == Clothes.Cup) RestoreFront();
             if (slot.Sprite != null)

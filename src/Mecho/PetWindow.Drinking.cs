@@ -43,10 +43,19 @@ public sealed partial class PetWindow
     /// <summary>Чашата в лапата: само докато е в някоя от трите анимации за пиене.</summary>
     private IReadOnlyDictionary<string, string> WithCup(IReadOnlyDictionary<string, string> outfit)
     {
+        // Рисува/полива: четката или лейката в лапата.
+        if (_anim.StartsWith("doing"))
+        {
+            string tool = _scene == Scenes.Plant ? "wateringcan" : _brush;
+            return new Dictionary<string, string>(outfit) { [Clothes.Tool.Id] = tool };
+        }
         if (_cup == null || !_anim.StartsWith("sit_drinking")) return outfit;
         var withCup = new Dictionary<string, string>(outfit) { [Clothes.Cup.Id] = _cup };
         return withCup;
     }
+
+    /// <summary>С коя четка рисува (сменя се всеки път, като седне на статива).</summary>
+    private string _brush = "paintbrush_red";
 
     private void UpdateDrinking(double now)
     {
