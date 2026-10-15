@@ -67,10 +67,19 @@ public sealed partial class PetWindow
     private void StartParcelTrip()
     {
         if (_parcel == null) return;
+        _trip = PauseActivity();
+        GoToParcel();
+    }
+
+    /// <summary>
+    /// Спира временно каквото прави (кътче, работа, батут) и помни докъде е
+    /// стигнал – без LeaveScene, за да не почне нов свободен ритъм.
+    /// </summary>
+    private ParcelTrip PauseActivity()
+    {
         var scene = _onTrampoline ? Scenes.Trampoline : _inScene ? _scene : null;
         double left = _onTrampoline ? (_bounceUntil > 0 ? Math.Max(1, _bounceUntil - Now) : 0) : _sceneUntil > 0 ? Math.Max(1, _sceneUntil - Now) : 0;
-        _trip = new ParcelTrip(Now, _x, _facingLeft, scene, left, _autoBlock, _save.StayPut);
-        // Спира временно: без LeaveScene, за да не почне нов свободен ритъм.
+        var paused = new ParcelTrip(Now, _x, _facingLeft, scene, left, _autoBlock, _save.StayPut);
         if (_onTrampoline) EndBounce(null);
         if (_inScene)
         {
@@ -80,7 +89,23 @@ public sealed partial class PetWindow
             _sceneUntil = 0;
             _autoBlock = false;
         }
-        GoToParcel();
+        return paused;
+    }
+
+    /// <summary>Продължава спряното (на мястото си): същото кътче, колкото време му оставаше.</summary>
+    private void ResumeActivity(ParcelTrip t)
+    {
+        _facingLeft = t.FacingLeft;
+        _save.StayPut = t.StayPut;
+        if (t.Scene == null || (t.Scene == Scenes.Focus && !InFocus)) return;
+        if (t.Scene == Scenes.Trampoline)
+        {
+            StartTrampoline(t.SceneLeft, quiet: true);
+            return;
+        }
+        StartScene(t.Scene, quiet: true);
+        if (t.SceneLeft > 0) _sceneUntil = Now + t.SceneLeft;
+        _autoBlock = t.Auto;
     }
 
     private void GoToParcel()
@@ -119,17 +144,7 @@ public sealed partial class PetWindow
         WalkTo(t.X, () =>
         {
             _trip = null;
-            _facingLeft = t.FacingLeft;
-            _save.StayPut = t.StayPut;
-            if (t.Scene == null || (t.Scene == Scenes.Focus && !InFocus)) return;
-            if (t.Scene == Scenes.Trampoline)
-            {
-                StartTrampoline(t.SceneLeft, quiet: true);
-                return;
-            }
-            StartScene(t.Scene, quiet: true);
-            if (t.SceneLeft > 0) _sceneUntil = Now + t.SceneLeft;
-            _autoBlock = t.Auto;
+            ResumeActivity(t);
         });
     }
 

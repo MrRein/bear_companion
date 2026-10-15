@@ -96,6 +96,7 @@ public sealed partial class PetWindow : Window
         R.Owner = () => _save.OwnerName;
         // Размерите на шрифта и иконките зависят от мащаба на екрана.
         Ui.Init(VisualTreeHelper.GetDpi(this).DpiScaleX);
+        Ui.Apply(UiThemes.Current(_save));
         _lib = SpriteLibrary.Load();
         Title = "Мечо";
         WindowStyle = WindowStyle.None;
@@ -126,13 +127,13 @@ public sealed partial class PetWindow : Window
             FontFamily = Ui.GameFont,
             FontWeight = FontWeights.Normal,
             FontSize = Ui.Body,
-            Foreground = new SolidColorBrush(Color.FromRgb(59, 36, 20)),
+            Foreground = Ui.Ink,
         };
         _bubble = new Border
         {
             Child = _bubbleText,
-            Background = new SolidColorBrush(Color.FromRgb(255, 248, 230)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(59, 36, 20)),
+            Background = Ui.Cream,
+            BorderBrush = Ui.Ink,
             BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(8, 4, 8, 5),
@@ -412,6 +413,20 @@ public sealed partial class PetWindow : Window
             else
             {
                 if (_stateTime > 2) ContinueParcelTrip();
+                return;
+            }
+        }
+        // Тръгна към гардероба (смени дреха, докато правеше нещо): същото.
+        if (_closet != null && !AtWardrobe)
+        {
+            if (now - _closet.At > 120)
+            {
+                _closet = null;
+                _shownOutfit = null;
+            }
+            else
+            {
+                if (_stateTime > 2) ContinueToWardrobe();
                 return;
             }
         }
@@ -720,6 +735,11 @@ public sealed partial class PetWindow : Window
     private void LiftUp()
     {
         _trip = null;
+        if (_closet != null && !AtWardrobe)
+        {
+            _closet = null;
+            _shownOutfit = null;
+        }
         _dragAsleep = IsAsleep;
         _dragAway = _sleepIsAway;
         if (_dragAsleep)

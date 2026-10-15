@@ -990,6 +990,7 @@ public sealed class MenuWindow : Window
                 case Backdrop b: grid.Children.Add(BackdropTile(b)); break;
                 case Skin k: grid.Children.Add(SkinTile(k, shop: true)); break;
                 case PajamaSet p: grid.Children.Add(PajamaTile(p, shop: true)); break;
+                case UiTheme t: grid.Children.Add(ThemeTile(t, shop: true)); break;
             }
         }
         if (grid.Children.Count > 0) box.Children.Add(grid);
@@ -1056,6 +1057,23 @@ public sealed class MenuWindow : Window
         else if (owned) action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
         else action = BuyButton(b.Price, () => _pet.BuyBackdrop(b), out why);
         return MakeTile(_pet.BackdropImage(b), b.Name, Description("Тапет за портрета на Мечо."), action, dim: false, why, owned, 2);
+    }
+
+    /// <summary>Скин на менюто: в магазина се купува (и се слага веднага), в гардероба се сменя.</summary>
+    private Border ThemeTile(UiTheme t, bool shop)
+    {
+        var s = _pet.Save;
+        bool owned = UiThemes.Owns(s, t), used = UiThemes.Current(s) == t;
+        string? why = null;
+        Button action;
+        if (used)
+        {
+            action = Button("Сложен", () => { });
+            action.IsEnabled = false;
+        }
+        else if (owned) action = Button("Сложи", () => { _pet.UseUiTheme(t); BuildWardrobe(); }, primary: true);
+        else action = BuyButton(t.Price, () => _pet.BuyUiTheme(t), out why);
+        return MakeTile(UiThemes.Preview(t), t.Name, Description(shop ? "Скин за менюто." : ""), action, dim: false, why, owned && (used || !shop), 3);
     }
 
     /// <summary>Пижама: в магазина се купува (и става избраната), в гардероба се избира.</summary>
@@ -1289,6 +1307,7 @@ public sealed class MenuWindow : Window
         // Раздели: всеки вид дреха/аксесоар, тапетите и мебелите (ако има диван или легло).
         var sections = Clothes.Shelves.Select(slot => (Id: slot.Id, Name: slot.Name, Icon: slot.Icon)).ToList();
         sections.Add(("pajamas", "Пижами", "pajama"));
+        sections.Add(("themes", "Меню", "menu"));
         sections.Add(("wallpapers", "Тапети", "picture"));
         if (Furniture.ByItem.Keys.Any(item => Kitchen.Owns(s, item))) sections.Add(("furniture", "Мебели и уреди", "couch"));
         if (!sections.Any(x => x.Id == _wardrobeSection)) _wardrobeSection = sections[0].Id;
@@ -1328,6 +1347,11 @@ public sealed class MenuWindow : Window
                 grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, null, owned: used, artScale: 2));
             }
             empty = "Нови тапети има в офертата на деня.";
+        }
+        else if (_wardrobeSection == "themes")
+        {
+            foreach (var t in UiThemes.All.Where(t => UiThemes.Owns(s, t))) grid.Children.Add(ThemeTile(t, shop: false));
+            empty = "Нови скинове за менюто има в офертата на деня.";
         }
         else if (_wardrobeSection == "pajamas")
         {

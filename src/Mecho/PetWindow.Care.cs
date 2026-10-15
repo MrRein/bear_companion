@@ -85,10 +85,10 @@ public sealed partial class PetWindow
         _timerText.FontWeight = FontWeights.Normal;
         _timerText.FontSize = Ui.Body;
         _timerText.FontFamily = Ui.MonoFont;
-        _timerText.Foreground = new SolidColorBrush(Color.FromRgb(59, 36, 20));
+        _timerText.Foreground = Ui.Ink;
         _timerTag.Child = _timerText;
         _timerTag.Background = TagWork;
-        _timerTag.BorderBrush = new SolidColorBrush(Color.FromRgb(59, 36, 20));
+        _timerTag.BorderBrush = Ui.Ink;
         _timerTag.BorderThickness = new Thickness(2);
         _timerTag.CornerRadius = new CornerRadius(3);
         _timerTag.Padding = new Thickness(5, 0, 5, 1);

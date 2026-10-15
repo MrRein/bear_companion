@@ -536,7 +536,51 @@ public sealed partial class PetWindow
                         _dresser.Frame(_lib, anim, i, new Dictionary<string, string>(_save.Outfit) { ["cup"] = cup });
             LeaveScene();
         }, 300);
+        string? oldShirt = null;
+        await step("гардероб докато чете: не идва", () =>
+        {
+            if (!Kitchen.Owns(_save, Kitchen.Wardrobe)) _save.Owned.Add(Kitchen.Wardrobe);
+            DevClearFood();
+            if (IsAsleep) WakeUp();
+            if (_inScene) LeaveScene();
+            SetIdle();
+            StartScene(Scenes.Reading, 300);
+            OpenMenu(MenuWindow.WardrobeTab);
+            if (AtWardrobe || _scene != Scenes.Reading) throw new Exception("гардеробът прекъсна четенето само с отварянето на таба");
+        }, 500);
+        await step("гардероб докато чете: смени дреха", () =>
+        {
+            oldShirt = _save.Outfit.TryGetValue("shirt", out var o) ? o : null;
+            var shirt = Clothes.All.First(g => g.SlotId == "shirt" && !g.Hidden && Clothes.Owns(_save, g) && g.Id != oldShirt);
+            Wear(shirt);
+            if (_closet == null || _inScene) throw new Exception("не спря да отиде до гардероба");
+            EffectiveOutfit.TryGetValue("shirt", out var shown);
+            if (shown != oldShirt) throw new Exception("преоблече се пред очите ни по пътя");
+        }, 4000);
+        await step("гардероб докато чете: гардеробът дойде", () =>
+        {
+            if (!AtWardrobe) throw new Exception("гардеробът не дойде след смяната");
+            _menu!.Hide();
+        }, 5000);
+        await step("гардероб докато чете: пак чете", () =>
+        {
+            if (_closet != null || !_inScene || _scene != Scenes.Reading) throw new Exception("не се върна да чете");
+            if (_sceneUntil <= Now) throw new Exception("забрави колко му оставаше");
+            LeaveScene();
+        }, 300);
         await step("гардероб", () => { OpenMenu(MenuWindow.WardrobeTab); _menu!.SelfTestWardrobe(); }, 800);
+        await step("скин на менюто", () =>
+        {
+            foreach (var t in UiThemes.All)
+            {
+                if (!UiThemes.Owns(_save, t)) _save.Owned.Add(t.Key);
+                UseUiTheme(t);
+                if (((System.Windows.Media.SolidColorBrush)Ui.Honey).Color != t.Honey) throw new Exception("скинът не се сложи: " + t.Id);
+                UiThemes.Preview(t);
+                _menu!.SelfTestWardrobe();
+            }
+            UseUiTheme(UiThemes.All[0]);
+        }, 600);
         foreach (var g in Clothes.All)
         {
             var garment = g;

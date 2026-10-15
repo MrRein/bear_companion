@@ -55,22 +55,50 @@ public static class Ui
         return brush;
     }
 
-    public static readonly Brush Ink = Rgb(59, 36, 20);
-    public static readonly Brush Wood = Rgb(139, 90, 43);
-    public static readonly Brush WoodDark = Rgb(98, 62, 32);
-    public static readonly Brush WoodLight = Rgb(181, 125, 70);
-    public static readonly Brush Paper = Rgb(255, 244, 220);
-    public static readonly Brush PaperDark = Rgb(240, 221, 186);
-    public static readonly Brush Tile = Rgb(251, 233, 200);
-    public static readonly Brush TileArt = Rgb(236, 208, 160);
-    public static readonly Brush Hover = Rgb(255, 226, 154);
-    public static readonly Brush Honey = Rgb(255, 209, 102);
-    public static readonly Brush Cream = Rgb(255, 248, 230);
-    public static readonly Brush Muted = Rgb(125, 98, 72);
+    /// <summary>
+    /// Цвят от скина на менюто: четката НЕ е замразена, а сменя цвета си (Apply),
+    /// така всичко нарисувано с нея се оцветява наново без да се прави отначало.
+    /// Затова в шаблони и стилове се слага през Binding (иначе WPF я замразява).
+    /// </summary>
+    private static SolidColorBrush Live(Color c) => new(c);
+
+    private static readonly UiTheme Start = UiThemes.All[0];
+    public static readonly Brush Ink = Live(Start.Ink);
+    public static readonly Brush Wood = Live(Start.Wood);
+    public static readonly Brush WoodDark = Live(Start.WoodDark);
+    public static readonly Brush WoodLight = Live(Start.WoodLight);
+    public static readonly Brush Paper = Live(Start.Paper);
+    public static readonly Brush PaperDark = Live(Start.PaperDark);
+    public static readonly Brush Tile = Live(Start.Tile);
+    public static readonly Brush TileArt = Live(Start.TileArt);
+    public static readonly Brush Hover = Live(Start.Hover);
+    public static readonly Brush Honey = Live(Start.Honey);
+    public static readonly Brush Cream = Live(Start.Cream);
+    public static readonly Brush Muted = Live(Start.Muted);
+    public static readonly Brush Empty = Live(Start.Empty);
+
+    /// <summary>Слага скина на менюто (всички отворени прозорци се оцветяват веднага).</summary>
+    public static void Apply(UiTheme t)
+    {
+        void Set(Brush b, Color c) => ((SolidColorBrush)b).Color = c;
+        Set(Ink, t.Ink);
+        Set(Wood, t.Wood);
+        Set(WoodDark, t.WoodDark);
+        Set(WoodLight, t.WoodLight);
+        Set(Paper, t.Paper);
+        Set(PaperDark, t.PaperDark);
+        Set(Tile, t.Tile);
+        Set(TileArt, t.TileArt);
+        Set(Hover, t.Hover);
+        Set(Honey, t.Honey);
+        Set(Cream, t.Cream);
+        Set(Muted, t.Muted);
+        Set(Empty, t.Empty);
+    }
+
     public static readonly Brush Good = Rgb(120, 180, 80);
     public static readonly Brush Okay = Rgb(240, 170, 60);
     public static readonly Brush Bad = Rgb(220, 90, 80);
-    public static readonly Brush Empty = Rgb(214, 190, 150);
     public static readonly Brush Sky = Rgb(170, 210, 235);
     public static readonly Brush Grass = Rgb(120, 170, 80);
 
@@ -83,14 +111,15 @@ public static class Ui
     {
         const string xaml = @"
 <Style xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
-       xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='ScrollBar'>
+       xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'
+       xmlns:m='clr-namespace:Mecho;assembly=Mecho' TargetType='ScrollBar'>
   <Setter Property='Width' Value='16'/>
   <Setter Property='MinWidth' Value='16'/>
   <Setter Property='Margin' Value='6,0,0,0'/>
   <Setter Property='Template'>
     <Setter.Value>
       <ControlTemplate TargetType='ScrollBar'>
-        <Border Background='#F0DDBA' BorderBrush='#3B2414' BorderThickness='2' CornerRadius='5' Padding='1'>
+        <Border Background='{Binding Source={x:Static m:Ui.PaperDark}}' BorderBrush='{Binding Source={x:Static m:Ui.Ink}}' BorderThickness='2' CornerRadius='5' Padding='1'>
           <Track x:Name='PART_Track' IsDirectionReversed='True'>
             <Track.DecreaseRepeatButton>
               <RepeatButton Command='ScrollBar.PageUpCommand' Focusable='False' Opacity='0'/>
@@ -102,10 +131,10 @@ public static class Ui
               <Thumb Cursor='Hand'>
                 <Thumb.Template>
                   <ControlTemplate TargetType='Thumb'>
-                    <Border x:Name='T' Background='#FFD166' BorderBrush='#3B2414' BorderThickness='2,2,2,3' CornerRadius='3' MinHeight='24'/>
+                    <Border x:Name='T' Background='{Binding Source={x:Static m:Ui.Honey}}' BorderBrush='{Binding Source={x:Static m:Ui.Ink}}' BorderThickness='2,2,2,3' CornerRadius='3' MinHeight='24'/>
                     <ControlTemplate.Triggers>
                       <Trigger Property='IsMouseOver' Value='True'>
-                        <Setter TargetName='T' Property='Background' Value='#FFE29A'/>
+                        <Setter TargetName='T' Property='Background' Value='{Binding Source={x:Static m:Ui.Hover}}'/>
                       </Trigger>
                       <Trigger Property='IsDragging' Value='True'>
                         <Setter TargetName='T' Property='Background' Value='#F0AA3C'/>
@@ -139,7 +168,7 @@ public static class Ui
             Stretch = Stretch.None,
         };
         RenderOptions.SetEdgeMode(brush, EdgeMode.Aliased);
-        brush.Freeze();
+        // Не се замразява: цветовете идват от скина на менюто и се сменят.
         return brush;
     }
 
@@ -441,7 +470,8 @@ public static class Ui
 
         var template = new ControlTemplate(typeof(Button)) { VisualTree = border };
         var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-        hover.Setters.Add(new Setter(Border.BackgroundProperty, Hover, "bd"));
+        // През Binding: иначе шаблонът би замразил четката и скинът не би я сменил.
+        hover.Setters.Add(new Setter(Border.BackgroundProperty, new Binding { Source = Hover }, "bd"));
         template.Triggers.Add(hover);
         var pressed = new Trigger { Property = System.Windows.Controls.Primitives.ButtonBase.IsPressedProperty, Value = true };
         pressed.Setters.Add(new Setter(Border.BorderThicknessProperty, new Thickness(2, 4, 2, 2), "bd"));

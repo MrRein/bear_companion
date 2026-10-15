@@ -44,7 +44,8 @@ public sealed class SaveData
     public string BedSkin { get; set; } = "classic";
     public Dictionary<string, string> Skins { get; set; } = new(); // предмет → сложеният скин (виж Furniture)
     public bool PajamasAtNight { get; set; } = true;            // пижама вечер (виж PetWindow.Furniture.cs)
-    public string Pajama { get; set; } = "classic";             // коя пижама облича вечер (виж Clothes.PajamaSets)
+    public string Pajama { get; set; } = "classic";
+    public string UiTheme { get; set; } = "classic";            // скинът на менюто (виж UiThemes)             // коя пижама облича вечер (виж Clothes.PajamaSets)
     public bool LampOff { get; set; }                           // Тут изгаси лампата тази вечер (до сутринта)
     public string LampOffDay { get; set; } = "";
     public double LampX { get; set; } = double.NaN;

@@ -36,6 +36,7 @@ public static class DailyOffer
             foreach (var g in Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(s, g))) Add("g:" + g.SlotId, "g:" + g.Id);
             foreach (var b in Backdrops.All.Where(b => b.Price > 0 && !Backdrops.Owns(s, b))) Add("bg", "bg:" + b.Id);
             foreach (var p in Clothes.PajamaSets.Where(p => !Clothes.Owns(s, p))) Add("pj", "pj:" + p.Id);
+            foreach (var t in UiThemes.All.Where(t => !UiThemes.Owns(s, t))) Add("ui", "ui:" + t.Id);
         }
         foreach (var item in Furniture.ByItem.Keys)
         {
@@ -113,6 +114,7 @@ public static class DailyOffer
             "g" => Clothes.Find(parts[1]),
             "bg" => Backdrops.All.FirstOrDefault(b => b.Id == parts[1]),
             "pj" => Clothes.PajamaSets.FirstOrDefault(p => p.Id == parts[1]),
+            "ui" => UiThemes.All.FirstOrDefault(t => t.Id == parts[1]),
             "skin" when parts.Length == 3 => Furniture.SkinsFor(parts[1]).FirstOrDefault(k => k.Id == parts[2]),
             _ => null,
         };
