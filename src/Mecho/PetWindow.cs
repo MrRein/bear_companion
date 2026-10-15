@@ -614,7 +614,10 @@ public sealed partial class PetWindow : Window
     private void SetIdle() => SetState(BearState.Idle, IsExhausted ? "tired" : "idle", 25 + _rng.NextDouble() * 35);
 
     /// <summary>Уморен: всичко му върви по-бавно. Плюс „живото“ темпо (виж UpdateTempo).</summary>
-    private double AnimSpeed => (IsExhausted && !IsResting ? 0.6 : 1) * (_anim is "walk" or "walk_tired" or "drag" or "fall" ? 1 : _tempo);
+    private double BaseAnimSpeed => IsExhausted && !IsResting ? 0.6 : 1;
+
+    // Еднократните анимации (прозявка, падане, радост…) вървят с равно темпо, за да свършат навреме.
+    private double AnimSpeed => BaseAnimSpeed * (_anim is "walk" or "walk_tired" or "drag" or "fall" || _state == BearState.Busy && !_lib.Get(_anim).Loop ? 1 : _tempo);
 
     // Живо, неравно темпо: анимацията ту се забавя, ту се забързва, понякога за миг
     // замръзва (като че ли се замисля). Сменя се плавно на всеки 2–7 секунди.
@@ -638,7 +641,8 @@ public sealed partial class PetWindow : Window
     private void Play(string anim, string? then = null, bool away = false, double length = 0, Action? after = null)
     {
         var a = _lib.Get(anim);
-        SetState(BearState.Busy, anim, length > 0 ? length : a.Duration / AnimSpeed + 0.4);
+        // Колко трае: по умората, но не по „живото“ темпо (иначе в миг на пауза прозявката траеше вечно).
+        SetState(BearState.Busy, anim, length > 0 ? length : a.Duration / BaseAnimSpeed + 0.4);
         _afterBusy = then;
         _afterAction = after;
         _sleepIsAway = away;
