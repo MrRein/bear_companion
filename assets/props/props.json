@@ -1024,6 +1024,30 @@
     "shop_lamp": {
       "file": "shop_lamp.png",
       "seat": 0
+    },
+    "gift_hold": {
+      "file": "gift_hold.png",
+      "seat": 0
+    },
+    "gift_hold_pink": {
+      "file": "gift_hold_pink.png",
+      "seat": 0
+    },
+    "gift_hold_green": {
+      "file": "gift_hold_green.png",
+      "seat": 0
+    },
+    "gift_hold_yellow": {
+      "file": "gift_hold_yellow.png",
+      "seat": 0
+    },
+    "gift_hold_purple": {
+      "file": "gift_hold_purple.png",
+      "seat": 0
+    },
+    "gift_hold_red": {
+      "file": "gift_hold_red.png",
+      "seat": 0
     }
   }
 }

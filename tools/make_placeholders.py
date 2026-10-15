@@ -25,7 +25,8 @@ HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "d
               "work", "work_tired", "write", "write_tired", "yoga"}
 
 # Нарисувани от Тут анимации, които нямат placeholder: име → (кадри в секунда, повтаря ли се).
-EXTRA_DRAWN = {"sit_drinking": (10, True), "sit_drinking_sip": (10, False), "sit_drinking_blow": (10, False)}
+EXTRA_DRAWN = {"sit_drinking": (10, True), "sit_drinking_sip": (10, False), "sit_drinking_blow": (10, False),
+               "walk_gift": (8, True)}
 
 # Цветовете са от мечока на Тут (assets/bear/idle.png).
 OUTLINE = (68, 20, 8, 255)
@@ -2011,6 +2012,83 @@ for _c, _petal in FLOWER_COLORS.items():
     PROP_LIST[f"flower_4_{_c}"] = (prop(12, 16, flower(4, _petal, (250, 200, 60, 255) if _c != "yellow" else (200, 120, 40, 255))), 0)
 
 
+DONE_ART = os.path.join(os.path.dirname(__file__), "..", "done_art")
+# Цветовете на подаръка на Тут → за всеки цвят: (кутия, тъмно, панделка).
+GIFT_SRC = {(135, 193, 234): 0, (95, 148, 200): 1, (249, 115, 129): 2}
+GIFT_RECOLOR = {
+    "": ((135, 193, 234, 255), (95, 148, 200, 255), (249, 115, 129, 255)),
+    "pink": ((245, 165, 190, 255), (215, 115, 150, 255), (255, 250, 240, 255)),
+    "green": ((140, 200, 110, 255), (90, 145, 70, 255), (250, 210, 80, 255)),
+    "yellow": ((250, 215, 95, 255), (220, 170, 50, 255), (220, 70, 70, 255)),
+    "purple": ((180, 140, 225, 255), (125, 90, 180, 255), (255, 220, 120, 255)),
+    "red": ((225, 80, 80, 255), (170, 45, 50, 255), (250, 220, 120, 255)),
+}
+
+
+def recolor_gift(img, color):
+    out = img.convert("RGBA").copy()
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            p = px[x, y]
+            if p[3] and p[:3] in GIFT_SRC:
+                px[x, y] = GIFT_RECOLOR[color][GIFT_SRC[p[:3]]]
+    return out
+
+
+def gift_opened(img):
+    """Отворен подарък от нарисувания: капакът (горните 8 реда) отскача нагоре-вляво, отвътре блести."""
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    out.alpha_composite(img.crop((0, 8, 16, 16)), (0, 8))
+    lid = img.crop((0, 0, 16, 8))
+    out.alpha_composite(lid, (-3, -2))
+    d = ImageDraw.Draw(out)
+    for x, y in [(9, 6), (12, 5), (14, 7), (11, 3)]:
+        d.point((x, y), fill=(255, 230, 120, 255))
+    return out
+
+
+def save_gifts():
+    """Подаръците на Тут във всички цветове: кутията, отворена, в скута и анимацията с подаръка."""
+    gift = os.path.join(DONE_ART, "gift.png")
+    if not os.path.exists(gift):
+        return
+    box = Image.open(gift).convert("RGBA")
+    hold = Image.open(os.path.join(DONE_ART, "gift_hold.png")).convert("RGBA") if os.path.exists(os.path.join(DONE_ART, "gift_hold.png")) else None
+    walk = Image.open(os.path.join(OUT, "walk_gift.png")).convert("RGBA") if os.path.exists(os.path.join(OUT, "walk_gift.png")) else None
+    with open(os.path.join(OUT, "anim.json"), encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    for color in GIFT_RECOLOR:
+        sfx = "_" + color if color else ""
+        closed = recolor_gift(box, color)
+        closed.save(os.path.join(PROPS, f"gift{sfx}.png"))
+        gift_opened(closed).save(os.path.join(PROPS, f"gift{sfx}_open.png"))
+        if hold is not None:
+            recolor_gift(hold, color).save(os.path.join(PROPS, f"gift_hold{sfx}.png"))
+        if walk is not None and color:
+            # Анимацията в цвета на подаръка (дрехите – същите шаблони като walk_gift).
+            recolor_gift(walk, color).save(os.path.join(OUT, f"walk_gift{sfx}.png"))
+            manifest["animations"][f"walk_gift{sfx}"] = dict(manifest["animations"].get("walk_gift", {"fps": 8, "loop": True}), file=f"walk_gift{sfx}.png")
+            for layer in os.listdir(LAYERS):
+                if layer.startswith("walk_gift_") and not any(layer.startswith(f"walk_gift_{c}_") for c in GIFT_RECOLOR if c):
+                    src = Image.open(os.path.join(LAYERS, layer))
+                    src.save(os.path.join(LAYERS, layer.replace("walk_gift_", f"walk_gift{sfx}_", 1)))
+    with open(os.path.join(OUT, "anim.json"), "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+    props_path = os.path.join(PROPS, "props.json")
+    with open(props_path, encoding="utf-8") as fh:
+        props = json.load(fh)
+    for color in GIFT_RECOLOR:
+        sfx = "_" + color if color else ""
+        for name in (f"gift{sfx}", f"gift{sfx}_open", f"gift_hold{sfx}"):
+            if os.path.exists(os.path.join(PROPS, name + ".png")):
+                props["props"][name] = {"file": name + ".png", "seat": 0}
+    with open(props_path, "w", encoding="utf-8") as fh:
+        json.dump(props, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+
+
 def derive_sleep_peek():
     """
     „Сънливо надига глава“ от нарисувания sleep.png на Тут: главата (лявата
@@ -2460,7 +2538,9 @@ def gift(opened, box=(120, 180, 230, 255), dark=(80, 130, 190, 255), ribbon=(240
 PROP_LIST["gift"] = (prop(16, 16, gift(False)), 0)
 PROP_LIST["gift_open"] = (prop(16, 16, gift(True)), 0)
 
-# Цветни подаръци: gift_<цвят>[_open] (кутия, тъмно, панделка).
+# Цветни подаръци: gift_<цвят>[_open] (кутия, тъмно, панделка). Ако Тут е нарисувала
+# подаръка (done_art/gift.png, gift_hold.png, walk_gift.png), цветовете са нейната
+# рисунка, пребоядисана (виж save_gifts – тя пише и върху тези временни).
 GIFT_COLORS = {
     "pink": ((245, 160, 185, 255), (215, 115, 150, 255), (255, 255, 255, 255)),
     "green": ((130, 190, 100, 255), (90, 145, 70, 255), (250, 210, 80, 255)),
@@ -2544,6 +2624,7 @@ def main():
 
     save_hats()
     save_tools()
+    save_gifts()
     save_backgrounds()
     preview.resize((preview.width * 4, preview.height * 4), Image.NEAREST).save(
         os.path.join(os.path.dirname(__file__), "placeholders_preview.png"))

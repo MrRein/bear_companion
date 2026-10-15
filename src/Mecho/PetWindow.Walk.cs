@@ -36,22 +36,23 @@ public sealed partial class PetWindow
         _save.StayPut = false;
         _walkingOut = true;
         _save.WalkUntil = DateTime.Now.AddMinutes(minutes);
+        // Вечер и много му се спи: ще посънча навън – разходката се брои за сън.
+        _save.WalkNap = (LateForBed || DateTime.Now.Hour >= 19) && _save.Energy < TiredBelow;
         Persist();
-        Say(R.Pick("walk.leave", _save.OwnerName), 3);
-        // Към по-близкия ръб и малко отвъд него.
+        Say(R.Pick(_save.WalkNap ? "walk.leave.nap" : "walk.leave", _save.OwnerName), 3);
+        // Към по-близкия ръб: средата му остава в екрана (иначе при два монитора ще
+        // излезе на другия), а стигне ли ръба, се скрива.
         var area = Area;
         bool left = _x - area.Left < area.Right - _x;
-        double edge = left ? area.Left - SpriteWidth : area.Right + SpriteWidth;
-        Later(1.2, () =>
+        double edge = left ? area.Left + 1 : area.Right - 1;
+        if (_state is BearState.Busy or BearState.Couch) SetIdle();
+        WalkTo(edge, () =>
         {
             if (!_walkingOut) return;
-            WalkTo(edge, () =>
-            {
-                _walkingOut = false;
-                HideBubble();
-                Hide();
-                NotifyCare();
-            });
+            _walkingOut = false;
+            HideBubble();
+            Hide();
+            NotifyCare();
         });
         NotifyCare();
     }
@@ -68,6 +69,8 @@ public sealed partial class PetWindow
     {
         if (_save.WalkUntil == DateTime.MinValue && !_walkingOut) return;
         _walkingOut = false;
+        bool napped = _save.WalkNap;
+        _save.WalkNap = false;
         _save.WalkUntil = DateTime.MinValue;
         Persist();
         // Влиза отстрани, откъдето е по-близо до мястото, където беше.
@@ -82,7 +85,7 @@ public sealed partial class PetWindow
         {
             _walkingBack = false;
             _facingLeft = !left;
-            Say(R.Pick(called ? "walk.called" : "walk.back", _save.OwnerName), 4);
+            Say(R.Pick(called ? "walk.called" : napped ? "walk.back.nap" : "walk.back", _save.OwnerName), 4);
             Emote(called ? "question" : "happy");
             if (CanAnimateFreely) Play("happy");
         });

@@ -277,7 +277,11 @@ public sealed class MenuWindow : Window
     private void SelectTab(int index)
     {
         bool tasks = index == TasksTab;
-        if (tasks) index = PomodoroTab;   // задачите са в „Работа“
+        if (tasks)
+        {
+            index = PomodoroTab;   // задачите са в „Работа“ → „Задачи“
+            ShowWorkPart(2);
+        }
         _tab = index;
         for (int i = 0; i < _tabs.Length; i++)
         {
@@ -1500,22 +1504,61 @@ public sealed class MenuWindow : Window
 
     // ───────────────────────── Задачи ─────────────────────────
 
-    /// <summary>„Работа“: мечо-доро и таймер вляво, задачите вдясно.</summary>
+    /// <summary>
+    /// „Работа“: отгоре три копчета – Мечо-доро | Таймер | Задачи – и под тях само
+    /// избраната част, на цялата ширина (вместо три неща, натъпкани едно до друго).
+    /// </summary>
     private UIElement BuildWorkTab(UIElement timers, UIElement tasks)
     {
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14 * U) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.Children.Add(timers);
-        var right = new StackPanel();
-        var ribbon = Ribbon("Задачи", "tasks");
-        ribbon.Margin = new Thickness(0, 0, 0, 8);
-        right.Children.Add(ribbon);
-        right.Children.Add(tasks);
-        Grid.SetColumn(right, 2);
-        grid.Children.Add(right);
-        return grid;
+        // BuildPomodoroTab строи мечо-дорото и таймера заедно: делим ги при лентата „Таймер“.
+        var all = (StackPanel)timers;
+        var pomodoro = new StackPanel();
+        var timer = new StackPanel();
+        bool inTimer = false;
+        foreach (var child in all.Children.Cast<UIElement>().ToList())
+        {
+            if (child == _timerRibbon) inTimer = true;
+            all.Children.Remove(child);
+            if (child == _timerRibbon) continue;
+            (inTimer ? timer : pomodoro).Children.Add(child);
+        }
+        // „Работя по:“ стои най-отгоре и важи и за мечо-дорото, и за работния таймер.
+        _workParts[0] = pomodoro;
+        _workParts[1] = timer;
+        _workParts[2] = tasks;
+
+        var root = new StackPanel();
+        var bar = new UniformGrid { Rows = 1, Margin = new Thickness(0, 0, 0, 10 * U) };
+        (string Icon, string Name)[] parts = { ("honey", "Мечо-доро"), ("clock", "Таймер"), ("tasks", "Задачи") };
+        for (int i = 0; i < parts.Length; i++)
+        {
+            int index = i;
+            var chip = Chip("", () => ShowWorkPart(index));
+            chip.Child = IconText(parts[i].Icon, parts[i].Name);
+            ((FrameworkElement)chip.Child).HorizontalAlignment = HorizontalAlignment.Center;
+            chip.Margin = new Thickness(i == 0 ? 0 : 6, 0, 0, 0);
+            _workChips[i] = chip;
+            bar.Children.Add(chip);
+        }
+        root.Children.Add(bar);
+        foreach (var part in _workParts) root.Children.Add(part);
+        ShowWorkPart(_workPart);
+        return root;
+    }
+
+    private readonly UIElement[] _workParts = new UIElement[3];
+    private readonly Border[] _workChips = new Border[3];
+    private int _workPart;
+
+    private void ShowWorkPart(int index)
+    {
+        _workPart = index;
+        for (int i = 0; i < 3; i++)
+        {
+            _workParts[i].Visibility = i == index ? Visibility.Visible : Visibility.Collapsed;
+            SetOn(_workChips[i], i == index);
+        }
+        if (index == 2 && IsVisible) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
     }
 
     private UIElement BuildTasksTab()
@@ -1813,9 +1856,6 @@ public sealed class MenuWindow : Window
     private UIElement BuildPomodoroTab()
     {
         var p = new StackPanel();
-        var pomRibbon = Ribbon("Мечо-доро", "honey");
-        pomRibbon.Margin = new Thickness(0, 0, 0, 8);
-        p.Children.Add(pomRibbon);
         // Вид мечо-доро: 25/5, 52/17, 90/20 (сменя се, докато не тече).
         var modes = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
         foreach (var mode in PetWindow.PomodoroModes)
@@ -1869,7 +1909,8 @@ public sealed class MenuWindow : Window
         _pomToday = new TextBlock { Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center };
         p.Children.Add(_pomToday);
 
-        p.Children.Add(Ribbon("Таймер", "clock"));
+        _timerRibbon = Ribbon("Таймер", "clock");
+        p.Children.Add(_timerRibbon);
         _timerTime = new TextBlock { FontFamily = MonoFont, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 6) };
         p.Children.Add(_timerTime);
 
@@ -1950,6 +1991,7 @@ public sealed class MenuWindow : Window
     }
 
     private readonly WrapPanel _focusTasks = new();
+    private Border _timerRibbon = null!;
 
     /// <summary>„Работя по:“ – без задача или някоя от несвършените (най-много 8).</summary>
     private void BuildFocusTasks()

@@ -168,6 +168,11 @@
       "fps": 10,
       "loop": false
     },
+    "walk_gift": {
+      "file": "walk_gift.png",
+      "fps": 8,
+      "loop": true
+    },
     "eat_hold": {
       "file": "eat_hold.png",
       "fps": 1,
@@ -221,6 +226,31 @@
     "doing_sit_tired": {
       "file": "doing_sit_tired.png",
       "fps": 3,
+      "loop": true
+    },
+    "walk_gift_pink": {
+      "file": "walk_gift_pink.png",
+      "fps": 8,
+      "loop": true
+    },
+    "walk_gift_green": {
+      "file": "walk_gift_green.png",
+      "fps": 8,
+      "loop": true
+    },
+    "walk_gift_yellow": {
+      "file": "walk_gift_yellow.png",
+      "fps": 8,
+      "loop": true
+    },
+    "walk_gift_purple": {
+      "file": "walk_gift_purple.png",
+      "fps": 8,
+      "loop": true
+    },
+    "walk_gift_red": {
+      "file": "walk_gift_red.png",
+      "fps": 8,
       "loop": true
     }
   }

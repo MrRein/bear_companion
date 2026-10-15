@@ -190,10 +190,14 @@ public sealed partial class PetWindow
         _save.Fullness = Math.Clamp(_save.Fullness - (IsAsleep ? HungerAsleep : HungerAwake) * h, 0, 100);
         // Умора и почивка (виж PetWindow.Energy.cs).
         EnsureDayKind();
+        double energyBefore = _save.Energy;
         UpdateEnergy(dt, now);
+        // Вечерна разходка-дрямка: навън спи под някое дърво – енергията се вдига като в съня.
+        bool walkNap = _save.WalkNap && OnWalk && !_walkingOut;
+        if (walkNap) _save.Energy = Math.Min(100, energyBefore + RestRate * h);
         // Вечер енергията бавно слиза към тавана за часа (вечер е уморен, каквото и да е било).
         double cap = EveningCap(DateTime.Now);
-        if (!IsAsleep && _save.Energy > cap) _save.Energy = Math.Max(cap, _save.Energy - 30 * h);
+        if (!IsAsleep && !walkNap && _save.Energy > cap) _save.Energy = Math.Max(cap, _save.Energy - 30 * h);
         MorningRefresh(fromStart: false);
         NightDrop();
 

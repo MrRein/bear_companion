@@ -337,6 +337,96 @@ public sealed partial class PetWindow
             else GoToSleep();
         });
 
+        // ── Новите неща ──
+        const string walk = "Разходка", giftNew = "Подарък в лапите", garden = "Градинка", emotes = "Емоции",
+            memory = "Спомени и любима храна", pins = "Закачени и задачи", looks = "Скинове, пижами, меню", misc = "Лампа, звук, енергия";
+        yield return (walk, "Разходи се 1 мин", () => GoForWalk(1));
+        yield return (walk, "Разходи се 10 мин", () => GoForWalk(10));
+        yield return (walk, "Вечерна дрямка-разходка 2 мин", () => { _save.Energy = 10; _save.WalkUntil = DateTime.MinValue; GoForWalk(2); _save.WalkNap = true; });
+        yield return (walk, "Повикай го (като иконката)", () => ReturnFromWalk(called: true));
+        yield return (walk, "Връща се сам (времето изтече)", () => { if (OnWalk) _save.WalkUntil = DateTime.Now; });
+        foreach (var color in GiftColors)
+        {
+            string c = color;
+            yield return (giftNew, "Подаръкът: " + (c.Length == 0 ? "син" : c), () =>
+            {
+                _giftWindow?.Close();
+                _save.GiftColor = c;
+                _save.GiftPending = false;
+                PresentGift();
+            });
+        }
+        yield return (giftNew, "Цял път: излиза и се връща", () => { _giftWindow?.Close(); _save.GiftPending = false; StartGiftRun(); });
+        yield return (giftNew, "Седи с подаръка", () => { _save.GiftPending = true; _giftHold = GiftHold.Lap; HoldGift(); });
+        yield return (giftNew, "Отвори подаръка в лапите", () => OpenHeldGift());
+        yield return (giftNew, "Остави го на земята", PutGiftDown);
+        yield return (garden, "Полей (градинката)", () => { if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot); Relax(Scenes.Plant); });
+        yield return (garden, "Порасни всички", () => { EnsureGardenSave(); for (int i = 0; i < GardenSize; i++) { _save.GardenGrown[i] = ""; GrowFlower(i); } });
+        yield return (garden, "Всички цъфнали", () => { EnsureGardenSave(); for (int i = 0; i < GardenSize; i++) _save.Garden[i] = 4; DrawGarden(); Persist(); });
+        yield return (garden, "Нова градинка (семена)", () => { _save.Garden.Clear(); _save.GardenColors.Clear(); _save.GardenGrown.Clear(); EnsureGardenSave(); DrawGarden(); Persist(); });
+        foreach (var e in new[] { "heart", "zzz", "idea", "exclaim", "question", "note", "sweat", "hungry", "cold", "sparkle", "happy", "sad" })
+        {
+            string em = e;
+            yield return (emotes, em, () => Emote(em, 4));
+        }
+        yield return (emotes, "Сам показва как се чувства", () => { _nextAmbientEmote = 0; UpdateAmbientEmote(Now); });
+        yield return (memory, "Сутрешен спомен сега", () => { if (!MorningMemory()) Say("Няма записан вчерашен ден.", 3); });
+        yield return (memory, "Измисли богато „вчера“", () =>
+        {
+            var y = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
+            _save.Days.RemoveAll(d => d.Date == y);
+            _save.Days.Add(new DayRecord
+            {
+                Date = y, Pomodoros = 1 + _rng.Next(8), WorkMinutes = 60 + _rng.Next(200), TasksDone = _rng.Next(6), BigTasks = _rng.Next(2),
+                Foods = Kitchen.Foods.Where(f => f.Fullness >= 5).OrderBy(_ => _rng.Next()).Take(_rng.Next(4)).Select(f => f.Id).ToList(),
+                FavFed = _rng.Next(2) == 0, Petted = _rng.Next(7), WokeEarly = _rng.Next(2) == 0, NapWoken = _rng.Next(3) == 0,
+                BedAt = DateTime.Today.AddHours(_rng.Next(2) == 0 ? -1 : 1), MinFullness = _rng.Next(100), MinEnergy = _rng.Next(100),
+                Hobbies = Scenes.Fun.OrderBy(_ => _rng.Next()).Take(2).Select(f => f.Id).ToList(), Clothes = _rng.Next(5),
+            });
+            _save.Days.Sort((a, b) => string.CompareOrdinal(a.Date, b.Date));
+            MorningMemory();
+        });
+        yield return (memory, "Не сме се виждали 3 дни", () =>
+        {
+            var d = DateTime.Today.AddDays(-3).ToString("yyyy-MM-dd");
+            _save.Days.RemoveAll(x => string.CompareOrdinal(x.Date, DateTime.Today.ToString("yyyy-MM-dd")) < 0 && string.CompareOrdinal(x.Date, d) > 0);
+            if (!_save.Days.Any(x => x.Date == d)) _save.Days.Insert(0, new DayRecord { Date = d });
+            _save.Days.Sort((a, b) => string.CompareOrdinal(a.Date, b.Date));
+            MorningMemory();
+        });
+        yield return (memory, "Следобеден спомен", LaterMemory);
+        yield return (memory, "Любима храна: нова", () => { _save.FavFoodDay = ""; Say("Днес ми се яде: " + (FavoriteFood?.Name ?? "нищо"), 4); NotifyCare(); });
+        yield return (memory, "„Днес ми се яде…“", () => { _save.FavFoodSaid = false; TodayRec.FavFed = false; SayFavoriteWish(); });
+        yield return (memory, "Дай му любимото", () => { if (FavoriteFood is { } f) { TodayRec.FavFed = false; FavoriteEaten(f); } });
+        yield return (pins, "Закачи задачите", () => SetPinned(PinWindow.Tasks, !IsPinned(PinWindow.Tasks)));
+        yield return (pins, "Закачи бележките", () => SetPinned(PinWindow.Notes, !IsPinned(PinWindow.Notes)));
+        yield return (pins, "Мечо-доро по нова задача", () => { AddTask("Тестова задача", 2); StartFocusOn(_save.Tasks.Last()); });
+        yield return (pins, "„Свърши ли задачата?“", AskAboutFocusTask);
+        foreach (var t in UiThemes.All)
+        {
+            var theme = t;
+            yield return (looks, "Меню: " + theme.Name, () => { if (!UiThemes.Owns(_save, theme)) _save.Owned.Add(theme.Key); UseUiTheme(theme); });
+        }
+        foreach (var pj in Clothes.PajamaSets)
+        {
+            var p = pj;
+            yield return (looks, "Пижама: " + p.Name, () => { if (!Clothes.Owns(_save, p)) _save.OwnedClothes.Add(p.Key); UsePajama(p); _save.PajamasAtNight = true; Emote("sparkle"); });
+        }
+        yield return (looks, "Всички видове мебели и уреди", () =>
+        {
+            foreach (var k in Furniture.ByItem.Values.SelectMany(x => x))
+                if (!_save.Owned.Contains($"skin_{k.Item}_{k.Id}")) _save.Owned.Add($"skin_{k.Item}_{k.Id}");
+            Persist();
+            NotifyCare();
+        });
+        yield return (misc, "Лампа: купи и светни", () => { if (!_save.Owned.Contains(Kitchen.Lamp)) _save.Owned.Add(Kitchen.Lamp); SetLamp(true); });
+        yield return (misc, "Лампа: изгаси", () => SetLamp(false));
+        yield return (misc, "Динг (звук)", () => Sounds.Play(_save));
+        yield return (misc, "Енергия: вечерен таван", () => { _save.Energy = 100; Say($"Таванът сега: {EveningCap(DateTime.Now):0}", 3); NotifyCare(); });
+        yield return (misc, "Плети", () => { if (!_save.Owned.Contains(Kitchen.YarnBasket)) _save.Owned.Add(Kitchen.YarnBasket); Relax(Scenes.Knit); });
+        yield return (misc, "Свири на китара", () => { if (!_save.Owned.Contains(Kitchen.Guitar)) _save.Owned.Add(Kitchen.Guitar); Relax(Scenes.Guitar); });
+        yield return (misc, "Сготви сандвич", () => Cook(Kitchen.Foods.First(f => f.Id == "sandwich")));
+
         yield return (lines, "Отвори repliki.txt", () => OpenPath(R.FilePath));
         yield return (lines, "Презареди репликите", () => Say($"Прочетох репликите наново ({R.Reload()} раздела). Някои се сменят чак след рестарт.", 5));
 

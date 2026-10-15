@@ -52,7 +52,8 @@ public sealed class SaveData
     public List<string> GardenGrown { get; set; } = new();       // в кой ден е расло всяко (веднъж на ден)
     public bool SoundOn { get; set; } = true;                    // „динг“ в края на мечо-доро и таймер
     public double SoundVolume { get; set; } = 0.6;
-    public DateTime WalkUntil { get; set; } = DateTime.MinValue;  // на разходка извън екрана до (виж PetWindow.Walk.cs)            // скинът на менюто (виж UiThemes)             // коя пижама облича вечер (виж Clothes.PajamaSets)
+    public DateTime WalkUntil { get; set; } = DateTime.MinValue;
+    public bool WalkNap { get; set; }                            // вечерна разходка-дрямка: брои се за сън  // на разходка извън екрана до (виж PetWindow.Walk.cs)            // скинът на менюто (виж UiThemes)             // коя пижама облича вечер (виж Clothes.PajamaSets)
     public bool LampOff { get; set; }                           // Тут изгаси лампата тази вечер (до сутринта)
     public string LampOffDay { get; set; } = "";
     public double LampX { get; set; } = double.NaN;

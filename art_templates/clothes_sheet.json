@@ -170,38 +170,43 @@
   "frames": 4
  },
  {
-  "anim": "walk_tired",
+  "anim": "walk_gift",
   "y": 1158,
   "frames": 4
  },
  {
-  "anim": "work",
+  "anim": "walk_tired",
   "y": 1192,
-  "frames": 16
+  "frames": 4
  },
  {
-  "anim": "work_tired",
+  "anim": "work",
   "y": 1226,
   "frames": 16
  },
  {
-  "anim": "write",
+  "anim": "work_tired",
   "y": 1260,
   "frames": 16
  },
  {
-  "anim": "write_tired",
+  "anim": "write",
   "y": 1294,
   "frames": 16
  },
  {
-  "anim": "yawn",
+  "anim": "write_tired",
   "y": 1328,
+  "frames": 16
+ },
+ {
+  "anim": "yawn",
+  "y": 1362,
   "frames": 13
  },
  {
   "anim": "yoga",
-  "y": 1362,
+  "y": 1396,
   "frames": 4
  }
 ]

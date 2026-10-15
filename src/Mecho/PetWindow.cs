@@ -268,6 +268,7 @@ public sealed partial class PetWindow : Window
         UpdateFood(dt);
         if (_cook != null) UpdateCooking(now, dt);
         else if (_pendingCook != null && now > _pendingCookAt) StartPendingCook();
+        RunLater(now);
         UpdateWalkAway();
         // На разходка (няма го): нищо не се случва – без подаръци, гости, пеперуди.
         if (!OnWalk)

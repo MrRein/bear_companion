@@ -19,7 +19,8 @@ public sealed partial class PetWindow
 
     private void Later(double seconds, Action action) => _later.Add((Now + seconds, action));
 
-    private void UpdateLife(double now)
+    /// <summary>Отложените действия (Later) – вика се всеки цикъл, дори на разходка.</summary>
+    private void RunLater(double now)
     {
         for (int i = _later.Count - 1; i >= 0; i--)
         {
@@ -28,6 +29,10 @@ public sealed partial class PetWindow
             _later.RemoveAt(i);
             a();
         }
+    }
+
+    private void UpdateLife(double now)
+    {
         UpdateCursorLook(now);
         UpdatePresence(now);
         UpdateVisitor(now);

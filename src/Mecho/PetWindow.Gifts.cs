@@ -34,7 +34,12 @@ public sealed partial class PetWindow
     private GiftHold _giftHold;
     private const double GiftHoldMax = 30 * 60;   // след толкова седене го оставя до себе си
 
-    private string GiftArt(bool open = false) => "gift" + (_save.GiftColor.Length > 0 ? "_" + _save.GiftColor : "") + (open ? "_open" : "");
+    private string GiftSuffix => _save.GiftColor.Length > 0 ? "_" + _save.GiftColor : "";
+
+    private string GiftArt(bool open = false) => "gift" + GiftSuffix + (open ? "_open" : "");
+
+    /// <summary>Анимацията с подаръка в лапите (в цвета на подаръка).</summary>
+    private string GiftWalk => _lib.Has("walk_gift" + GiftSuffix) ? "walk_gift" + GiftSuffix : "walk_gift";
 
     private static readonly string[] GiftColors = { "", "pink", "green", "yellow", "purple", "red" };
 
@@ -85,7 +90,7 @@ public sealed partial class PetWindow
                 // Носи го в лапите (walk_gift) и спира малко навътре от ръба.
                 double spot = dir < 0 ? a.Left + SpriteWidth * 2.5 : a.Right - SpriteWidth * 2.5;
                 WalkTo(spot, PresentGift);
-                if (_lib.Has("walk_gift")) _anim = "walk_gift";
+                if (_lib.Has(GiftWalk)) _anim = GiftWalk;
             });
         });
     }
@@ -102,7 +107,7 @@ public sealed partial class PetWindow
         Say(R.Pick("gift.present", _save.OwnerName), 5);
         Emote("heart");
         _giftHold = GiftHold.Overhead;
-        Play(_lib.Has("gift") ? "gift" : "happy", length: 4, after: HoldGift);
+        Play("happy", length: 4, after: HoldGift);   // ръцете горе, подаръкът над главата
         _nextGiftReminder = Now + GiftReminder;
     }
 
@@ -111,7 +116,7 @@ public sealed partial class PetWindow
     {
         if (!_save.GiftPending) return;
         _giftHold = GiftHold.Lap;
-        Play(_lib.Has("gift_hold") ? "gift_hold" : "sit", length: GiftHoldMax, after: () =>
+        Play("sit", length: GiftHoldMax, after: () =>   // седи, подаръкът в скута (gift_hold)
         {
             if (_giftHold == GiftHold.None) return;
             Say(R.Pick("gift.putdown", _save.OwnerName), 4);
@@ -262,11 +267,24 @@ public sealed partial class PetWindow
         _carry.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         if (!on) return Rect.Empty;
         var img = _lib.GetProp(GiftArt(), 16, 16, 0).Image;
-        // С нарисуваните анимации подаръкът е в рисунката; иначе – картинка в лапите.
-        if ((_anim == "walk_gift" || _anim == "gift" || _anim == "gift_hold") && _lib.Has(_anim))
+        // С подаръка в лапите (walk_gift) той е в самата рисунка.
+        if (_anim.StartsWith("walk_gift") && _lib.Has(_anim))
         {
             _carry.Visibility = Visibility.Collapsed;
             return Rect.Empty;
+        }
+        // В скута: слоят gift_hold (32 x 32, колкото кадърът) отгоре на седналия мечок.
+        if (_giftHold == GiftHold.Lap && _lib.HasProp("gift_hold" + GiftSuffix))
+        {
+            var lap = _lib.GetProp("gift_hold" + GiftSuffix, 32, 32, 0).Image;
+            if (_carry.Source != lap)
+            {
+                _carry.Source = lap;
+                RenderOptions.SetBitmapScalingMode(_carry, BitmapScalingMode.NearestNeighbor);
+            }
+            _carry.Width = lap.PixelWidth * PixelSize;
+            _carry.Height = lap.PixelHeight * PixelSize;
+            return new Rect(bear.Left, bear.Top, _carry.Width, _carry.Height);
         }
         if (_carry.Source != img)
         {
