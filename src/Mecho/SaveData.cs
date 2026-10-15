@@ -133,6 +133,16 @@ public sealed class SaveData
     public List<TaskItem> Tasks { get; set; } = new();
     public List<TaskItem> TaskHistory { get; set; } = new();   // свършените от минали дни (най-новите отпред)
     public List<NoteItem> Notes { get; set; } = new();
+    public List<DayRecord> Days { get; set; } = new();          // какво сме правили всеки ден (последните 60)
+    public string MemoryDay { get; set; } = "";                 // за кой ден вече каза спомена от вчера
+    public string MemoryLaterDay { get; set; } = "";            // втори, по-късен спомен (следобед)
+    public List<string> MemoryUsed { get; set; } = new();       // последните казани видове спомени (да не се повтарят)
+    public string FavFood { get; set; } = "";                   // любимата храна за днес (виж PetWindow.Memory.cs)
+    public string FavFoodDay { get; set; } = "";
+    public bool FavFoodSaid { get; set; }                       // каза ли днес какво му се яде
+    public Guid? FocusTask { get; set; }                         // задачата, по която работим (мечо-доро/таймер)
+    public PinState PinTasks { get; set; } = new();              // закаченото прозорче със задачите
+    public PinState PinNotes { get; set; } = new();
 
     public static string Folder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mecho");
@@ -197,6 +207,27 @@ public sealed class TaskItem
     public bool PageRolled { get; set; }
 
     public int Reward => Size switch { 3 => 5, 2 => 3, _ => 1 };
+}
+
+/// <summary>Един ден заедно: колко сме работили, какво е ял, кога е легнал… (за спомените).</summary>
+public sealed class DayRecord
+{
+    public string Date { get; set; } = "";
+    public int Pomodoros { get; set; }
+    public double WorkMinutes { get; set; }
+    public int TasksDone { get; set; }
+    public int BigTasks { get; set; }
+    public List<string> Foods { get; set; } = new();
+    public bool FavFed { get; set; }
+    public int Petted { get; set; }
+    public bool WokeEarly { get; set; }        // Тут го събуди рано сутрин
+    public bool NapWoken { get; set; }         // събуди го от дрямка
+    public DateTime? BedAt { get; set; }       // кога легна за деня
+    public double MinFullness { get; set; } = 100;
+    public double MinEnergy { get; set; } = 100;
+    public List<string> Hobbies { get; set; } = new();
+    public List<string> Bought { get; set; } = new();
+    public int Clothes { get; set; }           // колко пъти се преоблича
 }
 
 /// <summary>Бележка в тефтера на мечока.</summary>

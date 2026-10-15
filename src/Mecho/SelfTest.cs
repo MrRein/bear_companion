@@ -672,6 +672,61 @@ public sealed partial class PetWindow
         await step("подарък: отваряне", () => OpenGift(_giftWindow!), 1500);
         await step("подарък: още един", () => { DevGiftDrop(); OpenGift(_giftWindow!); }, 1000);
         await step("подарък: нов ден", DevGiftNewDay, 500);
+        await step("емоции", () =>
+        {
+            foreach (var e in new[] { "heart", "zzz", "idea", "exclaim", "question", "note", "sweat", "hungry", "cold", "sparkle", "happy", "sad" })
+            {
+                if (Ui.LoadIcon("emote_" + e) == null) throw new Exception("няма рисунка за емоция " + e);
+                Emote(e);
+                if (CurrentEmote != e) throw new Exception("емоцията не се показа: " + e);
+                UpdateLayoutAndWindow();
+            }
+        }, 800);
+        await step("закачени задачи и бележки", () =>
+        {
+            AddTask("Тестова задача за прозорчето", 2);
+            AddNote("Тестова бележка");
+            SetPinned(PinWindow.Tasks, true);
+            SetPinned(PinWindow.Notes, true);
+            if (!IsPinned(PinWindow.Tasks) || !IsPinned(PinWindow.Notes)) throw new Exception("не се закачи");
+            NotifyCare();
+        }, 600);
+        await step("задача към мечо-дорото", () =>
+        {
+            var t = _save.Tasks.First(x => x.Title == "Тестова задача за прозорчето");
+            StartFocusOn(t);
+            if (FocusTask != t || !InFocus) throw new Exception("мечо-дорото не е по задачата");
+            UpdateTimerTag();
+            if (!_timerTagShown!.Contains("Тестова")) throw new Exception("задачата не е на табелката");
+            StopPomodoro();
+            SetTaskDone(t, true);
+            if (FocusTask != null) throw new Exception("свършена задача остана текуща");
+            SetPinned(PinWindow.Tasks, false);
+            SetPinned(PinWindow.Notes, false);
+            if (IsPinned(PinWindow.Tasks)) throw new Exception("не се откачи");
+            DeleteNote(_save.Notes.First(n => n.Text == "Тестова бележка"));
+        }, 600);
+        await step("спомени от вчера", () =>
+        {
+            var y = DayKey(DateTime.Today.AddDays(-1));
+            _save.Days.RemoveAll(d => d.Date == y);
+            _save.Days.Insert(Math.Max(0, _save.Days.Count - 1), new DayRecord
+            {
+                Date = y, Pomodoros = 7, WorkMinutes = 200, TasksDone = 4, BigTasks = 1, Foods = { "berries", "berries" },
+                FavFed = true, Petted = 5, WokeEarly = true, NapWoken = true, BedAt = DateTime.Today.AddHours(-2),
+                MinFullness = 10, MinEnergy = 10, Hobbies = { "reading", "knit" }, Bought = { "тенджера" }, Clothes = 4,
+            });
+            for (int i = 0; i < 30; i++)
+            {
+                if (!MorningMemory()) throw new Exception("няма спомен, а вчера е имало много");
+                _chat?.Hide();
+            }
+            LaterMemory();
+            if (FavoriteFood == null) throw new Exception("няма любима храна за днес");
+            _save.FavFoodSaid = false;
+            SayFavoriteWish();
+            HideBubble();
+        }, 400);
         await step("developer панел", () =>
         {
             var dev = new DevWindow(this);

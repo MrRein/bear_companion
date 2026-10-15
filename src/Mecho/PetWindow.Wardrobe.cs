@@ -145,6 +145,7 @@ public sealed partial class PetWindow
         if (!Clothes.Owns(_save, g)) return;
         RememberLook();
         _save.Outfit[g.SlotId] = g.Id;
+        TodayRec.Clothes++;
         Dress(line ?? Lines.Pick(g.SlotId == Clothes.Hat.Id ? Lines.PutOnHat : Lines.PutOn, _save.OwnerName));
     }
 
@@ -190,6 +191,7 @@ public sealed partial class PetWindow
         if (_dressLine != null && now >= _dressUntil)
         {
             Say(_dressLine, 3);
+            Emote("sparkle");
             _dressLine = null;
             _anim = "dance";
             _animTime = 0;

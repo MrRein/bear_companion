@@ -265,6 +265,7 @@ public sealed class MenuWindow : Window
             case WardrobeTab: BuildWardrobe(); break;
             case TasksTab: BuildTaskList(); break;
             case NotesTab: BuildNoteList(); break;
+            case PomodoroTab: BuildFocusTasks(); break;
         }
     }
 
@@ -351,7 +352,7 @@ public sealed class MenuWindow : Window
         var grid = new Grid { Margin = new Thickness(2, 0, 2, 0) };
         (string Icon, string Name)[] tabs =
         {
-            ("bear", "Мечо"), ("food", "Храна"), ("shop", "Магазин"), ("wardrobe", "Гардероб"), ("tasks", "Задачи"), ("notes", "Бележки"), ("clock", "Време"), ("gear", "Още"),
+            ("bear", "Мечо"), ("food", "Храна"), ("shop", "Магазин"), ("wardrobe", "Гардероб"), ("tasks", "Задачи"), ("notes", "Бележки"), ("clock", "Работа"), ("gear", "Още"),
         };
         for (int i = 0; i < tabs.Length; i++)
         {
@@ -674,6 +675,14 @@ public sealed class MenuWindow : Window
                 effects.Children.Add(GainBar("energy", s.Energy, Kitchen.EnergyAfter(s.Energy, f.Energy), "енергия",
                     s.Energy >= Kitchen.FoodEnergyCap ? "Догоре – само със сън." : "Догоре – само със сън."));
 
+            // Любимото за днес: сърчице (дадеш ли му го – радва се специално).
+            if (_pet.FavoriteFood?.Id == f.Id)
+            {
+                var fav = IconText("heart", "любимо днес");
+                fav.HorizontalAlignment = HorizontalAlignment.Center;
+                fav.Margin = new Thickness(0, 2, 0, 0);
+                effects.Children.Add(fav);
+            }
             if (f.Tool != null)
             {
                 double secs = PetWindow.CookSeconds(f.Tool);
@@ -1454,13 +1463,18 @@ public sealed class MenuWindow : Window
         });
         DockPanel.SetDock(_historyButton, Dock.Right);
         bottom.Children.Add(_historyButton);
+        _pinTasks = Chip("📌 Закачи", () => _pet.SetPinned(PinWindow.Tasks, !_pet.IsPinned(PinWindow.Tasks)));
+        _pinTasks.ToolTip = Tip("Задачите в малко прозорче, което стои на екрана");
+        _pinTasks.Margin = new Thickness(0, 0, 6, 0);
+        DockPanel.SetDock(_pinTasks, Dock.Right);
+        bottom.Children.Add(_pinTasks);
         _taskSummary = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         bottom.Children.Add(_taskSummary);
         p.Children.Add(bottom);
         return p;
     }
 
-    private Border _historyButton = null!;
+    private Border _historyButton = null!, _pinTasks = null!, _pinNotes = null!;
     private bool _showHistory;
 
     /// <summary>Историята: свършените задачи, групирани по дни (най-новите горе).</summary>
@@ -1509,6 +1523,8 @@ public sealed class MenuWindow : Window
     {
         _taskList.Children.Clear();
         SetOn(_historyButton, _showHistory);
+        SetOn(_pinTasks, _pet.IsPinned(PinWindow.Tasks));
+        SetOn(_pinNotes, _pet.IsPinned(PinWindow.Notes));
         if (_showHistory)
         {
             BuildTaskHistory();
@@ -1524,6 +1540,7 @@ public sealed class MenuWindow : Window
             var t = task;
             var row = new Grid();
             row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
@@ -1550,9 +1567,23 @@ public sealed class MenuWindow : Window
             Grid.SetColumn(reward, 1);
             row.Children.Add(reward);
 
+            // ▶ – мечо-доро по задачата; по която работим, свети.
+            bool current = _pet.Save.FocusTask == t.Id;
+            var play = Chip(current && _pet.InFocus ? "★" : "▶", () =>
+            {
+                if (_pet.InFocus) _pet.SetFocusTask(t);
+                else _pet.StartFocusOn(t);
+            });
+            play.ToolTip = Tip(_pet.InFocus ? "Сега работим по нея" : "Мечо-доро по тази задача");
+            play.VerticalAlignment = VerticalAlignment.Center;
+            play.Margin = new Thickness(0, 0, 6, 0);
+            SetOn(play, current);
+            Grid.SetColumn(play, 2);
+            row.Children.Add(play);
+
             var del = Chip("✕", () => _pet.DeleteTask(t));
             del.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(del, 2);
+            Grid.SetColumn(del, 3);
             row.Children.Add(del);
 
             _taskList.Children.Add(Card(row, t.Done));
@@ -1599,9 +1630,11 @@ public sealed class MenuWindow : Window
         p.Children.Add(WithHint(_noteInput, "Запиши нещо… (Ctrl+Enter)"));
 
         var save = Button("Запиши", AddNote, primary: true, icon: "pencil");
-        save.HorizontalAlignment = HorizontalAlignment.Left;
-        save.Margin = new Thickness(0, 8, 0, 0);
-        p.Children.Add(save);
+        save.Margin = new Thickness(0, 0, 8, 0);
+        _pinNotes = Chip("📌 Закачи", () => _pet.SetPinned(PinWindow.Notes, !_pet.IsPinned(PinWindow.Notes)));
+        _pinNotes.ToolTip = Tip("Бележките в малко прозорче, което стои на екрана");
+        _pinNotes.VerticalAlignment = VerticalAlignment.Center;
+        p.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0), Children = { save, _pinNotes } });
 
         p.Children.Add(new ScrollViewer
         {
@@ -1624,6 +1657,7 @@ public sealed class MenuWindow : Window
     private void BuildNoteList()
     {
         _noteList.Children.Clear();
+        SetOn(_pinNotes, _pet.IsPinned(PinWindow.Notes));
         if (_pet.Save.Notes.Count == 0)
         {
             _noteList.Children.Add(MutedText("Тефтерът е празен."));
@@ -1662,7 +1696,7 @@ public sealed class MenuWindow : Window
         }
     }
 
-    // ───────────────────────── Време ─────────────────────────
+    // ───────────────────────── Работа ─────────────────────────
 
     private readonly List<(string Id, Border Chip)> _pomModes = new();
     private readonly List<(int Count, Border Chip)> _pomSeries = new();
@@ -1705,6 +1739,13 @@ public sealed class MenuWindow : Window
             series.Children.Add(chip);
         }
         p.Children.Add(series);
+        // По коя задача работим (по избор): името ѝ стои над мечока, а накрая той пита свърши ли.
+        var taskRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+        var taskLabel = new TextBlock { Text = "Работя по:", VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 6, 0) };
+        DockPanel.SetDock(taskLabel, Dock.Left);
+        taskRow.Children.Add(taskLabel);
+        taskRow.Children.Add(_focusTasks);
+        p.Children.Add(taskRow);
         _pomTime = new TextBlock { FontFamily = MonoFont, FontSize = Huge, HorizontalAlignment = HorizontalAlignment.Center };
         _pomStatus = new TextBlock { HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
         p.Children.Add(new Border
@@ -1805,6 +1846,28 @@ public sealed class MenuWindow : Window
             Margin = new Thickness(0, 10, 0, 0),
         });
         return p;
+    }
+
+    private readonly WrapPanel _focusTasks = new();
+
+    /// <summary>„Работя по:“ – без задача или някоя от несвършените (най-много 8).</summary>
+    private void BuildFocusTasks()
+    {
+        _focusTasks.Children.Clear();
+        var s = _pet.Save;
+        var none = Chip("без задача", () => _pet.SetFocusTask(null));
+        none.Margin = new Thickness(0, 0, 6, 4);
+        SetOn(none, _pet.FocusTask == null);
+        _focusTasks.Children.Add(none);
+        foreach (var task in s.Tasks.Where(t => !t.Done).Take(8))
+        {
+            var t = task;
+            var chip = Chip(t.Title.Length > 24 ? t.Title[..23] + "…" : t.Title, () => _pet.SetFocusTask(t));
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            SetOn(chip, s.FocusTask == t.Id);
+            _focusTasks.Children.Add(chip);
+        }
+        if (s.Tasks.All(t => t.Done)) _focusTasks.Children.Add(MutedText("(няма задачи – добави в „Задачи“)"));
     }
 
     private void UpdateWorkChip()
@@ -2035,14 +2098,14 @@ public sealed class MenuWindow : Window
 
     // ───────────────────────── Малки помощници ─────────────────────────
 
-    private static TextBlock MutedText(string text) => new()
+    internal static TextBlock MutedText(string text) => new()
     {
         Text = text,
         Foreground = Muted,
         TextWrapping = TextWrapping.Wrap,
     };
 
-    private static TextBox NewTextInput() => new()
+    internal static TextBox NewTextInput() => new()
     {
         FontFamily = GameFont,
         FontSize = Body,
@@ -2055,7 +2118,7 @@ public sealed class MenuWindow : Window
     };
 
     /// <summary>Поле с бледа подсказка, докато е празно.</summary>
-    private static UIElement WithHint(TextBox box, string hint)
+    internal static UIElement WithHint(TextBox box, string hint)
     {
         var text = new TextBlock
         {
@@ -2074,7 +2137,7 @@ public sealed class MenuWindow : Window
     }
 
     /// <summary>Картичка за задача или бележка.</summary>
-    private static Border Card(UIElement child, bool faded) => new()
+    internal static Border Card(UIElement child, bool faded) => new()
     {
         Background = faded ? PaperDark : Tile,
         BorderBrush = WoodDark,

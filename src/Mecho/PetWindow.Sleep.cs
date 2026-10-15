@@ -52,6 +52,7 @@ public sealed partial class PetWindow
         var day = DateTime.Now.Hour < 5 ? DateTime.Today : DateTime.Today.AddDays(1);
         var until = day.AddHours(8).AddMinutes(_rng.Next(121));
         BeginSleep(until, 100, forDay: true, R.Pick("sleep.forday", _save.OwnerName));
+        if (IsAsleep || _save.SleepForDay) RecordBed();
     }
 
     /// <summary>Дрямка (когато сам пита): става сам, по-бодър, но не догоре.</summary>
@@ -97,6 +98,8 @@ public sealed partial class PetWindow
         _save.SleepForDay = false;
         if (IsAsleep || _afterBusy == "sleep")
         {
+            if (early) TodayRec.WokeEarly = true;
+            else if (!wasDay) TodayRec.NapWoken = true;
             // Сутрин по-рано от времето си: не се сърди.
             Say(early ? R.Pick("sleep.wokeearly", _save.OwnerName) : Lines.Pick(Lines.WokeUp, _save.OwnerName), 4);
             Play("happy");

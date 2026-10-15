@@ -152,6 +152,7 @@ public sealed partial class PetWindow : Window
         _bubbleWindow = new OverlayWindow(_bubble);
         Content = _root;
         InitCare();
+        Loaded += (_, _) => RestorePins();
         InitActivities();
         SourceInitialized += (_, _) => InitDrawings();
 
@@ -266,6 +267,8 @@ public sealed partial class PetWindow : Window
         UpdateLife(now);
         MaybeOfferWork(now);
         UpdatePajamas();
+        UpdateAmbientEmote(now);
+        UpdateMemory(now);
 
         if (_state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
         {
@@ -351,7 +354,7 @@ public sealed partial class PetWindow : Window
     private void PaceTimer()
     {
         bool moving = IsVisible && !_calm && (_state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
-            || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || Dressing || CookShaking || _cook is { Window.IsFalling: true }
+            || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || Dressing || CookShaking || _emote.Visibility == Visibility.Visible || _cook is { Window.IsFalling: true }
             || FoodMoving());
         UseRendering(moving);
         int ms = moving ? 100   // резервен (ако екранът не рисува кадри)
@@ -1116,6 +1119,8 @@ public sealed partial class PetWindow : Window
         if (!bed.IsEmpty) Place(_bed, bed, _window.Left, _window.Top, dpi);
         if (hasSide) Place(_side, side, _window.Left, _window.Top, dpi);
         if (!tag.IsEmpty) Place(_timerTag, tag, _window.Left, _window.Top, dpi);
+        var emote = EmoteRect(bear, above);
+        if (!emote.IsEmpty) Place(_emote, emote, _window.Left, _window.Top, dpi);
         if (!carry.IsEmpty) Place(_carry, carry, _window.Left, _window.Top, dpi);
         if (!held.IsEmpty) Place(_held, held, _window.Left, _window.Top, dpi);
         for (int i = 0; i < nuts.Length; i++)

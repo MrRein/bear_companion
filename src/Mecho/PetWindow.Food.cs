@@ -195,6 +195,7 @@ public sealed partial class PetWindow
     private void AnnounceRecipe(Food food)
     {
         Say($"Научих нова рецепта… {food.Icon} {food.Name}! Виж в „Храна“.", 6);
+        Emote("idea", 3);
         if (CanAnimateFreely) Play("happy");
     }
 
@@ -250,6 +251,7 @@ public sealed partial class PetWindow
     {
         _save.Ordered.Remove(upgrade.Id);
         if (!_save.Owned.Contains(upgrade.Id)) _save.Owned.Add(upgrade.Id);
+        TodayRec.Bought.Add(upgrade.Name.ToLowerInvariant());
         LearnDefaultRecipe(upgrade.Id);
         // Гардеробът идва с подарък: червена тениска и дънки.
         if (upgrade.Id == Kitchen.Wardrobe)
@@ -292,6 +294,7 @@ public sealed partial class PetWindow
         }
 
         _save.Fullness = Math.Min(100, _save.Fullness + food.Fullness);
+        FavoriteEaten(food.Food);
         // Не е спал добре: кафето му помага повече (до 70).
         bool coffee = food.Food.Energy >= 30;
         _save.Energy = Kitchen.EnergyAfter(_save.Energy, food.Energy, coffee && Today == DayKind.BadNight ? 70 : Kitchen.FoodEnergyCap);

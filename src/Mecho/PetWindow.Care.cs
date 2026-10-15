@@ -95,6 +95,7 @@ public sealed partial class PetWindow
         _timerTag.IsHitTestVisible = false;
         _timerTag.Visibility = Visibility.Collapsed;
         _root.Children.Add(_timerTag);
+        InitEmotes();
 
         ApplyOfflineTime();
         MorningRefresh(fromStart: true);
@@ -193,7 +194,9 @@ public sealed partial class PetWindow
             {
                 _nextNeedLine = now + 1800 + _rng.Next(1200);
                 var meal = CurrentMeal;
-                Say(Lines.Pick(meal == "lunch" ? Lines.LunchTime : meal == "dinner" ? Lines.DinnerTime : Lines.Hungry, _save.OwnerName), 5);
+                // Понякога само показва, без думи.
+                if (_rng.Next(3) == 0) Emote("hungry", 3.5);
+                else Say(Lines.Pick(meal == "lunch" ? Lines.LunchTime : meal == "dinner" ? Lines.DinnerTime : Lines.Hungry, _save.OwnerName), 5);
             }
             else if (LateNight && _save.Energy < 50)
             {
@@ -204,7 +207,8 @@ public sealed partial class PetWindow
             {
                 // Колкото е по-уморен, толкова по-често го казва.
                 _nextNeedLine = now + (_save.Energy < 12 ? 1500 : 2400) + _rng.Next(1200);
-                Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 5);
+                if (_rng.Next(3) == 0) Emote("zzz", 3.5);
+                else Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 5);
             }
         }
     }
@@ -294,6 +298,8 @@ public sealed partial class PetWindow
             return;
         }
         Say(Lines.Pick(Lines.Petted, _save.OwnerName), 3);
+        Emote("heart");
+        TodayRec.Petted++;
         Joy(JoyPetted);
         PetEnergy();
         if (CanAnimateFreely) Play("happy");
@@ -319,6 +325,7 @@ public sealed partial class PetWindow
         if (task.Done == done) return;
         task.Done = done;
         task.DoneAt = done ? DateTime.Now : null;
+        RecordTask(task, done);
 
         if (!done)
         {
@@ -346,6 +353,7 @@ public sealed partial class PetWindow
             $" +{task.Reward} 🌰" + page, 4);
 
         if (CanAnimateFreely) Play(task.Size >= 3 ? "dance" : "happy", length: task.Size >= 3 ? 3 : 0);
+        Emote("sparkle");
         NotifyCare();
         Persist();
     }
@@ -426,6 +434,7 @@ public sealed partial class PetWindow
         _nextFocusSwitch = now + 15 + _rng.Next(20);
         string[] anims = { "focus", "focus", "think", "focus_write" };
         string next = anims[_rng.Next(anims.Length)];
+        if (next == "think" && _rng.Next(3) == 0) Emote("idea");
         if (next != _anim)
         {
             _anim = next;
@@ -452,7 +461,11 @@ public sealed partial class PetWindow
         // Ако е уморен, EnterWorkMode казва „ти поработи, аз ще посънча“ и той дрямва.
         EndBreakRelax();
         // Казва и колко лешника ще донесе (само тук: тогава наистина ги получаваш).
-        if (!IsExhausted) Say(WorkStartLine() + " " + R.Pick("focus.nuts", _save.OwnerName).Replace("{число}", PomodoroNuts.ToString()), 5);
+        if (!IsExhausted)
+        {
+            string start = FocusTask is { } ft ? R.Pick("focustask.start", _save.OwnerName).Replace("{задача}", ft.Title) : WorkStartLine();
+            Say(start + " " + R.Pick("focus.nuts", _save.OwnerName).Replace("{число}", PomodoroNuts.ToString()), 5);
+        }
         EnterWorkMode();
         MaybeFlow();
         OpenParcelFirst();
@@ -487,6 +500,7 @@ public sealed partial class PetWindow
         if (_save.PomodoroPhase == PomodoroPhase.Off) return;
         bool wasFocus = InFocus;
         int nuts = wasFocus ? PayForMinutes((FocusLength - PomodoroLeft).TotalMinutes) : 0;
+        if (wasFocus && PomodoroFocus) RecordWork((FocusLength - PomodoroLeft).TotalMinutes);
         _save.PomodoroPhase = PomodoroPhase.Off;
         _save.PomodoroSeriesLeft = 0;
         EndBreakRelax();
@@ -505,6 +519,7 @@ public sealed partial class PetWindow
         {
             _save.PomodorosTotal++;
             _save.PomodorosToday++;
+            RecordPomodoro(FocusLength.TotalMinutes);
             int nuts = PayForMinutes(FocusLength.TotalMinutes) + LazyBonus();
             if (Kitchen.Owns(_save, Kitchen.Headphones))
             {
@@ -518,6 +533,8 @@ public sealed partial class PetWindow
             Joy(JoyWorked);
             if (_save.PomodorosToday % 3 == 0) Pride();
             Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts) + page, 8);
+            Emote("happy", 3);
+            AskAboutFocusTask();
             if (!InFocus) StartBreakRelax();
         }
         else
@@ -558,7 +575,7 @@ public sealed partial class PetWindow
         bool work = kind == "work";
         _save.TimerEndsAt = DateTime.Now.AddMinutes(minutes);
         _save.TimerMinutes = minutes;
-        _save.TimerLabel = label.Trim();
+        _save.TimerLabel = label.Trim().Length == 0 && work && FocusTask is { } ft ? ft.Title : label.Trim();
         _save.TimerKind = kind;
         _save.TimerIsWork = work;
         Say($"⏰ Пускам таймер за {minutes:0.#} мин.{(_save.TimerLabel.Length > 0 ? $" ({_save.TimerLabel})" : "")}", 3);
@@ -577,6 +594,7 @@ public sealed partial class PetWindow
     {
         if (!TimerRunning) return;
         int nuts = _save.TimerIsWork ? PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes) : 0;
+        if (_save.TimerIsWork) RecordWork(_save.TimerMinutes - TimerLeft.TotalMinutes);
         bool rest = RestTimer;
         _save.TimerEndsAt = DateTime.MinValue;
         if (!InFocus) LeaveWorkMode();
@@ -594,7 +612,9 @@ public sealed partial class PetWindow
         _save.TimerEndsAt = DateTime.MinValue;
         // Лешници – само за работен таймер.
         int nuts = work ? PayForMinutes(_save.TimerMinutes) : 0;
+        if (work) RecordWork(_save.TimerMinutes);
         Say((label.Length > 0 ? $"⏰ Времето изтече: {label}!" : "⏰ Времето изтече!") + Earned(nuts), 12);
+        if (work) AskAboutFocusTask();
         if (rest)
         {
             // Почивката свърши: става от кътчето.
@@ -697,6 +717,8 @@ public sealed partial class PetWindow
         if (_save.PomodoroPhase != PomodoroPhase.Off) parts.Add($"{(InFocus ? "🍯" : "☕")} {Clock(PomodoroLeft)}");
         if (TimerRunning) parts.Add($"⏰ {Clock(TimerLeft)}");
         UpdateTimerBadge(parts);
+        // Работим по задача: името ѝ (кратко) до часовника.
+        if (InFocus && FocusTaskShort.Length > 0) parts.Add(FocusTaskShort);
         if (parts.Count == 0)
         {
             _timerTag.Visibility = Visibility.Collapsed;

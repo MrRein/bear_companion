@@ -118,6 +118,7 @@ public sealed partial class PetWindow
             _facingLeft = dx < 0;
             _lastTurn = now;
             Say(R.Any("cursor.startle"), 2.5);
+            Emote("exclaim", 1.8);
             Play("think", length: 1.2);
             return;
         }

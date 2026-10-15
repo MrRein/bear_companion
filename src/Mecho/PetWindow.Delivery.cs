@@ -193,6 +193,7 @@ public sealed partial class PetWindow
         _parcel.Place(_lib.GetProp(BoxArt(d.Size, false), w, h, 0).Image, PixelSize, x, area.Top + 40);
         _parcel.FallTo(x, area.Bottom);
         if (!IsQuiet) Say(R.Pick("delivery.coming", _save.OwnerName), 3);
+        Emote("exclaim");
     }
 
     private void OpenParcel()

@@ -333,6 +333,7 @@ public sealed partial class PetWindow
         _scene = scene;
         _inScene = true;
         _sceneUntil = 0;
+        if (Scenes.Fun.Contains(scene) && !TodayRec.Hobbies.Contains(scene.Id)) TodayRec.Hobbies.Add(scene.Id);
         LoadSceneArt(scene);
         _facingLeft = false;
         SetState(BearState.Couch, SceneAnim(scene));
