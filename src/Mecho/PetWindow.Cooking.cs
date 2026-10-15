@@ -90,6 +90,7 @@ public sealed partial class PetWindow
         Kitchen.IceCream => 4 * 60,
         Kitchen.SandwichMaker => 3 * 60,
         Kitchen.Jug => 90,
+        Kitchen.Table => 2 * 60,
         _ => 60,
     };
 

@@ -9,6 +9,26 @@
       "file": "butterfly.png",
       "seat": 0
     },
+    "butterfly_yellow": {
+      "file": "butterfly_yellow.png",
+      "seat": 0
+    },
+    "butterfly_blue": {
+      "file": "butterfly_blue.png",
+      "seat": 0
+    },
+    "butterfly_orange": {
+      "file": "butterfly_orange.png",
+      "seat": 0
+    },
+    "butterfly_white": {
+      "file": "butterfly_white.png",
+      "seat": 0
+    },
+    "butterfly_green": {
+      "file": "butterfly_green.png",
+      "seat": 0
+    },
     "stool": {
       "file": "stool.png",
       "seat": 7
@@ -283,6 +303,46 @@
     },
     "food_grilled_bread": {
       "file": "food_grilled_bread.png",
+      "seat": 0
+    },
+    "food_sandwich": {
+      "file": "food_sandwich.png",
+      "seat": 0
+    },
+    "food_roast_soup": {
+      "file": "food_roast_soup.png",
+      "seat": 0
+    },
+    "food_pressed_caprese": {
+      "file": "food_pressed_caprese.png",
+      "seat": 0
+    },
+    "food_pressed_veggie": {
+      "file": "food_pressed_veggie.png",
+      "seat": 0
+    },
+    "food_pressed_chicken": {
+      "file": "food_pressed_chicken.png",
+      "seat": 0
+    },
+    "food_pressed_egg": {
+      "file": "food_pressed_egg.png",
+      "seat": 0
+    },
+    "food_pressed_mushroom": {
+      "file": "food_pressed_mushroom.png",
+      "seat": 0
+    },
+    "cook_table": {
+      "file": "cook_table.png",
+      "seat": 0
+    },
+    "cook_table_b": {
+      "file": "cook_table_b.png",
+      "seat": 0
+    },
+    "cook_table_open": {
+      "file": "cook_table_open.png",
       "seat": 0
     },
     "cook_mixer": {
@@ -769,6 +829,46 @@
       "file": "shop_guitar.png",
       "seat": 0
     },
+    "flower_0": {
+      "file": "flower_0.png",
+      "seat": 0
+    },
+    "flower_1": {
+      "file": "flower_1.png",
+      "seat": 0
+    },
+    "flower_2": {
+      "file": "flower_2.png",
+      "seat": 0
+    },
+    "flower_3": {
+      "file": "flower_3.png",
+      "seat": 0
+    },
+    "flower_4_pink": {
+      "file": "flower_4_pink.png",
+      "seat": 0
+    },
+    "flower_4_yellow": {
+      "file": "flower_4_yellow.png",
+      "seat": 0
+    },
+    "flower_4_red": {
+      "file": "flower_4_red.png",
+      "seat": 0
+    },
+    "flower_4_purple": {
+      "file": "flower_4_purple.png",
+      "seat": 0
+    },
+    "flower_4_white": {
+      "file": "flower_4_white.png",
+      "seat": 0
+    },
+    "flower_4_blue": {
+      "file": "flower_4_blue.png",
+      "seat": 0
+    },
     "food_popcorn_1": {
       "file": "food_popcorn_1.png",
       "seat": 0
@@ -831,6 +931,46 @@
     },
     "gift_open": {
       "file": "gift_open.png",
+      "seat": 0
+    },
+    "gift_pink": {
+      "file": "gift_pink.png",
+      "seat": 0
+    },
+    "gift_pink_open": {
+      "file": "gift_pink_open.png",
+      "seat": 0
+    },
+    "gift_green": {
+      "file": "gift_green.png",
+      "seat": 0
+    },
+    "gift_green_open": {
+      "file": "gift_green_open.png",
+      "seat": 0
+    },
+    "gift_yellow": {
+      "file": "gift_yellow.png",
+      "seat": 0
+    },
+    "gift_yellow_open": {
+      "file": "gift_yellow_open.png",
+      "seat": 0
+    },
+    "gift_purple": {
+      "file": "gift_purple.png",
+      "seat": 0
+    },
+    "gift_purple_open": {
+      "file": "gift_purple_open.png",
+      "seat": 0
+    },
+    "gift_red": {
+      "file": "gift_red.png",
+      "seat": 0
+    },
+    "gift_red_open": {
+      "file": "gift_red_open.png",
       "seat": 0
     },
     "shop_easel": {

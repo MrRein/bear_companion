@@ -354,7 +354,7 @@ public sealed partial class PetWindow
 
     private void DevUnlockFood(Food f)
     {
-        if (f.Tool is not (null or Kitchen.Jug) && !_save.Owned.Contains(f.Tool)) _save.Owned.Add(f.Tool);
+        if (f.Tool is not (null or Kitchen.Jug or Kitchen.Table) && !_save.Owned.Contains(f.Tool)) _save.Owned.Add(f.Tool);
         if (!Kitchen.HasRecipe(f, _save)) _save.Owned.Add(Kitchen.RecipeId(f));
         _save.Hazelnuts = Math.Max(_save.Hazelnuts, 20);
         _save.BerriesReadyAt = DateTime.MinValue;

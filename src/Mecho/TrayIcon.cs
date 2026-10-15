@@ -33,7 +33,8 @@ public sealed class TrayIcon : IDisposable
         var panel = menu.Items.Add("Отвори панела");
         panel.Click += (_, _) =>
         {
-            if (!_pet.IsVisible) _pet.Show();
+            if (_pet.OnWalk) _pet.ReturnFromWalk(called: true);
+            else if (!_pet.IsVisible) _pet.Show();
             _pet.OpenMenu(MenuWindow.BearTab);
         };
         var stay = menu.Items.Add("");
@@ -91,15 +92,15 @@ public sealed class TrayIcon : IDisposable
             quiet.Text = _pet.IsQuiet ? "Може да говориш" : "Тихо за 1 час";
             autostart.Checked = _save.StartWithWindows;
             update.Text = _pet.Updater.IsAvailable
-                ? $"Обнови до версия {_pet.Updater.LatestName}"
-                : $"Провери за обновление (сега: {Updater.CurrentName})";
+                ? "Обнови"
+                : "Провери за обновление";
             update.Enabled = !_pet.Updater.IsBusy;
         };
 
         _icon = new Forms.NotifyIcon
         {
             Icon = LoadIcon(),
-            Text = $"Мечо, версия {Updater.CurrentName}",
+            Text = "Мечо",
             ContextMenuStrip = menu,
             Visible = true,
         };
@@ -108,6 +109,12 @@ public sealed class TrayIcon : IDisposable
 
     private void Toggle()
     {
+        // На разходка: иконката го вика обратно.
+        if (_pet.OnWalk)
+        {
+            _pet.ReturnFromWalk(called: true);
+            return;
+        }
         if (_pet.IsVisible) _pet.Hide();
         else _pet.Show();
     }

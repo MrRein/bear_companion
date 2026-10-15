@@ -85,7 +85,7 @@ public sealed partial class PetWindow
             }),
             ("wonder", 10, Wonder),
             ("climb", tired || near || !HasPlatforms ? 0 : 8, Climb),
-            ("sketch", tired ? 1 : 5, () => Play("work", length: 8 + _rng.Next(8), after: () => Announce(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
+            ("sketch", tired ? 1 : 5, () => Play("work", length: 25 + _rng.Next(35), after: () => Announce(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
             ("dice", tired ? 0 : 4, () =>
             {
                 int n = _rng.Next(1, 7);
@@ -93,7 +93,7 @@ public sealed partial class PetWindow
             }),
             ("dance", tired ? 0 : 3 * JoyBoost, () =>
             {
-                Play("dance", length: 3);
+                Play("dance", length: 8 + _rng.Next(10));
                 Announce(Lines.Pick(Lines.Dancing, _save.OwnerName), 3);
             }),
             ("snack", _save.Fullness < 90 ? 2 : 0, () =>
@@ -116,7 +116,7 @@ public sealed partial class PetWindow
             ("hiccup", 1.2, Hiccup),
             ("sneeze", SneezeWeight, Sneeze),
             ("find", tired ? 1 : 3, FindSomething),
-            ("idle", 14, SetIdle),
+            ("idle", 22, SetIdle),
             // Печицата грее: когато няма какво да прави, отива и сяда до нея –
             // колкото по-студено, толкова по-често.
             ("warm", _heaterWindow == null || near ? 0 : Cold ? 10 + ColdLevel * 4 : 5, WarmUpByHeater),
@@ -234,7 +234,7 @@ public sealed partial class PetWindow
     private void Juggle()
     {
         _juggleStart = Now;
-        _juggleUntil = Now + 6 + _rng.NextDouble() * 4;
+        _juggleUntil = Now + 10 + _rng.NextDouble() * 8;
         Announce(Lines.Pick(Lines.JuggleStart, _save.OwnerName), 3);
         Play("juggle", length: _juggleUntil - Now, after: () => Announce(Lines.Pick(Lines.JuggleEnd, _save.OwnerName), 3));
     }
@@ -298,6 +298,10 @@ public sealed partial class PetWindow
         _bfActive = true;
         _bfLeaving = false;
         _bfTime = 0;
+        // Всеки път пеперуда с различен цвят.
+        string[] colors = { "", "_yellow", "_blue", "_orange", "_white", "_green" };
+        _butterflyProp = _lib.GetProp("butterfly" + colors[_rng.Next(colors.Length)], 9, 7, 0);
+        _butterfly.Source = _butterflyProp.Image;
         _chaseLength = 10 + _rng.NextDouble() * 8;
         // Долита отстрани.
         int side = _rng.Next(2) == 0 ? -1 : 1;

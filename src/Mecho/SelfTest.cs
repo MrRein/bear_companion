@@ -247,7 +247,7 @@ public sealed partial class PetWindow
             _save.Hazelnuts += 100;
             var pot = Kitchen.Upgrades.First(u => u.Id == Kitchen.Pot);
             _save.Owned.Remove(Kitchen.Pot);
-            _save.Owned.Remove(Kitchen.RecipeId(Kitchen.Foods.First(f => f.Id == "popcorn")));
+            _save.Owned.Remove(Kitchen.RecipeId(Kitchen.Foods.First(f => f.Id == "soup")));
             Buy(pot);
             if (Kitchen.Owns(_save, Kitchen.Pot)) throw new Exception("тенджерата е отключена преди доставката");
             if (GoalChoices.Any(u => u.Id == Kitchen.Pot)) throw new Exception("поръчаната тенджера пак е в магазина");
@@ -259,7 +259,7 @@ public sealed partial class PetWindow
         {
             if (_parcel != null) throw new Exception("кашончето остана");
             if (!Kitchen.Owns(_save, Kitchen.Pot) || _save.Ordered.Contains(Kitchen.Pot)) throw new Exception("тенджерата не се отключи");
-            if (!Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "popcorn"), _save)) throw new Exception("тенджерата дойде без рецепта");
+            if (!Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "soup"), _save)) throw new Exception("тенджерата дойде без супата");
             _trip = null;
             SetIdle();
         }, 300);
@@ -727,6 +727,62 @@ public sealed partial class PetWindow
             SayFavoriteWish();
             HideBubble();
         }, 400);
+        await step("градинка", () =>
+        {
+            if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot);
+            if (IsAsleep) WakeUp();
+            DevClearFood();
+            if (_inScene) LeaveScene();
+            StartScene(Scenes.Plant, 120);
+            if (_gardenWindow == null) throw new Exception("няма градинка");
+            _save.GardenGrown.Clear();
+            EnsureGardenSave();
+            int before = _save.Garden[0];
+            GrowFlower(0);
+            if (before < 4 && _save.Garden[0] != before + 1) throw new Exception("цветето не порасна");
+            GrowFlower(0);
+            if (before < 4 && _save.Garden[0] != before + 1) throw new Exception("порасна два пъти за ден");
+            for (int i = 0; i < 40; i++) UpdateGarden(Now + i * 0.1);
+        }, 1500);
+        await step("градинка: свърши", () => { LeaveScene(); if (_gardenWindow is { IsVisible: true }) throw new Exception("градинката остана"); }, 300);
+        await step("подарък в лапите", () =>
+        {
+            _giftWindow?.Close();
+            _save.GiftPending = false;
+            PresentGift();
+            if (_giftHold != GiftHold.Overhead || !_save.GiftPending) throw new Exception("не го подаде");
+        }, 5500);
+        await step("подарък в лапите: седи с него", () =>
+        {
+            if (_giftHold != GiftHold.Lap) throw new Exception("не седна с подаръка");
+            if (!OpenHeldGift()) throw new Exception("цъкането не отвори подаръка");
+            if (_save.GiftPending) throw new Exception("подаръкът остана неотворен");
+        }, 1500);
+        await step("подарък: затвори", () => { _giftWindow?.Close(); SetIdle(); }, 300);
+        await step("разходка", () =>
+        {
+            if (IsAsleep) WakeUp();
+            if (_inScene) LeaveScene();
+            SetIdle();
+            GoForWalk(1);
+            if (!OnWalk) throw new Exception("не тръгна на разходка");
+        }, 6000);
+        await step("разходка: повикай го", () =>
+        {
+            ReturnFromWalk(called: true);
+            if (OnWalk || !IsVisible) throw new Exception("не се върна");
+        }, 3000);
+        await step("сандвич на масата", () =>
+        {
+            var sandwich = Kitchen.Foods.First(f => f.Id == "sandwich");
+            if (!Kitchen.CanCook(sandwich, new SaveData())) throw new Exception("сандвичът не е винаги отключен");
+            if (Kitchen.CategoryOf(sandwich) == "Напитки") throw new Exception("грешна категория");
+            TestCook(sandwich);
+            if (_cook?.Tool != Kitchen.Table) throw new Exception("сандвичът не е на масата");
+            EndCooking(food: null);
+            DevClearFood();
+            Sounds.Play(_save);
+        }, 1500);
         await step("developer панел", () =>
         {
             var dev = new DevWindow(this);

@@ -760,6 +760,71 @@ kkkuuuuuukkk
 ..kuwk.kwuk.
 ..kuuk.kuuk.
 ..kkkk.kkkk.""",
+    "minimize": """
+............
+............
+............
+............
+............
+............
+............
+............
+.kkkkkkkkkk.
+.kyyyyyyyyk.
+.kkkkkkkkkk.
+............""",
+    "copy": """
+kkkkkkk.....
+kwwwwwk.....
+kwkkkkkkkk..
+kwkwwwwwwk..
+kwkwkkkkwk..
+kwkwwwwwwk..
+kkkwkkkkwk..
+..kwwwwwwk..
+..kwkkkwwk..
+..kwwwwwwk..
+..kkkkkkkk..
+............""",
+    "star": """
+.....kk.....
+....kyyk....
+....kyyk....
+kkkkkyykkkkk
+kyyyyyyyyyyk
+.kyyyyyyyyk.
+..kyyyyyyk..
+..kyyyyyyk..
+.kyyykkyyyk.
+.kyyk..kyyk.
+kkkk....kkkk
+............""",
+    "reroll": """
+....kkkk....
+..kkggggkk..
+.kggkkkkggk.
+.kgk....kgkk
+kgk......kgk
+kgk....kkggk
+kgk.....kgk.
+kgk.........
+.kgk....kgk.
+.kggkkkkggk.
+..kkggggkk..
+....kkkk....""",
+    "sound": """
+......k.....
+.....kk...k.
+....kwk....k
+kkkkwwk..k.k
+kwwwwwk...kk
+kwwwwwk...kk
+kwwwwwk...kk
+kkkkwwk..k.k
+....kwk....k
+.....kk...k.
+......k.....
+............""",
 }
 
 

@@ -79,9 +79,9 @@ public sealed class PinWindow : Window
         var header = new DockPanel { Margin = new Thickness(2, 0, 2, 5), Background = Brushes.Transparent, Cursor = Cursors.SizeAll };
         var close = Chip("✕", () => _pet.SetPinned(_kind, false));
         close.ToolTip = Tip("Откачи");
-        _fade = Chip("◐", () => { State.Faded = !State.Faded; ApplyFade(); _pet.SavePins(); });
+        _fade = Chip("👁", () => { State.Faded = !State.Faded; ApplyFade(); _pet.SavePins(); });
         _fade.ToolTip = Tip("Полупрозрачно, когато мишката не е отгоре");
-        _collapse = Chip("▁", () => { State.Collapsed = !State.Collapsed; ApplyCollapse(); _pet.SavePins(); });
+        _collapse = Chip("➖", () => { State.Collapsed = !State.Collapsed; ApplyCollapse(); _pet.SavePins(); });
         _collapse.ToolTip = Tip("Свий / разгъни");
         var menu = Chip("☰", () => _pet.OpenMenu(_kind == Tasks ? MenuWindow.TasksTab : MenuWindow.NotesTab));
         menu.ToolTip = Tip("Отвори в менюто");
@@ -134,7 +134,7 @@ public sealed class PinWindow : Window
         plus.VerticalAlignment = VerticalAlignment.Top;
         DockPanel.SetDock(plus, Dock.Right);
         inputRow.Children.Add(plus);
-        inputRow.Children.Add(MenuWindow.WithHint(_input, kind == Tasks ? "Нова задача… (Enter)" : "Бележка… (Ctrl+Enter)"));
+        inputRow.Children.Add(MenuWindow.WithHint(_input, kind == Tasks ? "Нова задача…" : "Бележка…"));
 
         _scroll = new ScrollViewer { Content = _list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         var bodyPanel = new DockPanel();

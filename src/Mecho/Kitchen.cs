@@ -30,6 +30,9 @@ public static class Kitchen
 
     /// <summary>Каничката за сокове: не се купува, винаги я има.</summary>
     public const string Jug = "jug";
+
+    /// <summary>Масичката за сандвичи: не се купува, винаги я има (основната храна).</summary>
+    public const string Table = "table";
     public const string Bed = "bed", Fridge = "fridge", Cookbook = "cookbook", Headphones = "headphones";
 
     // Предмети за почивка: всеки отключва кътче (виж Scenes).
@@ -47,6 +50,8 @@ public static class Kitchen
     {
         new("berries", "Боровинки", "🫐", 12, 0, 0, 3, null,
             new[] { "Боровинки! Сини като небето.", "Ням! Още една.", "Кисело-сладко. Обичам." }),
+        new("sandwich", "Сандвич", "🫓", 30, 0, 1, 1, Table,
+            new[] { "Сандвич! Прост и перфектен.", "Хляб, масло, сирене… ням!", "Най-хубавото е, когато ти го направиш." }),
         new("popcorn", "Пуканки", "🍿", 24, 0, 2, 5, Pot,
             new[] { "Пук! Хванах я с уста!", "Хрус-хрус.", "Пуканки като за кино вечер!" }),
         new("meatballs", "Кюфтенца", "🍖", 40, 0, 4, 3, Pan,
@@ -64,7 +69,9 @@ public static class Kitchen
 
         // ── Още рецепти (учат се от страници; ⭐ = в два уреда един след друг) ──
         new("lemonade", "Лимонада с мед", "🍋", 8, 10, 2, 1, Jug, Array.Empty<string>()),
-        new("soup", "Супичка", "🥣", 35, 0, 3, 1, Pot, Array.Empty<string>()),
+        new("soup", "Зеленчукова супа", "🥣", 35, 0, 3, 1, Pot,
+            new[] { "Зеленчукова супа! Морков, картоф, мммм.", "*духа* Топличко за коремчето.", "Като на баба Мецана." }),
+        new("roast_soup", "Печена супа", "🫕", 45, 0, 4, 1, Pot, Array.Empty<string>()) { Prep = Oven },
         new("corn", "Царевица на кочан", "🌽", 20, 0, 2, 2, Pot, Array.Empty<string>()),
         new("cocoa", "Какао", "🍫", 8, 8, 2, 1, Kettle, Array.Empty<string>()),
         new("linden_tea", "Липов чай", "🌼", 5, 5, 1, 1, Kettle, Array.Empty<string>()),
@@ -79,8 +86,13 @@ public static class Kitchen
         new("muffins", "Мъфини с боровинки", "🧁", 30, 5, 4, 3, Oven, Array.Empty<string>()) { Prep = Mixer },
         new("pizza", "Пица", "🍕", 60, 0, 6, 4, Oven, Array.Empty<string>()) { Prep = Mixer },
         new("smoothie", "Смути", "🥤", 12, 15, 2, 1, Mixer, Array.Empty<string>()),
-        new("toast", "Тост с кашкавал", "🍞", 25, 0, 2, 1, SandwichMaker, Array.Empty<string>()),
-        new("sandwich_ham", "Сандвич с шунка", "🥪", 35, 0, 3, 1, SandwichMaker, Array.Empty<string>()),
+        new("toast", "Мачкан с кашкавал", "🍞", 25, 0, 2, 1, SandwichMaker, Array.Empty<string>()),
+        new("sandwich_ham", "Мачкан с шунка", "🥪", 35, 0, 3, 1, SandwichMaker, Array.Empty<string>()),
+        new("pressed_caprese", "Мачкан с домат и моцарела", "🍅", 32, 0, 3, 1, SandwichMaker, Array.Empty<string>()),
+        new("pressed_veggie", "Мачкан със зеленчуци", "🥬", 30, 0, 3, 1, SandwichMaker, Array.Empty<string>()),
+        new("pressed_chicken", "Мачкан с пилешко", "🍗", 40, 0, 4, 1, SandwichMaker, Array.Empty<string>()),
+        new("pressed_egg", "Мачкан с яйце", "🥯", 35, 0, 4, 1, SandwichMaker, Array.Empty<string>()) { Prep = Pan },
+        new("pressed_mushroom", "Мачкан с гъби", "🍄", 32, 0, 3, 1, SandwichMaker, Array.Empty<string>()),
         new("sandwich_honey", "Сандвич с банан и мед", "🍌", 30, 5, 3, 1, SandwichMaker, Array.Empty<string>()),
         new("waffle_honey", "Гофрета с мед", "🟨", 25, 0, 2, 2, SandwichMaker, Array.Empty<string>()),
         new("waffle_choco", "Шоколадова гофрета", "🟫", 28, 0, 3, 2, SandwichMaker, Array.Empty<string>()),
@@ -147,14 +159,13 @@ public static class Kitchen
         new(YarnBasket, "Кошница с прежда", "🧶", 25, "За плетене.", FunShelf),
         new(Guitar, "Китара", "🎸", 35, "Свири си песнички.", FunShelf),
 
-        new(Headphones, "Слушалки", "🎧", 35, "+1 🌰 за мечо-доро.", HelpShelf),
         new(Couch, "Диван", "🛋️", 20, "Мек диван за четене.", FurnitureShelf),
         new(Bed, "Меко легло", "🛏️", 40, "Наспива се по-бързо.", FurnitureShelf),
-        new(Heater, "Печица", "🔥", 30, "Топличко за зимата.", FurnitureShelf),
+        new(Heater, "Печица", "🌡", 30, "Топличко за зимата.", FurnitureShelf),
         new(Wardrobe, "Гардероб", "👕", 25, "Дрехи, аксесоари и тапети.", FurnitureShelf),
         new(Lamp, "Лампа", "🪔", 25, "Свети вечер.", FurnitureShelf),
-        new(Fridge, "Хладилник", "🧊", 50, "Ястията са с 1 🌰 по-евтини.", HelpShelf),
-        new(Cookbook, "Готварска книга", "📖", 60, "Ястията засищат повече.", HelpShelf),
+        // Хладилникът, слушалките и готварската книга са махнати от магазина засега
+        // (който ги има отпреди, ефектът им остава).
     };
 
     public static Upgrade? Find(string id) => Upgrades.FirstOrDefault(u => u.Id == id);
@@ -163,7 +174,7 @@ public static class Kitchen
 
     public static bool HasTool(Food food, SaveData save) => Has(food.Tool, save) && Has(food.Prep, save);
 
-    private static bool Has(string? tool, SaveData save) => tool is null or Jug || Owns(save, tool);
+    private static bool Has(string? tool, SaveData save) => tool is null or Jug or Table || Owns(save, tool);
 
     /// <summary>
     /// Рецептата се купува веднъж (освен за боровинките); после ястието се готви
@@ -172,12 +183,13 @@ public static class Kitchen
     /// <summary>Рецептата, която идва с уреда (останалите се научават от страници).</summary>
     public static string? DefaultRecipe(string tool) => tool switch
     {
-        Pot => "popcorn",
+        Pot => "soup",
         Pan => "meatballs",
         Oven => "potatoes",
         CoffeeMachine => "coffee",
         Kettle => "tea",
         Jug => "juice_orange",
+        Table => "sandwich",
         Mixer => "smoothie",
         SandwichMaker => "toast",
         IceCream => "icecream_honey",
@@ -187,7 +199,16 @@ public static class Kitchen
 
     public static bool IsDefaultRecipe(Food food) => food.Tool != null && DefaultRecipe(food.Tool) == food.Id;
 
-    public static bool HasRecipe(Food food, SaveData save) => food.Cost == 0 || Owns(save, RecipeId(food));
+    public static bool HasRecipe(Food food, SaveData save) => food.Cost == 0 || food.Tool == Table || Owns(save, RecipeId(food));
+
+    /// <summary>Разделите в „Храна“.</summary>
+    public static readonly string[] Categories = { "Манджи", "Закуски", "Сладко", "Напитки" };
+
+    public static string CategoryOf(Food f) =>
+        IsDrink(f) ? "Напитки"
+        : f.Id is "cookies" or "muffins" or "pancakes" or "berries" || f.Id.StartsWith("waffle") || f.Id.StartsWith("icecream") ? "Сладко"
+        : f.Fullness >= 35 || f.Id is "soup" or "meatballs" or "potatoes" ? "Манджи"
+        : "Закуски";
 
     public static string RecipeId(Food food) => "recipe_" + food.Id;
 

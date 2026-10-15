@@ -727,14 +727,13 @@ def food_potatoes():
     return img
 
 
-def butterfly():
+def butterfly(wing=(250, 150, 200, 255), low=(180, 140, 250, 255)):
     img = Image.new("RGBA", (9, 7), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    wing = (250, 150, 200, 255)
     oval(d, (0, 0, 3, 3), wing)
     oval(d, (5, 0, 8, 3), wing)
-    oval(d, (1, 3, 3, 6), (180, 140, 250, 255))
-    oval(d, (5, 3, 7, 6), (180, 140, 250, 255))
+    oval(d, (1, 3, 3, 6), low)
+    oval(d, (5, 3, 7, 6), low)
     d.line((4, 1, 4, 6), fill=OUTLINE)
     return img
 
@@ -1098,6 +1097,11 @@ PROP_LIST = {
     # име: (рисунка, на колко пиксела от земята е седалката)
     "couch": (couch(), 10),
     "butterfly": (butterfly(), 0),
+    "butterfly_yellow": (butterfly((250, 215, 80, 255), (240, 150, 60, 255)), 0),
+    "butterfly_blue": (butterfly((110, 170, 240, 255), (70, 110, 200, 255)), 0),
+    "butterfly_orange": (butterfly((245, 150, 60, 255), (60, 50, 50, 255)), 0),
+    "butterfly_white": (butterfly((250, 250, 245, 255), (210, 215, 225, 255)), 0),
+    "butterfly_green": (butterfly((150, 215, 120, 255), (90, 160, 90, 255)), 0),
     "stool": (prop(16, 8, stool), 7),
     "trampoline": (prop(28, 8, trampoline), 4),
     "desk": (prop(24, 22, desk), 0),
@@ -1319,8 +1323,49 @@ FOOD_ART = {
                                         d.line((x + 1, y + 2, x + 5, y + 2), fill=(120, 70, 40, 255)),
                                         d.line((x + 1, y + 4, x + 5, y + 4), fill=(120, 70, 40, 255))) for x, y in [(1, 7), (8, 4)]]),
 }
+
+
+def _pressed(filling, spot):
+    """Мачкан сандвич: запечен хляб с ивици от скарата и пълнеж отстрани."""
+    return _plate(lambda d: (d.rectangle((2, 4, 13, 11), fill=(225, 170, 100, 255), outline=OUTLINE),
+                             d.line((3, 9, 12, 9), fill=filling), d.line((3, 8, 12, 8), fill=spot),
+                             [d.line((x, 5, x + 2, 7), fill=(150, 95, 50, 255)) for x in (4, 8)]))
+
+
+FOOD_ART.update({
+    "sandwich": _plate(lambda d: (d.rectangle((2, 5, 13, 11), fill=(245, 225, 175, 255), outline=OUTLINE),
+                                  d.line((3, 8, 12, 8), fill=(250, 210, 80, 255)), d.line((3, 7, 12, 7), fill=(110, 180, 80, 255)),
+                                  d.line((3, 9, 12, 9), fill=(230, 130, 140, 255)))),
+    "roast_soup": _bowl((200, 110, 50, 255), [(5, 8, (240, 170, 60, 255)), (9, 8, (150, 70, 40, 255)), (7, 7, (110, 170, 80, 255))]),
+    "pressed_caprese": _pressed((220, 60, 60, 255), (250, 250, 245, 255)),
+    "pressed_veggie": _pressed((110, 180, 80, 255), (240, 170, 60, 255)),
+    "pressed_chicken": _pressed((230, 190, 140, 255), (110, 180, 80, 255)),
+    "pressed_egg": _pressed((250, 200, 60, 255), (250, 250, 245, 255)),
+    "pressed_mushroom": _pressed((160, 120, 90, 255), (220, 200, 180, 255)),
+})
 for _id, _img in FOOD_ART.items():
     PROP_LIST[f"food_{_id}"] = (_img, 0)
+
+
+def cook_table(frame):
+    """Масичка с дъска: мечокът реже и подрежда сандвича (готово – на чинийка)."""
+    def f(d):
+        d.rectangle((1, 13, 20, 15), fill=WOOD, outline=OUTLINE)             # плотът
+        d.rectangle((3, 15, 4, 23), fill=WOOD); d.rectangle((17, 15, 18, 23), fill=WOOD)
+        d.rectangle((3, 10, 13, 13), fill=(200, 150, 90, 255), outline=OUTLINE)   # дъската
+        if frame == 2:
+            d.ellipse((5, 6, 18, 12), fill=(240, 240, 245, 255), outline=OUTLINE)
+            d.rectangle((7, 6, 16, 9), fill=(245, 225, 175, 255), outline=OUTLINE)
+            d.line((8, 8, 15, 8), fill=(110, 180, 80, 255))
+        else:
+            d.rectangle((5, 8 - frame, 11, 10 - frame), fill=(245, 225, 175, 255), outline=OUTLINE)   # филия
+            d.line((14, 4 + frame * 2, 17, 10), fill=GREY)                                           # ножът
+            d.point((7 + frame * 2, 7 - frame), fill=(250, 210, 80, 255))
+    return f
+
+
+for _i, _suffix in enumerate(["", "_b", "_open"]):
+    PROP_LIST[f"cook_table{_suffix}"] = (prop(22, 24, cook_table(_i)), 0)
 
 
 def cook_mixer(frame):
@@ -1930,6 +1975,42 @@ _g = guitar_tool(*GUITARS[""])
 PROP_LIST["shop_guitar"] = (_g.crop(_g.getbbox()).resize((16, 16), Image.NEAREST), 0)
 
 
+# ── Градинката (поливане): цвете в 5 стадия, 12 x 16; цъфналото е в различни цветове ──
+SOIL, SOIL_D, STEM, LEAF = (130, 85, 50, 255), (95, 60, 35, 255), (80, 150, 60, 255), (110, 180, 80, 255)
+
+
+def flower(stage, petal=(240, 120, 160, 255), center=(250, 210, 80, 255)):
+    def f(d):
+        d.ellipse((1, 12, 10, 15), fill=SOIL, outline=SOIL_D)          # купчинка пръст
+        if stage == 0:
+            d.point((5, 12), fill=SOIL_D); d.point((7, 13), fill=SOIL_D)
+            return
+        top = {1: 9, 2: 6, 3: 3, 4: 3}[stage]
+        d.line((5, top, 5, 12), fill=STEM)
+        if stage >= 1:
+            d.point((4, top), fill=LEAF); d.point((6, top), fill=LEAF)
+        if stage >= 2:
+            oval(d, (1, 8, 4, 10), LEAF, outline=None); oval(d, (6, 7, 9, 9), LEAF, outline=None)
+        if stage == 3:
+            oval(d, (3, 1, 7, 5), (120, 190, 90, 255))
+            d.point((5, 1), fill=petal)
+        if stage == 4:
+            for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
+                oval(d, (5 + dx - 2, 3 + dy - 2, 5 + dx + 2, 3 + dy + 2), petal, outline=None)
+            oval(d, (4, 2, 6, 4), center, outline=None)
+    return f
+
+
+for _st in range(4):
+    PROP_LIST[f"flower_{_st}"] = (prop(12, 16, flower(_st)), 0)
+FLOWER_COLORS = {
+    "pink": (240, 120, 160, 255), "yellow": (250, 210, 70, 255), "red": (220, 60, 60, 255),
+    "purple": (170, 120, 220, 255), "white": (250, 250, 250, 255), "blue": (110, 160, 240, 255),
+}
+for _c, _petal in FLOWER_COLORS.items():
+    PROP_LIST[f"flower_4_{_c}"] = (prop(12, 16, flower(4, _petal, (250, 200, 60, 255) if _c != "yellow" else (200, 120, 40, 255))), 0)
+
+
 def derive_sleep_peek():
     """
     „Сънливо надига глава“ от нарисувания sleep.png на Тут: главата (лявата
@@ -2356,10 +2437,9 @@ def mystery(d):
 PROP_LIST["mystery"] = (prop(16, 16, mystery), 0)
 
 
-def gift(opened):
+def gift(opened, box=(120, 180, 230, 255), dark=(80, 130, 190, 255), ribbon=(240, 90, 110, 255)):
     """Подаръкът, който мечокът носи (затворен или с отворен капак)."""
     def f(d):
-        box, dark, ribbon = (120, 180, 230, 255), (80, 130, 190, 255), (240, 90, 110, 255)
         d.rectangle((2, 7, 13, 15), fill=box, outline=OUTLINE)
         d.rectangle((3, 13, 12, 14), fill=dark)
         d.rectangle((7, 7, 8, 15), fill=ribbon)
@@ -2379,6 +2459,18 @@ def gift(opened):
 
 PROP_LIST["gift"] = (prop(16, 16, gift(False)), 0)
 PROP_LIST["gift_open"] = (prop(16, 16, gift(True)), 0)
+
+# Цветни подаръци: gift_<цвят>[_open] (кутия, тъмно, панделка).
+GIFT_COLORS = {
+    "pink": ((245, 160, 185, 255), (215, 115, 150, 255), (255, 255, 255, 255)),
+    "green": ((130, 190, 100, 255), (90, 145, 70, 255), (250, 210, 80, 255)),
+    "yellow": ((250, 210, 90, 255), (220, 170, 50, 255), (220, 70, 70, 255)),
+    "purple": ((170, 130, 220, 255), (125, 90, 180, 255), (255, 220, 120, 255)),
+    "red": ((220, 70, 70, 255), (170, 45, 50, 255), (250, 220, 120, 255)),
+}
+for _c, (_box, _dark, _rib) in GIFT_COLORS.items():
+    PROP_LIST[f"gift_{_c}"] = (prop(16, 16, gift(False, _box, _dark, _rib)), 0)
+    PROP_LIST[f"gift_{_c}_open"] = (prop(16, 16, gift(True, _box, _dark, _rib)), 0)
 
 
 def save_backgrounds():

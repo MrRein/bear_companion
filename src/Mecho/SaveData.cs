@@ -33,7 +33,8 @@ public sealed class SaveData
     public List<string> Owned { get; set; } = new();            // купени уреди и подобрения
     public string GiftDay { get; set; } = "";                  // за кой ден е решено дали има подарък
     public DateTime GiftAt { get; set; } = DateTime.MinValue;  // кога тръгва за подаръка (MinValue = днес няма)
-    public bool GiftPending { get; set; }                      // подаръкът чака в средата на екрана
+    public bool GiftPending { get; set; }
+    public string GiftColor { get; set; } = "";                // цветът на днешния подарък ("" – синият)                      // подаръкът чака в средата на екрана
     public string? CookFood { get; set; }                     // какво се готви (виж PetWindow.Cooking.cs)
     public DateTime CookReadyAt { get; set; }
     public int CookCost { get; set; }
@@ -45,7 +46,13 @@ public sealed class SaveData
     public Dictionary<string, string> Skins { get; set; } = new(); // предмет → сложеният скин (виж Furniture)
     public bool PajamasAtNight { get; set; } = true;            // пижама вечер (виж PetWindow.Furniture.cs)
     public string Pajama { get; set; } = "classic";
-    public string UiTheme { get; set; } = "classic";            // скинът на менюто (виж UiThemes)             // коя пижама облича вечер (виж Clothes.PajamaSets)
+    public string UiTheme { get; set; } = "classic";
+    public List<int> Garden { get; set; } = new();               // стадиите на цветята в градинката (0–4)
+    public List<string> GardenColors { get; set; } = new();
+    public List<string> GardenGrown { get; set; } = new();       // в кой ден е расло всяко (веднъж на ден)
+    public bool SoundOn { get; set; } = true;                    // „динг“ в края на мечо-доро и таймер
+    public double SoundVolume { get; set; } = 0.6;
+    public DateTime WalkUntil { get; set; } = DateTime.MinValue;  // на разходка извън екрана до (виж PetWindow.Walk.cs)            // скинът на менюто (виж UiThemes)             // коя пижама облича вечер (виж Clothes.PajamaSets)
     public bool LampOff { get; set; }                           // Тут изгаси лампата тази вечер (до сутринта)
     public string LampOffDay { get; set; } = "";
     public double LampX { get; set; } = double.NaN;

@@ -79,7 +79,13 @@ public sealed partial class PetWindow
             string title = task.Title.Length > 40 ? task.Title[..40] + "…" : task.Title;
             Ask(new ChatQuestion($"Свърши ли „{title}“?",
                 new ChatOption("✓ Да!", p => { p.SetTaskDone(task, true); p.SetFocusTask(null); }),
-                new ChatOption("Още не", p => p.Say(R.Pick("focustask.notyet", p.Save.OwnerName), 3))));
+                new ChatOption("Още не", p =>
+                {
+                    p.Say(R.Pick("focustask.notyet", p.Save.OwnerName), 3);
+                    // Мечо-доро: след почивката продължаваме по задачата.
+                    if (p._save.PomodoroPhase == PomodoroPhase.Break) p._save.PomodoroSeriesLeft = Math.Max(p._save.PomodoroSeriesLeft, 1);
+                    p.Persist();
+                })));
         });
     }
 

@@ -118,9 +118,11 @@ public sealed class MenuWindow : Window
         _tabs[FoodTab] = BuildFoodTab();
         _tabs[ShopTab] = BuildShopTab();
         _tabs[WardrobeTab] = BuildWardrobeTab();
-        _tabs[TasksTab] = BuildTasksTab();
+        // Задачите са в таба „Работа“ (вдясно); TasksTab води там.
+        var tasksPanel = BuildTasksTab();
+        _tabs[TasksTab] = new Border();
         _tabs[NotesTab] = BuildNotesTab();
-        _tabs[PomodoroTab] = BuildPomodoroTab();
+        _tabs[PomodoroTab] = BuildWorkTab(BuildPomodoroTab(), tasksPanel);
         _tabs[MoreTab] = BuildMoreTab();
 
         var content = new Grid { Width = 740 * U, MinHeight = 380 * U };
@@ -189,6 +191,9 @@ public sealed class MenuWindow : Window
         _hideToken++;            // отваря се пак, докато се скриваше: не го крий
         _hiding = false;
         Opacity = 1;
+        // Windows може да го е „свил“ (Win+D, „покажи работния плот“): винаги нормален размер.
+        if (WindowState != WindowState.Normal) WindowState = WindowState.Normal;
+        SizeToContent = SizeToContent.WidthAndHeight;
         _dirty[tab] = true;      // винаги свежо (офертата може да е сменена от Developer)
         SelectTab(tab);
         // Размерът и мястото се смятат преди показването, за да не подскача.
@@ -265,12 +270,14 @@ public sealed class MenuWindow : Window
             case WardrobeTab: BuildWardrobe(); break;
             case TasksTab: BuildTaskList(); break;
             case NotesTab: BuildNoteList(); break;
-            case PomodoroTab: BuildFocusTasks(); break;
+            case PomodoroTab: BuildFocusTasks(); BuildTaskList(); break;
         }
     }
 
     private void SelectTab(int index)
     {
+        bool tasks = index == TasksTab;
+        if (tasks) index = PomodoroTab;   // задачите са в „Работа“
         _tab = index;
         for (int i = 0; i < _tabs.Length; i++)
         {
@@ -279,14 +286,15 @@ public sealed class MenuWindow : Window
             // Избраният таб е по-висок и слят с хартията отдолу, другите са по-тъмни.
             _tabButtons[i].Background = on ? Paper : WoodLight;
             _tabButtons[i].BorderThickness = on ? new Thickness(2, 2, 2, 0) : new Thickness(2, 2, 2, 2);
-            _tabButtons[i].Margin = new Thickness(i == 0 ? 0 : 3, on ? 0 : 5 * U, 0, on ? -2 : 0);
+            // Всички табове са еднакво големи; избраният само е слят с хартията отдолу.
+            _tabButtons[i].Margin = new Thickness(i == 0 ? 0 : 3, 0, 0, on ? -2 : 0);
         }
         // Гардеробът стои до мечока, докато е отворен табът.
         if (index == WardrobeTab && IsVisible) _pet.OpenWardrobe();
         else if (index != WardrobeTab) _pet.CloseWardrobe();
         Refresh(rebuild: false);
         BuildTab(index);
-        if (index == TasksTab) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
+        if (tasks) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
         if (index == NotesTab) Dispatcher.BeginInvoke(() => _noteInput.Focus(), DispatcherPriority.Input);
     }
 
@@ -349,7 +357,8 @@ public sealed class MenuWindow : Window
 
     private UIElement BuildTabs()
     {
-        var grid = new Grid { Margin = new Thickness(2, 0, 2, 0) };
+        // Всички табове са еднакво широки (UniformGrid); скритите не заемат място.
+        var grid = new UniformGrid { Rows = 1, Margin = new Thickness(2, 0, 2, 0) };
         (string Icon, string Name)[] tabs =
         {
             ("bear", "Мечо"), ("food", "Храна"), ("shop", "Магазин"), ("wardrobe", "Гардероб"), ("tasks", "Задачи"), ("notes", "Бележки"), ("clock", "Работа"), ("gear", "Още"),
@@ -379,8 +388,6 @@ public sealed class MenuWindow : Window
                 e.Handled = true;
             };
             Panel.SetZIndex(tab, 1);
-            grid.ColumnDefinitions.Add(new ColumnDefinition());
-            Grid.SetColumn(tab, i);
             grid.Children.Add(tab);
             _tabButtons[i] = tab;
         }
@@ -433,6 +440,14 @@ public sealed class MenuWindow : Window
             Refresh(false);
         }));
         actions.Children.Add(_quietButton);
+        // Разходи се: излиза от екрана за 10 мин, 30 мин, 1 ч или колкото напишеш.
+        _walkButton = Wide(Button("Разходи се", () =>
+        {
+            _walkOpen = !_walkOpen;
+            _sleepOpen = _quietOpen = false;
+            Refresh(false);
+        }, icon: "walk"));
+        actions.Children.Add(_walkButton);
         // „Почивай си“ / „Работи си“: мечокът сам сменя заниманията, докато не спре.
         _relaxButton = Wide(Button("Почивай си", () =>
         {
@@ -490,6 +505,33 @@ public sealed class MenuWindow : Window
             _quietOptions.Children.Add(chip);
         }
         p.Children.Add(_quietOptions);
+        _walkOptions.Margin = new Thickness(0, 2, 0, 6);
+        foreach (var (label, minutes) in new[] { ("10 мин", 10), ("30 мин", 30), ("1 ч", 60) })
+        {
+            int m = minutes;
+            var chip = Chip(label, () => GoForWalk(m));
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            _walkOptions.Children.Add(chip);
+        }
+        var walkOwn = NewTextInput();
+        walkOwn.Width = 60 * U;
+        walkOwn.VerticalAlignment = VerticalAlignment.Center;
+        var walkHint = WithHint(walkOwn, "мин");
+        ((FrameworkElement)walkHint).Margin = new Thickness(0, 0, 6, 4);
+        _walkOptions.Children.Add(walkHint);
+        var walkGo = Chip("Тръгвай", () =>
+        {
+            if (!double.TryParse(walkOwn.Text.Trim().Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var m) || m <= 0 || m > 24 * 60)
+            {
+                walkOwn.BorderBrush = Bad;
+                return;
+            }
+            walkOwn.Clear();
+            GoForWalk(m);
+        });
+        walkGo.Margin = new Thickness(0, 0, 6, 4);
+        _walkOptions.Children.Add(walkGo);
+        p.Children.Add(_walkOptions);
 
         // SOS: мечокът дава нещо за мотивация (листът е motivation.md в GitHub).
         var sos = Wide(Button("SOS: мотивация", () =>
@@ -502,8 +544,16 @@ public sealed class MenuWindow : Window
         return new ScrollViewer { Content = p, MaxHeight = 600 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
 
-    private readonly WrapPanel _sleepOptions = new(), _quietOptions = new();
-    private bool _sleepOpen, _quietOpen;
+    private readonly WrapPanel _sleepOptions = new(), _quietOptions = new(), _walkOptions = new();
+    private bool _sleepOpen, _quietOpen, _walkOpen;
+    private Button _walkButton = null!;
+
+    private void GoForWalk(double minutes)
+    {
+        _walkOpen = false;
+        Hide();
+        _pet.GoForWalk(minutes);
+    }
     private Button _drawButton = null!;
     private string _sleepOptionsKey = "";
 
@@ -651,18 +701,36 @@ public sealed class MenuWindow : Window
         var p = new StackPanel();
         _foodInfo = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 10) };
         p.Children.Add(_foodInfo);
+        _foodCats.Margin = new Thickness(0, 0, 0, 8 * U);
+        p.Children.Add(_foodCats);
         p.Children.Add(_foodTiles);
         p.Children.Add(_recipeProgress);
         return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     }
+
+    private readonly WrapPanel _foodCats = new();
+    private string _foodCat = "Всичко";
 
     /// <summary>Плочки с храните: картинка, какво дава и бутон „Сготви“. Посочиш ли заключена, казва защо.</summary>
     private void BuildFoodTiles()
     {
         var s = _pet.Save;
         _foodTiles.Children.Clear();
+        // Раздели: Всичко, Манджи, Закуски, Сладко, Напитки (само тези, в които има нещо).
+        var known = Kitchen.Foods.Where(f => Kitchen.HasRecipe(f, s)).ToList();
+        _foodCats.Children.Clear();
+        var cats = new[] { "Всичко" }.Concat(Kitchen.Categories.Where(c => known.Any(f => Kitchen.CategoryOf(f) == c))).ToList();
+        if (!cats.Contains(_foodCat)) _foodCat = "Всичко";
+        foreach (var cat in cats)
+        {
+            string c = cat;
+            var chip = Chip(c, () => { _foodCat = c; BuildFoodTiles(); });
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            SetOn(chip, c == _foodCat);
+            _foodCats.Children.Add(chip);
+        }
         // Само научените рецепти (боровинките винаги); новите идват от страници.
-        foreach (var food in Kitchen.Foods.Where(f => Kitchen.HasRecipe(f, s)))
+        foreach (var food in known.Where(f => _foodCat == "Всичко" || Kitchen.CategoryOf(f) == _foodCat))
         {
             var f = food;
             int cost = Kitchen.CostOf(f, s);
@@ -924,31 +992,33 @@ public sealed class MenuWindow : Window
         _goalBox.Children.Add(grid);
     }
 
-    /// <summary>Едно от трите неща за избор: картинка, цена, „Избери“ (и „Друго“).</summary>
-    private Border GoalChoice(Upgrade u, bool canReroll)
+    /// <summary>Едно от трите неща за избор: картинка, цена, „Избери“; горе вдясно ↻ го сменя с друго.</summary>
+    private UIElement GoalChoice(Upgrade u, bool canReroll)
     {
         var details = new StackPanel();
         var price = RichText($"{u.Price} 🌰");
         price.HorizontalAlignment = HorizontalAlignment.Center;
         details.Children.Add(price);
         details.Children.Add(Description(u.Description));
-        if (canReroll)
-        {
-            var reroll = Button("Друго", () =>
-            {
-                _pet.RerollGoal(u.Id);
-                Refresh(true);
-            }, icon: "update");
-            reroll.HorizontalAlignment = HorizontalAlignment.Center;
-            reroll.Margin = new Thickness(0, 4, 0, 0);
-            details.Children.Add(reroll);
-        }
         var pick = Button("Избери", () =>
         {
             _pet.ChooseGoal(u.Id);
             Refresh(true);
         }, primary: true);
-        return MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, details, pick, dim: false, null);
+        var tile = MakeTile(_pet.PropImage("shop_" + u.Id), u.Name, details, pick, dim: false, null);
+        if (!canReroll) return tile;
+        // Малко копче със стрелки в горния десен ъгъл: сменя това нещо с друго (веднъж).
+        var reroll = Chip("🔄", () =>
+        {
+            _pet.RerollGoal(u.Id);
+            Refresh(true);
+        });
+        reroll.ToolTip = Tip("Смени с друго");
+        reroll.Padding = new Thickness(4, 1, 4, 2);
+        reroll.HorizontalAlignment = HorizontalAlignment.Right;
+        reroll.VerticalAlignment = VerticalAlignment.Top;
+        reroll.Margin = new Thickness(0, 6, 12, 0);
+        return new Grid { Children = { tile, reroll } };
     }
 
     /// <summary>Заключена „?“: в началото до гардероба.</summary>
@@ -1262,6 +1332,10 @@ public sealed class MenuWindow : Window
 
     private Border _pajamaChip = null!;
 
+    /// <summary>Предметите, за които има поне един купен друг вид (само тогава се виждат и класическите).</summary>
+    private static IEnumerable<string> SkinItems(SaveData s) =>
+        Furniture.ByItem.Where(kv => Kitchen.Owns(s, kv.Key) && kv.Value.Any(k => k.Price > 0 && Furniture.Owns(s, k))).Select(kv => kv.Key);
+
     private void BuildWardrobe()
     {
         var s = _pet.Save;
@@ -1275,6 +1349,7 @@ public sealed class MenuWindow : Window
         foreach (var slot in Clothes.Shelves)
         {
             var g = Clothes.Worn(s, slot);
+            if (g == null) continue;   // само облеченото
             var row = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
             // Облечената дреха като малка картинка (или иконката на слота, ако няма).
             FrameworkElement icon;
@@ -1308,17 +1383,26 @@ public sealed class MenuWindow : Window
             _wornList.Children.Add(row);
         }
 
+        if (_wornList.Children.Count == 0) _wornList.Children.Add(MutedText("Нищо."));
         _wardrobeShelves.Children.Clear();
         _wardrobeLock.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Collapsed : Visibility.Visible;
         _wardrobeBody.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
         if (!DailyOffer.HasWardrobe(s)) return;
 
         // Раздели: всеки вид дреха/аксесоар, тапетите и мебелите (ако има диван или легло).
-        var sections = Clothes.Shelves.Select(slot => (Id: slot.Id, Name: slot.Name, Icon: slot.Icon)).ToList();
-        sections.Add(("pajamas", "Пижами", "pajama"));
-        sections.Add(("themes", "Меню", "menu"));
-        sections.Add(("wallpapers", "Тапети", "picture"));
-        if (Furniture.ByItem.Keys.Any(item => Kitchen.Owns(s, item))) sections.Add(("furniture", "Мебели и уреди", "couch"));
+        // Раздел се вижда чак когато има нещо в него (за безплатните – поне едно купено).
+        var sections = Clothes.Shelves
+            .Where(slot => Clothes.All.Any(g => g.SlotId == slot.Id && !g.Hidden && Clothes.Owns(s, g)))
+            .Select(slot => (Id: slot.Id, Name: slot.Name, Icon: slot.Icon)).ToList();
+        if (Clothes.PajamaSets.Count(p => Clothes.Owns(s, p)) > 1) sections.Add(("pajamas", "Пижами", "pajama"));
+        if (UiThemes.All.Count(t => UiThemes.Owns(s, t)) > 1) sections.Add(("themes", "Меню", "menu"));
+        if (Backdrops.All.Count(b => Backdrops.Owns(s, b)) > 1) sections.Add(("wallpapers", "Тапети", "picture"));
+        if (SkinItems(s).Any()) sections.Add(("furniture", "Мебели и уреди", "couch"));
+        if (sections.Count == 0)
+        {
+            _wardrobeShelves.Children.Add(MutedText("Гардеробът е празен. Нови неща има в офертата на деня."));
+            return;
+        }
         if (!sections.Any(x => x.Id == _wardrobeSection)) _wardrobeSection = sections[0].Id;
 
         var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
@@ -1359,8 +1443,8 @@ public sealed class MenuWindow : Window
         }
         else if (_wardrobeSection == "themes")
         {
-            // Всички скинове на менюто: купените се слагат, другите се купуват оттук.
-            foreach (var t in UiThemes.All) grid.Children.Add(ThemeTile(t, shop: !UiThemes.Owns(s, t)));
+            // Скиновете на менюто идват от офертата на деня и от подаръците.
+            foreach (var t in UiThemes.All.Where(t => UiThemes.Owns(s, t))) grid.Children.Add(ThemeTile(t, shop: false));
             empty = "";
         }
         else if (_wardrobeSection == "pajamas")
@@ -1370,8 +1454,7 @@ public sealed class MenuWindow : Window
         }
         else if (_wardrobeSection == "furniture")
         {
-            foreach (var item in Furniture.ByItem.Keys)
-                if (Kitchen.Owns(s, item))
+            foreach (var item in SkinItems(s))
                     foreach (var skin in Furniture.SkinsFor(item).Where(k => Furniture.Owns(s, k))) grid.Children.Add(SkinTile(skin, shop: false));
             empty = "Други видове има в офертата на деня.";
         }
@@ -1416,6 +1499,24 @@ public sealed class MenuWindow : Window
     }
 
     // ───────────────────────── Задачи ─────────────────────────
+
+    /// <summary>„Работа“: мечо-доро и таймер вляво, задачите вдясно.</summary>
+    private UIElement BuildWorkTab(UIElement timers, UIElement tasks)
+    {
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14 * U) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.Children.Add(timers);
+        var right = new StackPanel();
+        var ribbon = Ribbon("Задачи", "tasks");
+        ribbon.Margin = new Thickness(0, 0, 0, 8);
+        right.Children.Add(ribbon);
+        right.Children.Add(tasks);
+        Grid.SetColumn(right, 2);
+        grid.Children.Add(right);
+        return grid;
+    }
 
     private UIElement BuildTasksTab()
     {
@@ -1627,7 +1728,7 @@ public sealed class MenuWindow : Window
                 e.Handled = true;
             }
         };
-        p.Children.Add(WithHint(_noteInput, "Запиши нещо… (Ctrl+Enter)"));
+        p.Children.Add(WithHint(_noteInput, "Запиши нещо…"));
 
         var save = Button("Запиши", AddNote, primary: true, icon: "pencil");
         save.Margin = new Thickness(0, 0, 8, 0);
@@ -1945,6 +2046,45 @@ public sealed class MenuWindow : Window
             b.Margin = new Thickness(0, 0, 0, 8);
             p.Children.Add(b);
         }
+        // Звук: „динг“, когато свърши мечо-доро, почивка или таймер.
+        p.Children.Add(new TextBlock { Text = "Звук", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6, 0, 4) });
+        var soundRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+        var soundOn = Chip("", () => { });
+        var levels = new List<(double Level, Border Chip)>();
+        void ShowSound()
+        {
+            var s = _pet.Save;
+            soundOn.Child = IconText("sound", s.SoundOn ? "Звук: вкл." : "Звук: изкл.");
+            SetOn(soundOn, s.SoundOn);
+            foreach (var (level, chip) in levels) SetOn(chip, s.SoundOn && Math.Abs(s.SoundVolume - level) < 0.05);
+        }
+        soundOn = Chip("", () =>
+        {
+            _pet.Save.SoundOn = !_pet.Save.SoundOn;
+            _pet.Persist();
+            ShowSound();
+            Sounds.Play(_pet.Save);
+        });
+        soundOn.Margin = new Thickness(0, 0, 8, 4);
+        soundRow.Children.Add(soundOn);
+        foreach (var (name, level) in new[] { ("тихо", 0.25), ("средно", 0.6), ("силно", 1.0) })
+        {
+            double v = level;
+            var chip = Chip(name, () =>
+            {
+                _pet.Save.SoundOn = true;
+                _pet.Save.SoundVolume = v;
+                _pet.Persist();
+                ShowSound();
+                Sounds.Play(_pet.Save);
+            });
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            levels.Add((v, chip));
+            soundRow.Children.Add(chip);
+        }
+        p.Children.Add(soundRow);
+        ShowSound();
+
         // Размерът на мечока на екрана (колко пиксела на екрана е един пиксел от рисунката).
         var sizeLabel = new TextBlock { FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6, 0, 4) };
         var slider = new Slider
@@ -1976,7 +2116,7 @@ public sealed class MenuWindow : Window
         p.Children.Add(sizeLabel);
         p.Children.Add(slider);
 
-        p.Children.Add(MutedText($"Мечо, версия {Updater.CurrentName}. Шрифт Pixeloid (GGBotNet, SIL OFL)."));
+        p.Children.Add(MutedText("Мечо. Шрифт Pixeloid (GGBotNet, SIL OFL)."));
         return p;
     }
 
@@ -1986,6 +2126,9 @@ public sealed class MenuWindow : Window
     {
         var s = _pet.Save;
         _nuts.Text = s.Hazelnuts.ToString();
+        // Скрити табове: „Задачи“ (те са в „Работа“) и гардеробът, докато не е купен.
+        _tabButtons[TasksTab].Visibility = Visibility.Collapsed;
+        _tabButtons[WardrobeTab].Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
 
         // Мечо
         _portrait.Source = _pet.Portrait;
@@ -2026,6 +2169,8 @@ public sealed class MenuWindow : Window
         SetOn(_quietButton, _quietOpen);
         _sleepOptions.Visibility = _sleepOpen ? Visibility.Visible : Visibility.Collapsed;
         _quietOptions.Visibility = _quietOpen ? Visibility.Visible : Visibility.Collapsed;
+        SetOn(_walkButton, _walkOpen);
+        _walkOptions.Visibility = _walkOpen ? Visibility.Visible : Visibility.Collapsed;
         _drawButton.Visibility = Kitchen.Owns(s, Kitchen.Easel) ? Visibility.Visible : Visibility.Collapsed;
         if (_pet.IsQuiet) SetButton(_quietButton, "Говори", "bell");
         else SetButton(_quietButton, "Тихо", "quiet");
@@ -2091,8 +2236,8 @@ public sealed class MenuWindow : Window
         _timerStop.Visibility = _pet.TimerRunning ? Visibility.Visible : Visibility.Collapsed;
 
         // Още
-        if (_pet.Updater.IsAvailable) SetButton(_updateButton, $"Обнови до версия {_pet.Updater.LatestName}", "update");
-        else SetButton(_updateButton, $"Провери за обновление (сега: {Updater.CurrentName})", "update");
+        if (_pet.Updater.IsAvailable) SetButton(_updateButton, "Обнови", "update");
+        else SetButton(_updateButton, "Провери за обновление", "update");
         _updateButton.IsEnabled = !_pet.Updater.IsBusy;
     }
 

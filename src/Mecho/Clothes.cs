@@ -474,7 +474,8 @@ public sealed class Dresser
             // лейка…): шалът, папийонката и колието не се рисуват – иначе са върху предмета.
             if (slot == Clothes.Neck && (HandsBusy.Contains(anim) || lib.Layer(anim, "book") != null)) continue;
             // Чашата е най-отгоре: първо ръцете отпред се връщат над аксесоарите.
-            if (slot == Clothes.Cup) RestoreFront();
+            // Предметът в лапите (четка, лейка, китара) също: иначе лапата отпред го покрива.
+            if (slot == Clothes.Cup || slot == Clothes.Tool) RestoreFront();
             if (slot.Sprite != null)
             {
                 // Рисунка на точка: шапка (долният ѝ ред на точката), очила (средата),
@@ -493,7 +494,7 @@ public sealed class Dresser
                 };
                 // Шал, очила и шапка са под ръцете: лапа пред тялото (слоят
                 // <anim>_front.png) остава отгоре. Снимката е от преди първия аксесоар.
-                if (slot != Clothes.Cup && !frontDone) under ??= (uint[])px.Clone();
+                if (slot != Clothes.Cup && slot != Clothes.Tool && !frontDone) under ??= (uint[])px.Clone();
                 Blit(px, w, H, Pixels(art), art.PixelWidth, art.PixelHeight, ax - art.PixelWidth / 2, top + HatRoom);
                 continue;
             }

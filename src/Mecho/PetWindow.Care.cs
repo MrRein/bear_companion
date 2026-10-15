@@ -116,6 +116,8 @@ public sealed partial class PetWindow
         if (hours < 0.05) return;
         // Компютърът е бил спрян поне 2 часа: наспал се е.
         if (hours >= 2) _save.Energy = Math.Min(100, _save.Energy + hours * RestRate);
+        // Вечер не става бодър само защото компютърът е бил спрян.
+        _save.Energy = Math.Min(_save.Energy, EveningCap(DateTime.Now));
         _save.Fullness = Math.Max(Math.Min(_save.Fullness, 30), _save.Fullness - hours * HungerAsleep);
     }
 
@@ -171,6 +173,17 @@ public sealed partial class PetWindow
 
     private bool IsResting => IsAsleep || _anim == "read_sleep";
 
+    /// <summary>Докъде най-много стига енергията в този час: от 17 ч. надолу, в 22 ч. – 35.</summary>
+    internal static double EveningCap(DateTime t)
+    {
+        double h = t.TimeOfDay.TotalHours;
+        if (h >= 5 && h < 17) return 100;
+        if (h >= 17 && h < 19) return 85;
+        if (h >= 19 && h < 21) return 65;
+        if (h >= 21 && h < 22) return 50;
+        return 35;   // 22:00–5:00
+    }
+
     private void UpdateCare(double dt, double now)
     {
         double h = dt / 3600;
@@ -178,6 +191,9 @@ public sealed partial class PetWindow
         // Умора и почивка (виж PetWindow.Energy.cs).
         EnsureDayKind();
         UpdateEnergy(dt, now);
+        // Вечер енергията бавно слиза към тавана за часа (вечер е уморен, каквото и да е било).
+        double cap = EveningCap(DateTime.Now);
+        if (!IsAsleep && _save.Energy > cap) _save.Energy = Math.Max(cap, _save.Energy - 30 * h);
         MorningRefresh(fromStart: false);
         NightDrop();
 
@@ -431,7 +447,7 @@ public sealed partial class PetWindow
             return;
         }
         if (now < _nextFocusSwitch) return;
-        _nextFocusSwitch = now + 15 + _rng.Next(20);
+        _nextFocusSwitch = now + 45 + _rng.Next(75);
         string[] anims = { "focus", "focus", "think", "focus_write" };
         string next = anims[_rng.Next(anims.Length)];
         if (next == "think" && _rng.Next(3) == 0) Emote("idea");
@@ -533,6 +549,7 @@ public sealed partial class PetWindow
             Joy(JoyWorked);
             if (_save.PomodorosToday % 3 == 0) Pride();
             Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts) + page, 8);
+            Sounds.Play(_save);
             Emote("happy", 3);
             AskAboutFocusTask();
             if (!InFocus) StartBreakRelax();
@@ -550,6 +567,7 @@ public sealed partial class PetWindow
             else
             {
                 Say(Lines.Pick(Lines.BreakDone, _save.OwnerName), 6);
+                Sounds.Play(_save);
                 if (CanAnimateFreely) Play("happy");
             }
         }
@@ -615,6 +633,7 @@ public sealed partial class PetWindow
         if (work) RecordWork(_save.TimerMinutes);
         Say((label.Length > 0 ? $"⏰ Времето изтече: {label}!" : "⏰ Времето изтече!") + Earned(nuts), 12);
         if (work) AskAboutFocusTask();
+        Sounds.Play(_save);
         if (rest)
         {
             // Почивката свърши: става от кътчето.
@@ -685,7 +704,8 @@ public sealed partial class PetWindow
             pill.MouseLeftButtonUp += (_, _) =>
             {
                 _timerBadge.Hide();
-                Show();
+                if (OnWalk) ReturnFromWalk(called: true);
+                else Show();
             };
         }
         string text = string.Join("   ", parts);
@@ -716,6 +736,8 @@ public sealed partial class PetWindow
         var parts = new System.Collections.Generic.List<string>();
         if (_save.PomodoroPhase != PomodoroPhase.Off) parts.Add($"{(InFocus ? "🍯" : "☕")} {Clock(PomodoroLeft)}");
         if (TimerRunning) parts.Add($"⏰ {Clock(TimerLeft)}");
+        // На разходка: колко още ще го няма (табелката до часовника; клик го вика).
+        if (OnWalk && !_walkingOut) parts.Add($"🚶 {Clock(WalkLeft)}");
         UpdateTimerBadge(parts);
         // Работим по задача: името ѝ (кратко) до часовника.
         if (InFocus && FocusTaskShort.Length > 0) parts.Add(FocusTaskShort);

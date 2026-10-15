@@ -116,7 +116,7 @@ public static class Scenes
         R.Get("scene.yoga.end"))
     { Name = "Прави йога", Icon = "yoga", Unlock = Kitchen.YogaMat };
 
-    public static readonly Scene Plant = new("plant", null, "plant", 1, "doing",   // с лейка в лапата
+    public static readonly Scene Plant = new("plant", null, null, 1, "doing",   // обикаля градинката с лейка (PetWindow.Garden.cs)
         R.Get("scene.plant.start"),
         R.Get("scene.plant.during"),
         R.Get("scene.plant.end"))
@@ -338,6 +338,7 @@ public sealed partial class PetWindow
         _facingLeft = false;
         SetState(BearState.Couch, SceneAnim(scene));
         ClampX();
+        if (scene == Scenes.Plant) StartGarden();
         if (IsExhausted && scene != Scenes.Focus && _rng.Next(2) == 0) Announce(Lines.Pick(Lines.SleepyDoing, _save.OwnerName), 3);
         else if (!quiet) Announce(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
     }
@@ -362,6 +363,7 @@ public sealed partial class PetWindow
     private void LeaveScene()
     {
         if (_scene != null && Scenes.All.Contains(_scene)) _lastFun = _scene;
+        HideGarden();
         bool wasAuto = _autoBlock;
         _cup = null;
         _autoBlock = false;
@@ -435,6 +437,7 @@ public sealed partial class PetWindow
             return;
         }
         if (scene == Scenes.Tea) UpdateDrinking(now);
+        if (scene == Scenes.Plant) UpdateGarden(now);
 
 
         if (scene == Scenes.Focus)

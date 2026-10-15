@@ -152,7 +152,13 @@ public sealed partial class PetWindow : Window
         _bubbleWindow = new OverlayWindow(_bubble);
         Content = _root;
         InitCare();
-        Loaded += (_, _) => RestorePins();
+        Loaded += (_, _) =>
+        {
+            RestorePins();
+            // Беше на разходка, когато програмата спря: още го няма.
+            if (_save.WalkUntil > DateTime.Now) Dispatcher.BeginInvoke(new Action(Hide));
+            else _save.WalkUntil = DateTime.MinValue;
+        };
         InitActivities();
         SourceInitialized += (_, _) => InitDrawings();
 
@@ -242,6 +248,7 @@ public sealed partial class PetWindow : Window
         double dt = Math.Min(real, 0.1);
         _lastTime = now;
         _stateTime += real;
+        UpdateTempo(now, real);
         _animTime += real * AnimSpeed;
 
         switch (_state)
@@ -261,14 +268,19 @@ public sealed partial class PetWindow : Window
         UpdateFood(dt);
         if (_cook != null) UpdateCooking(now, dt);
         else if (_pendingCook != null && now > _pendingCookAt) StartPendingCook();
-        UpdateButterfly(dt);
-        UpdateGifts(now);
+        UpdateWalkAway();
+        // На разходка (няма го): нищо не се случва – без подаръци, гости, пеперуди.
+        if (!OnWalk)
+        {
+            UpdateButterfly(dt);
+            UpdateGifts(now);
+            UpdateLife(now);
+            MaybeOfferWork(now);
+            UpdateAmbientEmote(now);
+            UpdateMemory(now);
+        }
         UpdateWeather(now);
-        UpdateLife(now);
-        MaybeOfferWork(now);
         UpdatePajamas();
-        UpdateAmbientEmote(now);
-        UpdateMemory(now);
 
         if (_state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
         {
@@ -283,7 +295,7 @@ public sealed partial class PetWindow : Window
                 SetState(BearState.Falling, _inScene ? _anim : "drag");
             }
             else _y = ground;
-            if (!_peeking) ClampX();
+            if (!_peeking && !_walkingOut && !_walkingBack) ClampX();
         }
 
         if (_bubble.Visibility == Visibility.Visible && now > _bubbleUntil) HideBubble();
@@ -597,11 +609,29 @@ public sealed partial class PetWindow : Window
         _anim = anim;
     }
 
-    // Стои по-дълго между нещата (8–20 с), за да не прави твърде много сам.
-    private void SetIdle() => SetState(BearState.Idle, IsExhausted ? "tired" : "idle", 8 + _rng.NextDouble() * 12);
+    // Стои дълго между нещата (25–60 с): кротко си е в ъгъла и не пречи.
+    private void SetIdle() => SetState(BearState.Idle, IsExhausted ? "tired" : "idle", 25 + _rng.NextDouble() * 35);
 
-    /// <summary>Уморен: всичко му върви по-бавно.</summary>
-    private double AnimSpeed => IsExhausted && !IsResting ? 0.6 : 1;
+    /// <summary>Уморен: всичко му върви по-бавно. Плюс „живото“ темпо (виж UpdateTempo).</summary>
+    private double AnimSpeed => (IsExhausted && !IsResting ? 0.6 : 1) * (_anim is "walk" or "walk_tired" or "drag" or "fall" ? 1 : _tempo);
+
+    // Живо, неравно темпо: анимацията ту се забавя, ту се забързва, понякога за миг
+    // замръзва (като че ли се замисля). Сменя се плавно на всеки 2–7 секунди.
+    private double _tempo = 1, _tempoTarget = 1, _tempoNext;
+
+    private void UpdateTempo(double now, double real)
+    {
+        if (now > _tempoNext)
+        {
+            _tempoNext = now + 2 + _rng.NextDouble() * 5;
+            double roll = _rng.NextDouble();
+            _tempoTarget = roll < 0.08 ? 0.05          // спира за миг
+                : roll < 0.35 ? 0.55 + _rng.NextDouble() * 0.3
+                : roll < 0.8 ? 0.85 + _rng.NextDouble() * 0.3
+                : 1.15 + _rng.NextDouble() * 0.35;
+        }
+        _tempo += (_tempoTarget - _tempo) * Math.Min(1, real * 1.5);
+    }
 
     /// <summary>Пуска анимация веднъж (или за length секунди, ако се повтаря).</summary>
     private void Play(string anim, string? then = null, bool away = false, double length = 0, Action? after = null)
@@ -666,16 +696,16 @@ public sealed partial class PetWindow : Window
     /// </summary>
     public async Task CheckForUpdates(bool manual)
     {
-        if (manual) Say("Проверявам за нова версия…", 10);
+        if (manual) Say("Проверявам за обновление…", 10);
         var result = await _updater.CheckAsync();
         switch (result)
         {
             case Updater.Result.Available when manual || _announcedVersion != _updater.LatestVersion:
                 _announcedVersion = _updater.LatestVersion;
-                Say($"Има нова версия ({_updater.LatestName})! Десен бутон върху мен → „Обнови“.", 8);
+                Say("Има ново обновление! Десен бутон върху мен → „Обнови“.", 8);
                 break;
             case Updater.Result.UpToDate when manual:
-                Say($"Имам най-новата версия ({Updater.CurrentName}). Ура!");
+                Say("Всичко е най-ново. Ура!");
                 break;
             case Updater.Result.Failed when manual:
                 Say("Не успях да проверя. Има ли интернет?");
@@ -686,7 +716,7 @@ public sealed partial class PetWindow : Window
     public async Task InstallUpdate()
     {
         if (!_updater.IsAvailable || _updater.IsBusy) return;
-        Say("Обновявам се… ей сега се връщам!", 30);
+        Say("Ей сега се връщам!", 30);
         Persist();
         if (await _updater.DownloadAndStartInstallAsync())
             Application.Current.Shutdown();
@@ -738,6 +768,13 @@ public sealed partial class PetWindow : Window
     private void LiftUp()
     {
         _trip = null;
+        if (_walkingOut)
+        {
+            // Хванат на излизане: остава.
+            _walkingOut = false;
+            _save.WalkUntil = DateTime.MinValue;
+        }
+        _walkingBack = false;
         if (_closet != null && !AtWardrobe)
         {
             _closet = null;
@@ -823,6 +860,7 @@ public sealed partial class PetWindow : Window
             return;
         }
         if (_chatOpenAtPress) return;
+        if (OpenHeldGift()) return;   // държи подарък: цъкаш го и се отваря
         if (!InFocus && TakeOffer()) return;
         if (TakeLunchQuestion()) return;
         if (TakeHeaterQuestion()) return;
