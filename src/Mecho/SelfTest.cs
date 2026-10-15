@@ -98,6 +98,8 @@ public sealed partial class PetWindow
         {
             _nextNapAsk = double.MaxValue;
             SetDayKind(DayKind.Normal);
+            // Без сами изскачащи спомени и въпроси по време на проверката.
+            _save.MemoryDay = _save.MemoryLaterDay = DateTime.Today.ToString("yyyy-MM-dd");
         }, 100);
         await step("гардеробът е заключен", () =>
         {
@@ -708,6 +710,8 @@ public sealed partial class PetWindow
         }, 600);
         await step("спомени от вчера", () =>
         {
+            // Спомените сами не изскачат по време на теста (иначе въпросът пречи на следващите стъпки).
+            _save.MemoryDay = _save.MemoryLaterDay = DateTime.Today.ToString("yyyy-MM-dd");
             var y = DayKey(DateTime.Today.AddDays(-1));
             _save.Days.RemoveAll(d => d.Date == y);
             _save.Days.Insert(Math.Max(0, _save.Days.Count - 1), new DayRecord
@@ -858,6 +862,8 @@ public sealed partial class PetWindow
             _heaterAskUntil = 0;
             _napAskUntil = 0;
             _lastActionPoke = -100;
+            _chatOpenAtPress = false;
+            if (ChatIsOpen) _chat!.Hide();
             _save.Energy = 60;
             Relax(Scenes.Reading);
             OnLeftClick();
