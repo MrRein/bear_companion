@@ -794,6 +794,36 @@ public sealed partial class PetWindow
             for (int l = 1; l < 6; l++)
                 if (Conversations.HungerAskChance(l) < Conversations.HungerAskChance(l + 1)) throw new Exception("по-гладен трябва да пита по-често");
         }, 300);
+        await step("разговори от razgovori.txt", () =>
+        {
+            if (Talks.TopLevel.Length < 100) throw new Exception($"разговорите са само {Talks.TopLevel.Length}");
+            foreach (var t in Talks.All.Values)
+                foreach (var o in t.Options)
+                    if (o.Next != null && !Talks.All.ContainsKey(o.Next)) throw new Exception($"{t.Id}: няма продължение {o.Next}");
+            Ask(Talks.Ask(this, Talks.TopLevel[0]));
+            _chat?.Hide();
+        }, 300);
+        await step("радио и хранилка", () =>
+        {
+            foreach (var id in new[] { Kitchen.Radio, Kitchen.Feeder })
+                if (!_save.Owned.Contains(id)) _save.Owned.Add(id);
+            SetRadio(true);
+            SetFeeder(true);
+            UpdateRadio(Now);
+            UpdateFeeder(Now, 0.03);
+            if (_radioWindow == null || _feederWindow == null) throw new Exception("радиото или хранилката не се появиха");
+            if (!RadioPlaying) throw new Exception("сложеното радио не свири");
+            _save.FeederFood = 2;
+            _nextBird = 0;
+            UpdateFeeder(Now, 0.03);
+            if (_birdPhase != 1) throw new Exception("птичката не долетя");
+            for (int i = 0; i < 60; i++) UpdateFeeder(Now, 0.1);
+            SetRadio(false);
+            SetFeeder(false);
+            UpdateRadio(Now);
+            UpdateFeeder(Now, 0.03);
+            if (_radioWindow != null || _feederWindow != null) throw new Exception("не се прибраха");
+        }, 300);
         await step("нива на глад и умора", () =>
         {
             foreach (var (v, lvl) in new[] { (0.0, 1), (20.0, 1), (21.0, 2), (35.0, 2), (36.0, 3), (50.0, 3), (51.0, 4), (65.0, 4), (66.0, 5), (80.0, 5), (81.0, 6), (95.0, 6) })
