@@ -29,11 +29,17 @@ public static class Conversations
     /// <summary>Колко често при цъкане пита за храна по нивото на глада (1 – страшно … 6 – леко).</summary>
     internal static double HungerAskChance(int level) => level switch
     {
-        1 => 0.75,
-        2 => 0.5,
-        3 => 0.3,
-        4 => 0.15,
-        5 => 0.05,
+        1 => 0.35,
+        2 => 0.2,
+        3 => 0.08,
+        _ => 0,      // „добре“ и нагоре (над 50) – не пита за храна при цъкане
+    };
+
+    /// <summary>Колко често при цъкане пита за сън/кафе по нивото на умората (само уморен – под 35).</summary>
+    internal static double TiredAskChance(int level) => level switch
+    {
+        1 => 0.3,
+        2 => 0.15,
         _ => 0,
     };
 
@@ -53,7 +59,7 @@ public static class Conversations
         // а ако вече се готви (или храната го чака), изобщо не пита.
         if (!pet.FoodComing && PetWindow.NeedLevel(s.Fullness) is int level && Rng.NextDouble() < HungerAskChance(level))
             return Hungry(pet);
-        if (s.Energy < PetWindow.TiredBelow)
+        if (s.Energy < PetWindow.TiredBelow && PetWindow.NeedLevel(s.Energy) is int tired && Rng.NextDouble() < TiredAskChance(tired))
         {
             // Денем – дрямка за малко; вечер – лека нощ.
             int h = DateTime.Now.Hour;
@@ -62,9 +68,11 @@ public static class Conversations
             {
                 PetWindow.LateForBed ? new("🌙 Лягай за деня", p => p.SleepForDay()) : new($"😴 Дремни {nap} мин", p => p.TakeNap(nap)),
             };
-            // Кафе и чай, ако има с какво да ги направи.
+            // Най-много 2 неща за енергия (кафе, чай…) – случайни от тези, които може да направи.
             options.AddRange(Kitchen.Foods
                 .Where(f => f.Energy > 0 && Kitchen.CanCook(f, s))
+                .OrderBy(_ => Rng.Next())
+                .Take(2)
                 .Select(f => new ChatOption($"{f.Icon} {f.Name} ({Kitchen.CostOf(f, s)} 🌰)", p => p.Cook(f))));
             options.Add(Reply("Още малко, моля", "Добре… *клепачите му падат*"));
             return new ChatQuestion(R.Any("conv.tired"), options.ToArray());
@@ -136,7 +144,7 @@ public static class Conversations
         var cheap = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 10 && Kitchen.CanCook(f, s) && !picks.Contains(f))
             .OrderBy(f => Kitchen.CostOf(f, s)).FirstOrDefault();
         if (cheap != null && picks.Count < 3) picks.Add(cheap);
-        var options = picks.Take(3).Select(f => new ChatOption(
+        var options = picks.Take(2).Select(f => new ChatOption(
                 Kitchen.CostOf(f, s) == 0 ? $"{f.Icon} {f.Name} (безплатни)" : $"{f.Icon} {f.Name} ({Kitchen.CostOf(f, s)} 🌰)",
                 p => p.Cook(f)))
             .ToList();

@@ -78,7 +78,12 @@ public sealed partial class PetWindow
     /// <summary>Вика се, когато нещо в грижата се промени (за панела).</summary>
     public event EventHandler? CareChanged;
 
-    private void NotifyCare() => CareChanged?.Invoke(this, EventArgs.Empty);
+    private void NotifyCare()
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        CareChanged?.Invoke(this, EventArgs.Empty);
+        if (watch.Elapsed.TotalMilliseconds > 3) PerfNote("известие към менюто и закачените прозорци", watch.Elapsed.TotalMilliseconds);
+    }
 
     private void InitCare()
     {
@@ -245,20 +250,22 @@ public sealed partial class PetWindow
     /// <summary>След колко секунди пак може да го каже (колкото по-зле, толкова по-често).</summary>
     private double NeedPause(int level) => level switch
     {
-        1 => Minutes(6, 10),
-        2 => Minutes(10, 16),
-        3 => Minutes(16, 26),
-        4 => Minutes(26, 40),
-        5 => Minutes(45, 70),
-        _ => Minutes(100, 160),
+        1 => Minutes(10, 16),
+        2 => Minutes(16, 26),
+        3 => Minutes(26, 40),
+        4 => Minutes(45, 70),
+        5 => Minutes(70, 110),
+        _ => Minutes(120, 200),
     };
 
     /// <summary>Казва нещо за глада/умората (на ниво 6 – почти никога; понякога само емоция).</summary>
     private void SayNeed(string kind, int level)
     {
         if (kind == "hunger" && FoodComing) return;   // вече се готви или храната го чака
-        if (level == 6 && _rng.Next(4) != 0) return;
-        if (level == 5 && _rng.Next(2) != 0) return;
+        // Леките нива – почти никога (иначе е досадно): 6 – 1 от 10, 5 – 1 от 5, 4 – 1 от 2.
+        if (level == 6 && _rng.Next(10) != 0) return;
+        if (level == 5 && _rng.Next(5) != 0) return;
+        if (level == 4 && _rng.Next(2) != 0) return;
         if (level <= 3 && _rng.Next(4) == 0)
         {
             Emote(kind == "hunger" ? "hungry" : "zzz", 3.5);

@@ -292,7 +292,7 @@ public sealed partial class PetWindow
         yield return (life, "Катери се", Climb);
         yield return (life, "Приказка за игри", () => Say(Lines.Pick(Lines.Chatter, _save.OwnerName), 5));
 
-        foreach (var (t, label) in new[] { (22.0, "22°C приятно"), (17.0, "17°C хладно"), (12.0, "12°C студено"), (5.0, "5°C много студено"), (-6.0, "−6°C мраз"), (31.0, "31°C жега") })
+        foreach (var (t, label) in new[] { (-6.0, "−6°C мраз"), (3.0, "3°C много студено"), (8.0, "8°C студено"), (13.0, "13°C хладно"), (18.0, "18°C приятно"), (22.0, "22°C топло"), (27.0, "27°C горещо"), (33.0, "33°C жега") })
         {
             double temp = t;
             yield return (weather, label, () => { _tempC = temp; NotifyCare(); TalkAboutWeather(); });
@@ -370,7 +370,17 @@ public sealed partial class PetWindow
         yield return (giftNew, "Седи с подаръка", () => { _save.GiftPending = true; _giftHold = GiftHold.Lap; HoldGift(); });
         yield return (giftNew, "Отвори подаръка в лапите", () => OpenHeldGift());
         yield return (giftNew, "Остави го на земята", PutGiftDown);
-        yield return (garden, "Полей (градинката)", () => { if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot); Relax(Scenes.Plant); });
+        yield return (garden, "Извади растението и се грижи", () => { if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot); InstantModes = true; Relax(Scenes.Plant); InstantModes = false; });
+        yield return (garden, "Прибери растението", () => { if (InGarden) { GetUp(); } });
+        yield return (garden, "Смени вида (слънчоглед → монстера → кактус)", () =>
+        {
+            var skins = Furniture.SkinsFor(Kitchen.PlantPot);
+            foreach (var k in skins) if (k.Price > 0 && !_save.Owned.Contains($"skin_{k.Item}_{k.Id}")) _save.Owned.Add($"skin_{k.Item}_{k.Id}");
+            int i = Array.FindIndex(skins, k => k.Id == Furniture.Current(_save, Kitchen.PlantPot).Id);
+            UseSkin(skins[(i + 1) % skins.Length]);
+            DrawGarden();
+        });
+        yield return (garden, "Следваща картина на статива", () => { EaselShift++; if (_inScene && _scene == Scenes.Painting) LoadSceneArt(_scene); Say("Картина " + EaselNumber, 2); });
         yield return (garden, "Растението: +1 фаза", () => { _save.PlantGrowToday = 0; GrowPlant(fromCare: true); });
         yield return (garden, "Растението: голямо (фаза 10)", () => { _save.PlantStage = PlantStages - 1; DrawGarden(); Persist(); });
         yield return (garden, "Растението: кълнче (фаза 1)", () => { _save.PlantStage = 0; DrawGarden(); Persist(); });

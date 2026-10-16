@@ -240,6 +240,8 @@ public sealed partial class PetWindow : Window
     private void Tick()
     {
         long perfStart = System.Diagnostics.Stopwatch.GetTimestamp();
+        _perfLast = perfStart;
+        _perfSteps.Clear();
         double now = Now;
         // real: колко време наистина мина (за анимациите, таймерите и нуждите);
         // dt: същото, но най-много 0,1 с – за движението (да не прескача).
@@ -269,29 +271,44 @@ public sealed partial class PetWindow : Window
             case BearState.Bounce: UpdateBounce(dt); break;
             case BearState.Drag: break;
         }
-        PerfMark(0, perfStart);
+        P("поведение");
         UpdateCare(real, now);
+        P("грижи (глад, енергия, таймери)");
         UpdateFood(dt);
+        P("храната по екрана");
         if (_drops.Count > 0 || InGarden) UpdateDrops(now, dt);
+        P("капки от лейката");
         UpdateFeeder(now, dt);
+        P("хранилка и птички");
         if (_plantPushing) UpdatePlantAway(dt);
+        P("саксията");
         if (_cook != null) UpdateCooking(now, dt);
         else if (_pendingCook != null && now > _pendingCookAt) StartPendingCook();
+        P("готвене");
         RunLater(now);
+        P("отложени неща");
         UpdateWalkAway();
+        P("разходка");
         // На разходка (няма го): нищо не се случва – без подаръци, гости, пеперуди.
         if (!OnWalk)
         {
             UpdateButterfly(dt);
+            P("пеперуда");
             UpdateGifts(now);
+            P("подаръци");
             UpdateLife(now);
+            P("живот (гости, приказки)");
             MaybeOfferWork(now);
+            P("предложение за работа");
             UpdateAmbientEmote(now);
+            P("емоции");
             UpdateMemory(now);
+            P("спомени");
         }
         UpdateWeather(now);
+        P("времето, печица, лампа, радио");
         UpdatePajamas();
-        PerfMark(1, perfStart);
+        P("пижами");
 
         if (_state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
         {
@@ -320,8 +337,11 @@ public sealed partial class PetWindow : Window
         {
             _lastDraw = now;
             UpdateTimerTag();
+            P("табелка");
             UpdateFrame();
+            P("кадър (дрехи)");
             UpdateLayoutAndWindow();
+            P("подреждане");
         }
 
         if (now > _nextUpdateCheck)
@@ -335,6 +355,7 @@ public sealed partial class PetWindow : Window
             _lastSave = now;
             StartNewDay();
             Persist();
+            P("нов ден/запис");
         }
         PaceTimer();
         PerfTick(perfStart);
@@ -475,6 +496,15 @@ public sealed partial class PetWindow : Window
         if (InFocus && !WaitingForFood && !CookFinale && !MenuIsOpen && !ChatIsOpen && _stateTime > 1.5)
         {
             EnterWorkMode();
+            return;
+        }
+
+        // В режим и е време да реши: веднага (не чака обикновеното стоене от 25–60 с).
+        if (_save.StayPut && !_inScene && !_onTrampoline && _modeDecideAt > 0 && Now >= _modeDecideAt && _stateTime > 0.3
+            && !MenuIsOpen && !ChatIsOpen && !WaitingForFood && _cook == null && _pendingCook == null)
+        {
+            _modeDecideAt = 0;
+            DecideMode();
             return;
         }
 
@@ -705,11 +735,32 @@ public sealed partial class PetWindow : Window
         Say(R.Any("clothes.changed"));
     }
 
+    /// <summary>
+    /// Записва състоянието – не веднага, а до 2 с, веднъж за всички промени в този
+    /// момент (записът на целия файл отнемаше десетки мс и мечокът засичаше).
+    /// </summary>
     public void Persist()
     {
+        if (_persistQueued) return;
+        _persistQueued = true;
+        Dispatcher.BeginInvoke(async () =>
+        {
+            await System.Threading.Tasks.Task.Delay(2000);
+            if (_persistQueued) PersistNow();
+        });
+    }
+
+    private bool _persistQueued;
+
+    /// <summary>Записва веднага (при изход и в самопроверката).</summary>
+    public void PersistNow()
+    {
+        _persistQueued = false;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
         _save.X = _x;
         _save.Y = _y;
         _save.Save();
+        PerfNote("запис на състоянието (save.json)", watch.Elapsed.TotalMilliseconds);
     }
 
     // ───────────────────────── Обновления ─────────────────────────
@@ -741,7 +792,7 @@ public sealed partial class PetWindow : Window
     {
         if (!_updater.IsAvailable || _updater.IsBusy) return;
         Say("Ей сега се връщам!", 30);
-        Persist();
+        PersistNow();
         if (await _updater.DownloadAndStartInstallAsync())
             Application.Current.Shutdown();
         else

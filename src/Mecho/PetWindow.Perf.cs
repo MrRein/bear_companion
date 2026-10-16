@@ -4,13 +4,25 @@ using System.IO;
 
 namespace Mecho;
 
-// Колко бързо върви мечокът: всеки цикъл се мери (поведение, живот, рисуване),
+// Колко бързо върви мечокът: всеки цикъл се мери на части (поведение, грижи,
+// храна, хранилка, живот, времето, кадърът с дрехите, подреждането на прозореца…),
 // както и строенето на менюто. В Developer → „Скорост“: „Покажи скоростта“ казва
 // средното и най-бавното; „Записвай бавните моменти“ пише в perf.log всеки цикъл
 // над 25 мс и всяко строене на меню над 40 мс (какво е било бавно и колко).
 public sealed partial class PetWindow
 {
-    private readonly double[] _perfMarks = new double[2];   // поведение, живот (мс от началото на цикъла)
+    // Частите на цикъла: име и колко мс (само по-дългите от 0,3 мс).
+    private readonly System.Collections.Generic.List<(string Name, double Ms)> _perfSteps = new();
+    private long _perfLast;
+
+    /// <summary>Край на една част от цикъла (времето от предишната отметка).</summary>
+    private void P(string name)
+    {
+        long t = Stopwatch.GetTimestamp();
+        double ms = (t - _perfLast) * 1000.0 / Stopwatch.Frequency;
+        if (ms > 0.3) _perfSteps.Add((name, ms));
+        _perfLast = t;
+    }
     private double _perfSum, _perfMax, _perfMenuMax;
     private int _perfCount;
     private string _perfMaxWhat = "", _perfMenuWhat = "";
@@ -23,15 +35,15 @@ public sealed partial class PetWindow
 
     private static double Ms(long from) => (Stopwatch.GetTimestamp() - from) * 1000.0 / Stopwatch.Frequency;
 
-    private void PerfMark(int i, long start) => _perfMarks[i] = Ms(start);
-
     private void PerfTick(long start)
     {
         double total = Ms(start);
         _perfSum += total;
         _perfCount++;
-        double behaviour = _perfMarks[0], life = _perfMarks[1] - _perfMarks[0], draw = total - _perfMarks[1];
-        string what = $"поведение {behaviour:0.0} · живот {life:0.0} · рисуване {draw:0.0} мс ({_state}/{_anim})";
+        // Най-бавните части (до 4) и какво прави мечокът в момента.
+        _perfSteps.Sort((a, b) => b.Ms.CompareTo(a.Ms));
+        string parts = string.Join(" · ", _perfSteps.GetRange(0, Math.Min(4, _perfSteps.Count)).ConvertAll(x => $"{x.Name} {x.Ms:0.0}"));
+        string what = $"{parts} мс | {_state}/{_anim}{(_inScene ? ", кътче " + _scene?.Id : "")}{(InFocus ? ", работи" : "")}{(MenuIsOpen ? ", менюто е отворено" : "")}";
         if (total > _perfMax)
         {
             _perfMax = total;

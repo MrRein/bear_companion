@@ -76,7 +76,7 @@ public sealed class TrayIcon : IDisposable
         foreach (var (item, icon) in icons) item.Image = PixelIcon(icon);
         exit.Click += (_, _) =>
         {
-            _pet.Persist();
+            _pet.PersistNow();
             System.Windows.Application.Current.Shutdown();
         };
 

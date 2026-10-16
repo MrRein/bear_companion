@@ -27,6 +27,8 @@ public static class Program
         var save = SaveData.Load();
         var window = new PetWindow(save);
         using var tray = new TrayIcon(window, save);
+        // Изключване/излизане от Windows: записва веднага (обикновено записът е отложен с 2 с).
+        app.SessionEnding += (_, _) => window.PersistNow();
         window.Show();
         app.Run();
         save.Save();

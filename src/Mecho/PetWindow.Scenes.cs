@@ -188,7 +188,7 @@ public sealed partial class PetWindow
         _save.AutoMode = false;
         _save.SleepingByChoice = false;
         // Не веднага: става, помисля няколко секунди и чак тогава отива (виж UpdateIdle).
-        if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) BeginModeChange(2, 4, R.Pick($"scene.{scene.Id}.intent", _save.OwnerName));
+        if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) BeginModeChange(1, 2, R.Pick($"scene.{scene.Id}.intent", _save.OwnerName));
         _sceneUntil = 0;
         _idleSince = Now;
         OpenParcelFirst();
@@ -223,7 +223,7 @@ public sealed partial class PetWindow
         _save.StayScene = RandomWork;
         _save.AutoMode = false;
         _save.SleepingByChoice = false;
-        BeginModeChange(3, 7, R.Pick("mode.work.think", _save.OwnerName));
+        BeginModeChange(1, 2.5, R.Pick("mode.work.think", _save.OwnerName));
         _idleSince = Now;
         OpenParcelFirst();
         Persist();
@@ -236,7 +236,7 @@ public sealed partial class PetWindow
     /// Плавно влизане в режим: оставя заниманието, постоява и мисли (from–to секунди),
     /// казва какво му е наум и чак после избира какво да прави (UpdateIdle).
     /// </summary>
-    private void BeginModeChange(int from, int to, string? thought)
+    private void BeginModeChange(double from, double to, string? thought)
     {
         if (_onTrampoline) EndBounce(null);
         if (_inScene) LeaveScene();
@@ -294,7 +294,7 @@ public sealed partial class PetWindow
         _save.StayScene = RandomRelax;
         _save.AutoMode = false;
         _save.SleepingByChoice = false;
-        BeginModeChange(3, 7, R.Pick("mode.relax.think", _save.OwnerName));
+        BeginModeChange(1, 2.5, R.Pick("mode.relax.think", _save.OwnerName));
         _idleSince = Now;
         OpenParcelFirst();
         Persist();
@@ -405,8 +405,8 @@ public sealed partial class PetWindow
         _scene = null;
         _sceneUntil = 0;
         _idleSince = Now;
-        // В режим (почивай/работи си): между две занимания се поразтъпква 8–20 с, после решава.
-        if (_save.StayPut && (RelaxesRandomly || WorksRandomly) && !InstantModes) _modeDecideAt = Math.Max(_modeDecideAt, Now + 8 + _rng.Next(13));
+        // В режим (почивай/работи си): между две занимания постоява 3–6 с, после решава.
+        if (_save.StayPut && (RelaxesRandomly || WorksRandomly) && !InstantModes) _modeDecideAt = Math.Max(_modeDecideAt, Now + 3 + _rng.NextDouble() * 3);
         // След блок, който си е избрал сам (седене, хоби): кратка разходка и пак
         // избира; след нещо, избрано от Тут, свободата почва отначало.
         StartFreeCycle(sitNow: wasAuto);
@@ -419,6 +419,8 @@ public sealed partial class PetWindow
         if (seat == "couch") seat = Furniture.Current(_save, Kitchen.Couch).Prop;   // скинът на дивана
         // Бюрото със столчето се купува (едно); без него работи и играе на земята.
         if (seat == "stool") seat = Kitchen.Owns(_save, Kitchen.Desk) ? Furniture.StoolArt(_save) : null;
+        // Права анимация (work, write…) не сяда на столче – иначе стои прав върху него.
+        if (seat != null && StandingAnims.Contains(SceneAnim(scene))) seat = null;
         string? side = scene.Side;
         if (side == "desk") side = Kitchen.Owns(_save, Kitchen.Desk) ? Furniture.CurrentArt(_save, Kitchen.Desk) : null;
         if (side == "easel") side = EaselArt();
@@ -430,7 +432,9 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Коя картина е на статива днес (сменя се на 3 дни): 1…9.</summary>
-    private static int EaselNumber => 1 + DateTime.Today.DayOfYear / 3 % 9;
+    private int EaselNumber => 1 + (DateTime.Today.DayOfYear / 3 + EaselShift) % 9;
+
+    internal int EaselShift;   // Developer: „Следваща картина“
 
     /// <summary>Статива: картината на него се сменя на 3 дни (easel_1…9; ако ги няма – празният).</summary>
     private string EaselArt()
@@ -438,6 +442,12 @@ public sealed partial class PetWindow
         int n = EaselNumber;
         return _lib.HasProp("easel_" + n) ? "easel_" + n : "easel";
     }
+
+    /// <summary>Анимации, в които мечокът е прав (с тях не сяда на столчето/дивана).</summary>
+    private static readonly System.Collections.Generic.HashSet<string> StandingAnims = new()
+    {
+        "idle", "work", "work_tired", "write", "write_tired", "doing", "doing_tired", "dance", "walk", "happy", "think", "juggle", "yoga",
+    };
 
     private void SizeSceneArt()
     {

@@ -185,7 +185,7 @@
     },
     "game_tired": {
       "file": "game_tired.png",
-      "fps": 6,
+      "fps": 9,
       "loop": true
     },
     "work_tired": {
