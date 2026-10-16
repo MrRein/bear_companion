@@ -329,6 +329,9 @@ public sealed partial class PetWindow
     /// <summary>Има храна из екрана, която още не му е донесена.</summary>
     private bool WaitingForFood => _food.Count > 0;
 
+    /// <summary>Храна е на път: готви се, чака да се сготви, лежи на екрана или я яде.</summary>
+    public bool FoodComing => _cook != null || _pendingCook != null || WaitingForFood || _eating != null;
+
     private double _nextFoodReminder;
 
     /// <summary>Стои, гледа храната и напомня да му я донесеш.</summary>

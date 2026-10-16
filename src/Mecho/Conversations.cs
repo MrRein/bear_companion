@@ -25,6 +25,17 @@ public static class Conversations
         new ChatOption("Ще запиша бележка", p => p.OpenMenu(MenuWindow.NotesTab)),
         new ChatOption("Не сега", p => p.Cheer("Добре! Тук съм, ако потрябвам.")));
 
+    /// <summary>Колко често при цъкане пита за храна по нивото на глада (1 – страшно … 6 – леко).</summary>
+    internal static double HungerAskChance(int level) => level switch
+    {
+        1 => 0.75,
+        2 => 0.5,
+        3 => 0.3,
+        4 => 0.15,
+        5 => 0.05,
+        _ => 0,
+    };
+
     public static ChatQuestion Next(PetWindow pet)
     {
         var s = pet.Save;
@@ -37,7 +48,10 @@ public static class Conversations
                 new ChatOption("☀️ Събуди го", p => p.WakeUp()),
                 new ChatOption("🤫 Остави го да спи", _ => { }));
         }
-        if (s.Fullness < 25) return Hungry(pet);
+        // Гладен: не всеки път пита за храна – колкото е по-гладен, толкова по-често;
+        // а ако вече се готви (или храната го чака), изобщо не пита.
+        if (!pet.FoodComing && PetWindow.NeedLevel(s.Fullness) is int level && Rng.NextDouble() < HungerAskChance(level))
+            return Hungry(pet);
         if (s.Energy < PetWindow.TiredBelow)
         {
             // Денем – дрямка за малко; вечер – лека нощ.

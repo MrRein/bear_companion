@@ -43,7 +43,9 @@ public sealed partial class PetWindow
         _save.WalkNap = !solo && (LateForBed || DateTime.Now.Hour >= 19) && _save.Energy < TiredBelow;
         _save.WalkSolo = solo;
         Persist();
-        Say(R.Pick(_save.WalkNap ? "walk.leave.nap" : solo ? "walk.leave.solo" : "walk.leave", _save.OwnerName), 3);
+        // Работим (мечо-доро или работен таймер): „Добре, ти работи, аз ще се разходя.“
+        string leave = _save.WalkNap ? "walk.leave.nap" : solo ? "walk.leave.solo" : InFocus ? "walk.leave.work" : "walk.leave";
+        Say(R.Pick(leave, _save.OwnerName), 3);
         // Към по-близкия ръб: средата му остава в екрана (иначе при два монитора ще
         // излезе на другия), а стигне ли ръба, се скрива.
         var area = Area;
@@ -99,7 +101,9 @@ public sealed partial class PetWindow
         // Влиза отстрани, откъдето е по-близо до мястото, където беше.
         var area = Area;
         bool left = _x - area.Left < area.Right - _x;
-        double inside = left ? area.Left + SpriteWidth * 1.5 : area.Right - SpriteWidth * 1.5;
+        // Ако още работим, влиза поне 1/5 от екрана навътре и чак тогава сяда да работи.
+        double depth = InFocus ? Math.Max(SpriteWidth * 1.5, area.Width / 5) : SpriteWidth * 1.5;
+        double inside = left ? area.Left + depth : area.Right - depth;
         _x = left ? area.Left - SpriteWidth / 2 : area.Right + SpriteWidth / 2;
         _y = Ground(area.Bottom);
         if (!IsVisible) Show();

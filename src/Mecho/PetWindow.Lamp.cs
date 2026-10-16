@@ -38,8 +38,31 @@ public sealed partial class PetWindow
         NotifyCare();
     }
 
+    private double _nextLampAsk = 5 * 60;
+
+    /// <summary>
+    /// Вечер (след 20 ч, тъмно е), има лампа, но не е сложена, а той прави нещо
+    /// (работи, чете, хоби…): понякога (най-много веднъж на вечер) моли да му я сложиш.
+    /// </summary>
+    private void MaybeAskForLamp()
+    {
+        if (Now < _nextLampAsk) return;
+        _nextLampAsk = Now + Minutes(10, 20);
+        var now = DateTime.Now;
+        if (!Kitchen.Owns(_save, Kitchen.Lamp) || LampOn || !IsDark(now) || now.Hour is < 20 and >= 6) return;
+        if (_save.LampOffDay == EveningKey(now)) return;          // тази вечер вече пита
+        bool busy = _inScene || InFocus || _state == BearState.Busy;
+        if (!busy || IsAsleep || IsQuiet || OnWalk || ChatIsOpen || MenuIsOpen || _rng.Next(3) != 0) return;
+        _save.LampOffDay = EveningKey(now);
+        Persist();
+        Ask(new ChatQuestion(R.Pick("lamp.ask", _save.OwnerName),
+            new ChatOption("Слагам я", p => { p.SetLamp(true); p.Say(R.Pick("lamp.thanks", p.Save.OwnerName), 3); }),
+            new ChatOption("Не сега", p => p.Say(R.Pick("lamp.nothanks", p.Save.OwnerName), 3))));
+    }
+
     private void UpdateLamp()
     {
+        MaybeAskForLamp();
         bool on = LampOn;
         if (on != _lampWasOn)
         {

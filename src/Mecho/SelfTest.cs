@@ -768,6 +768,20 @@ public sealed partial class PetWindow
             UpdateDrops(Now, 0.016);
             if (_drops.Count > 0) throw new Exception("капчиците останаха");
         }, 300);
+        await step("табелка: иконката е на средата на цифрите", () =>
+        {
+            _save.PomodoroPhase = PomodoroPhase.Off;
+            StartFocus();
+            UpdateTimerTag();
+            UpdateLayoutAndWindow();
+            _timerTag.UpdateLayout();
+            SelfTest.Log($"   табелка: иконката е отместена с {Ui.LastIconOffset:0.##} спрямо цифрите ({_timerTag.ActualWidth:0}×{_timerTag.ActualHeight:0})");
+            if (_timerRow.Children.Count < 2) throw new Exception("табелката е без иконка или без време");
+            StopPomodoro();
+            if (!R.Has("walk.leave.work") || !R.Has("lamp.ask")) throw new Exception("няма реплики за разходка по време на работа / лампа");
+            for (int l = 1; l < 6; l++)
+                if (Conversations.HungerAskChance(l) < Conversations.HungerAskChance(l + 1)) throw new Exception("по-гладен трябва да пита по-често");
+        }, 300);
         await step("нива на глад и умора", () =>
         {
             foreach (var (v, lvl) in new[] { (0.0, 1), (20.0, 1), (21.0, 2), (35.0, 2), (36.0, 3), (50.0, 3), (51.0, 4), (65.0, 4), (66.0, 5), (80.0, 5), (81.0, 6), (95.0, 6) })

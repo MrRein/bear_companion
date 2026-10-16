@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -299,6 +300,38 @@ public static class Ui
             else if (!IsEmoji(el)) plain.Append(el);
         }
         Flush();
+        AlignIconsToDigits(row);
+    }
+
+    /// <summary>Отместването на иконката (отгоре), за да е средата ѝ на средата на цифрите.</summary>
+    internal static double LastIconOffset { get; private set; }
+
+    /// <summary>
+    /// Иконките и буквите в реда: средата на иконката – точно на средата на цифрите
+    /// (по очертанията на шрифта; редът на шрифта има празно място отгоре, затова
+    /// „центрирано“ по реда изглеждаше забито нагоре).
+    /// </summary>
+    private static void AlignIconsToDigits(StackPanel row)
+    {
+        var text = row.Children.OfType<TextBlock>().FirstOrDefault();
+        if (text == null) return;
+        var face = new Typeface(text.FontFamily, text.FontStyle, text.FontWeight, text.FontStretch);
+        var digits = new FormattedText("0", System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            face, text.FontSize, Brushes.Black, 1.0);
+        var glyph = digits.BuildGeometry(new Point(0, 0)).Bounds;
+        if (glyph.IsEmpty) return;
+        double center = (glyph.Top + glyph.Bottom) / 2;
+        double icon = row.Children.OfType<FrameworkElement>().Where(c => c is not TextBlock).Select(c => c.Height).DefaultIfEmpty(0).Max();
+        if (double.IsNaN(icon) || icon <= 0) return;
+        double textTop = Math.Max(0, icon / 2 - center);
+        double iconTop = Math.Round(textTop + center - icon / 2);
+        LastIconOffset = iconTop - textTop;
+        foreach (FrameworkElement c in row.Children)
+        {
+            c.VerticalAlignment = VerticalAlignment.Top;
+            var m = c.Margin;
+            c.Margin = new Thickness(m.Left, c is TextBlock ? textTop : iconTop, m.Right, 0);
+        }
     }
 
     public static void SetRichText(TextBlock block, string text)

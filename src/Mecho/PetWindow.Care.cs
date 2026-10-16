@@ -256,6 +256,7 @@ public sealed partial class PetWindow
     /// <summary>Казва нещо за глада/умората (на ниво 6 – почти никога; понякога само емоция).</summary>
     private void SayNeed(string kind, int level)
     {
+        if (kind == "hunger" && FoodComing) return;   // вече се готви или храната го чака
         if (level == 6 && _rng.Next(4) != 0) return;
         if (level == 5 && _rng.Next(2) != 0) return;
         if (level <= 3 && _rng.Next(4) == 0)
