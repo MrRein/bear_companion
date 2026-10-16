@@ -8,9 +8,10 @@ using System.Windows.Media;
 namespace Mecho;
 
 // Поливане („Полей цветето“): до мечока има градинка с три цветя. Той обикаля от
-// цвете на цвете и ги полива с лейката. Всяко цвете расте с по един стадий на ден,
-// когато го полее (пръст → кълн → листа → пъпка → цвят в различен цвят). Цъфналото
-// след време прецъфтява и на мястото му поникват нови семенца.
+// цвете на цвете и ги полива с лейката (от нея капят сини капчици). Цветето расте
+// с времето, докато го полива: полее ли го, ако от последното растене са минали
+// поне 40 мин – един стадий нагоре (пръст → кълн → листа → пъпка → цвят в различен
+// цвят). Цъфналото след време прецъфтява и на мястото му поникват нови семенца.
 public sealed partial class PetWindow
 {
     private const int GardenSize = 3;
@@ -25,6 +26,73 @@ public sealed partial class PetWindow
     private static readonly string[] FlowerColors = { "pink", "yellow", "red", "purple", "white", "blue" };
 
     private bool InGarden => _inScene && _scene == Scenes.Plant;
+
+    // Капчиците от лейката (в прозореца на мечока; x/y са на екрана).
+    private sealed class Drop
+    {
+        public readonly System.Windows.Shapes.Rectangle Shape = new() { IsHitTestVisible = false };
+        public double X, Y, Vy, Ground;
+    }
+
+    private readonly List<Drop> _drops = new();
+    private double _nextDrop;
+    private static readonly Brush[] DropBrushes = MakeDropBrushes();
+
+    private static Brush[] MakeDropBrushes()
+    {
+        var list = new[] { Color.FromRgb(90, 140, 210), Color.FromRgb(130, 180, 235), Color.FromRgb(70, 120, 200) }
+            .Select(c => (Brush)new SolidColorBrush(c)).ToArray();
+        foreach (var b in list) b.Freeze();
+        return list;
+    }
+
+    /// <summary>Докато полива: нови капчици от чучура на лейката; падат до земята.</summary>
+    private void UpdateDrops(double now, double dt)
+    {
+        bool watering = InGarden && _gardenWaterUntil > now && _anim == "doing";
+        if (watering && now >= _nextDrop && !_bearRect.IsEmpty)
+        {
+            _nextDrop = now + 0.06 + _rng.NextDouble() * 0.08;
+            var (px, py) = ToolPoint() ?? (24, 14);
+            px += 6;   // чучурът е вдясно от дръжката
+            if (_facingLeft) px = _lib.FrameWidth - 1 - px;
+            var d = new Drop
+            {
+                X = _bearRect.Left + (px + _rng.NextDouble()) * PixelSize,
+                Y = _bearRect.Top + (py + 1) * PixelSize,
+                Vy = 20 + _rng.NextDouble() * 30,
+                Ground = _y,
+            };
+            d.Shape.Width = d.Shape.Height = PixelSize;
+            d.Shape.Fill = DropBrushes[_rng.Next(DropBrushes.Length)];
+            _root.Children.Add(d.Shape);
+            _drops.Add(d);
+        }
+        for (int i = _drops.Count - 1; i >= 0; i--)
+        {
+            var d = _drops[i];
+            d.Vy += 600 * dt;
+            d.Y += d.Vy * dt;
+            if (d.Y >= d.Ground - PixelSize || !InGarden)
+            {
+                _root.Children.Remove(d.Shape);
+                _drops.RemoveAt(i);
+            }
+        }
+    }
+
+    private void PlaceDrops(double dpi)
+    {
+        foreach (var d in _drops) Place(d.Shape, new Rect(d.X, d.Y, PixelSize, PixelSize), _window.Left, _window.Top, dpi);
+    }
+
+    /// <summary>Точката на предмета в лапата (от _tool слоя) за сегашния кадър.</summary>
+    private (int X, int Y)? ToolPoint()
+    {
+        var strip = _lib.Layer(_anim, "tool");
+        if (strip == null || strip.Length == 0) return null;
+        return Dresser.FirstPoint(strip[_lib.Get(_anim).IndexAt(_animTime) % strip.Length]);
+    }
 
     private void EnsureGardenSave()
     {
@@ -131,13 +199,15 @@ public sealed partial class PetWindow
         }
     }
 
-    /// <summary>Полято цвете: ако днес още не е расло – един стадий нагоре.</summary>
+    /// <summary>Полято цвете: ако е минало време от последното растене – един стадий нагоре.</summary>
     private void GrowFlower(int i)
     {
         EnsureGardenSave();
-        string today = DateTime.Today.ToString("yyyy-MM-dd");
-        if (_save.GardenGrown[i] == today) return;
-        _save.GardenGrown[i] = today;
+        // GardenGrown: кога е расло за последно (по-старите записи са само дата).
+        if (DateTime.TryParse(_save.GardenGrown[i], System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var last) && DateTime.Now - last < TimeSpan.FromMinutes(40))
+            return;
+        _save.GardenGrown[i] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
         if (_save.Garden[i] >= 4)
         {
             // Цъфнало от дни: понякога прецъфтява и поникват нови семенца.

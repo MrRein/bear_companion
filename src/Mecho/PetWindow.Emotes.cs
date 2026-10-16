@@ -63,7 +63,7 @@ public sealed partial class PetWindow
         // До главата – отдясно, а до десния ръб на екрана – отляво (не пречи на балончето отгоре).
         bool left = bear.Right + _emote.Width > Area.Right - 4;
         double x = left ? bear.Left + 5 * PixelSize - _emote.Width : bear.Right - 5 * PixelSize;
-        double top = bear.Top + 3 * PixelSize - _emote.Height * 0.5 + bob;
+        double top = bear.Top + 7 * PixelSize - _emote.Height * 0.5 + bob;
         var origin = new Point(left ? 0.8 : 0.2, 0.6);
         if (_emote.RenderTransformOrigin != origin) _emote.RenderTransformOrigin = origin;
         return new Rect(x, top, _emote.Width, _emote.Height);

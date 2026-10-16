@@ -28,6 +28,7 @@ public sealed class TrayIcon : IDisposable
         }
 
         var menu = new Forms.ContextMenuStrip();
+        // Само докато го няма (на разходка или скрит): вика го.
         var show = menu.Items.Add("Покажи мечока");
         show.Click += (_, _) => Toggle();
         var panel = menu.Items.Add("Отвори меню");
@@ -40,6 +41,14 @@ public sealed class TrayIcon : IDisposable
         // Скрий всичко: всички рисунки (платформите) изчезват; пак оттук се показват.
         var hideAll = menu.Items.Add("");
         hideAll.Click += (_, _) => _pet.SetDrawingsHidden(!_pet.DrawingsHidden);
+        // Таймери: табелката до часовника, докато мечокът е скрит.
+        var timers = new Forms.ToolStripMenuItem("Таймери");
+        timers.Click += (_, _) =>
+        {
+            _save.ShowTimers = !_save.ShowTimers;
+            _save.Save();
+        };
+        menu.Items.Add(timers);
         menu.Items.Add(new Forms.ToolStripSeparator());
         var update = menu.Items.Add("");
         update.Click += (_, _) =>
@@ -73,7 +82,8 @@ public sealed class TrayIcon : IDisposable
 
         menu.Opening += (_, _) =>
         {
-            show.Text = _pet.IsVisible ? "Скрий мечока" : "Покажи мечока";
+            show.Visible = _pet.OnWalk || !_pet.IsVisible;
+            timers.Checked = _save.ShowTimers;
             hideAll.Text = _pet.DrawingsHidden ? "Покажи рисунките" : "Скрий всичко";
             autostart.Checked = _save.StartWithWindows;
             update.Text = _pet.Updater.IsAvailable
@@ -88,6 +98,12 @@ public sealed class TrayIcon : IDisposable
             Text = "Мечо",
             ContextMenuStrip = menu,
             Visible = true,
+        };
+        // При посочване: таймерите (мечо-доро, таймер, разходка) – до 63 знака.
+        _icon.MouseMove += (_, _) =>
+        {
+            string t = _pet.TimersText;
+            _icon.Text = t.Length > 63 ? t[..63] : t;
         };
         _icon.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) Toggle(); };
     }

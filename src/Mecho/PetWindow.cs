@@ -250,23 +250,27 @@ public sealed partial class PetWindow : Window
         _lastTime = now;
         _stateTime += real;
         UpdateTempo(now, real);
-        _animTime += real * AnimSpeed;
+        // Тут пише: мечокът замръзва на място (без анимация и без ходене), за да не
+        // „засича“ с прерисуване веднъж на 2 секунди; щом спре да пише, продължава.
+        bool typingPause = _calm;
+        if (!typingPause) _animTime += real * AnimSpeed;
 
         switch (_state)
         {
             case BearState.Idle: UpdateIdle(now); break;
-            case BearState.Walk: UpdateWalk(dt); break;
+            case BearState.Walk: if (!typingPause) UpdateWalk(dt); break;
             case BearState.Busy: UpdateBusy(); break;
             case BearState.Sleep: UpdateSleep(); break;
             case BearState.Falling: UpdateFalling(dt); break;
             case BearState.Couch: UpdateScene(now); break;
-            case BearState.Chase: UpdateChase(dt); break;
+            case BearState.Chase: if (!typingPause) UpdateChase(dt); break;
             case BearState.Jump: UpdateJump(dt); break;
             case BearState.Bounce: UpdateBounce(dt); break;
             case BearState.Drag: break;
         }
         UpdateCare(real, now);
         UpdateFood(dt);
+        if (_drops.Count > 0 || InGarden) UpdateDrops(now, dt);
         if (_cook != null) UpdateCooking(now, dt);
         else if (_pendingCook != null && now > _pendingCookAt) StartPendingCook();
         RunLater(now);
@@ -351,7 +355,8 @@ public sealed partial class PetWindow : Window
             return false;
         }
         _typing = _save.CalmWhileTyping && now - _cursorMovedAt > 2 && NativeMethods.IdleSeconds() < 2;
-        return _typing && _state is BearState.Idle or BearState.Couch or BearState.Sleep or BearState.Busy;
+        return _typing && !_walkingOut && !_walkingBack && !InGarden
+            && _state is BearState.Idle or BearState.Couch or BearState.Sleep or BearState.Busy or BearState.Walk or BearState.Chase;
     }
 
     /// <summary>Developer: спира прерисуването за малко (за търсене на премигване).</summary>
@@ -368,7 +373,7 @@ public sealed partial class PetWindow : Window
     private void PaceTimer()
     {
         bool moving = IsVisible && !_calm && (_state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
-            || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || Dressing || CookShaking || EmotePopping || _cook is { Window.IsFalling: true }
+            || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || _drops.Count > 0 || Dressing || CookShaking || EmotePopping || _cook is { Window.IsFalling: true }
             || FoodMoving());
         // Тут пише, а мечокът върви: 15 кадъра в секунда стигат (не с всеки кадър на
         // екрана) – прозрачният прозорец „винаги отгоре“ не бива да товари писането.
@@ -1180,6 +1185,7 @@ public sealed partial class PetWindow : Window
         // x и y наведнъж, в цели пиксели (Left и Top поотделно го местеха два пъти).
         NativeMethods.MoveWindow(this, _window.Left, _window.Top);
 
+        PlaceDrops(dpi);
         PlaceBubble(area, bear, above);
         PlaceButterfly();
     }

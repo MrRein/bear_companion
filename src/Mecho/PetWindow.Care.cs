@@ -208,45 +208,71 @@ public sealed partial class PetWindow
         UpdateMeals();
         AskAboutLunch();
 
-        // Казва, че е гладен или сънлив, но не по-често от веднъж на няколко минути.
-        if (!IsResting && !IsQuiet && !InFocus && now > _nextNeedLine && _state != BearState.Drag)
+        // Казва колко е гладен или уморен: 6 нива, колкото е по-зле, толкова по-често.
+        if (!IsResting && !IsQuiet && !InFocus && _state != BearState.Drag)
         {
-            if (_save.Fullness < 25)
+            if (now > _nextNeedLine && NeedLevel(_save.Fullness) is int hl)
             {
-                _nextNeedLine = now + 1800 + _rng.Next(1200);
-                var meal = CurrentMeal;
-                // Понякога само показва, без думи.
-                if (_rng.Next(3) == 0) Emote("hungry", 3.5);
-                else if (meal == null && _save.Fullness < 10) Say(R.Pick("need.hungry.strong", _save.OwnerName), 5);
-                else Say(Lines.Pick(meal == "lunch" ? Lines.LunchTime : meal == "dinner" ? Lines.DinnerTime : Lines.Hungry, _save.OwnerName), 5);
+                _nextNeedLine = now + NeedPause(hl);
+                SayNeed("hunger", hl);
             }
-            else if (LateNight && _save.Energy < 50)
+            else if (now > _nextTiredLine && NeedLevel(_save.Energy) is int tl)
             {
-                _nextNeedLine = now + 1500 + _rng.Next(900);
-                Say(Lines.Pick(Lines.Bedtime, _save.OwnerName), 5);
-            }
-            else if (_save.Energy < TiredBelow)
-            {
-                // Колкото е по-уморен, толкова по-често го казва.
-                _nextNeedLine = now + (_save.Energy < 12 ? 1500 : 2400) + _rng.Next(1200);
-                if (_rng.Next(3) == 0) Emote("zzz", 3.5);
-                else if (_save.Energy < 12) Say(R.Pick("need.tired.strong", _save.OwnerName), 5);
-                else Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 5);
-            }
-            else if (_save.Fullness < 65 || _save.Energy < 55)
-            {
-                // Не е много гладен/уморен: рядко и леко („Бих хапнал още малко, но не държа“).
-                _nextNeedLine = now + 2700 + _rng.Next(1800);
-                if (_rng.Next(2) == 0)
-                {
-                    bool hunger = _save.Fullness < 65 && (_save.Energy >= 55 || _rng.Next(2) == 0);
-                    string key = hunger
-                        ? _save.Fullness < 45 ? "need.hungry.mild" : "need.hungry.slight"
-                        : "need.tired.slight";
-                    Mutter(R.Pick(key, _save.OwnerName), 4);
-                }
+                _nextTiredLine = now + NeedPause(tl);
+                if (LateNight && tl <= 3) Say(Lines.Pick(Lines.Bedtime, _save.OwnerName), 5);
+                else SayNeed("tired", tl);
             }
         }
+    }
+
+    private double _nextTiredLine;
+
+    /// <summary>
+    /// Нивото на нуждата: 1 – страшно (0–20), 2 – много (21–35), 3 – доста (36–50),
+    /// 4 – гладен/уморен (51–65), 5 – малко (66–80), 6 – леко (81–95); над 95 – нищо.
+    /// </summary>
+    internal static int? NeedLevel(double value) => value switch
+    {
+        <= 20 => 1,
+        <= 35 => 2,
+        <= 50 => 3,
+        <= 65 => 4,
+        <= 80 => 5,
+        <= 95 => 6,
+        _ => null,
+    };
+
+    /// <summary>След колко секунди пак може да го каже (колкото по-зле, толкова по-често).</summary>
+    private double NeedPause(int level) => level switch
+    {
+        1 => Minutes(6, 10),
+        2 => Minutes(10, 16),
+        3 => Minutes(16, 26),
+        4 => Minutes(26, 40),
+        5 => Minutes(45, 70),
+        _ => Minutes(100, 160),
+    };
+
+    /// <summary>Казва нещо за глада/умората (на ниво 6 – почти никога; понякога само емоция).</summary>
+    private void SayNeed(string kind, int level)
+    {
+        if (level == 6 && _rng.Next(4) != 0) return;
+        if (level == 5 && _rng.Next(2) != 0) return;
+        if (level <= 3 && _rng.Next(4) == 0)
+        {
+            Emote(kind == "hunger" ? "hungry" : "zzz", 3.5);
+            return;
+        }
+        // Гладен по време на обяд/вечеря: репликите за обяда.
+        var meal = CurrentMeal;
+        if (kind == "hunger" && level <= 2 && meal != null)
+        {
+            Say(Lines.Pick(meal == "lunch" ? Lines.LunchTime : Lines.DinnerTime, _save.OwnerName), 5);
+            return;
+        }
+        string line = R.Pick($"need.{kind}.{level}", _save.OwnerName);
+        if (level >= 5) Mutter(line, 4);
+        else Say(line, level <= 2 ? 5 : 4);
     }
 
     // ───────────────────────── Нощ ─────────────────────────
@@ -677,7 +703,7 @@ public sealed partial class PetWindow
     // ───────────────────────── Таймерът, когато мечокът е скрит ─────────────────────────
 
     private Window? _timerBadge;
-    private TextBlock? _timerBadgeText;
+    private readonly StackPanel _timerBadgeRow = new() { Orientation = Orientation.Horizontal };
     private string _timerBadgeShown = "";
 
     /// <summary>
@@ -688,7 +714,8 @@ public sealed partial class PetWindow
 
     private void UpdateTimerBadge(System.Collections.Generic.List<string> parts)
     {
-        bool show = !IsVisible && parts.Count > 0;
+        // „Таймери“ (десен бутон на иконката) е изключено: скрит мечок – без табелка.
+        bool show = !IsVisible && parts.Count > 0 && _save.ShowTimers;
         if (!show)
         {
             _timerBadge?.Hide();
@@ -696,9 +723,7 @@ public sealed partial class PetWindow
         }
         if (_timerBadge == null)
         {
-            _timerBadgeText = Ui.RichText("", bold: true);
-            _timerBadgeText.FontFamily = Ui.MonoFont;
-            var pill = Ui.Pill(_timerBadgeText);
+            var pill = Ui.Pill(_timerBadgeRow);
             _badgeBack = pill.Background;
             pill.Cursor = System.Windows.Input.Cursors.Hand;
             pill.ToolTip = Ui.Tip("Мечокът е скрит, но времето тече. Цъкни, за да го покажеш.");
@@ -732,7 +757,11 @@ public sealed partial class PetWindow
         if (text != _timerBadgeShown)
         {
             _timerBadgeShown = text;
-            Ui.SetRichText(_timerBadgeText!, text);
+            Ui.SetIconLine(_timerBadgeRow, text, t =>
+            {
+                t.FontFamily = Ui.MonoFont;
+                t.FontWeight = FontWeights.Bold;
+            });
         }
         if (_timerBadge.Content is Border badge)
         {
@@ -746,6 +775,19 @@ public sealed partial class PetWindow
         _timerBadge.Top = area.Bottom - _timerBadge.ActualHeight - 8;
     }
 
+    /// <summary>За иконката до часовника (при посочване): таймерите с думи.</summary>
+    public string TimersText
+    {
+        get
+        {
+            var parts = new System.Collections.Generic.List<string>();
+            if (_save.PomodoroPhase != PomodoroPhase.Off) parts.Add($"{(InFocus ? "Мечо-доро" : "Почивка")} {Clock(PomodoroLeft)}");
+            if (TimerRunning) parts.Add($"Таймер {Clock(TimerLeft)}");
+            if (OnWalk && !_walkingOut) parts.Add($"На разходка още {Clock(WalkLeft)}");
+            return parts.Count == 0 ? "Мечо" : "Мечо · " + string.Join(" · ", parts);
+        }
+    }
+
     private static string Clock(TimeSpan t) =>
         t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
 
@@ -756,8 +798,6 @@ public sealed partial class PetWindow
         var parts = new System.Collections.Generic.List<string>();
         if (_save.PomodoroPhase != PomodoroPhase.Off) parts.Add($"{(InFocus ? "🍯" : "☕")} {Clock(PomodoroLeft)}");
         if (TimerRunning) parts.Add($"⏰ {Clock(TimerLeft)}");
-        // На разходка: колко още ще го няма (табелката до часовника; клик го вика).
-        if (OnWalk && !_walkingOut) parts.Add($"🚶 {Clock(WalkLeft)}");
         UpdateTimerBadge(parts);
         // Работим по задача: името ѝ (кратко) до часовника.
         if (InFocus && FocusTaskShort.Length > 0) parts.Add(FocusTaskShort);

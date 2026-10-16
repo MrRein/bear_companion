@@ -747,10 +747,36 @@ public sealed partial class PetWindow
             GrowFlower(0);
             if (before < 4 && _save.Garden[0] != before + 1) throw new Exception("цветето не порасна");
             GrowFlower(0);
-            if (before < 4 && _save.Garden[0] != before + 1) throw new Exception("порасна два пъти за ден");
+            if (before < 4 && _save.Garden[0] != before + 1) throw new Exception("порасна два пъти веднага");
+            // След 40 мин пак расте (с времето, докато го полива).
+            _save.GardenGrown[0] = DateTime.Now.AddMinutes(-41).ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+            int mid = _save.Garden[0];
+            GrowFlower(0);
+            if (mid < 4 && _save.Garden[0] != mid + 1) throw new Exception("не порасна след 40 мин");
             for (int i = 0; i < 40; i++) UpdateGarden(Now + i * 0.1);
+            // Капчици от лейката.
+            _gardenWaterUntil = Now + 5;
+            _anim = "doing";
+            for (int i = 0; i < 10; i++) { _nextDrop = 0; UpdateDrops(Now, 0.016); }
+            if (_drops.Count == 0) throw new Exception("лейката не капе");
+            UpdateLayoutAndWindow();
         }, 1500);
-        await step("градинка: свърши", () => { LeaveScene(); if (_gardenWindow is { IsVisible: true }) throw new Exception("градинката остана"); }, 300);
+        await step("градинка: свърши", () =>
+        {
+            LeaveScene();
+            if (_gardenWindow is { IsVisible: true }) throw new Exception("градинката остана");
+            UpdateDrops(Now, 0.016);
+            if (_drops.Count > 0) throw new Exception("капчиците останаха");
+        }, 300);
+        await step("нива на глад и умора", () =>
+        {
+            foreach (var (v, lvl) in new[] { (0.0, 1), (20.0, 1), (21.0, 2), (35.0, 2), (36.0, 3), (50.0, 3), (51.0, 4), (65.0, 4), (66.0, 5), (80.0, 5), (81.0, 6), (95.0, 6) })
+                if (NeedLevel(v) != lvl) throw new Exception($"{v} трябва да е ниво {lvl}");
+            if (NeedLevel(96) != null) throw new Exception("над 95 няма ниво");
+            for (int l = 1; l <= 6; l++)
+                foreach (var k in new[] { "hunger", "tired" })
+                    if (!R.Has($"need.{k}.{l}")) throw new Exception($"няма реплики need.{k}.{l}");
+        }, 100);
         await step("подарък в лапите", () =>
         {
             _giftWindow?.Close();

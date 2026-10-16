@@ -20,7 +20,7 @@ LAYERS = os.path.join(os.path.dirname(__file__), "..", "assets", "clothes", "lay
 # шаблоните им за дрехи; тях ги прави tools/auto_clothes.py или Тут).
 HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "dice", "bounce", "eat", "fall",
               "happy", "sad", "think", "tired", "walk_tired", "sleep_peek",
-              "cook", "drink", "eat_hold", "focus", "focus_tired", "juggle", "sit", "yawn",
+              "cook", "eat_hold", "focus", "focus_tired", "juggle", "sit", "yawn",
               "cook_tired", "doing", "doing_tired", "doing_sit", "doing_sit_tired", "focus_write", "game", "game_tired",
               "work", "work_tired", "write", "write_tired", "yoga"}
 
@@ -623,10 +623,6 @@ ANIMS = {
                bear(arms="down", legs="sit", bob=2, extra=brush(False)),
                bear(arms="right_up", legs="sit", bob=2, mouth="smile", extra=brush(True)),
                bear(arms="down", legs="sit", bob=2, eyes="closed", extra=brush(False))], 3, True),
-    "drink": ([bear(arms="front", legs="sit", bob=2, extra=cup_in_hands(False)),
-               bear(arms="front", legs="sit", bob=2, eyes="closed", extra=cup_in_hands(True)),
-               bear(arms="front", legs="sit", bob=2, eyes="closed", extra=cup_in_hands(True)),
-               bear(arms="front", legs="sit", bob=2, eyes="happy", mouth="smile", extra=cup_in_hands(False))], 2, True),
     "yoga": ([bear(arms="up", eyes="closed"), bear(arms="up", eyes="closed", bob=-1),
               bear(arms="left_up", eyes="closed", legs="step1"), bear(arms="right_up", eyes="closed", legs="step2")], 1.5, True),
     "water": ([bear(arms="front", extra=watering(False)), bear(arms="front", extra=watering(True)),
