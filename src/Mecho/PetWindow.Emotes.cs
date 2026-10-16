@@ -29,7 +29,9 @@ public sealed partial class PetWindow
     /// <summary>Показва емоция до главата (сменя предишната).</summary>
     public void Emote(string name, double seconds = 2.6)
     {
-        if (Ui.LoadIcon("emote_" + name) is not { } img) return;
+        if (Ui.LoadIcon("emote_" + name) is not { } raw) return;
+        // Балончето е в цветовете на менюто (сменя се със скина му).
+        var img = Ui.Themed(raw);
         _emoteName = name;
         _emote.Source = img;
         _emote.Width = img.PixelWidth * EmoteScale;
@@ -57,14 +59,17 @@ public sealed partial class PetWindow
         }
         double t = now - _emoteStart;
         double pop = t < 0.18 ? 0.5 + t / 0.18 * 0.65 : t < 0.3 ? 1.15 - (t - 0.18) / 0.12 * 0.15 : 1;
-        _emotePop.ScaleX = _emotePop.ScaleY = pop;
         _emote.Opacity = Math.Clamp((_emoteUntil - now) / 0.4, 0, 1);
         double bob = Math.Round(Math.Sin(t * 4) * PixelSize * 0.5);
-        // До главата – отдясно, а до десния ръб на екрана – отляво (не пречи на балончето отгоре).
-        bool left = bear.Right + _emote.Width > Area.Right - 4;
-        double x = left ? bear.Left + 5 * PixelSize - _emote.Width : bear.Right - 5 * PixelSize;
-        double top = bear.Top + 7 * PixelSize - _emote.Height * 0.5 + bob;
-        var origin = new Point(left ? 0.8 : 0.2, 0.6);
+        // Опашчицата (долу вляво на балончето) сочи към главата: балончето е горе вдясно
+        // до ухото; до десния ръб на екрана – огледално, отляво.
+        double e = EmoteScale;
+        bool left = bear.Left + 25 * PixelSize + 11 * e > Area.Right - 4;
+        _emotePop.ScaleY = pop;
+        _emotePop.ScaleX = left ? -pop : pop;
+        double x = left ? bear.Left + 7 * PixelSize - 10.5 * e : bear.Left + 25 * PixelSize - 2.5 * e;
+        double top = bear.Top + 13 * PixelSize - 12.5 * e + bob;
+        var origin = new Point(0.2, 1);   // от опашчицата (огледалното обръща и нея)
         if (_emote.RenderTransformOrigin != origin) _emote.RenderTransformOrigin = origin;
         return new Rect(x, top, _emote.Width, _emote.Height);
     }

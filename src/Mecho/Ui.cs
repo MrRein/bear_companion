@@ -315,14 +315,12 @@ public static class Ui
     {
         var text = row.Children.OfType<TextBlock>().FirstOrDefault();
         if (text == null) return;
-        var face = new Typeface(text.FontFamily, text.FontStyle, text.FontWeight, text.FontStretch);
-        var digits = new FormattedText("0", System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-            face, text.FontSize, Brushes.Black, 1.0);
-        var glyph = digits.BuildGeometry(new Point(0, 0)).Bounds;
-        if (glyph.IsEmpty) return;
-        double center = (glyph.Top + glyph.Bottom) / 2;
         double icon = row.Children.OfType<FrameworkElement>().Where(c => c is not TextBlock).Select(c => c.Height).DefaultIfEmpty(0).Max();
         if (double.IsNaN(icon) || icon <= 0) return;
+        var (top, bottom, height) = DigitInk(text);
+        if (height <= 0) return;
+        // Средата на иконката – на средата на изрисуваните цифри (мерено по пикселите).
+        double center = (top + bottom) / 2;
         double textTop = Math.Max(0, icon / 2 - center);
         double iconTop = Math.Round(textTop + center - icon / 2);
         LastIconOffset = iconTop - textTop;
@@ -332,6 +330,48 @@ public static class Ui
             var m = c.Margin;
             c.Margin = new Thickness(m.Left, c is TextBlock ? textTop : iconTop, m.Right, 0);
         }
+    }
+
+    private static readonly Dictionary<string, (double Top, double Bottom, double Height)> DigitInkCache = new();
+
+    /// <summary>
+    /// Къде са изрисувани цифрите в реда на TextBlock-а (горе/долу, в DIP): рисува „0“
+    /// със същия шрифт и търси първия и последния ред с пиксели. Пази се за шрифт и размер.
+    /// </summary>
+    private static (double Top, double Bottom, double Height) DigitInk(TextBlock like)
+    {
+        string key = $"{like.FontFamily}|{like.FontSize}|{like.FontWeight}";
+        if (DigitInkCache.TryGetValue(key, out var known)) return known;
+        var probe = new TextBlock
+        {
+            Text = "0",
+            FontFamily = like.FontFamily,
+            FontSize = like.FontSize,
+            FontWeight = like.FontWeight,
+            Foreground = Brushes.Black,
+        };
+        TextOptions.SetTextRenderingMode(probe, TextRenderingMode.Aliased);
+        TextOptions.SetTextFormattingMode(probe, TextFormattingMode.Display);
+        probe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var size = probe.DesiredSize;
+        probe.Arrange(new Rect(size));
+        int w = Math.Max(1, (int)Math.Ceiling(size.Width)), h = Math.Max(1, (int)Math.Ceiling(size.Height));
+        var bmp = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+        bmp.Render(probe);
+        var px = new byte[w * h * 4];
+        bmp.CopyPixels(px, w * 4, 0);
+        int first = -1, last = -1;
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                if (px[(y * w + x) * 4 + 3] > 40)
+                {
+                    if (first < 0) first = y;
+                    last = y;
+                    break;
+                }
+        var result = first < 0 ? (0.0, 0.0, 0.0) : (first, last + 1.0, (double)h);
+        DigitInkCache[key] = result;
+        return result;
     }
 
     public static void SetRichText(TextBlock block, string text)
@@ -411,6 +451,34 @@ public static class Ui
     }
 
     /// <summary>Иконка и текст на един ред, подравнени по средата.</summary>
+    private static readonly Dictionary<(BitmapSource, Color, Color), BitmapSource> ThemedCache = new();
+
+    /// <summary>
+    /// Рисунка (балонче) в цветовете на менюто: тъмният контур (59,36,20) става цветът на
+    /// буквите, а бялото – на хартията. Сменя се, когато се смени скинът на менюто.
+    /// </summary>
+    public static BitmapSource Themed(BitmapSource src)
+    {
+        var ink = ((SolidColorBrush)Ink).Color;
+        var paper = ((SolidColorBrush)Paper).Color;
+        if (ThemedCache.TryGetValue((src, ink, paper), out var done)) return done;
+        var conv = new FormatConvertedBitmap(src, PixelFormats.Bgra32, null, 0);
+        int w = conv.PixelWidth, h = conv.PixelHeight, stride = w * 4;
+        var px = new byte[h * stride];
+        conv.CopyPixels(px, stride, 0);
+        for (int i = 0; i < px.Length; i += 4)
+        {
+            if (px[i + 3] == 0) continue;
+            byte b = px[i], g = px[i + 1], r = px[i + 2];
+            if (r == 59 && g == 36 && b == 20) { px[i] = ink.B; px[i + 1] = ink.G; px[i + 2] = ink.R; }
+            else if (r == 255 && g == 255 && b == 255) { px[i] = paper.B; px[i + 1] = paper.G; px[i + 2] = paper.R; }
+        }
+        var result = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, px, stride);
+        result.Freeze();
+        ThemedCache[(src, ink, paper)] = result;
+        return result;
+    }
+
     /// <summary>„+3 🌰“: числото, после лешникът.</summary>
     public static StackPanel RewardText(int nuts, bool bold = false)
     {
