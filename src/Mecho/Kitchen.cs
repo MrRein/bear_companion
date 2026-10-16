@@ -39,7 +39,7 @@ public static class Kitchen
     public const string Easel = "easel", Computer = "computer", YogaMat = "yoga_mat", PlantPot = "plant", Radio = "radio", BoardGame = "board_game";
     public const string Trampoline = "trampoline", Couch = "couch", Wardrobe = "wardrobe", Heater = "heater";
     public const string YarnBasket = "yarn_basket", Guitar = "guitar", Lamp = "lamp";
-    public const string Desk = "desk", Stool = "stool", Feeder = "feeder";
+    public const string Desk = "desk", Feeder = "feeder";   // бюрото е със столче
 
     // Раздели в магазина
     public const string KitchenShelf = "Кухня", FunShelf = "Хобита", FurnitureShelf = "Мебели", HelpShelf = "Подобрения";
@@ -171,8 +171,7 @@ public static class Kitchen
         new(Heater, "Печица", "🌡", 30, "Топличко за зимата.", FurnitureShelf),
         new(Wardrobe, "Гардероб", "👕", 25, "Дрехи, аксесоари и тапети.", FurnitureShelf),
         new(Lamp, "Лампа", "🪔", 25, "Свети вечер.", FurnitureShelf),
-        new(Stool, "Столче", "🪑", 15, "Сяда на него да работи и играе (иначе – на земята).", FurnitureShelf),
-        new(Desk, "Бюро", "🗄", 30, "Работи на бюро (иначе – на земята).", FurnitureShelf),
+        new(Desk, "Бюро със столче", "🗄", 35, "Работи на бюро, седнал на столче (иначе – на земята).", FurnitureShelf),
         new(Feeder, "Хранилка за птички", "🐦", 25, "Слагаш я някъде, той слага храна, а понякога идват птички.", FurnitureShelf),
         // Хладилникът, слушалките и готварската книга са махнати от магазина засега
         // (който ги има отпреди, ефектът им остава).

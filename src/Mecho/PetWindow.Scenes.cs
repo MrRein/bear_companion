@@ -381,8 +381,8 @@ public sealed partial class PetWindow
     {
         string? seat = scene.Seat == "couch" && !HasCouch ? null : scene.Seat;
         if (seat == "couch") seat = Furniture.Current(_save, Kitchen.Couch).Prop;   // скинът на дивана
-        // Столчето и бюрото се купуват; без тях работи и играе на земята.
-        if (seat == "stool") seat = Kitchen.Owns(_save, Kitchen.Stool) ? Furniture.CurrentArt(_save, Kitchen.Stool) : null;
+        // Бюрото със столчето се купува (едно); без него работи и играе на земята.
+        if (seat == "stool") seat = Kitchen.Owns(_save, Kitchen.Desk) ? Furniture.StoolArt(_save) : null;
         string? side = scene.Side;
         if (side == "desk") side = Kitchen.Owns(_save, Kitchen.Desk) ? Furniture.CurrentArt(_save, Kitchen.Desk) : null;
         if (side == "easel") side = EaselArt();

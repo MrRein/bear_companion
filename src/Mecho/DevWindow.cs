@@ -383,7 +383,7 @@ public sealed partial class PetWindow
         yield return (radio, "Бюро и столче: купи / махни", () =>
         {
             bool has = _save.Owned.Contains(Kitchen.Desk);
-            foreach (var id in new[] { Kitchen.Desk, Kitchen.Stool }) { if (has) _save.Owned.Remove(id); else _save.Owned.Add(id); }
+            if (has) _save.Owned.Remove(Kitchen.Desk); else _save.Owned.Add(Kitchen.Desk);
             if (_inScene && _scene != null) LoadSceneArt(_scene);
         });
         foreach (var e in new[] { "heart", "zzz", "idea", "exclaim", "question", "note", "sweat", "hungry", "cold", "sparkle", "happy", "sad" })
