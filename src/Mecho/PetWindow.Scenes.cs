@@ -188,7 +188,7 @@ public sealed partial class PetWindow
         _save.AutoMode = false;
         _save.SleepingByChoice = false;
         // Не веднага: става, помисля няколко секунди и чак тогава отива (виж UpdateIdle).
-        if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) BeginModeChange(1, 2, R.Pick($"scene.{scene.Id}.intent", _save.OwnerName));
+        if (scene == Scenes.Trampoline ? !_onTrampoline : !_inScene || _scene != scene) BeginModeChange(1, 2, R.Pick($"scene.{scene.Id}.intent", _save.OwnerName));
         _sceneUntil = 0;
         _idleSince = Now;
         OpenParcelFirst();
