@@ -334,7 +334,7 @@ public sealed partial class PetWindow : Window
     /// докато само се анимира на място; 5, докато спи. Така спокойният мечок
     /// почти не товари процесора.
     /// </summary>
-    private bool _calm;
+    private bool _calm, _typing;
     private double _lastDraw, _cursorMovedAt, _freezeUntil;
     private System.Drawing.Point _typingCursor;
 
@@ -346,11 +346,11 @@ public sealed partial class PetWindow : Window
         {
             _typingCursor = pos;
             _cursorMovedAt = now;
+            _typing = false;
             return false;
         }
-        if (!_save.CalmWhileTyping) return false;
-        if (_state is not (BearState.Idle or BearState.Couch or BearState.Sleep or BearState.Busy)) return false;
-        return now - _cursorMovedAt > 2 && NativeMethods.IdleSeconds() < 2;
+        _typing = _save.CalmWhileTyping && now - _cursorMovedAt > 2 && NativeMethods.IdleSeconds() < 2;
+        return _typing && _state is BearState.Idle or BearState.Couch or BearState.Sleep or BearState.Busy;
     }
 
     /// <summary>Developer: спира прерисуването за малко (за търсене на премигване).</summary>
@@ -367,10 +367,14 @@ public sealed partial class PetWindow : Window
     private void PaceTimer()
     {
         bool moving = IsVisible && !_calm && (_state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
-            || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || Dressing || CookShaking || _emote.Visibility == Visibility.Visible || _cook is { Window.IsFalling: true }
+            || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || Dressing || CookShaking || EmotePopping || _cook is { Window.IsFalling: true }
             || FoodMoving());
-        UseRendering(moving);
-        int ms = moving ? 100   // резервен (ако екранът не рисува кадри)
+        // Тут пише, а мечокът върви: 15 кадъра в секунда стигат (не с всеки кадър на
+        // екрана) – прозрачният прозорец „винаги отгоре“ не бива да товари писането.
+        bool smooth = moving && !_typing;
+        UseRendering(smooth);
+        int ms = smooth ? 100   // резервен (ако екранът не рисува кадри)
+            : moving ? 66
             : !IsVisible ? 500
             : _calm ? 200
             : IsAsleep && _bubble.Visibility != Visibility.Visible && _food.Count == 0 ? 200
@@ -1135,7 +1139,8 @@ public sealed partial class PetWindow : Window
         if (hasSide)
         {
             // Предметът стои до мечока (отляво или отдясно), стъпил на същата земя.
-            double overlap = 2 * PixelSize;
+            // Стативът е по-близо: мечокът рисува, а не стои до него.
+            double overlap = (_scene!.Side == "easel" ? 5 : 2) * PixelSize;
             double left = _scene!.SideDir < 0 ? bear.Left - _side.Width + overlap : bear.Right - overlap;
             left += WardrobeShake;
             side = new Rect(left, ys - _side.Height, _side.Width, _side.Height);

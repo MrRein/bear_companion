@@ -29,6 +29,11 @@ public sealed partial class PetWindow
     private bool FreeCycleStep()
     {
         if (Now < _freeUntil || Cooks || InFocus || IsAsleep) return false;
+        if (MaybeWanderOff())
+        {
+            StartFreeCycle(sitNow: false);
+            return true;
+        }
         PickAutoMode();
         if (RelaxesRandomly) StartRandomRelax(_lastFun);
         else StartRandomWork(_lastFun);

@@ -461,14 +461,16 @@ def computer(d):
 
 
 def easel(d):
-    d.line((3, 4, 1, 27), fill=WOOD)
-    d.line((14, 4, 16, 27), fill=WOOD)
-    d.line((9, 0, 9, 27), fill=WOOD)
+    # Висок статив: платното е горе (на нивото на лапите на седналия мечок), краката дълги.
+    d.line((4, 4, 1, 35), fill=WOOD)
+    d.line((13, 4, 16, 35), fill=WOOD)
+    d.line((9, 0, 9, 35), fill=WOOD)
+    d.line((3, 28, 14, 28), fill=WOOD)                              # напречна летва
     d.rectangle((1, 3, 16, 17), fill=WHITE, outline=OUTLINE)
     d.ellipse((3, 5, 8, 10), fill=(255, 209, 102, 255))            # слънце
     d.polygon([(2, 16), (7, 10), (11, 16)], fill=(120, 180, 80, 255))  # хълм
     d.rectangle((10, 11, 14, 15), fill=(90, 140, 210, 255))
-    d.line((0, 18, 17, 18), fill=OUTLINE)
+    d.line((0, 18, 17, 18), fill=OUTLINE)                           # поличка
 
 
 def table_tea(d):
@@ -1107,7 +1109,7 @@ PROP_LIST = {
     "trampoline": (prop(28, 8, trampoline), 4),
     "desk": (prop(24, 22, desk), 0),
     "computer": (prop(20, 22, computer), 0),
-    "easel": (prop(18, 28, easel), 0),
+    "easel": (prop(18, 36, easel), 0),
     "table_tea": (prop(16, 16, table_tea), 0),
     "table_board": (prop(20, 16, table_board), 0),
     "mat": (prop(40, 3, mat), 2),

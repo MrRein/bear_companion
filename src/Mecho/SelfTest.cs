@@ -776,6 +776,55 @@ public sealed partial class PetWindow
             ReturnFromWalk(called: true);
             if (OnWalk || !IsVisible) throw new Exception("не се върна");
         }, 3000);
+        await step("сам излиза на разходка", () =>
+        {
+            SetIdle();
+            GoForWalk(2, solo: true);
+            if (!OnWalk || !_save.WalkSolo) throw new Exception("не тръгна сам");
+        }, 4000);
+        await step("сам: връща се и казва какво е правил", () =>
+        {
+            ReturnFromWalk(called: false);
+            if (OnWalk || _save.WalkSolo || !IsVisible) throw new Exception("не се върна от самостоятелната разходка");
+            if (!R.Has("walk.leave.solo") || !R.Has("walk.back.solo") || !R.Has("wish.nuts") || !R.Has("wish.page")) throw new Exception("няма реплики за самостоятелна разходка");
+        }, 3000);
+        await step("желание: връща услугата", () =>
+        {
+            var wishes = Wishes();
+            if (wishes.Length == 0) throw new Exception("няма желания");
+            int nuts = _save.Hazelnuts, pages = _save.RecipePages;
+            string? next = _save.NextRecipe;
+            bool thanked = false;
+            for (int i = 0; i < 200 && !thanked; i++)
+            {
+                TodayRec.WishGifts = 0;
+                thanked = WishThanks(wishes[0]);
+            }
+            if (!thanked) throw new Exception("не върна услугата за 200 опита");
+            if (_save.Hazelnuts <= nuts && _save.RecipePages == pages && _save.NextRecipe == next) throw new Exception("нищо не даде");
+            TodayRec.WishGifts = 2;
+            if (WishThanks(wishes[0])) throw new Exception("даде повече от 2 пъти на ден");
+            if (WishThanks(Kitchen.Foods.First(f => !wishes.Contains(f)))) throw new Exception("даде за храна, която не иска");
+            HideBubble();
+        }, 400);
+        await step("задача с описание + закачен прозорец свит/разгънат", () =>
+        {
+            AddTask("Задача с описание", 1, "Подробности за задачата");
+            var t = _save.Tasks.Last();
+            if (t.Description != "Подробности за задачата") throw new Exception("описанието не се запази");
+            SetPinned(PinWindow.Tasks, true);
+            var pin = _pins[PinWindow.Tasks];
+            pin.Height = 333;
+            _save.PinTasks.H = 333;
+            pin.UpdateLayout();
+            pin.ToggleCollapse();
+            pin.UpdateLayout();
+            pin.ToggleCollapse();
+            pin.UpdateLayout();
+            if (Math.Abs(pin.Height - 333) > 2) throw new Exception($"след разгъване е {pin.Height:0}, а беше 333");
+            SetPinned(PinWindow.Tasks, false);
+            _save.Tasks.Remove(t);
+        }, 600);
         await step("сандвич на масата", () =>
         {
             var sandwich = Kitchen.Foods.First(f => f.Id == "sandwich");

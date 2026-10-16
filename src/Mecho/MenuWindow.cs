@@ -77,12 +77,12 @@ public sealed class MenuWindow : Window
     private Image _model = null!;
     private readonly StackPanel _taskList = new();
     private TextBlock _taskSummary = null!;
-    private TextBox _taskInput = null!;
+    private TextBox _taskInput = null!, _taskText = null!;
     private int _taskSize = 1;
     private readonly Border[] _sizeButtons = new Border[3];
     private readonly StackPanel _noteList = new();
     private TextBox _noteInput = null!;
-    private TextBlock _pomTime = null!, _pomStatus = null!, _pomToday = null!;
+    private TextBlock _pomTime = null!, _pomNuts = null!, _pomStatus = null!, _pomToday = null!;
     private Button _pomStart = null!, _pomStop = null!;
     private TextBlock _timerTime = null!;
     private TextBox _timerLabel = null!, _timerMinutes = null!;
@@ -684,7 +684,9 @@ public sealed class MenuWindow : Window
         Grid.SetColumn(track, 1);
         grid.Children.Add(track);
 
-        value = new TextBlock { Foreground = Muted, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        // Думата (сит, гладен, бодър…) излиза като подсказка, когато мишката е върху лентата.
+        value = new TextBlock { Foreground = Muted, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
+        grid.Background = Brushes.Transparent;
         Grid.SetColumn(value, 2);
         grid.Children.Add(value);
         return grid;
@@ -695,7 +697,9 @@ public sealed class MenuWindow : Window
         int filled = (int)Math.Ceiling(Math.Clamp(value, 0, 100) / 100 * segments.Length - 0.01);
         var colour = value >= 50 ? Good : value >= 25 ? Okay : Bad;
         for (int i = 0; i < segments.Length; i++) segments[i].Background = i < filled ? colour : Empty;
+        if (text.Text == word) return;
         text.Text = word;
+        if (text.Parent is FrameworkElement bar) bar.ToolTip = Tip(char.ToUpper(word[0]) + word[1..]);
     }
 
     // ───────────────────────── Храна ─────────────────────────
@@ -714,6 +718,7 @@ public sealed class MenuWindow : Window
 
     private readonly WrapPanel _foodCats = new();
     private string _foodCat = "Всичко";
+    private const string Wish = "Желание";
 
     /// <summary>Плочки с храните: картинка, какво дава и бутон „Сготви“. Посочиш ли заключена, казва защо.</summary>
     private void BuildFoodTiles()
@@ -723,18 +728,32 @@ public sealed class MenuWindow : Window
         // Раздели: Всичко, Манджи, Закуски, Сладко, Напитки (само тези, в които има нещо).
         var known = Kitchen.Foods.Where(f => Kitchen.HasRecipe(f, s)).ToList();
         _foodCats.Children.Clear();
-        var cats = new[] { "Всичко" }.Concat(Kitchen.Categories.Where(c => known.Any(f => Kitchen.CategoryOf(f) == c))).ToList();
+        // „Желание“: какво му се иска днес (любимото и желанията) – дадеш ли му го, понякога връща услугата.
+        var wishes = _pet.Wishes();
+        var cats = new[] { "Всичко" }.Concat(wishes.Length > 0 ? new[] { Wish } : Array.Empty<string>())
+            .Concat(Kitchen.Categories.Where(c => known.Any(f => Kitchen.CategoryOf(f) == c))).ToList();
         if (!cats.Contains(_foodCat)) _foodCat = "Всичко";
         foreach (var cat in cats)
         {
             string c = cat;
-            var chip = Chip(c, () => { _foodCat = c; BuildFoodTiles(); });
+            var chip = Chip(c == Wish ? "❤ " + c : c, () => { _foodCat = c; BuildFoodTiles(); });
             chip.Margin = new Thickness(0, 0, 6, 4);
             SetOn(chip, c == _foodCat);
             _foodCats.Children.Add(chip);
         }
         // Само научените рецепти (боровинките винаги); новите идват от страници.
-        foreach (var food in known.Where(f => _foodCat == "Всичко" || Kitchen.CategoryOf(f) == _foodCat))
+        if (_foodCat == Wish)
+            _foodTiles.Children.Add(new TextBlock
+            {
+                Text = "Днес му се иска това. Дадеш ли му го, понякога ще ти върне услугата.",
+                Foreground = Muted,
+                TextWrapping = TextWrapping.Wrap,
+                Width = 420 * U,
+                Margin = new Thickness(2, 0, 0, 8),
+            });
+        var shown = _foodCat == Wish ? wishes.ToList()
+            : known.Where(f => _foodCat == "Всичко" || Kitchen.CategoryOf(f) == _foodCat).ToList();
+        foreach (var food in shown)
         {
             var f = food;
             int cost = Kitchen.CostOf(f, s);
@@ -1569,10 +1588,25 @@ public sealed class MenuWindow : Window
         {
             if (e.Key == Key.Enter) AddTask();
         };
-        p.Children.Add(WithHint(_taskInput, "Нова задача…"));
+        p.Children.Add(WithHint(_taskInput, "Име на задачата…"));
+        // Какво точно е (по избор): в закачения прозорец излиза при посочване на задачата.
+        _taskText = NewTextInput();
+        _taskText.AcceptsReturn = true;
+        _taskText.TextWrapping = TextWrapping.Wrap;
+        _taskText.MaxHeight = 90 * U;
+        _taskText.Margin = new Thickness(0, 6, 0, 0);
+        _taskText.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                AddTask();
+                e.Handled = true;
+            }
+        };
+        p.Children.Add(WithHint(_taskText, "Какво включва? (по избор)"));
 
         var sizes = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
-        string[] labels = { "малка +1", "средна +3", "голяма +5" };
+        string[] labels = { "малка", "средна", "голяма" };
         for (int i = 0; i < 3; i++)
         {
             int size = i + 1;
@@ -1703,6 +1737,15 @@ public sealed class MenuWindow : Window
                 },
             };
             check.Click += (_, _) => _pet.SetTaskDone(t, check.IsChecked == true);
+            if (t.Description.Length > 0)
+            {
+                var both = new StackPanel { Margin = new Thickness(4, 0, 0, 0) };
+                var head = (TextBlock)check.Content;
+                head.Margin = new Thickness(0);
+                check.Content = both;
+                both.Children.Add(head);
+                both.Children.Add(new TextBlock { Text = t.Description, Foreground = Muted, TextWrapping = TextWrapping.Wrap });
+            }
             row.Children.Add(check);
 
             var reward = IconText("nut", $"+{t.Reward}", bold: true);
@@ -1740,8 +1783,9 @@ public sealed class MenuWindow : Window
     private void AddTask()
     {
         if (string.IsNullOrWhiteSpace(_taskInput.Text)) return;
-        _pet.AddTask(_taskInput.Text, _taskSize);
+        _pet.AddTask(_taskInput.Text, _taskSize, _taskText.Text);
         _taskInput.Clear();
+        _taskText.Clear();
         _taskInput.Focus();
     }
 
@@ -1888,6 +1932,8 @@ public sealed class MenuWindow : Window
         taskRow.Children.Add(_focusTasks);
         p.Children.Add(taskRow);
         _pomTime = new TextBlock { FontFamily = MonoFont, FontSize = Huge, HorizontalAlignment = HorizontalAlignment.Center };
+        // Колко лешника носи: вдясно до часовника (само преди да е почнало).
+        _pomNuts = new TextBlock { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, FontSize = Ui.Title, Margin = new Thickness(0, 10, 0, 0) };
         _pomStatus = new TextBlock { HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
         p.Children.Add(new Border
         {
@@ -1896,7 +1942,7 @@ public sealed class MenuWindow : Window
             BorderThickness = Flat,
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(10, 6, 10, 10),
-            Child = new StackPanel { Children = { _pomTime, _pomStatus } },
+            Child = new Grid { Children = { new StackPanel { Children = { _pomTime, _pomStatus } }, _pomNuts } },
         });
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) };
@@ -1971,6 +2017,8 @@ public sealed class MenuWindow : Window
         var start = Button("Пусни", StartCustomTimer, primary: true, icon: "play");
         start.Margin = new Thickness(0);
         custom.Children.Add(start);
+        _timerNuts = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = Ui.Title, Margin = new Thickness(8, 0, 0, 0) };
+        custom.Children.Add(_timerNuts);
         _timerStop = Button("Спри таймера", _pet.StopTimer, icon: "stop");
         _timerStop.Margin = new Thickness(6, 0, 0, 0);
         custom.Children.Add(_timerStop);
@@ -1979,19 +2027,12 @@ public sealed class MenuWindow : Window
         p.Children.Add(_timerReward);
         _timerChoice = 25;
         UpdateTimerChoice();
-
-        p.Children.Add(new TextBlock
-        {
-            Text = "Всеки 10 минути мечо-доро или таймер носят 1 лешник.",
-            Foreground = Muted,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 10, 0, 0),
-        });
         return p;
     }
 
     private readonly WrapPanel _focusTasks = new();
     private Border _timerRibbon = null!;
+    private TextBlock _timerNuts = null!;
 
     /// <summary>„Работя по:“ – без задача или някоя от несвършените (най-много 8).</summary>
     private void BuildFocusTasks()
@@ -2031,7 +2072,8 @@ public sealed class MenuWindow : Window
     {
         foreach (var (m, chip) in _timerChips) SetOn(chip, Math.Abs(m - _timerChoice) < 0.01 && _timerMinutes.Text.Trim().Length == 0);
         int nuts = _pet.NutsFor(_timerChoice);
-        SetRichText(_timerReward, _timerKind == "work" ? $"Избрано: {_timerChoice:0.#} мин  ·  ще получиш {nuts} 🌰" : $"Избрано: {_timerChoice:0.#} мин");
+        _timerReward.Text = $"Избрано: {_timerChoice:0.#} мин";
+        SetRichText(_timerNuts, _timerKind == "work" && nuts > 0 ? $"+{nuts} 🌰" : "");
     }
 
     /// <summary>„Пусни“: пуска таймера с избраното време.</summary>
@@ -2233,15 +2275,18 @@ public sealed class MenuWindow : Window
         {
             case PomodoroPhase.Focus:
                 _pomTime.Text = $"{(int)left.TotalMinutes:00}:{left.Seconds:00}";
+                _pomNuts.Text = "";
                 _pomStatus.Text = s.PomodoroSeries > 1 ? $"Работим заедно ({_pet.PomodoroNumber} от {s.PomodoroSeries})." : "Работим заедно.";
                 break;
             case PomodoroPhase.Break:
                 _pomTime.Text = $"{(int)left.TotalMinutes:00}:{left.Seconds:00}";
+                _pomNuts.Text = "";
                 _pomStatus.Text = s.PomodoroSeriesLeft > 0 ? $"Почивка. После – {_pet.PomodoroNumber + 1} от {s.PomodoroSeries}." : "Почивка: стани, раздвижи се, пийни вода.";
                 break;
             default:
                 _pomTime.Text = $"{(int)_pet.FocusLength.TotalMinutes:00}:00";
-                SetRichText(_pomStatus, $"{_pet.PomodoroMode.Hint} Носи {_pet.PomodoroNuts} 🌰.");
+                _pomStatus.Text = _pet.PomodoroMode.Hint;
+                SetRichText(_pomNuts, $"+{_pet.PomodoroNuts} 🌰");
                 break;
         }
         _pomStart.Visibility = s.PomodoroPhase == PomodoroPhase.Focus ? Visibility.Collapsed : Visibility.Visible;

@@ -330,11 +330,11 @@ public sealed partial class PetWindow
 
     // ───────────────────────── Задачи ─────────────────────────
 
-    public void AddTask(string title, int size)
+    public void AddTask(string title, int size, string? description = null)
     {
         title = title.Trim();
         if (title.Length == 0) return;
-        _save.Tasks.Add(new TaskItem { Title = title, Size = Math.Clamp(size, 1, 3) });
+        _save.Tasks.Add(new TaskItem { Title = title, Size = Math.Clamp(size, 1, 3), Description = description?.Trim() ?? "" });
         Say(Lines.Pick(Lines.TaskAdded, _save.OwnerName), 3);
         NotifyCare();
         Persist();

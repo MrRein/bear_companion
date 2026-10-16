@@ -343,6 +343,16 @@ public sealed partial class PetWindow
         yield return (walk, "Разходи се 1 мин", () => GoForWalk(1));
         yield return (walk, "Разходи се 10 мин", () => GoForWalk(10));
         yield return (walk, "Вечерна дрямка-разходка 2 мин", () => { _save.Energy = 10; _save.WalkUntil = DateTime.MinValue; GoForWalk(2); _save.WalkNap = true; });
+        yield return (walk, "Сам тръгва (1 мин, както когато скучае)", () => GoForWalk(1, solo: true));
+        yield return (walk, "Сам тръгва при следващия избор (шанс 30%)", () => { _nextSoloWalk = 0; _freeUntil = 0; });
+        yield return (walk, "Желание: даде му каквото иска (награда)", () =>
+        {
+            if (Wishes() is { Length: > 0 } w)
+            {
+                TodayRec.WishGifts = 0;
+                for (int i = 0; i < 100 && !WishThanks(w[0]); i++) TodayRec.WishGifts = 0;
+            }
+        });
         yield return (walk, "Повикай го (като иконката)", () => ReturnFromWalk(called: true));
         yield return (walk, "Връща се сам (времето изтече)", () => { if (OnWalk) _save.WalkUntil = DateTime.Now; });
         foreach (var color in GiftColors)

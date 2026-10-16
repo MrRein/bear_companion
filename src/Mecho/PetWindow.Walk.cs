@@ -17,7 +17,10 @@ public sealed partial class PetWindow
 
     public TimeSpan WalkLeft => _save.WalkUntil > DateTime.Now ? _save.WalkUntil - DateTime.Now : TimeSpan.Zero;
 
-    public void GoForWalk(double minutes)
+    public void GoForWalk(double minutes) => GoForWalk(minutes, solo: false);
+
+    /// <summary>Тръгва на разходка; solo – сам се е сетил (без „Разходи се“ от менюто).</summary>
+    private void GoForWalk(double minutes, bool solo)
     {
         if (minutes <= 0 || OnWalk) return;
         if (IsAsleep)
@@ -37,9 +40,10 @@ public sealed partial class PetWindow
         _walkingOut = true;
         _save.WalkUntil = DateTime.Now.AddMinutes(minutes);
         // Вечер и много му се спи: ще посънча навън – разходката се брои за сън.
-        _save.WalkNap = (LateForBed || DateTime.Now.Hour >= 19) && _save.Energy < TiredBelow;
+        _save.WalkNap = !solo && (LateForBed || DateTime.Now.Hour >= 19) && _save.Energy < TiredBelow;
+        _save.WalkSolo = solo;
         Persist();
-        Say(R.Pick(_save.WalkNap ? "walk.leave.nap" : "walk.leave", _save.OwnerName), 3);
+        Say(R.Pick(_save.WalkNap ? "walk.leave.nap" : solo ? "walk.leave.solo" : "walk.leave", _save.OwnerName), 3);
         // Към по-близкия ръб: средата му остава в екрана (иначе при два монитора ще
         // излезе на другия), а стигне ли ръба, се скрива.
         var area = Area;
@@ -57,6 +61,24 @@ public sealed partial class PetWindow
         NotifyCare();
     }
 
+    private double _nextSoloWalk = 90 * 60;   // най-рано кога пак може да тръгне сам
+
+    /// <summary>
+    /// Рядко, когато никой не му е казал какво да прави, сам излиза за 2, 5, 10 или
+    /// 15 минути (вика се от FreeCycleStep). Връща се сам или от мечето до часовника.
+    /// </summary>
+    private bool MaybeWanderOff()
+    {
+        if (Now < _nextSoloWalk) return false;
+        _nextSoloWalk = Now + Minutes(120, 240);
+        if (_rng.NextDouble() > 0.3) return false;
+        if (OnWalk || IsAsleep || InFocus || TimerRunning || Cooks || _pendingCook != null || CarriesGift || _eating != null
+            || LateNight || _save.Energy < 15 || WaitingForFood || _save.GiftPending) return false;
+        int[] choices = { 2, 5, 10, 15 };
+        GoForWalk(choices[_rng.Next(choices.Length)], solo: true);
+        return OnWalk;
+    }
+
     /// <summary>Вика се всеки цикъл: времето изтече ли – връща се.</summary>
     private void UpdateWalkAway()
     {
@@ -69,8 +91,9 @@ public sealed partial class PetWindow
     {
         if (_save.WalkUntil == DateTime.MinValue && !_walkingOut) return;
         _walkingOut = false;
-        bool napped = _save.WalkNap;
+        bool napped = _save.WalkNap, solo = _save.WalkSolo;
         _save.WalkNap = false;
+        _save.WalkSolo = false;
         _save.WalkUntil = DateTime.MinValue;
         Persist();
         // Влиза отстрани, откъдето е по-близо до мястото, където беше.
@@ -85,7 +108,7 @@ public sealed partial class PetWindow
         {
             _walkingBack = false;
             _facingLeft = !left;
-            Say(R.Pick(called ? "walk.called" : napped ? "walk.back.nap" : "walk.back", _save.OwnerName), 4);
+            Say(R.Pick(called ? "walk.called" : napped ? "walk.back.nap" : solo ? "walk.back.solo" : "walk.back", _save.OwnerName), 5);
             Emote(called ? "question" : "happy");
             if (CanAnimateFreely) Play("happy");
         });

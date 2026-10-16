@@ -254,7 +254,7 @@ public static class Ui
         ["💡"] = "pencil", ["📝"] = "notes", ["📋"] = "tasks", ["🛋"] = "couch", ["🎁"] = "gift", ["🚶"] = "walk", ["🔒"] = "lock",
         ["💤"] = "moon", ["🌙"] = "moon", ["☀"] = "sun", ["❤"] = "heart", ["♪"] = "music",
         ["🌡"] = "shop_heater", ["🫓"] = "food_sandwich", ["🫕"] = "food_roast_soup", ["🍅"] = "food_pressed_caprese", ["🥬"] = "food_pressed_veggie",
-        ["🍗"] = "food_pressed_chicken", ["🥯"] = "food_pressed_egg", ["🍄"] = "food_pressed_mushroom", ["📌"] = "pin", ["➖"] = "minimize", ["⧉"] = "copy", ["★"] = "star", ["🔄"] = "reroll", ["👁"] = "hide", ["🔊"] = "sound", ["☰"] = "menu", ["🧶"] = "shop_yarn_basket", ["🎸"] = "shop_guitar", ["🪔"] = "shop_lamp",
+        ["🍗"] = "food_pressed_chicken", ["🥯"] = "food_pressed_egg", ["🍄"] = "food_pressed_mushroom", ["📌"] = "pin", ["➖"] = "minimize", ["⧉"] = "copy", ["★"] = "star", ["🔄"] = "reroll", ["👁"] = "hide", ["🔊"] = "sound", ["☰"] = "menu", ["🐻"] = "bear", ["🧶"] = "shop_yarn_basket", ["🎸"] = "shop_guitar", ["🪔"] = "shop_lamp",
         ["🥄"] = "shop_mixer", ["🧇"] = "shop_sandwich", ["🍨"] = "shop_icecream", ["♨"] = "shop_grill",
         ["🍋"] = "food_lemonade", ["🥣"] = "food_soup", ["🌽"] = "food_corn", ["🍫"] = "food_cocoa", ["🌼"] = "food_linden_tea",
         ["🥚"] = "food_eggs", ["🥞"] = "food_pancakes", ["🫘"] = "food_espresso", ["🥛"] = "food_latte", ["🟤"] = "food_mocha",

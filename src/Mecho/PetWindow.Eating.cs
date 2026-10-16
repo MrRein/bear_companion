@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Media.Imaging;
 
@@ -72,7 +73,48 @@ public sealed partial class PetWindow
     private void FinishedAll(Food food)
     {
         Joy(JoyFed);
+        if (WishThanks(food)) return;
         if (!ThankForMeal()) Say(DoneLine(food), 4);
+    }
+
+    /// <summary>Каквото иска днес (любимото със сърчице и желанията от „Желание“).</summary>
+    public Food[] Wishes()
+    {
+        var list = new List<Food>();
+        if (FavoriteFood is { } fav) list.Add(fav);
+        foreach (var f in Kitchen.Cravings(_save))
+            if (!list.Contains(f)) list.Add(f);
+        return list.ToArray();
+    }
+
+    /// <summary>
+    /// Даде му каквото искаше: понякога (до 2 пъти на ден) ти връща услугата – лешник
+    /// или два, а много рядко страница от готварската книга, която пазеше.
+    /// </summary>
+    private bool WishThanks(Food food)
+    {
+        if (!Wishes().Contains(food) || TodayRec.WishGifts >= 2) return false;
+        double roll = _rng.NextDouble();
+        if (roll < 0.05 && Recipes.Next(_save) != null)
+        {
+            TodayRec.WishGifts++;
+            string page = FindRecipePage();
+            Say(Fill("wish.page", ("ястие", food.Name.ToLowerInvariant())) + page, 7);
+            Emote("heart", 4);
+            return true;
+        }
+        if (roll < 0.4)
+        {
+            TodayRec.WishGifts++;
+            int nuts = 1 + _rng.Next(3);
+            _save.Hazelnuts += nuts;
+            Persist();
+            NotifyCare();
+            Say(Fill("wish.nuts", ("ястие", food.Name.ToLowerInvariant())) + $" +{nuts} 🌰", 6);
+            Emote("happy", 3);
+            return true;
+        }
+        return false;
     }
 
     /// <summary>Изяде/изпи: понякога за точно това ядене, понякога общо („Беше вкусно!“).</summary>

@@ -53,6 +53,7 @@ public sealed class SaveData
     public bool SoundOn { get; set; } = true;                    // „динг“ в края на мечо-доро и таймер
     public double SoundVolume { get; set; } = 0.6;
     public DateTime WalkUntil { get; set; } = DateTime.MinValue;
+    public bool WalkSolo { get; set; }                           // тръгна сам (никой не му каза какво да прави)
     public bool WalkNap { get; set; }                            // вечерна разходка-дрямка: брои се за сън  // на разходка извън екрана до (виж PetWindow.Walk.cs)            // скинът на менюто (виж UiThemes)             // коя пижама облича вечер (виж Clothes.PajamaSets)
     public bool LampOff { get; set; }                           // Тут изгаси лампата тази вечер (до сутринта)
     public string LampOffDay { get; set; } = "";
@@ -205,6 +206,9 @@ public sealed class TaskItem
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "";
 
+    /// <summary>Какво включва (по избор): в закачения прозорец излиза при посочване.</summary>
+    public string Description { get; set; } = "";
+
     /// <summary>1 = малка, 2 = средна, 3 = голяма.</summary>
     public int Size { get; set; } = 1;
 
@@ -227,6 +231,7 @@ public sealed class DayRecord
     public int BigTasks { get; set; }
     public List<string> Foods { get; set; } = new();
     public bool FavFed { get; set; }
+    public int WishGifts { get; set; }         // колко пъти днес е върнал услугата (лешник/страница) за желано ядене
     public int Petted { get; set; }
     public bool WokeEarly { get; set; }        // Тут го събуди рано сутрин
     public bool NapWoken { get; set; }         // събуди го от дрямка

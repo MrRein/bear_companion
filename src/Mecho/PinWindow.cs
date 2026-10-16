@@ -81,9 +81,9 @@ public sealed class PinWindow : Window
         close.ToolTip = Tip("Откачи");
         _fade = Chip("👁", () => { State.Faded = !State.Faded; ApplyFade(); _pet.SavePins(); });
         _fade.ToolTip = Tip("Полупрозрачно, когато мишката не е отгоре");
-        _collapse = Chip("➖", () => { State.Collapsed = !State.Collapsed; ApplyCollapse(); _pet.SavePins(); });
+        _collapse = Chip("➖", ToggleCollapse);
         _collapse.ToolTip = Tip("Свий / разгъни");
-        var menu = Chip("☰", () => _pet.OpenMenu(_kind == Tasks ? MenuWindow.TasksTab : MenuWindow.NotesTab));
+        var menu = Chip("🐻", () => _pet.OpenMenu(_kind == Tasks ? MenuWindow.TasksTab : MenuWindow.NotesTab));
         menu.ToolTip = Tip("Отвори в менюто");
         foreach (var b in new[] { close, _fade, _collapse, menu })
         {
@@ -100,9 +100,7 @@ public sealed class PinWindow : Window
         {
             if (e.ClickCount == 2)
             {
-                State.Collapsed = !State.Collapsed;
-                ApplyCollapse();
-                _pet.SavePins();
+                ToggleCollapse();
                 return;
             }
             try { DragMove(); } catch (InvalidOperationException) { }
@@ -181,7 +179,7 @@ public sealed class PinWindow : Window
         var s = State;
         s.X = Left;
         s.Y = Top;
-        if (!s.Collapsed && ActualWidth > 0)
+        if (!s.Collapsed && !_applying && ActualWidth > 0)
         {
             s.W = ActualWidth;
             s.H = ActualHeight;
@@ -194,8 +192,20 @@ public sealed class PinWindow : Window
         Opacity = State.Faded && !IsMouseOver ? 0.55 : 1;
     }
 
+    /// <summary>Свива / разгъва (като ➖).</summary>
+    public void ToggleCollapse()
+    {
+        State.Collapsed = !State.Collapsed;
+        ApplyCollapse();
+        _pet.SavePins();
+    }
+
     private void ApplyCollapse()
     {
+        // Докато се свива/разгъва, размерът се мени за миг (ResizeMode, SizeToContent):
+        // той не бива да се запомня, иначе разгънатото излиза мъничко.
+        double height = State.H;
+        _applying = true;
         SetOn(_collapse, State.Collapsed);
         _body.Visibility = State.Collapsed ? Visibility.Collapsed : Visibility.Visible;
         if (State.Collapsed)
@@ -209,9 +219,13 @@ public sealed class PinWindow : Window
             SizeToContent = SizeToContent.Manual;
             ResizeMode = ResizeMode.CanResizeWithGrip;
             MinHeight = 90 * U;
-            Height = State.H > 0 ? State.H : 320 * U;
+            State.H = height;
+            Height = height > 0 ? height : 320 * U;
         }
+        _applying = false;
     }
+
+    private bool _applying;
 
     private void AddFromInput()
     {
@@ -232,7 +246,7 @@ public sealed class PinWindow : Window
     {
         var s = _pet.Save;
         string sig = _kind == Tasks
-            ? string.Join("|", s.Tasks.Where(t => !t.Done).Select(t => t.Id + t.Title + t.Size)) + "#" + s.FocusTask + _pet.InFocus
+            ? string.Join("|", s.Tasks.Where(t => !t.Done).Select(t => t.Id + t.Title + t.Description + t.Size)) + "#" + s.FocusTask + _pet.InFocus
             : string.Join("|", s.Notes.Select(n => n.Id + n.Text));
         if (sig == _shown) return;
         _shown = sig;
@@ -268,6 +282,14 @@ public sealed class PinWindow : Window
                 },
             };
             check.Click += (_, _) => _pet.SetTaskDone(t, check.IsChecked == true);
+            // Описанието (ако има) излиза при посочване; малкото „…“ подсказва, че има още.
+            if (t.Description.Length > 0)
+            {
+                ((TextBlock)check.Content).Text = t.Title + " …";
+                check.ToolTip = Tip(t.Description);
+                ToolTipService.SetInitialShowDelay(check, 250);
+                ToolTipService.SetShowDuration(check, 60000);
+            }
             row.Children.Add(check);
             var reward = IconText("nut", $"+{t.Reward}");
             reward.Opacity = 0.7;
