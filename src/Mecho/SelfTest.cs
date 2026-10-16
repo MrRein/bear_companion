@@ -760,8 +760,7 @@ public sealed partial class PetWindow
             GrowPlantByTime();
             if (_save.PlantStage != 6) throw new Exception("не порасна само с времето (2 фази за 11 дни)");
             // Стига до ръба, издърпва саксията и почва грижите.
-            _x = CareSpot;
-            for (int i = 0; i < 40; i++) UpdateGarden(Now + i * 0.1);
+            for (int i = 0; i < 3000 && _gardenPhase < 2; i++) UpdateGarden(Now + i * 0.1);
             if (_gardenPhase != 2 || _plantOut < 1) throw new Exception($"не издърпа саксията (фаза {_gardenPhase}, навън {_plantOut:0.0})");
             foreach (var t in new[] { "wateringcan", "shovel", "scissors" })
                 if (!Clothes.All.Any(g => g.Id == t)) throw new Exception("няма инструмент " + t);
@@ -777,7 +776,10 @@ public sealed partial class PetWindow
         await step("градинка: свърши", () =>
         {
             LeaveScene();
-            for (int i = 0; i < 20; i++) UpdatePlantAway(0.1);
+            if (!_plantPushing) throw new Exception("не бута саксията обратно");
+            _plantPushing = false;
+            _plantOut = 0;
+            HideGarden();
             if (_gardenWindow is { IsVisible: true }) throw new Exception("саксията не се прибра");
             UpdateDrops(Now, 0.016);
             if (_drops.Count > 0) throw new Exception("капчиците останаха");
@@ -826,6 +828,25 @@ public sealed partial class PetWindow
             UpdateFeeder(Now, 0.03);
             if (_radioWindow != null || _feederWindow != null) throw new Exception("не се прибраха");
         }, 300);
+        await step("плавен преход: „Почивай си“ мисли, после почва", () =>
+        {
+            InstantModes = false;
+            if (IsAsleep) WakeUp();
+            DevClearFood();
+            if (_inScene) LeaveScene();
+            SetIdle();
+            RelaxRandom();
+            if (_inScene) throw new Exception("почна веднага, без да помисли");
+            if (_modeDecideAt <= Now) throw new Exception("няма пауза за мислене");
+            _modeDecideAt = 0;
+            SetIdle();
+            _stateTime = 99;
+            UpdateIdle(Now);
+            if (!_inScene && !_onTrampoline) throw new Exception("след паузата не избра занимание");
+            InstantModes = true;
+            GetUp();
+        }, 300);
+        await step("скорост", () => SelfTest.Log("   " + PerfSummary()), 100);
         await step("нива на глад и умора", () =>
         {
             foreach (var (v, lvl) in new[] { (0.0, 1), (20.0, 1), (21.0, 2), (35.0, 2), (36.0, 3), (50.0, 3), (51.0, 4), (65.0, 4), (66.0, 5), (80.0, 5), (81.0, 6), (95.0, 6) })
@@ -1083,7 +1104,7 @@ public sealed partial class PetWindow
         }, 200);
         await step("студ по нива", () =>
         {
-            foreach (var (t, lvl) in new[] { (22.0, 0), (17.0, 1), (12.0, 2), (5.0, 3), (-5.0, 4) })
+            foreach (var (t, lvl) in new[] { (22.0, 0), (16.0, 0), (15.0, 1), (11.0, 1), (10.0, 2), (6.0, 2), (5.0, 3), (1.0, 3), (0.0, 4), (-5.0, 4) })
             {
                 _tempC = t;
                 if (ColdLevel != lvl) throw new Exception($"{t}°C: ниво {ColdLevel}, а трябва {lvl}");

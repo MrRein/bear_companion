@@ -43,22 +43,22 @@ public sealed partial class PetWindow
         Clothes.All.Where(g => g.SlotId == slot.Id && Clothes.Owns(_save, g)).Select(WarmthOf).DefaultIfEmpty(0).Max());
 
     /// <summary>
-    /// Колко му е студено: 0 – над 20°C, 1 – хладно (15–20), 2 – студено (10–15),
-    /// 3 – много студено (0–10), 4 – мраз (под 0). Колкото по-студено, толкова
-    /// по-топли дрехи иска (Warmth ≥ нивото), а от 2 нагоре – и печицата.
+    /// Колко му е студено (по закръглените градуси): 0 – над 15°C, 1 – хладно (11–15),
+    /// 2 – студено (6–10), 3 – много студено (1–5), 4 – мраз (0 и под). Колкото по-студено,
+    /// толкова по-топли дрехи иска (Warmth ≥ нивото), а от 2 нагоре – и печицата.
     /// </summary>
-    private int ColdLevel => _tempC switch
+    private int ColdLevel => _tempC is not { } t ? 0 : Math.Round(t) switch
     {
-        null => 0,
-        >= Weather.Cool => 0,
-        >= Weather.Cold => 1,
-        >= 10 => 2,
-        >= 0 => 3,
+        > 15 => 0,
+        > 10 => 1,
+        > 5 => 2,
+        > 0 => 3,
         _ => 4,
     };
 
     private bool Cold => ColdLevel > 0;
-    private bool Hot => _tempC > Weather.Hot;
+    private bool Hot => _tempC is { } t && Math.Round(t) >= Weather.Hot;
+    private bool VeryHot => _tempC is { } t && Math.Round(t) >= Weather.VeryHot;
     private bool WantsHeater => ColdLevel >= 2;
     private bool DressedWarmEnough => Warmth >= ColdLevel;
     private bool Comfortable => DressedWarmEnough && (!WantsHeater || _save.HeaterOn);
@@ -70,7 +70,7 @@ public sealed partial class PetWindow
         {
             if (_tempC is not { } t) return null;
             // Само как е навън – без какво точно иска.
-            string feel = Hot ? "горещо е" : !Cold ? "приятно е"
+            string feel = VeryHot ? "жега е" : Hot ? "горещо е" : !Cold ? (Math.Round(t) <= 20 ? "хладничко-приятно е" : "топло е")
                 : ColdLevel switch { 1 => "хладно е", 2 => "студено е", 3 => "много е студено", _ => "мраз е" };
             string sky = Weather.KindText(t) is { } k ? $", {k}" : "";
             return $"🌡 {t:0}°C{sky} · {feel}";

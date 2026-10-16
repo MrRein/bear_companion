@@ -187,7 +187,8 @@ public sealed partial class PetWindow
         _save.StayScene = scene.Id;
         _save.AutoMode = false;
         _save.SleepingByChoice = false;
-        if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) StartScene(scene, quiet: false);
+        // Не веднага: става, помисля няколко секунди и чак тогава отива (виж UpdateIdle).
+        if (scene == Scenes.Trampoline ? !_onTrampoline : _scene != scene) BeginModeChange(2, 4, R.Pick($"scene.{scene.Id}.intent", _save.OwnerName));
         _sceneUntil = 0;
         _idleSince = Now;
         OpenParcelFirst();
@@ -222,14 +223,49 @@ public sealed partial class PetWindow
         _save.StayScene = RandomWork;
         _save.AutoMode = false;
         _save.SleepingByChoice = false;
-        var last = CurrentFun;
-        if (_onTrampoline) EndBounce(null);
-        if (_inScene) LeaveScene();
-        var started = StartRandomWork(last);
-        SayIntent(started, Scenes.Work);
+        BeginModeChange(3, 7, R.Pick("mode.work.think", _save.OwnerName));
         _idleSince = Now;
         OpenParcelFirst();
         Persist();
+    }
+
+    private double _modeDecideAt;     // в режим „остани“: кога решава какво да прави (плавен преход)
+    private bool _sayIntentNext;      // при решението: да каже ли какво е избрал
+
+    /// <summary>
+    /// Плавно влизане в режим: оставя заниманието, постоява и мисли (from–to секунди),
+    /// казва какво му е наум и чак после избира какво да прави (UpdateIdle).
+    /// </summary>
+    private void BeginModeChange(int from, int to, string? thought)
+    {
+        if (_onTrampoline) EndBounce(null);
+        if (_inScene) LeaveScene();
+        _modeDecideAt = Now + from + _rng.NextDouble() * (to - from);
+        _sayIntentNext = _save.StayScene is RandomRelax or RandomWork;
+        if (!string.IsNullOrEmpty(thought)) Say(thought, 3);
+        // Самопроверката не чака (там проверяваме самите занимания; паузата – отделно).
+        if (InstantModes)
+        {
+            _modeDecideAt = 0;
+            DecideMode();
+            return;
+        }
+        if (CanAnimateFreely) Play("think", length: _modeDecideAt - Now);
+    }
+
+    internal bool InstantModes = SelfTest.Running;
+
+    /// <summary>Решава какво да прави в режима: случайно занимание (почивай/работи си) или избраното кътче.</summary>
+    private void DecideMode()
+    {
+        // Сам е решил (по часовника): блокът свърши – избира пак почивка или работа.
+        if (_save.AutoMode && Now > _autoUntil) PickAutoMode();
+        Scene? started = null;
+        if (RelaxesRandomly) started = StartRandomRelax(_lastFun);
+        else if (WorksRandomly) started = StartRandomWork(_lastFun);
+        else StartScene(Scenes.ById(_save.StayScene), quiet: true);
+        if (_sayIntentNext && started != null) SayIntent(started, Scenes.Fun);
+        _sayIntentNext = false;
     }
 
     /// <summary>Казва какво мисли да прави („Ще си поработя по идеи за настолна игра.“).</summary>
@@ -258,11 +294,7 @@ public sealed partial class PetWindow
         _save.StayScene = RandomRelax;
         _save.AutoMode = false;
         _save.SleepingByChoice = false;
-        var last = CurrentFun;
-        if (_onTrampoline) EndBounce(null);
-        if (_inScene) LeaveScene();
-        var started = StartRandomRelax(last);
-        SayIntent(started, Scenes.Fun);
+        BeginModeChange(3, 7, R.Pick("mode.relax.think", _save.OwnerName));
         _idleSince = Now;
         OpenParcelFirst();
         Persist();
@@ -373,6 +405,8 @@ public sealed partial class PetWindow
         _scene = null;
         _sceneUntil = 0;
         _idleSince = Now;
+        // В режим (почивай/работи си): между две занимания се поразтъпква 8–20 с, после решава.
+        if (_save.StayPut && (RelaxesRandomly || WorksRandomly) && !InstantModes) _modeDecideAt = Math.Max(_modeDecideAt, Now + 8 + _rng.Next(13));
         // След блок, който си е избрал сам (седене, хоби): кратка разходка и пак
         // избира; след нещо, избрано от Тут, свободата почва отначало.
         StartFreeCycle(sitNow: wasAuto);

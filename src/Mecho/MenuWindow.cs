@@ -845,7 +845,7 @@ public sealed class MenuWindow : Window
                     why = $"Трябват {cost} лешника, а имаш {s.Hazelnuts}.";
                 }
             }
-            _foodTiles.Children.Add(MakeTile(_pet.PropImage("food_" + f.Id), f.Name, effects, action, locked, why));
+            _foodTiles.Children.Add(MakeTile(_pet.FoodMenuImage(f), f.Name, effects, action, locked, why));
         }
         BuildRecipeProgress();
     }
@@ -962,10 +962,10 @@ public sealed class MenuWindow : Window
     {
         SelectTab(TasksTab);
         _showHistory = true;
-        Refresh(true);
+        RefreshNow(true);
         UpdateLayout();
         _showHistory = false;
-        Refresh(true);
+        RefreshNow(true);
     }
 
     /// <summary>Отваря магазина (например от гардероба или от заключена храна).</summary>
@@ -1176,18 +1176,20 @@ public sealed class MenuWindow : Window
         return MakeTile(art, g.Name, Description(""), action, dim: false, why, owned, scale);
     }
 
+    /// <summary>„В гардероба“: купеното от офертата се слага/сменя от гардероба (отваря раздела).</summary>
+    private Button ToWardrobe(string section, out string? why)
+    {
+        why = "Вече е в гардероба.";
+        return Button("В гардероба", () => { _wardrobeSection = section; SelectTab(WardrobeTab); }, icon: "wardrobe");
+    }
+
     private Border BackdropTile(Backdrop b)
     {
         var s = _pet.Save;
         bool owned = Backdrops.Owns(s, b), used = s.Background == b.Id;
         string? why = null;
         Button action;
-        if (used)
-        {
-            action = Button("Сложен", () => { });
-            action.IsEnabled = false;
-        }
-        else if (owned) action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
+        if (owned) action = ToWardrobe("wallpapers", out why);   // от офертата: купеното се слага от гардероба
         else action = BuyButton(b.Price, () => _pet.BuyBackdrop(b), out why);
         return MakeTile(_pet.BackdropImage(b), b.Name, Description("Тапет за портрета на Мечо."), action, dim: false, why, owned, 2);
     }
@@ -1199,11 +1201,7 @@ public sealed class MenuWindow : Window
         bool owned = UiThemes.Owns(s, t), used = UiThemes.Current(s) == t;
         string? why = null;
         Button action;
-        if (shop && owned)
-        {
-            action = Button("В гардероба", () => { _wardrobeSection = "themes"; SelectTab(WardrobeTab); }, icon: "wardrobe");
-            why = "Вече е в гардероба.";
-        }
+        if (shop && owned) action = ToWardrobe("themes", out why);
         else if (used)
         {
             action = Button("Сложен", () => { });
@@ -1221,7 +1219,8 @@ public sealed class MenuWindow : Window
         bool owned = Clothes.Owns(s, p), used = Clothes.CurrentPajama(s) == p;
         string? why = null;
         Button action;
-        if (used)
+        if (shop && owned) action = ToWardrobe("pajamas", out why);
+        else if (used)
         {
             action = Button("Избрана", () => { });
             action.IsEnabled = false;
@@ -1239,7 +1238,8 @@ public sealed class MenuWindow : Window
         bool hasItem = Kitchen.Owns(s, skin.Item);
         string? why = null;
         Button action;
-        if (used)
+        if (shop && owned) action = ToWardrobe("furniture", out why);
+        else if (used)
         {
             action = Button("Сложен", () => { });
             action.IsEnabled = false;
@@ -2244,7 +2244,33 @@ public sealed class MenuWindow : Window
 
     // ───────────────────────── Обновяване ─────────────────────────
 
+    private bool _rebuildQueued;
+
+    /// <summary>
+    /// Обновява менюто. Строенето на таба наново (rebuild) не става веднага, а веднъж,
+    /// след като свършат всички промени в този момент: три цъкания подред или няколко
+    /// известия наведнъж = едно строене (иначе менюто „засичаше“).
+    /// </summary>
     private void Refresh(bool rebuild)
+    {
+        if (!rebuild || !IsOpen || SelfTest.Running)
+        {
+            RefreshNow(rebuild);
+            return;
+        }
+        RefreshNow(false);
+        if (_rebuildQueued) return;
+        _rebuildQueued = true;
+        Dispatcher.BeginInvoke(() =>
+        {
+            _rebuildQueued = false;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            RefreshNow(true);
+            _pet.PerfNote("менюто: строене на таба", watch.Elapsed.TotalMilliseconds);
+        }, DispatcherPriority.Background);
+    }
+
+    private void RefreshNow(bool rebuild)
     {
         var s = _pet.Save;
         _nuts.Text = s.Hazelnuts.ToString();

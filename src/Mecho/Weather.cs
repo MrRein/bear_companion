@@ -22,8 +22,11 @@ public static class Weather
         return http;
     }
 
-    /// <summary>Под Cool почва да му е хладно (все по-студено надолу), над Hot – горещо.</summary>
-    public const double Cool = 20, Cold = 15, Hot = 25;
+    /// <summary>
+    /// Скалата (закръглени градуси): ≤0 мраз, 1–5 много студено, 6–10 студено,
+    /// 11–15 хладно, 16–24 приятно (до 20 хладничко-топло, после топло), 25–30 горещо, 31+ жега.
+    /// </summary>
+    public const double Cool = 15, Cold = 10, Hot = 25, VeryHot = 31;
 
     /// <summary>Какво е времето сега (код по WMO: 0 ясно, 61 дъжд, 71 сняг, 95 гръмотевици…) и вятърът в км/ч.</summary>
     public static int Code { get; private set; } = -1;
@@ -78,10 +81,11 @@ public static class Weather
         >= 51 and <= 67 or 80 => "rain",
         45 or 48 => "fog",
         _ when Wind >= 30 => "windy",
-        _ when temp < -3 => "frost",
-        _ when temp > 30 => "heat",
-        _ when temp < Cold => "cold",
-        _ when temp < Cool => "cool",
+        _ when temp is { } t0 && Math.Round(t0) <= 0 => "frost",
+        _ when temp is { } t1 && Math.Round(t1) >= VeryHot => "heat",
+        _ when temp is { } t2 && Math.Round(t2) >= Hot => "hot",
+        _ when temp is { } t3 && Math.Round(t3) <= Cold => "cold",
+        _ when temp is { } t4 && Math.Round(t4) <= Cool => "cool",
         0 or 1 when DateTime.Now.Hour is >= 8 and < 19 => "sunny",
         2 or 3 => "cloudy",
         _ => null,

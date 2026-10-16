@@ -239,6 +239,7 @@ public sealed partial class PetWindow : Window
 
     private void Tick()
     {
+        long perfStart = System.Diagnostics.Stopwatch.GetTimestamp();
         double now = Now;
         // real: колко време наистина мина (за анимациите, таймерите и нуждите);
         // dt: същото, но най-много 0,1 с – за движението (да не прескача).
@@ -268,6 +269,7 @@ public sealed partial class PetWindow : Window
             case BearState.Bounce: UpdateBounce(dt); break;
             case BearState.Drag: break;
         }
+        PerfMark(0, perfStart);
         UpdateCare(real, now);
         UpdateFood(dt);
         if (_drops.Count > 0 || InGarden) UpdateDrops(now, dt);
@@ -289,6 +291,7 @@ public sealed partial class PetWindow : Window
         }
         UpdateWeather(now);
         UpdatePajamas();
+        PerfMark(1, perfStart);
 
         if (_state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
         {
@@ -303,7 +306,7 @@ public sealed partial class PetWindow : Window
                 SetState(BearState.Falling, _inScene ? _anim : "drag");
             }
             else _y = ground;
-            if (!_peeking && !_walkingOut && !_walkingBack) ClampX();
+            if (!_peeking && !_walkingOut && !_walkingBack && !GardenOffscreenOk) ClampX();
         }
 
         if (_bubble.Visibility == Visibility.Visible && now > _bubbleUntil) HideBubble();
@@ -334,6 +337,7 @@ public sealed partial class PetWindow : Window
             Persist();
         }
         PaceTimer();
+        PerfTick(perfStart);
     }
 
     /// <summary>
@@ -499,11 +503,14 @@ public sealed partial class PetWindow : Window
         // Тут го е оставила в кътче (и после са го вдигнали): връща се там.
         if (_save.StayPut && !_inScene && !_onTrampoline && !InFocus)
         {
-            // Сам е решил (по часовника): блокът свърши – избира пак почивка или работа.
-            if (_save.AutoMode && Now > _autoUntil) PickAutoMode();
-            if (RelaxesRandomly) StartRandomRelax(_lastFun);
-            else if (WorksRandomly) StartRandomWork(_lastFun);
-            else StartScene(Scenes.ById(_save.StayScene), quiet: true);
+            // Плавно: още мисли / поразтъпква се между две занимания – после решава.
+            if (Now < _modeDecideAt)
+            {
+                if (_rng.Next(3) == 0) WalkTo(WalkTarget());
+                else SetIdle();
+                return;
+            }
+            DecideMode();
             return;
         }
 

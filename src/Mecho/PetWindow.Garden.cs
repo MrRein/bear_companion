@@ -22,9 +22,8 @@ public sealed partial class PetWindow
     private OverlayWindow? _gardenWindow;
     private readonly Image _plant = new() { IsHitTestVisible = false };
     private int _plantSide;            // -1 – левият ръб, +1 – десният
-    private double _plantX;            // средата на саксията (докато е навън)
-    private double _plantOut;          // 0 – скрита зад ръба, 1 – издърпана
-    private int _gardenPhase;          // 0 – върви към ръба, 1 – издърпва, 2 – грижи се
+    private double _plantOut;          // 0 – скрита зад ръба, 1 – навън (дърпа я, грижи се, бута я)
+    private int _gardenPhase;          // 0 – отива зад ръба, 1 – връща се с саксията, 2 – грижи се
     private double _gardenWaterUntil;  // докога трае сегашната грижа
     private double _gardenLast;
     private string _plantTool = "wateringcan";
@@ -103,13 +102,14 @@ public sealed partial class PetWindow
         return Dresser.FirstPoint(strip[_lib.Get(_anim).IndexAt(_animTime) % strip.Length]);
     }
 
-    /// <summary>Отива към по-близкия ръб; там издърпва саксията и се грижи за нея.</summary>
+    /// <summary>Отива към по-близкия ръб, излиза зад него и се връща, като дърпа саксията след себе си.</summary>
     private void StartGarden()
     {
         var area = Area;
         _plantSide = _x - area.Left < area.Right - _x ? -1 : 1;
         _gardenPhase = 0;
         _plantOut = 0;
+        _plantPushing = false;
         _gardenWaterUntil = 0;
         _gardenLast = Now;
         GrowPlantByTime();
@@ -119,8 +119,14 @@ public sealed partial class PetWindow
     /// <summary>Мястото на саксията, когато е издърпана (до ръба, вътре в екрана).</summary>
     private double PlantSpot => _plantSide < 0 ? Area.Left + PlantW * PixelSize * 0.7 : Area.Right - PlantW * PixelSize * 0.7;
 
+    /// <summary>Колко встрани от мечока е саксията, докато я дърпа/бута (откъм ръба).</summary>
+    private double PlantGap => PlantW * PixelSize * 0.5 + SpriteWidth * 0.32;
+
     /// <summary>Къде застава мечокът до саксията (откъм екрана).</summary>
-    private double CareSpot => PlantSpot - _plantSide * (PlantW * PixelSize * 0.5 + SpriteWidth * 0.32);
+    private double CareSpot => PlantSpot - _plantSide * PlantGap;
+
+    /// <summary>Зад ръба: там мечокът „взима“ саксията (извън екрана).</summary>
+    private double BehindEdge => _plantSide < 0 ? Area.Left - SpriteWidth * 0.6 : Area.Right + SpriteWidth * 0.6;
 
     private void ShowGarden()
     {
@@ -132,23 +138,25 @@ public sealed partial class PetWindow
         DrawGarden();
     }
 
+    /// <summary>Саксията: до мечока откъм ръба (докато я дърпа/бута) или на мястото си.</summary>
     private void DrawGarden()
     {
         if (_gardenWindow == null) return;
         _plant.Source = _lib.GetProp(PlantArt, (int)PlantW, (int)PlantH, 0).Image;
         _plant.Width = PlantW * PixelSize;
         _plant.Height = PlantH * PixelSize;
-        // Скрита: зад ръба (извън екрана); издърпана – до ръба.
-        double hidden = _plantSide < 0 ? Area.Left - _plant.Width : Area.Right;
-        double shown = PlantSpot - _plant.Width / 2;
-        double left = hidden + (shown - hidden) * _plantOut;
-        if (IsVisible && _plantOut > 0) _gardenWindow.Place(left, Ground(_y) - _plant.Height + PixelSize);
+        double center = _gardenPhase >= 2 && !_plantPushing ? PlantSpot : _x + _plantSide * PlantGap;
+        bool shown = _plantOut > 0 && IsVisible;
+        if (shown) _gardenWindow.Place(center - _plant.Width / 2, Ground(_y) - _plant.Height + PixelSize);
         else _gardenWindow.Conceal();
     }
 
     private void HideGarden() => _gardenWindow?.Conceal();
 
-    /// <summary>Всеки кадър: върви до ръба, издърпва саксията, после грижи (лейка, лопатка, ножица).</summary>
+    /// <summary>Мечокът е в градинката или бута саксията навън: може да излезе зад ръба.</summary>
+    private bool GardenOffscreenOk => InGarden || _plantPushing;
+
+    /// <summary>Всеки кадър: излиза зад ръба, връща се с саксията, после грижи (лейка, лопатка, ножица).</summary>
     private void UpdateGarden(double now)
     {
         double dt = Math.Clamp(now - _gardenLast, 0, 0.1);
@@ -156,34 +164,23 @@ public sealed partial class PetWindow
         if (_gardenWindow == null) ShowGarden();
         switch (_gardenPhase)
         {
-            case 0:
-            {
-                double target = CareSpot;
-                if (Math.Abs(target - _x) > 1)
+            case 0:   // към ръба и зад него
+                if (StepGarden(BehindEdge, 1.0, dt)) return;
+                _gardenPhase = 1;
+                _plantOut = 1;
+                return;
+            case 1:   // връща се, като дърпа саксията след себе си (по-бавно)
+                if (StepGarden(CareSpot, 0.6, dt))
                 {
-                    double dir = Math.Sign(target - _x);
-                    _facingLeft = dir < 0;
-                    _x += dir * Math.Min(Math.Abs(target - _x), WalkSpeed * 0.8 * dt);
-                    string walk = IsExhausted ? "walk_tired" : "walk";
-                    if (_anim != walk) { _anim = walk; _animTime = 0; }
+                    _facingLeft = _plantSide > 0;   // гледа навътре, дърпа назад
+                    DrawGarden();
                     return;
                 }
-                _gardenPhase = 1;
+                _gardenPhase = 2;
                 _facingLeft = _plantSide < 0;
-                _anim = "idle";
-                _animTime = 0;
                 Mutter(R.Pick("plant.pull", _save.OwnerName), 3);
-                return;
-            }
-            case 1:
-                // Издърпва саксията иззад ръба (1,5 с).
-                _plantOut = Math.Min(1, _plantOut + dt / 1.5);
                 DrawGarden();
-                if (_plantOut >= 1)
-                {
-                    _gardenPhase = 2;
-                    NextCare(now);
-                }
+                NextCare(now);
                 return;
         }
         // Грижи се: всяка грижа трае 6–12 с, после следващата.
@@ -191,6 +188,18 @@ public sealed partial class PetWindow
         _save.PlantCareMinutes += dt / 60;
         if (_save.PlantCareMinutes >= 8) GrowPlant(fromCare: true);
         if (now >= _gardenWaterUntil) NextCare(now);
+    }
+
+    /// <summary>Крачка към x (с анимацията за ходене); true – още не е стигнал.</summary>
+    private bool StepGarden(double target, double speed, double dt)
+    {
+        if (Math.Abs(target - _x) <= 1) return false;
+        double dir = Math.Sign(target - _x);
+        _facingLeft = dir < 0;
+        _x += dir * Math.Min(Math.Abs(target - _x), WalkSpeed * 0.8 * speed * dt);
+        string walk = IsExhausted ? "walk_tired" : "walk";
+        if (_anim != walk) { _anim = walk; _animTime = 0; }
+        return true;
     }
 
     /// <summary>Следващата грижа: полива; малко – разкопава с лопатката; голямо – подрязва; понякога се любува.</summary>
@@ -213,26 +222,41 @@ public sealed partial class PetWindow
         _gardenWaterUntil = now + 6 + _rng.NextDouble() * 6;
     }
 
-    /// <summary>Като свърши: бута саксията обратно зад ръба (вика се от LeaveScene).</summary>
+    /// <summary>Като свърши: бута саксията обратно зад ръба и се връща (вика се от LeaveScene).</summary>
     private void PutPlantAway()
     {
-        if (_gardenWindow == null || _plantOut <= 0)
+        if (_gardenWindow == null || _plantOut <= 0 || _gardenPhase < 1)
         {
             HideGarden();
+            _plantOut = 0;
             return;
         }
         _plantPushing = true;
+        double inside = _plantSide < 0 ? Area.Left + SpriteWidth * 1.6 : Area.Right - SpriteWidth * 1.6;
+        // Бута я до зад ръба (саксията пред него), после се връща в екрана.
+        Later(0.05, () => WalkTo(BehindEdge - _plantSide * PlantGap * 0.2, () =>
+        {
+            _plantPushing = false;
+            _plantOut = 0;
+            HideGarden();
+            WalkTo(inside);
+        }));
     }
 
     private bool _plantPushing;
 
-    /// <summary>Бута саксията навън (и след като е станал) – докато изчезне зад ръба.</summary>
+    /// <summary>Докато я бута: саксията е пред него (откъм ръба). Вдигнат ли е – саксията се прибира сама.</summary>
     private void UpdatePlantAway(double dt)
     {
         if (!_plantPushing) return;
-        _plantOut = Math.Max(0, _plantOut - dt / 1.2);
+        if (_state != BearState.Walk && _state != BearState.Idle)
+        {
+            _plantPushing = false;
+            _plantOut = 0;
+            HideGarden();
+            return;
+        }
         DrawGarden();
-        if (_plantOut <= 0) _plantPushing = false;
     }
 
     /// <summary>Една фаза нагоре (от грижа – най-много 2 на ден).</summary>

@@ -441,6 +441,19 @@ public sealed partial class PetWindow
             Persist();
             NotifyCare();
         });
+        const string perf = "Скорост (засичане)";
+        yield return (perf, "Покажи скоростта", () => Say(PerfSummary(), 14));
+        yield return (perf, "Нулирай измерването", PerfReset);
+        yield return (perf, "Записвай бавните моменти (perf.log): вкл./изкл.", () =>
+        {
+            PerfLogging = !PerfLogging;
+            Say(PerfLogging ? "Записвам бавните моменти в perf.log." : "Спрях да записвам.", 3);
+        });
+        yield return (perf, "Отвори perf.log", () =>
+        {
+            if (!System.IO.File.Exists(PerfLogPath)) System.IO.File.WriteAllText(PerfLogPath, "");
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(PerfLogPath) { UseShellExecute = true });
+        });
         yield return (misc, "Обиколка (tutorial) отначало", () => StartTutorial());
         yield return (misc, "Скрий / покажи всички рисунки", () => SetDrawingsHidden(!DrawingsHidden));
         yield return (misc, "Магазин: днешният лимит е изчерпан", () => { TodayRec.UpgradesBought = UpgradeLimitToday; NotifyCare(); });
