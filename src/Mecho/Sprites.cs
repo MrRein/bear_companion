@@ -139,7 +139,8 @@ public sealed class SpriteLibrary
     }
 
     /// <summary>Има ли такава рисунка в assets/props (без placeholder).</summary>
-    public bool HasProp(string name) => _props.ContainsKey(name) && !_placeholders.Contains(name);
+    public bool HasProp(string name) =>
+        (_props.ContainsKey(name) && !_placeholders.Contains(name)) || File.Exists(Path.Combine(PropsFolder, name + ".png"));
 
     private readonly HashSet<string> _placeholders = new();
 

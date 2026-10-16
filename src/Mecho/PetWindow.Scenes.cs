@@ -402,7 +402,7 @@ public sealed partial class PetWindow
     private string EaselArt()
     {
         int n = EaselNumber;
-        return _lib.HasProp("easel_" + n) || System.IO.File.Exists(System.IO.Path.Combine(SpriteLibrary.PropsFolder, $"easel_{n}.png")) ? "easel_" + n : "easel";
+        return _lib.HasProp("easel_" + n) ? "easel_" + n : "easel";
     }
 
     private void SizeSceneArt()
