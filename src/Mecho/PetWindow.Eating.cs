@@ -81,9 +81,12 @@ public sealed partial class PetWindow
     public Food[] Wishes()
     {
         var list = new List<Food>();
+        // Едно желание = любимото за деня (със сърчицето); в някои дни (с много рецепти)
+        // – още едно-две от Kitchen.Cravings.
+        var cravings = Kitchen.Cravings(_save);
         if (FavoriteFood is { } fav) list.Add(fav);
-        foreach (var f in Kitchen.Cravings(_save))
-            if (!list.Contains(f)) list.Add(f);
+        foreach (var f in cravings)
+            if (list.Count < cravings.Length && !list.Contains(f)) list.Add(f);
         // Не му се иска нещо, което сега не може да се сготви (заключено).
         return list.Where(f => Kitchen.CanCook(f, _save)).ToArray();
     }
@@ -119,7 +122,7 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Изяде/изпи: понякога за точно това ядене, понякога общо („Беше вкусно!“).</summary>
-    private string DoneLine(Food food) => Kitchen.IsCraving(food, _save)
+    private string DoneLine(Food food) => Wishes().Contains(food)
         ? R.Pick("craving.done", _save.OwnerName).Replace("{ястие}", food.Name.ToLowerInvariant())
         : _rng.Next(5) > 0 && FoodTalk.For(food).Done.Length > 0
         ? Lines.Pick(FoodTalk.For(food).Done, _save.OwnerName)

@@ -217,6 +217,7 @@ public sealed partial class PetWindow
                 var meal = CurrentMeal;
                 // Понякога само показва, без думи.
                 if (_rng.Next(3) == 0) Emote("hungry", 3.5);
+                else if (meal == null && _save.Fullness < 10) Say(R.Pick("need.hungry.strong", _save.OwnerName), 5);
                 else Say(Lines.Pick(meal == "lunch" ? Lines.LunchTime : meal == "dinner" ? Lines.DinnerTime : Lines.Hungry, _save.OwnerName), 5);
             }
             else if (LateNight && _save.Energy < 50)
@@ -229,7 +230,21 @@ public sealed partial class PetWindow
                 // Колкото е по-уморен, толкова по-често го казва.
                 _nextNeedLine = now + (_save.Energy < 12 ? 1500 : 2400) + _rng.Next(1200);
                 if (_rng.Next(3) == 0) Emote("zzz", 3.5);
+                else if (_save.Energy < 12) Say(R.Pick("need.tired.strong", _save.OwnerName), 5);
                 else Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 5);
+            }
+            else if (_save.Fullness < 65 || _save.Energy < 55)
+            {
+                // Не е много гладен/уморен: рядко и леко („Бих хапнал още малко, но не държа“).
+                _nextNeedLine = now + 2700 + _rng.Next(1800);
+                if (_rng.Next(2) == 0)
+                {
+                    bool hunger = _save.Fullness < 65 && (_save.Energy >= 55 || _rng.Next(2) == 0);
+                    string key = hunger
+                        ? _save.Fullness < 45 ? "need.hungry.mild" : "need.hungry.slight"
+                        : "need.tired.slight";
+                    Mutter(R.Pick(key, _save.OwnerName), 4);
+                }
             }
         }
     }

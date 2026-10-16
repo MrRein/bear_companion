@@ -124,8 +124,28 @@ public sealed class PinWindow : Window
                 AddFromInput();
                 e.Handled = true;
             }
-            else if (e.Key == Key.Escape) _input.Clear();
+            else if (e.Key == Key.Escape)
+            {
+                _input.Clear();
+                _sizeRow.Visibility = Visibility.Collapsed;
+            }
+
         };
+        // Задачи: след „+“ (или Enter) – колко е трудна: малка / средна / голяма.
+        _sizeRow = new WrapPanel { Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed };
+        _sizeRow.Children.Add(new TextBlock { Text = "Колко е трудна?", Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 4) });
+        foreach (var (label, size) in new[] { ("малка", 1), ("средна", 2), ("голяма", 3) })
+        {
+            int sz = size;
+            var chip = Chip(label, () => AddTasks(sz));
+            chip.Margin = new Thickness(0, 0, 4, 4);
+            chip.Padding = new Thickness(6, 1, 6, 2);
+            _sizeRow.Children.Add(chip);
+        }
+        var cancel = Chip("✕", () => _sizeRow.Visibility = Visibility.Collapsed);
+        cancel.Margin = new Thickness(0, 0, 0, 4);
+        cancel.Padding = new Thickness(6, 1, 6, 2);
+        _sizeRow.Children.Add(cancel);
         var inputRow = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
         var plus = Chip("+", AddFromInput);
         plus.Margin = new Thickness(4, 0, 0, 0);
@@ -136,6 +156,8 @@ public sealed class PinWindow : Window
 
         _scroll = new ScrollViewer { Content = _list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         var bodyPanel = new DockPanel();
+        DockPanel.SetDock(_sizeRow, Dock.Bottom);
+        bodyPanel.Children.Add(_sizeRow);
         DockPanel.SetDock(inputRow, Dock.Bottom);
         bodyPanel.Children.Add(inputRow);
         bodyPanel.Children.Add(_scroll);
@@ -233,10 +255,24 @@ public sealed class PinWindow : Window
         if (text.Length == 0) return;
         if (_kind == Tasks)
         {
-            // Няколко реда наведнъж = няколко задачи.
-            foreach (var line in text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0)) _pet.AddTask(line, 1);
+            // Първо пита колко е трудна (копчетата отдолу), после я добавя.
+            _sizeRow.Visibility = Visibility.Visible;
+            return;
         }
-        else _pet.AddNote(text);
+        _pet.AddNote(text);
+        _input.Clear();
+        _input.Focus();
+    }
+
+    private readonly WrapPanel _sizeRow;
+
+    /// <summary>Добавя написаното като задача (или няколко – по ред) с избраната трудност.</summary>
+    private void AddTasks(int size)
+    {
+        string text = _input.Text.Trim();
+        _sizeRow.Visibility = Visibility.Collapsed;
+        if (text.Length == 0) return;
+        foreach (var line in text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0)) _pet.AddTask(line, size);
         _input.Clear();
         _input.Focus();
     }

@@ -1181,14 +1181,12 @@ public sealed partial class PetWindow : Window
         NativeMethods.MoveWindow(this, _window.Left, _window.Top);
 
         PlaceBubble(area, bear, above);
-        PlaceEmoteOverBubble();
         PlaceButterfly();
     }
 
     /// <summary>Балончето: над мечока (над табелката), винаги в екрана.</summary>
     private void PlaceBubble(Rect area, Rect bear, double above)
     {
-        _bubbleRect = Rect.Empty;
         if (_bubble.Visibility != Visibility.Visible || !IsVisible)
         {
             _bubbleWindow.Conceal();
@@ -1208,7 +1206,6 @@ public sealed partial class PetWindow : Window
             top = Math.Max(minY, bear.Top);
         }
         _bubbleWindow.Place(left, top);
-        _bubbleRect = new Rect(left, top, size.Width, size.Height);
     }
 
     /// <summary>Пеперудата: в своя прозорец, само докато лети.</summary>

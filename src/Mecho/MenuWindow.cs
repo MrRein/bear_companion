@@ -470,7 +470,7 @@ public sealed class MenuWindow : Window
             if (_pet.WorksRandomly) _pet.GetUp();
             else _pet.WorkRandom();
             Refresh(true);
-        }, icon: "pencil"));
+        }, icon: "tasks"));
         actions.Children.Add(_workButton);
         // Спри: спира каквото прави (кътче, батут, разходка) – таймерите си текат.
         _couchButton = Wide(Button("Спри", () =>
@@ -791,9 +791,9 @@ public sealed class MenuWindow : Window
                     s.Energy >= Kitchen.FoodEnergyCap ? "Догоре – само със сън." : "Догоре – само със сън."));
 
             // Любимото за днес: сърчице (дадеш ли му го – радва се специално).
-            if (_pet.FavoriteFood?.Id == f.Id)
+            if (_pet.FavoriteFood?.Id == f.Id || wishes.Contains(f))
             {
-                var fav = IconText("heart", "любимо днес");
+                var fav = IconText("heart", _pet.FavoriteFood?.Id == f.Id ? "любимо днес" : "иска му се");
                 fav.HorizontalAlignment = HorizontalAlignment.Center;
                 fav.Margin = new Thickness(0, 2, 0, 0);
                 effects.Children.Add(fav);

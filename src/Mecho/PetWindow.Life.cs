@@ -352,7 +352,7 @@ public sealed partial class PetWindow
     private string? MoodLine()
     {
         // Понякога казва какво му се яде днес (само от отключеното).
-        if (_rng.Next(5) == 0 && Kitchen.Cravings(_save) is { Length: > 0 } c)
+        if (_rng.Next(5) == 0 && Wishes() is { Length: > 0 } c)
             return R.Pick("craving", _save.OwnerName).Replace("{ястие}", c[_rng.Next(c.Length)].Name.ToLowerInvariant());
         if (_rng.Next(4) != 0) return null;
         int joy = JoyToday;
