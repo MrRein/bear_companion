@@ -12,6 +12,7 @@ public static class Conversations
 {
     private static readonly Random Rng = new();
     private static int _lastTopic = -1;
+    private static readonly Queue<int> Recent = new();   // да не се повтарят скоро
 
     private static ChatOption Reply(string label, string answer) => new(label, p => p.Say(answer, 5));
 
@@ -75,11 +76,16 @@ public static class Conversations
                 Reply("📖 Чети си", R.Any("conv.reading.keep")));
         }
 
-        var topics = Topics.Select(t => t.Ask).ToList();
-        int i;
+        // Вградените теми и обикновените разговори от razgovori.txt (без скорошните).
+        var topics = Topics.Select(t => t.Ask)
+            .Concat(Talks.TopLevel.Select(t => (Func<PetWindow, ChatQuestion>)(p => Talks.Ask(p, t))))
+            .ToList();
+        int i, tries = 0;
         do i = Rng.Next(topics.Count);
-        while (i == _lastTopic);
+        while ((i == _lastTopic || Recent.Contains(i)) && ++tries < 50);
         _lastTopic = i;
+        Recent.Enqueue(i);
+        while (Recent.Count > Math.Min(40, topics.Count / 2)) Recent.Dequeue();
         return topics[i](pet);
     }
 
@@ -219,9 +225,10 @@ public static class Conversations
         new ChatOption("💧 Да", p => p.Cheer("Браво! Мечешко одобрение.")),
         Reply("😅 Ой, не", "Хайде, една чаша! Аз ще чакам тук."));
 
-    private static ChatQuestion Couch(PetWindow pet) => pet.StaysPut
+    // „Тук ми е удобно“ – само ако наистина чете (иначе беше въпрос без смисъл и „Остани“ не правеше нищо).
+    private static ChatQuestion Couch(PetWindow pet) => pet.IsReading
         ? new ChatQuestion("Тук ми е много удобно. Да остана ли да чета?",
-            Reply("🛋️ Остани", "Ура! Още една глава."),
+            new ChatOption("🛋️ Остани", p => { p.StayHere(); p.Cheer("Ура! Още една глава."); }),
             new ChatOption("🚶 Разходи се", p => p.GetUp()))
         : new ChatQuestion("Искаш ли да седна да почета малко?",
             new ChatOption("🛋️ Да", p => p.StayHere()),

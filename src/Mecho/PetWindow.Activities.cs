@@ -120,6 +120,10 @@ public sealed partial class PetWindow
             // Печицата грее: когато няма какво да прави, отива и сяда до нея –
             // колкото по-студено, толкова по-често.
             ("warm", _heaterWindow == null || near ? 0 : Cold ? 10 + ColdLevel * 4 : 5, WarmUpByHeater),
+            // Радиото свири: ако има енергия и не работи, понякога отива да танцува до него.
+            // Хранилката е празна: понякога сам отива да сложи семенца.
+            ("feeder", !FeederPlaced || _save.FeederFood > 0 || near || InFocus ? 0 : 4, FillFeeder),
+            ("radio", !RadioPlaying || near || InFocus || _save.Energy < 40 ? 0 : 6 * JoyBoost, DanceByRadio),
         };
 
         double total = 0;

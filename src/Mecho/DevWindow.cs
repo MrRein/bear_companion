@@ -338,7 +338,7 @@ public sealed partial class PetWindow
         });
 
         // ── Новите неща ──
-        const string walk = "Разходка", giftNew = "Подарък в лапите", garden = "Градинка", emotes = "Емоции",
+        const string walk = "Разходка", giftNew = "Подарък в лапите", garden = "Растението", radio = "Радио, хранилка, бюро", emotes = "Емоции",
             memory = "Спомени и любима храна", pins = "Закачени и задачи", looks = "Скинове, пижами, меню", misc = "Лампа, звук, енергия";
         yield return (walk, "Разходи се 1 мин", () => GoForWalk(1));
         yield return (walk, "Разходи се 10 мин", () => GoForWalk(10));
@@ -371,9 +371,21 @@ public sealed partial class PetWindow
         yield return (giftNew, "Отвори подаръка в лапите", () => OpenHeldGift());
         yield return (giftNew, "Остави го на земята", PutGiftDown);
         yield return (garden, "Полей (градинката)", () => { if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot); Relax(Scenes.Plant); });
-        yield return (garden, "Порасни всички", () => { EnsureGardenSave(); for (int i = 0; i < GardenSize; i++) { _save.GardenGrown[i] = ""; GrowFlower(i); } });
-        yield return (garden, "Всички цъфнали", () => { EnsureGardenSave(); for (int i = 0; i < GardenSize; i++) _save.Garden[i] = 4; DrawGarden(); Persist(); });
-        yield return (garden, "Нова градинка (семена)", () => { _save.Garden.Clear(); _save.GardenColors.Clear(); _save.GardenGrown.Clear(); EnsureGardenSave(); DrawGarden(); Persist(); });
+        yield return (garden, "Растението: +1 фаза", () => { _save.PlantGrowToday = 0; GrowPlant(fromCare: true); });
+        yield return (garden, "Растението: голямо (фаза 10)", () => { _save.PlantStage = PlantStages - 1; DrawGarden(); Persist(); });
+        yield return (garden, "Растението: кълнче (фаза 1)", () => { _save.PlantStage = 0; DrawGarden(); Persist(); });
+        yield return (radio, "Радио: купи и сложи", () => { if (!_save.Owned.Contains(Kitchen.Radio)) _save.Owned.Add(Kitchen.Radio); SetRadio(true); });
+        yield return (radio, "Радио: вкл./изкл.", () => SetRadioOn(!_save.RadioOn));
+        yield return (radio, "Танцувай до радиото", () => { if (!RadioPlaying) { if (!_save.Owned.Contains(Kitchen.Radio)) _save.Owned.Add(Kitchen.Radio); SetRadio(true); } Later(0.5, DanceByRadio); });
+        yield return (radio, "Хранилка: купи и сложи", () => { if (!_save.Owned.Contains(Kitchen.Feeder)) _save.Owned.Add(Kitchen.Feeder); SetFeeder(true); });
+        yield return (radio, "Хранилка: напълни я", FillFeeder);
+        yield return (radio, "Птичка – сега", () => { _save.FeederFood = Math.Max(1, _save.FeederFood); _nextBird = 0; });
+        yield return (radio, "Бюро и столче: купи / махни", () =>
+        {
+            bool has = _save.Owned.Contains(Kitchen.Desk);
+            foreach (var id in new[] { Kitchen.Desk, Kitchen.Stool }) { if (has) _save.Owned.Remove(id); else _save.Owned.Add(id); }
+            if (_inScene && _scene != null) LoadSceneArt(_scene);
+        });
         foreach (var e in new[] { "heart", "zzz", "idea", "exclaim", "question", "note", "sweat", "hungry", "cold", "sparkle", "happy", "sad" })
         {
             string em = e;

@@ -254,7 +254,7 @@ public static class Ui
         ["📻"] = "shop_radio", ["🎲"] = "dice", ["🎨"] = "shop_easel", ["🎮"] = "shop_computer", ["🤸"] = "shop_trampoline",
         ["💡"] = "pencil", ["📝"] = "notes", ["📋"] = "tasks", ["🛋"] = "couch", ["🎁"] = "gift", ["🚶"] = "walk", ["🔒"] = "lock",
         ["💤"] = "moon", ["🌙"] = "moon", ["☀"] = "sun", ["❤"] = "heart", ["♪"] = "music",
-        ["🌡"] = "shop_heater", ["🫓"] = "food_sandwich", ["🫕"] = "food_roast_soup", ["🍅"] = "food_pressed_caprese", ["🥬"] = "food_pressed_veggie",
+        ["🌡"] = "shop_heater", ["🪑"] = "shop_stool", ["🗄"] = "shop_desk", ["🐦"] = "shop_feeder", ["🫓"] = "food_sandwich", ["🫕"] = "food_roast_soup", ["🍅"] = "food_pressed_caprese", ["🥬"] = "food_pressed_veggie",
         ["🍗"] = "food_pressed_chicken", ["🥯"] = "food_pressed_egg", ["🍄"] = "food_pressed_mushroom", ["📌"] = "pin", ["➖"] = "minimize", ["⧉"] = "copy", ["★"] = "star", ["🔄"] = "reroll", ["👁"] = "hide", ["🔊"] = "sound", ["☰"] = "menu", ["🐻"] = "bear", ["🧶"] = "shop_yarn_basket", ["🎸"] = "shop_guitar", ["🪔"] = "shop_lamp",
         ["🥄"] = "shop_mixer", ["🧇"] = "shop_sandwich", ["🍨"] = "shop_icecream", ["♨"] = "shop_grill",
         ["🍋"] = "food_lemonade", ["🥣"] = "food_soup", ["🌽"] = "food_corn", ["🍫"] = "food_cocoa", ["🌼"] = "food_linden_tea",

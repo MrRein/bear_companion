@@ -44,9 +44,9 @@ public sealed partial class PetWindow
     private IReadOnlyDictionary<string, string> WithCup(IReadOnlyDictionary<string, string> outfit)
     {
         // Рисува/полива/плете/свири: четката, лейката, куките или китарата в лапите.
-        if (Dresser.HoldsTool(_anim))
+        if (Dresser.HoldsTool(_anim) && !(_anim.StartsWith("doing") && !_inScene))
         {
-            string tool = _scene == Scenes.Plant ? "wateringcan"
+            string tool = _scene == Scenes.Plant ? _plantTool
                 : _scene == Scenes.Knit ? "knitting"
                 : _scene == Scenes.Guitar ? Furniture.CurrentArt(_save, Kitchen.Guitar)
                 : _brush;

@@ -582,6 +582,8 @@ public sealed class MenuWindow : Window
         }
         Add(Kitchen.Heater, "Печица", s.HeaterOn, () => _pet.SetHeater(!s.HeaterOn));
         Add(Kitchen.Lamp, "Лампа", _pet.LampOn, () => _pet.SetLamp(!_pet.LampOn));
+        Add(Kitchen.Radio, "Радио", _pet.RadioPlaced, () => _pet.SetRadio(!_pet.RadioPlaced));
+        Add(Kitchen.Feeder, "Хранилка", _pet.FeederPlaced, () => _pet.SetFeeder(!_pet.FeederPlaced));
     }
     private Button _walkButton = null!;
 
@@ -2289,7 +2291,7 @@ public sealed class MenuWindow : Window
                 _weatherRow.ToolTip = tip;
             }
         }
-        bool canPlace = Kitchen.Owns(s, Kitchen.Heater) || Kitchen.Owns(s, Kitchen.Lamp);
+        bool canPlace = new[] { Kitchen.Heater, Kitchen.Lamp, Kitchen.Radio, Kitchen.Feeder }.Any(i => Kitchen.Owns(s, i));
         _placeButton.Visibility = canPlace ? Visibility.Visible : Visibility.Collapsed;
         if (!canPlace) _placeOpen = false;
         SetOn(_placeButton, _placeOpen);

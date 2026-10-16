@@ -116,11 +116,11 @@ public static class Scenes
         R.Get("scene.yoga.end"))
     { Name = "Прави йога", Icon = "yoga", Unlock = Kitchen.YogaMat };
 
-    public static readonly Scene Plant = new("plant", null, null, 1, "doing",   // обикаля градинката с лейка (PetWindow.Garden.cs)
+    public static readonly Scene Plant = new("plant", null, null, 1, "doing",   // издърпва саксията и се грижи за растението (PetWindow.Garden.cs)
         R.Get("scene.plant.start"),
         R.Get("scene.plant.during"),
         R.Get("scene.plant.end"))
-    { Name = "Полей цветето", Icon = "plant", Unlock = Kitchen.PlantPot };
+    { Name = "Грижи се за растението", Icon = "plant", Unlock = Kitchen.PlantPot };
 
     public static readonly Scene Music = new("music", null, "radio", -1, "dance",   // танцува на музиката
         R.Get("scene.music.start"),
@@ -363,7 +363,7 @@ public sealed partial class PetWindow
     private void LeaveScene()
     {
         if (_scene != null && Scenes.All.Contains(_scene)) _lastFun = _scene;
-        HideGarden();
+        PutPlantAway();
         bool wasAuto = _autoBlock;
         _cup = null;
         _autoBlock = false;
@@ -381,9 +381,23 @@ public sealed partial class PetWindow
     {
         string? seat = scene.Seat == "couch" && !HasCouch ? null : scene.Seat;
         if (seat == "couch") seat = Furniture.Current(_save, Kitchen.Couch).Prop;   // скинът на дивана
-        _seatProp = seat == null ? null : _lib.GetProp(seat, 16, 8, 6);
-        _sideProp = scene.Side == null ? null : _lib.GetProp(scene.Side, 16, 16, 0);
+        // Столчето и бюрото се купуват; без тях работи и играе на земята.
+        if (seat == "stool") seat = Kitchen.Owns(_save, Kitchen.Stool) ? Furniture.CurrentArt(_save, Kitchen.Stool) : null;
+        string? side = scene.Side;
+        if (side == "desk") side = Kitchen.Owns(_save, Kitchen.Desk) ? Furniture.CurrentArt(_save, Kitchen.Desk) : null;
+        if (side == "easel") side = EaselArt();
+        // Музиката: сложеното радио е на земята – тогава до него няма второ; иначе е скинът на радиото.
+        if (side == "radio") side = RadioPlaced ? null : Furniture.CurrentArt(_save, Kitchen.Radio);
+        _seatProp = seat == null ? null : _lib.GetProp(seat, 16, 8, 7);
+        _sideProp = side == null ? null : _lib.GetProp(side, 16, 16, 0);
         SizeSceneArt();
+    }
+
+    /// <summary>Статива: картината на него се сменя на 3 дни (easel_1…8; ако ги няма – празният).</summary>
+    private string EaselArt()
+    {
+        int n = 1 + DateTime.Today.DayOfYear / 3 % 8;
+        return _lib.HasProp("easel_" + n) || System.IO.File.Exists(System.IO.Path.Combine(SpriteLibrary.PropsFolder, $"easel_{n}.png")) ? "easel_" + n : "easel";
     }
 
     private void SizeSceneArt()

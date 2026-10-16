@@ -26,6 +26,8 @@ public sealed partial class PetWindow
     {
         if (_cook is { Window.IsVisible: true } c) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(c.Window).Handle);
         if (_heaterWindow is { IsVisible: true } h) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(h).Handle);
+        if (_feederWindow is { IsVisible: true } fw) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(fw).Handle);
+        if (_radioWindow is { IsVisible: true } rw) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(rw).Handle);
         if (_parcel is { IsVisible: true } pc) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(pc).Handle);
         if (_visitor is { IsVisible: true } v) NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(v).Handle);
         // Храната над главата му остава под балончето.
@@ -48,6 +50,10 @@ public sealed partial class PetWindow
         _cook?.Window.SetAway(!show);
         _heaterWindow?.SetAway(!show);
         _lampWindow?.SetAway(!show);
+        _radioWindow?.SetAway(!show);
+        _feederWindow?.SetAway(!show);
+        if (!show) _birdWindow?.Conceal();
+        if (!show) _notesWindow?.Conceal();
         if (!show) HideGarden();
         _visitor?.SetAway(!show);
         _parcel?.SetAway(!show);

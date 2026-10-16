@@ -48,6 +48,11 @@ public sealed class SaveData
     public bool PajamasAtNight { get; set; } = true;            // пижама вечер (виж PetWindow.Furniture.cs)
     public string Pajama { get; set; } = "classic";
     public string UiTheme { get; set; } = "classic";
+    public int PlantStage { get; set; }                          // растението: фаза 0–9
+    public double PlantCareMinutes { get; set; }                 // грижа от последната фаза (на 8 мин – фаза)
+    public DateTime PlantLastGrow { get; set; } = DateTime.MinValue;
+    public string PlantGrowDay { get; set; } = "";
+    public int PlantGrowToday { get; set; }
     public List<int> Garden { get; set; } = new();               // стадиите на цветята в градинката (0–4)
     public List<string> GardenColors { get; set; } = new();
     public List<string> GardenGrown { get; set; } = new();       // в кой ден е расло всяко (веднъж на ден)
@@ -58,6 +63,12 @@ public sealed class SaveData
     public bool WalkNap { get; set; }                            // вечерна разходка-дрямка: брои се за сън  // на разходка извън екрана до (виж PetWindow.Walk.cs)            // скинът на менюто (виж UiThemes)             // коя пижама облича вечер (виж Clothes.PajamaSets)
     public bool ShowTimers { get; set; } = true;                 // табелката с таймерите до часовника, докато мечокът е скрит
     public bool DrawingsHidden { get; set; }                     // „Скрий всичко“ от иконката: рисунките са скрити
+    public bool FeederPlaced { get; set; }                       // хранилката за птички е сложена
+    public int FeederFood { get; set; }                          // порции семенца (0–3)
+    public double FeederX { get; set; } = double.NaN;
+    public bool RadioPlaced { get; set; }                        // радиото е сложено (от „Сложи“)
+    public bool RadioOn { get; set; }
+    public double RadioX { get; set; } = double.NaN;
     public bool LampPlaced { get; set; }                        // Тут сложи лампата (свети, докато не я прибере)
     public bool LampOff { get; set; }                           // Тут изгаси лампата тази вечер (до сутринта)
     public string LampOffDay { get; set; } = "";

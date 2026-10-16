@@ -22,13 +22,14 @@ public static class Furniture
     /// <summary>Рисунката на предмета: assets/props/&lt;Base&gt;[_&lt;скин&gt;][кадър].png.</summary>
     public static string Base(string item) => item switch
     {
-        Kitchen.Couch or Kitchen.Bed or Kitchen.Heater or Kitchen.Lamp => item,
+        Kitchen.Couch or Kitchen.Bed or Kitchen.Heater or Kitchen.Lamp or Kitchen.Desk or Kitchen.Stool or Kitchen.Feeder or Kitchen.Radio => item,
         Kitchen.Guitar => "guitar",
         _ => "cook_" + item,
     };
 
     public static string Art(string item, string id, string frame = "") =>
-        Base(item) + (id == Classic ? "" : "_" + id) + frame;
+        item == Kitchen.PlantPot ? $"plant_{(id == Classic ? "sunflower" : id)}_9"   // растението: голямото, за плочката
+        : Base(item) + (id == Classic ? "" : "_" + id) + frame;
 
     public static readonly Skin[] CouchSkins =
     {
@@ -64,6 +65,15 @@ public static class Furniture
             ("lantern", "Фенер", 20), ("moon", "Лампа луна", 25), ("lava", "Лава лампа", 30), ("candle", "Свещник", 15)),
         [Kitchen.Guitar] = Of(Kitchen.Guitar, (Classic, "Акустична китара", 0), ("electric", "Червена електрическа", 35),
             ("ukulele", "Укулеле", 20), ("blue", "Синя китара", 25), ("star", "Китара звезда", 30)),
+        [Kitchen.PlantPot] = Of(Kitchen.PlantPot, (Classic, "Слънчоглед", 0), ("monstera", "Монстера", 20), ("cactus", "Кактус", 20)),
+        [Kitchen.Desk] = Of(Kitchen.Desk, (Classic, "Бюро", 0), ("oak", "Дъбово бюро", 20), ("white", "Бяло бюро", 20),
+            ("pink", "Розово бюро", 25), ("drawers", "Бюро с чекмеджета", 30)),
+        [Kitchen.Stool] = Of(Kitchen.Stool, (Classic, "Столче", 0), ("cushion", "Столче с възглавничка", 15), ("green", "Зелено столче", 15),
+            ("log", "Пънче", 15), ("round", "Кръгло столче", 20)),
+        [Kitchen.Radio] = Of(Kitchen.Radio, (Classic, "Радио", 0), ("gramophone", "Грамофон", 35), ("boombox", "Касетофон", 25),
+            ("retro", "Старо лампово радио", 25), ("jukebox", "Джубокс", 40)),
+        [Kitchen.Feeder] = Of(Kitchen.Feeder, (Classic, "Дървена хранилка", 0), ("tube", "Хранилка тръба", 15), ("cottage", "Хранилка къщичка", 20),
+            ("round", "Кръгла хранилка", 15), ("birdhouse", "Къщичка за птици", 20)),
         [Kitchen.Pot] = Of(Kitchen.Pot, (Classic, "Тенджера", 0), ("enamel", "Емайлирана на точки", 15), ("copper", "Медна тенджера", 20)),
         [Kitchen.Pan] = Of(Kitchen.Pan, (Classic, "Тиган", 0), ("cast_iron", "Чугунен тиган", 15), ("pink", "Розов тиган", 15)),
         [Kitchen.Oven] = Of(Kitchen.Oven, (Classic, "Фурна", 0), ("retro", "Ретро фурна", 25), ("wood", "Дървена пещ", 30)),

@@ -7,25 +7,34 @@ using System.Windows.Media;
 
 namespace Mecho;
 
-// Поливане („Полей цветето“): до мечока има градинка с три цветя. Той обикаля от
-// цвете на цвете и ги полива с лейката (от нея капят сини капчици). Цветето расте
-// с времето, докато го полива: полее ли го, ако от последното растене са минали
-// поне 40 мин – един стадий нагоре (пръст → кълн → листа → пъпка → цвят в различен
-// цвят). Цъфналото след време прецъфтява и на мястото му поникват нови семенца.
+// Растението (саксията, „Хобита“): едно растение в саксия, което расте през 10
+// фази – от мъничко кълнче до голямо растение. Видът е скин: слънчоглед (класически),
+// монстера, кактус. Стои скрито зад ръба на екрана. Като си почива (или Тут му каже
+// „Грижи се за растението“), мечокът отива до най-близкия ръб, издърпва саксията
+// и се грижи за нея: полива с лейката (капят сини капчици), докато е малко –
+// разкопава с лопатката, а като порасне – подрязва с ножицата. Накрая я бута обратно.
+// Расте от грижите: на 8 мин грижа – една фаза (най-много 2 на ден). Без грижи –
+// много бавно: една фаза на 5 дни.
 public sealed partial class PetWindow
 {
-    private const int GardenSize = 3;
+    public const int PlantStages = 10;
+    private const double PlantW = 24, PlantH = 40;      // рисунката plant_<вид>_<фаза>.png
     private OverlayWindow? _gardenWindow;
-    private readonly Canvas _gardenCanvas = new();
-    private readonly Image[] _flowers = new Image[GardenSize];
-    private double _gardenX;           // средата на градинката (на екрана)
-    private int _gardenIdx;            // към кое цвете отива / кое полива
-    private double _gardenWaterUntil;  // докога полива сегашното
+    private readonly Image _plant = new() { IsHitTestVisible = false };
+    private int _plantSide;            // -1 – левият ръб, +1 – десният
+    private double _plantX;            // средата на саксията (докато е навън)
+    private double _plantOut;          // 0 – скрита зад ръба, 1 – издърпана
+    private int _gardenPhase;          // 0 – върви към ръба, 1 – издърпва, 2 – грижи се
+    private double _gardenWaterUntil;  // докога трае сегашната грижа
     private double _gardenLast;
-
-    private static readonly string[] FlowerColors = { "pink", "yellow", "red", "purple", "white", "blue" };
+    private string _plantTool = "wateringcan";
 
     private bool InGarden => _inScene && _scene == Scenes.Plant;
+
+    /// <summary>Видът растение (скинът на саксията): sunflower, monstera, cactus.</summary>
+    public string PlantKind => Furniture.Current(_save, Kitchen.PlantPot).Id is var id && id != Furniture.Classic ? id : "sunflower";
+
+    private string PlantArt => $"plant_{PlantKind}_{Math.Clamp(_save.PlantStage, 0, PlantStages - 1)}";
 
     // Капчиците от лейката (в прозореца на мечока; x/y са на екрана).
     private sealed class Drop
@@ -49,7 +58,7 @@ public sealed partial class PetWindow
     /// <summary>Докато полива: нови капчици от чучура на лейката; падат до земята.</summary>
     private void UpdateDrops(double now, double dt)
     {
-        bool watering = InGarden && _gardenWaterUntil > now && _anim == "doing";
+        bool watering = InGarden && _gardenWaterUntil > now && _anim == "doing" && _plantTool == "wateringcan";
         if (watering && now >= _nextDrop && !_bearRect.IsEmpty)
         {
             _nextDrop = now + 0.06 + _rng.NextDouble() * 0.08;
@@ -94,141 +103,174 @@ public sealed partial class PetWindow
         return Dresser.FirstPoint(strip[_lib.Get(_anim).IndexAt(_animTime) % strip.Length]);
     }
 
-    private void EnsureGardenSave()
-    {
-        while (_save.Garden.Count < GardenSize) _save.Garden.Add(0);
-        while (_save.GardenColors.Count < GardenSize) _save.GardenColors.Add(FlowerColors[_rng.Next(FlowerColors.Length)]);
-        while (_save.GardenGrown.Count < GardenSize) _save.GardenGrown.Add("");
-    }
-
-    private double FlowerX(int i) => _gardenX + (i - 1) * SpriteWidth * 1.3;
-
-    /// <summary>Мястото, където застава, за да полее цвете i (цветето е вдясно от него).</summary>
-    private double WaterSpot(int i) => FlowerX(i) - SpriteWidth * 0.55;
-
-    /// <summary>Сяда в градинката: тя се появява около мястото му.</summary>
+    /// <summary>Отива към по-близкия ръб; там издърпва саксията и се грижи за нея.</summary>
     private void StartGarden()
     {
-        EnsureGardenSave();
         var area = Area;
-        double half = SpriteWidth * 1.9;
-        _gardenX = Math.Clamp(_x + SpriteWidth * 0.55, area.Left + half, area.Right - half);
-        _gardenIdx = 0;
+        _plantSide = _x - area.Left < area.Right - _x ? -1 : 1;
+        _gardenPhase = 0;
+        _plantOut = 0;
         _gardenWaterUntil = 0;
         _gardenLast = Now;
+        GrowPlantByTime();
         ShowGarden();
     }
+
+    /// <summary>Мястото на саксията, когато е издърпана (до ръба, вътре в екрана).</summary>
+    private double PlantSpot => _plantSide < 0 ? Area.Left + PlantW * PixelSize * 0.7 : Area.Right - PlantW * PixelSize * 0.7;
+
+    /// <summary>Къде застава мечокът до саксията (откъм екрана).</summary>
+    private double CareSpot => PlantSpot - _plantSide * (PlantW * PixelSize * 0.5 + SpriteWidth * 0.32);
 
     private void ShowGarden()
     {
         if (_gardenWindow == null)
         {
-            for (int i = 0; i < GardenSize; i++)
-            {
-                _flowers[i] = new Image { IsHitTestVisible = false };
-                RenderOptions.SetBitmapScalingMode(_flowers[i], BitmapScalingMode.NearestNeighbor);
-                _gardenCanvas.Children.Add(_flowers[i]);
-            }
-            _gardenWindow = new OverlayWindow(_gardenCanvas);
+            RenderOptions.SetBitmapScalingMode(_plant, BitmapScalingMode.NearestNeighbor);
+            _gardenWindow = new OverlayWindow(_plant);
         }
         DrawGarden();
     }
 
-    private string FlowerArt(int i) => _save.Garden[i] >= 4 ? $"flower_4_{_save.GardenColors[i]}" : $"flower_{_save.Garden[i]}";
-
     private void DrawGarden()
     {
         if (_gardenWindow == null) return;
-        double w = 12 * PixelSize, h = 16 * PixelSize;
-        double left = FlowerX(0) - w / 2, width = FlowerX(GardenSize - 1) - FlowerX(0) + w;
-        _gardenCanvas.Width = width;
-        _gardenCanvas.Height = h;
-        for (int i = 0; i < GardenSize; i++)
-        {
-            var img = _lib.GetProp(FlowerArt(i), 12, 16, 0).Image;
-            _flowers[i].Source = img;
-            _flowers[i].Width = w;
-            _flowers[i].Height = h;
-            Canvas.SetLeft(_flowers[i], FlowerX(i) - w / 2 - left);
-            Canvas.SetTop(_flowers[i], 0);
-        }
-        if (IsVisible) _gardenWindow.Place(left, _y - h + PixelSize);
+        _plant.Source = _lib.GetProp(PlantArt, (int)PlantW, (int)PlantH, 0).Image;
+        _plant.Width = PlantW * PixelSize;
+        _plant.Height = PlantH * PixelSize;
+        // Скрита: зад ръба (извън екрана); издърпана – до ръба.
+        double hidden = _plantSide < 0 ? Area.Left - _plant.Width : Area.Right;
+        double shown = PlantSpot - _plant.Width / 2;
+        double left = hidden + (shown - hidden) * _plantOut;
+        if (IsVisible && _plantOut > 0) _gardenWindow.Place(left, Ground(_y) - _plant.Height + PixelSize);
         else _gardenWindow.Conceal();
     }
 
     private void HideGarden() => _gardenWindow?.Conceal();
 
-    /// <summary>Всеки кадър в градинката: върви до следващото цвете, полива го, то расте.</summary>
+    /// <summary>Всеки кадър: върви до ръба, издърпва саксията, после грижи (лейка, лопатка, ножица).</summary>
     private void UpdateGarden(double now)
     {
         double dt = Math.Clamp(now - _gardenLast, 0, 0.1);
         _gardenLast = now;
-        if (_gardenWindow == null || !_gardenWindow.IsVisible) ShowGarden();
-        double target = WaterSpot(_gardenIdx);
-        if (_gardenWaterUntil == 0)
+        if (_gardenWindow == null) ShowGarden();
+        switch (_gardenPhase)
         {
-            // Върви към цветето.
-            if (Math.Abs(target - _x) > 1)
+            case 0:
             {
-                double dir = Math.Sign(target - _x);
-                _facingLeft = dir < 0;
-                _x += dir * Math.Min(Math.Abs(target - _x), WalkSpeed * 0.8 * dt);
-                string walk = IsExhausted ? "walk_tired" : "walk";
-                if (_anim != walk) { _anim = walk; _animTime = 0; }
+                double target = CareSpot;
+                if (Math.Abs(target - _x) > 1)
+                {
+                    double dir = Math.Sign(target - _x);
+                    _facingLeft = dir < 0;
+                    _x += dir * Math.Min(Math.Abs(target - _x), WalkSpeed * 0.8 * dt);
+                    string walk = IsExhausted ? "walk_tired" : "walk";
+                    if (_anim != walk) { _anim = walk; _animTime = 0; }
+                    return;
+                }
+                _gardenPhase = 1;
+                _facingLeft = _plantSide < 0;
+                _anim = "idle";
+                _animTime = 0;
+                Mutter(R.Pick("plant.pull", _save.OwnerName), 3);
                 return;
             }
-            // Стигна: обръща се към цветето и полива 5–9 с.
-            _facingLeft = false;
-            _anim = "doing";
-            _animTime = 0;
-            _gardenWaterUntil = now + 5 + _rng.NextDouble() * 4;
-            return;
+            case 1:
+                // Издърпва саксията иззад ръба (1,5 с).
+                _plantOut = Math.Min(1, _plantOut + dt / 1.5);
+                DrawGarden();
+                if (_plantOut >= 1)
+                {
+                    _gardenPhase = 2;
+                    NextCare(now);
+                }
+                return;
         }
-        if (now < _gardenWaterUntil) return;
-        _gardenWaterUntil = 0;
-        GrowFlower(_gardenIdx);
-        // Следващото (понякога и се спира да се полюбува).
-        _gardenIdx = (_gardenIdx + 1) % GardenSize;
-        if (_gardenIdx == 0 && _rng.Next(2) == 0)
+        // Грижи се: всяка грижа трае 6–12 с, после следващата.
+        _facingLeft = _plantSide < 0;
+        _save.PlantCareMinutes += dt / 60;
+        if (_save.PlantCareMinutes >= 8) GrowPlant(fromCare: true);
+        if (now >= _gardenWaterUntil) NextCare(now);
+    }
+
+    /// <summary>Следващата грижа: полива; малко – разкопава с лопатката; голямо – подрязва; понякога се любува.</summary>
+    private void NextCare(double now)
+    {
+        int roll = _rng.Next(10);
+        bool small = _save.PlantStage < 5;
+        if (roll < 4) _plantTool = "wateringcan";
+        else if (roll < 8) _plantTool = small ? "shovel" : "scissors";
+        else
         {
             _anim = "happy";
             _animTime = 0;
-            _gardenWaterUntil = now + 3;   // любува се, после пак обикаля
-            _gardenIdx = GardenSize - 1;
+            _gardenWaterUntil = now + 3;
             Mutter(R.Pick("garden.admire", _save.OwnerName), 4);
+            return;
         }
+        _anim = "doing";
+        _animTime = 0;
+        _gardenWaterUntil = now + 6 + _rng.NextDouble() * 6;
     }
 
-    /// <summary>Полято цвете: ако е минало време от последното растене – един стадий нагоре.</summary>
-    private void GrowFlower(int i)
+    /// <summary>Като свърши: бута саксията обратно зад ръба (вика се от LeaveScene).</summary>
+    private void PutPlantAway()
     {
-        EnsureGardenSave();
-        // GardenGrown: кога е расло за последно (по-старите записи са само дата).
-        if (DateTime.TryParse(_save.GardenGrown[i], System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out var last) && DateTime.Now - last < TimeSpan.FromMinutes(40))
+        if (_gardenWindow == null || _plantOut <= 0)
+        {
+            HideGarden();
             return;
-        _save.GardenGrown[i] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
-        if (_save.Garden[i] >= 4)
-        {
-            // Цъфнало от дни: понякога прецъфтява и поникват нови семенца.
-            if (_rng.Next(3) == 0)
-            {
-                _save.Garden[i] = 1;
-                _save.GardenColors[i] = FlowerColors[_rng.Next(FlowerColors.Length)];
-                Mutter(R.Pick("garden.replant", _save.OwnerName), 4);
-            }
         }
-        else
+        _plantPushing = true;
+    }
+
+    private bool _plantPushing;
+
+    /// <summary>Бута саксията навън (и след като е станал) – докато изчезне зад ръба.</summary>
+    private void UpdatePlantAway(double dt)
+    {
+        if (!_plantPushing) return;
+        _plantOut = Math.Max(0, _plantOut - dt / 1.2);
+        DrawGarden();
+        if (_plantOut <= 0) _plantPushing = false;
+    }
+
+    /// <summary>Една фаза нагоре (от грижа – най-много 2 на ден).</summary>
+    private void GrowPlant(bool fromCare)
+    {
+        string today = DayKey(DateTime.Today);
+        if (_save.PlantGrowDay != today)
         {
-            _save.Garden[i]++;
-            if (_save.Garden[i] == 4)
-            {
-                Emote("sparkle", 3);
-                Say(R.Pick("garden.bloom", _save.OwnerName), 4);
-            }
-            else Emote("heart", 1.6);
+            _save.PlantGrowDay = today;
+            _save.PlantGrowToday = 0;
+        }
+        if (fromCare)
+        {
+            _save.PlantCareMinutes = 0;
+            if (_save.PlantGrowToday >= 2) return;
+            _save.PlantGrowToday++;
+        }
+        _save.PlantLastGrow = DateTime.Now;
+        if (_save.PlantStage >= PlantStages - 1) { Persist(); return; }
+        _save.PlantStage++;
+        if (InGarden)
+        {
+            Emote(_save.PlantStage == PlantStages - 1 ? "sparkle" : "heart", 2.5);
+            Say(R.Pick(_save.PlantStage == PlantStages - 1 ? "garden.bloom" : "plant.grow", _save.OwnerName), 4);
         }
         DrawGarden();
         Persist();
+    }
+
+    /// <summary>Без грижи расте много бавно: една фаза на 5 дни.</summary>
+    private void GrowPlantByTime()
+    {
+        if (!Kitchen.Owns(_save, Kitchen.PlantPot)) return;
+        if (_save.PlantLastGrow == DateTime.MinValue) _save.PlantLastGrow = DateTime.Now;
+        while (DateTime.Now - _save.PlantLastGrow > TimeSpan.FromDays(5) && _save.PlantStage < PlantStages - 1)
+        {
+            _save.PlantStage++;
+            _save.PlantLastGrow = _save.PlantLastGrow.AddDays(5);
+        }
     }
 }

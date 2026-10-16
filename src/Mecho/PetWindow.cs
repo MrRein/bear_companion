@@ -271,6 +271,8 @@ public sealed partial class PetWindow : Window
         UpdateCare(real, now);
         UpdateFood(dt);
         if (_drops.Count > 0 || InGarden) UpdateDrops(now, dt);
+        UpdateFeeder(now, dt);
+        if (_plantPushing) UpdatePlantAway(dt);
         if (_cook != null) UpdateCooking(now, dt);
         else if (_pendingCook != null && now > _pendingCookAt) StartPendingCook();
         RunLater(now);
@@ -373,7 +375,7 @@ public sealed partial class PetWindow : Window
     private void PaceTimer()
     {
         bool moving = IsVisible && !_calm && (_state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
-            || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || _drops.Count > 0 || Dressing || CookShaking || EmotePopping || _cook is { Window.IsFalling: true }
+            || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || _drops.Count > 0 || _birdPhase is 1 or 3 || Dressing || CookShaking || EmotePopping || _cook is { Window.IsFalling: true }
             || FoodMoving());
         // Тут пише, а мечокът върви: 15 кадъра в секунда стигат (не с всеки кадър на
         // екрана) – прозрачният прозорец „винаги отгоре“ не бива да товари писането.
@@ -994,6 +996,10 @@ public sealed partial class PetWindow : Window
     }
 
     internal void ChatClosed() => _chatClosedAt = Now;
+
+    /// <summary>Пита следващото след малко (за разговори с продължение), ако още е свободен.</summary>
+    public void AskAfter(double seconds, ChatQuestion question) =>
+        Later(seconds, () => { if (!ChatIsOpen && !IsAsleep && !OnWalk) Ask(question); });
 
     /// <summary>Казва нещо и подскача от радост (ако може).</summary>
     public void Cheer(string text)

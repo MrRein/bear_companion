@@ -170,6 +170,8 @@ public static class Clothes
         new("paintbrush_red", "Червена четка", "tool", 0, default, default) { Hidden = true },
         new("paintbrush_blue", "Синя четка", "tool", 0, default, default) { Hidden = true },
         new("wateringcan", "Лейка", "tool", 0, default, default) { Hidden = true },
+        new("shovel", "Лопатка", "tool", 0, default, default) { Hidden = true },
+        new("scissors", "Ножица", "tool", 0, default, default) { Hidden = true },
         new("knitting", "Куки с прежда", "tool", 0, default, default) { Hidden = true },
     });
 

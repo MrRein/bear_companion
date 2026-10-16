@@ -744,21 +744,29 @@ public sealed partial class PetWindow
             if (_inScene) LeaveScene();
             StartScene(Scenes.Plant, 120);
             if (_gardenWindow == null) throw new Exception("няма градинка");
-            _save.GardenGrown.Clear();
-            EnsureGardenSave();
-            int before = _save.Garden[0];
-            GrowFlower(0);
-            if (before < 4 && _save.Garden[0] != before + 1) throw new Exception("цветето не порасна");
-            GrowFlower(0);
-            if (before < 4 && _save.Garden[0] != before + 1) throw new Exception("порасна два пъти веднага");
-            // След 40 мин пак расте (с времето, докато го полива).
-            _save.GardenGrown[0] = DateTime.Now.AddMinutes(-41).ToString("yyyy-MM-ddTHH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
-            int mid = _save.Garden[0];
-            GrowFlower(0);
-            if (mid < 4 && _save.Garden[0] != mid + 1) throw new Exception("не порасна след 40 мин");
+            // Расте от грижите (8 мин – фаза, най-много 2 на ден) и бавно сам (5 дни).
+            _save.PlantStage = 2;
+            _save.PlantGrowToday = 0;
+            _save.PlantGrowDay = "";
+            _save.PlantCareMinutes = 8;
+            GrowPlant(fromCare: true);
+            if (_save.PlantStage != 3) throw new Exception("растението не порасна от грижите");
+            GrowPlant(fromCare: true);
+            GrowPlant(fromCare: true);
+            if (_save.PlantStage != 4) throw new Exception("порасна повече от 2 фази за ден");
+            _save.PlantLastGrow = DateTime.Now.AddDays(-11);
+            GrowPlantByTime();
+            if (_save.PlantStage != 6) throw new Exception("не порасна само с времето (2 фази за 11 дни)");
+            // Стига до ръба, издърпва саксията и почва грижите.
+            _x = CareSpot;
+            for (int i = 0; i < 40; i++) UpdateGarden(Now + i * 0.1);
+            if (_gardenPhase != 2 || _plantOut < 1) throw new Exception($"не издърпа саксията (фаза {_gardenPhase}, навън {_plantOut:0.0})");
+            foreach (var t in new[] { "wateringcan", "shovel", "scissors" })
+                if (!Clothes.All.Any(g => g.Id == t)) throw new Exception("няма инструмент " + t);
             for (int i = 0; i < 40; i++) UpdateGarden(Now + i * 0.1);
             // Капчици от лейката.
             _gardenWaterUntil = Now + 5;
+            _plantTool = "wateringcan";
             _anim = "doing";
             for (int i = 0; i < 10; i++) { _nextDrop = 0; UpdateDrops(Now, 0.016); }
             if (_drops.Count == 0) throw new Exception("лейката не капе");
@@ -767,7 +775,8 @@ public sealed partial class PetWindow
         await step("градинка: свърши", () =>
         {
             LeaveScene();
-            if (_gardenWindow is { IsVisible: true }) throw new Exception("градинката остана");
+            for (int i = 0; i < 20; i++) UpdatePlantAway(0.1);
+            if (_gardenWindow is { IsVisible: true }) throw new Exception("саксията не се прибра");
             UpdateDrops(Now, 0.016);
             if (_drops.Count > 0) throw new Exception("капчиците останаха");
         }, 300);

@@ -99,6 +99,7 @@ public sealed partial class PetWindow
         }
         UpdateHeater(now);
         UpdateLamp();
+        UpdateRadio(now);
         AskHeaterCloser(now);
         if (now < _nextWarmthLine || _tempC == null) return;
         // Колкото му е по-неудобно, толкова по-често казва (40–80 мин, а в мраза без дрехи – 15–30).

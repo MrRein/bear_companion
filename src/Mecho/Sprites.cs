@@ -147,6 +147,13 @@ public sealed class SpriteLibrary
     public Prop GetProp(string name, int width, int height, int seat)
     {
         if (_props.TryGetValue(name, out var p)) return p;
+        // Нова рисунка, която още я няма в props.json: просто файлът assets/props/<name>.png.
+        if (LoadPng(Path.Combine(PropsFolder, name + ".png")) is { } img)
+        {
+            p = new Prop { Image = img, Seat = seat };
+            _props[name] = p;
+            return p;
+        }
         p = new Prop { Image = Placeholder(name, width, height), Seat = seat };
         _props[name] = p;
         _placeholders.Add(name);
