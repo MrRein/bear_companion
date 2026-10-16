@@ -231,7 +231,9 @@ public sealed partial class PetWindow
         if (UiThemes.Owns(_save, t) || _save.Hazelnuts < t.Price) return;
         _save.Hazelnuts -= t.Price;
         _save.Owned.Add(t.Key);
-        UseUiTheme(t);
+        // Отива в гардероба („Цвят на меню“); слага се оттам.
+        Persist();
+        NotifyCare();
     }
 
     public void UseUiTheme(UiTheme t)

@@ -18,8 +18,12 @@ public static class SelfTest
 {
     public static string LogPath => Path.Combine(SaveData.Folder, "selftest.log");
 
+    /// <summary>Тече самопроверка (тогава обиколката не се пуска сама).</summary>
+    public static bool Running { get; private set; }
+
     public static int Run()
     {
+        Running = true;
         Directory.CreateDirectory(SaveData.Folder);
         File.WriteAllText(LogPath, "");
         var errors = new List<string>();
@@ -162,16 +166,13 @@ public sealed partial class PetWindow
             if (IsDark(new DateTime(2026, 7, 10, 19, 0, 0)) || !IsDark(new DateTime(2026, 7, 10, 23, 0, 0))) throw new Exception("лятото");
             if (!IsDark(new DateTime(2026, 7, 11, 3, 0, 0))) throw new Exception("нощем");
             _save.Owned.Add(Kitchen.Lamp);
-            bool dark = IsDark(DateTime.Now);
+            SetLamp(true);
             UpdateLamp();
-            if (dark != (_lampWindow != null)) throw new Exception("лампата не следва тъмното");
-            if (dark)
-            {
-                SetLamp(false);
-                UpdateLamp();
-                if (_lampWindow != null) throw new Exception("изгасената лампа свети");
-                SetLamp(true);
-            }
+            if (_lampWindow == null) throw new Exception("сложената лампа я няма");
+            SetLamp(false);
+            UpdateLamp();
+            if (_lampWindow != null) throw new Exception("прибраната лампа остана");
+            SetLamp(true);
             _save.Owned.Remove(Kitchen.Lamp);
             UpdateLamp();
             if (_lampWindow != null) throw new Exception("лампа без лампа");
@@ -250,6 +251,7 @@ public sealed partial class PetWindow
             var pot = Kitchen.Upgrades.First(u => u.Id == Kitchen.Pot);
             _save.Owned.Remove(Kitchen.Pot);
             _save.Owned.Remove(Kitchen.RecipeId(Kitchen.Foods.First(f => f.Id == "soup")));
+            TodayRec.UpgradesBought = 0;
             Buy(pot);
             if (Kitchen.Owns(_save, Kitchen.Pot)) throw new Exception("тенджерата е отключена преди доставката");
             if (GoalChoices.Any(u => u.Id == Kitchen.Pot)) throw new Exception("поръчаната тенджера пак е в магазина");
@@ -825,6 +827,15 @@ public sealed partial class PetWindow
             SetPinned(PinWindow.Tasks, false);
             _save.Tasks.Remove(t);
         }, 600);
+        await step("обиколка (tutorial)", () =>
+        {
+            for (int i = 0; i < 12; i++)
+            {
+                StartTutorial(i);
+                _chat?.Hide();
+            }
+            if (!_save.TutorialDone) throw new Exception("обиколката не се отбеляза като видяна");
+        }, 500);
         await step("сандвич на масата", () =>
         {
             var sandwich = Kitchen.Foods.First(f => f.Id == "sandwich");
@@ -1052,6 +1063,7 @@ public sealed partial class PetWindow
             ChooseGoal(Kitchen.Wardrobe);
             if (Goal?.Id != Kitchen.Wardrobe) throw new Exception("гардеробът не стана цел");
             _save.Hazelnuts += Goal.Price;
+            TodayRec.UpgradesBought = 0;
             TakeGoal();
             if (Kitchen.Owns(_save, Kitchen.Wardrobe)) throw new Exception("гардеробът е отключен преди доставката");
             if (GoalChoices.Any(u => u.Id == Kitchen.Wardrobe)) throw new Exception("поръчаният гардероб пак е в избора");
@@ -1067,10 +1079,21 @@ public sealed partial class PetWindow
             var d = Goal ?? throw new Exception("не се избра цел");
             _menu!.SelfTestShop();
             _save.Hazelnuts += d.Price;
+            TodayRec.UpgradesBought = 0;
             TakeGoal();
             ReceiveOrdersNow();
             if (!Kitchen.Owns(_save, d.Id)) throw new Exception("целта не се купи");
             if (GoalChoices.Count == 0 && Goal == null && !AllGoalsDone) throw new Exception("няма нов избор");
+            // Дневният лимит: след 2–3 покупки „Купи“ не купува, до утре.
+            TodayRec.UpgradesBought = UpgradeLimitToday;
+            if (!ShopSoldOut) throw new Exception("лимитът за деня не сработи");
+            if (GoalChoices.FirstOrDefault() is { } extra)
+            {
+                int nuts = _save.Hazelnuts;
+                Buy(extra);
+                if (_save.Hazelnuts != nuts || _save.Ordered.Contains(extra.Id)) throw new Exception("купи над дневния лимит");
+            }
+            TodayRec.UpgradesBought = 0;
             _menu!.Hide();
             foreach (var id in removed) if (!_save.Owned.Contains(id)) _save.Owned.Add(id);
             _save.GoalId = null;

@@ -112,6 +112,12 @@ public sealed partial class PetWindow
         Buy(u);
     }
 
+    /// <summary>Колко неща (уреди, мебели…) може да се купят днес: 2 или 3, различно всеки ден.</summary>
+    public int UpgradeLimitToday => 2 + new Random(DateTime.Today.Year * 1000 + DateTime.Today.DayOfYear + 77).Next(2);
+
+    /// <summary>Днес вече е купено колкото може („Няма повече продукти за днес“).</summary>
+    public bool ShopSoldOut => TodayRec.UpgradesBought >= UpgradeLimitToday;
+
     /// <summary>Вика се от Buy: купеното е целта – почва нов избор.</summary>
     private void GoalBought(string id)
     {

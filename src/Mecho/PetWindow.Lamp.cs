@@ -2,9 +2,8 @@ using System;
 
 namespace Mecho;
 
-// Лампата: купена ли е, вечер (след залез) мечокът я пали и тя стои на земята
-// до него и свети. Тут може да я мести и да я изгаси (до сутринта). Като
-// легне за деня, я гаси сам.
+// Лампата: Тут я слага („Сложи“ в менюто) и тя стои на земята до мечока и
+// свети, докато Тут не я прибере (пак от „Сложи“ или с клик върху нея). Може да се мести.
 public sealed partial class PetWindow
 {
     private CookerWindow? _lampWindow;
@@ -28,16 +27,13 @@ public sealed partial class PetWindow
     private static string EveningKey(DateTime t) => (t.Hour < 6 ? t.Date.AddDays(-1) : t.Date).ToString("yyyy-MM-dd");
 
     /// <summary>Лампата свети: купена, тъмно е, не е изгасена тази вечер и мечокът не е легнал за деня.</summary>
-    public bool LampOn =>
-        Kitchen.Owns(_save, Kitchen.Lamp) && IsDark(DateTime.Now) && !SleepsForDay &&
-        !(_save.LampOff && _save.LampOffDay == EveningKey(DateTime.Now));
+    public bool LampOn => Kitchen.Owns(_save, Kitchen.Lamp) && _save.LampPlaced;
 
-    /// <summary>Тут я изгаси (или пак я светна).</summary>
+    /// <summary>Тут я сложи (или прибра).</summary>
     public void SetLamp(bool on)
     {
         if (!Kitchen.Owns(_save, Kitchen.Lamp)) return;
-        _save.LampOff = !on;
-        _save.LampOffDay = EveningKey(DateTime.Now);
+        _save.LampPlaced = on;
         Persist();
         NotifyCare();
     }
@@ -48,7 +44,7 @@ public sealed partial class PetWindow
         if (on != _lampWasOn)
         {
             _lampWasOn = on;
-            // Сам я пали, като се стъмни (и казва нещо, ако е буден и не е зает).
+            // Тут я сложи: казва нещо, ако е буден и не е зает.
             if (on && !IsAsleep && !InFocus && !IsQuiet) Mutter(R.Pick("lamp.on", _save.OwnerName), 4);
         }
         if (!on)
@@ -68,8 +64,8 @@ public sealed partial class PetWindow
             _lampWindow = new CookerWindow("Лампа");
             _lampWindow.SetTime(null);
             _lampWindow.Hint = "Лампата свети.";
-            _lampWindow.Clicked += () => Ask(new ChatQuestion("Да изгася ли лампата?",
-                new ChatOption("Изгаси я", p => { p.SetLamp(false); p.Say(R.Pick("lamp.off", p.Save.OwnerName), 3); }),
+            _lampWindow.Clicked += () => Ask(new ChatQuestion("Да прибера ли лампата?",
+                new ChatOption("Прибери я", p => { p.SetLamp(false); p.Say(R.Pick("lamp.off", p.Save.OwnerName), 3); }),
                 new ChatOption("Не, нека свети", p => p.Say(R.Pick("lamp.keep", p.Save.OwnerName), 3))));
             _lampWindow.Dropped += (cx, _) =>
             {

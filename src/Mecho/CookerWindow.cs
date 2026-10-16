@@ -19,6 +19,14 @@ public sealed class CookerWindow : Window
     private readonly Image _image = new() { Cursor = Cursors.Hand };
     private readonly TextBlock _time = new() { FontWeight = FontWeights.Bold };
     private readonly Border _tag;
+    private static readonly SolidColorBrush DeskHoney = Frozen(Color.FromRgb(255, 209, 102)), DeskInk = Frozen(Color.FromRgb(59, 36, 20));
+
+    private static SolidColorBrush Frozen(Color c)
+    {
+        var b = new SolidColorBrush(c);
+        b.Freeze();
+        return b;
+    }
     private double _centerX, _bottom, _shake;
     private double _ground, _vy;
     private bool _falling;
@@ -63,6 +71,9 @@ public sealed class CookerWindow : Window
         RenderOptions.SetBitmapScalingMode(_image, BitmapScalingMode.NearestNeighbor);
 
         _tag = Pill(_time);
+        // На работния плот табелката е винаги медена (цветът на менюто – напр. „Камък“ – е само за менюто).
+        _tag.Background = DeskHoney;
+        _time.Foreground = DeskInk;
         _tag.HorizontalAlignment = HorizontalAlignment.Center;
         _tag.Margin = new Thickness(0, 0, 0, 3);
         var stack = new StackPanel();

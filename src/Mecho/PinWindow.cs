@@ -291,7 +291,7 @@ public sealed class PinWindow : Window
                 ToolTipService.SetShowDuration(check, 60000);
             }
             row.Children.Add(check);
-            var reward = IconText("nut", $"+{t.Reward}");
+            var reward = RewardText(t.Reward);
             reward.Opacity = 0.7;
             reward.Margin = new Thickness(6, 0, 4, 0);
             Grid.SetColumn(reward, 1);

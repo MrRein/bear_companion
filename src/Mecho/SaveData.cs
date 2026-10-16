@@ -22,6 +22,7 @@ public sealed class SaveData
     public DateTime QuietUntil { get; set; }
     public bool StartWithWindows { get; set; } = true;
     public bool FirstRunDone { get; set; }
+    public bool TutorialDone { get; set; }                       // обиколката „Как се играе?“ е показана
     public DateTime LastSeen { get; set; }
 
     // Грижа (0–100)
@@ -55,6 +56,8 @@ public sealed class SaveData
     public DateTime WalkUntil { get; set; } = DateTime.MinValue;
     public bool WalkSolo { get; set; }                           // тръгна сам (никой не му каза какво да прави)
     public bool WalkNap { get; set; }                            // вечерна разходка-дрямка: брои се за сън  // на разходка извън екрана до (виж PetWindow.Walk.cs)            // скинът на менюто (виж UiThemes)             // коя пижама облича вечер (виж Clothes.PajamaSets)
+    public bool DrawingsHidden { get; set; }                     // „Скрий всичко“ от иконката: рисунките са скрити
+    public bool LampPlaced { get; set; }                        // Тут сложи лампата (свети, докато не я прибере)
     public bool LampOff { get; set; }                           // Тут изгаси лампата тази вечер (до сутринта)
     public string LampOffDay { get; set; } = "";
     public double LampX { get; set; } = double.NaN;
@@ -231,6 +234,7 @@ public sealed class DayRecord
     public int BigTasks { get; set; }
     public List<string> Foods { get; set; } = new();
     public bool FavFed { get; set; }
+    public int UpgradesBought { get; set; }    // колко неща от „Събираме за…“ е купила днес (лимит 2–3 на ден)
     public int WishGifts { get; set; }         // колко пъти днес е върнал услугата (лешник/страница) за желано ядене
     public int Petted { get; set; }
     public bool WokeEarly { get; set; }        // Тут го събуди рано сутрин

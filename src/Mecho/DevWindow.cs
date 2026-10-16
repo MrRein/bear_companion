@@ -429,7 +429,11 @@ public sealed partial class PetWindow
             Persist();
             NotifyCare();
         });
-        yield return (misc, "Лампа: купи и светни", () => { if (!_save.Owned.Contains(Kitchen.Lamp)) _save.Owned.Add(Kitchen.Lamp); SetLamp(true); });
+        yield return (misc, "Обиколка (tutorial) отначало", () => StartTutorial());
+        yield return (misc, "Скрий / покажи всички рисунки", () => SetDrawingsHidden(!DrawingsHidden));
+        yield return (misc, "Магазин: днешният лимит е изчерпан", () => { TodayRec.UpgradesBought = UpgradeLimitToday; NotifyCare(); });
+        yield return (misc, "Магазин: нулирай днешния лимит", () => { TodayRec.UpgradesBought = 0; NotifyCare(); });
+        yield return (misc, "Лампа: купи и сложи", () => { if (!_save.Owned.Contains(Kitchen.Lamp)) _save.Owned.Add(Kitchen.Lamp); SetLamp(true); });
         yield return (misc, "Лампа: изгаси", () => SetLamp(false));
         yield return (misc, "Динг (звук)", () => Sounds.Play(_save));
         yield return (misc, "Енергия: вечерен таван", () => { _save.Energy = 100; Say($"Таванът сега: {EveningCap(DateTime.Now):0}", 3); NotifyCare(); });

@@ -98,6 +98,9 @@ public sealed partial class PetWindow
         get
         {
             string today = DayKey(DateTime.Today);
+            // Любимото е нещо, което може да сготви (иначе – ново, ако уредът го няма вече).
+            if (_save.FavFoodDay == today && Kitchen.Foods.FirstOrDefault(f => f.Id == _save.FavFood) is { } old && !Kitchen.CanCook(old, _save))
+                _save.FavFoodDay = "";
             if (_save.FavFoodDay != today)
             {
                 var can = Kitchen.Foods.Where(f => f.Fullness >= 5 && Kitchen.CanCook(f, _save)).ToList();

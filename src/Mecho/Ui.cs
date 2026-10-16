@@ -268,6 +268,39 @@ public static class Ui
     /// Пише текст в TextBlock, като сменя познатите емоджи с пикселни иконки
     /// (останалите емоджи остават като букви).
     /// </summary>
+    /// <summary>
+    /// Като SetRichText, но в ред (StackPanel): иконките са центрирани спрямо буквите
+    /// (в TextBlock с моно шрифта стояха забити горе). style – шрифт/цвят на буквите.
+    /// </summary>
+    public static void SetIconLine(StackPanel row, string text, Action<TextBlock> style)
+    {
+        row.Children.Clear();
+        var plain = new System.Text.StringBuilder();
+        void Flush()
+        {
+            if (plain.Length == 0) return;
+            var t = new TextBlock { Text = plain.ToString(), VerticalAlignment = VerticalAlignment.Center };
+            style(t);
+            row.Children.Add(t);
+            plain.Clear();
+        }
+        var e = System.Globalization.StringInfo.GetTextElementEnumerator(text);
+        while (e.MoveNext())
+        {
+            string el = e.GetTextElement().Replace("\uFE0F", "");
+            if (EmojiIcons.TryGetValue(el, out var icon) && LoadIcon(icon) != null)
+            {
+                Flush();
+                var image = Icon(icon);
+                image.VerticalAlignment = VerticalAlignment.Center;
+                image.Margin = new Thickness(1, 0, 3, 0);
+                row.Children.Add(image);
+            }
+            else if (!IsEmoji(el)) plain.Append(el);
+        }
+        Flush();
+    }
+
     public static void SetRichText(TextBlock block, string text)
     {
         block.Inlines.Clear();
@@ -345,6 +378,18 @@ public static class Ui
     }
 
     /// <summary>Иконка и текст на един ред, подравнени по средата.</summary>
+    /// <summary>„+3 🌰“: числото, после лешникът.</summary>
+    public static StackPanel RewardText(int nuts, bool bold = false)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        row.Children.Add(RichText($"+{nuts}", null, bold));
+        var i = Icon("nut");
+        i.VerticalAlignment = VerticalAlignment.Center;
+        i.Margin = new Thickness(4, 0, 0, 0);
+        row.Children.Add(i);
+        return row;
+    }
+
     public static StackPanel IconText(string? icon, string text, bool bold = false, double? size = null)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };

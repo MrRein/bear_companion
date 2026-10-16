@@ -3,7 +3,8 @@
     python tools/make_icon.py
 
 Изрязва празното около мечока, слага го в квадрат и го уголемява без
-размазване (пиксел за пиксел) до 16, 24, 32, 48, 64, 128 и 256 px.
+размазване (пиксел за пиксел) до 48, 64, 128 и 256 px; малките (16, 24, 32 –
+в лентата до часовника) са само главата и раменете, за да се вижда.
 """
 
 import os
@@ -23,8 +24,16 @@ def main():
     side = max(frame.size)
     square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
     square.alpha_composite(frame, ((side - frame.width) // 2, side - frame.height))
+    # Малките (16–32, в лентата до часовника): само главата и раменете, за да не е мъничък.
+    w = frame.width
+    bust = Image.new("RGBA", (w, w), (0, 0, 0, 0))
+    bust.alpha_composite(frame.crop((0, 0, w, min(w, frame.height))), (0, 0))
     images = []
     for size in SIZES:
+        if size <= 32:
+            canvas = bust.resize((size, size), Image.NEAREST if size % w == 0 else Image.BOX)
+            images.append(canvas)
+            continue
         k = max(1, size // side)
         big = square.resize((side * k, side * k), Image.NEAREST)
         canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))

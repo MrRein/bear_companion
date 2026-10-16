@@ -30,19 +30,16 @@ public sealed class TrayIcon : IDisposable
         var menu = new Forms.ContextMenuStrip();
         var show = menu.Items.Add("Покажи мечока");
         show.Click += (_, _) => Toggle();
-        var panel = menu.Items.Add("Отвори панела");
+        var panel = menu.Items.Add("Отвори меню");
         panel.Click += (_, _) =>
         {
             if (_pet.OnWalk) _pet.ReturnFromWalk(called: true);
             else if (!_pet.IsVisible) _pet.Show();
             _pet.OpenMenu(MenuWindow.BearTab);
         };
-        var stay = menu.Items.Add("");
-        stay.Click += (_, _) => { if (_pet.StaysPut) _pet.GetUp(); else _pet.StayHere(); };
-        var sleep = menu.Items.Add("");
-        sleep.Click += (_, _) => { if (_pet.IsAsleep) _pet.WakeUp(); else _pet.GoToSleep(); };
-        var quiet = menu.Items.Add("");
-        quiet.Click += (_, _) => _pet.SetQuiet(!_pet.IsQuiet);
+        // Скрий всичко: всички рисунки (платформите) изчезват; пак оттук се показват.
+        var hideAll = menu.Items.Add("");
+        hideAll.Click += (_, _) => _pet.SetDrawingsHidden(!_pet.DrawingsHidden);
         menu.Items.Add(new Forms.ToolStripSeparator());
         var update = menu.Items.Add("");
         update.Click += (_, _) =>
@@ -50,14 +47,6 @@ public sealed class TrayIcon : IDisposable
             if (_pet.Updater.IsAvailable) _ = _pet.InstallUpdate();
             else _ = _pet.CheckForUpdates(manual: true);
         };
-        var draw = menu.Items.Add("Рисувай платформи");
-        draw.Click += (_, _) =>
-        {
-            if (!_pet.IsVisible) _pet.Show();
-            _pet.OpenDrawing();
-        };
-        var reload = menu.Items.Add("Презареди рисунките");
-        reload.Click += (_, _) => _pet.ReloadArt();
         var autostart = new Forms.ToolStripMenuItem("Пускай се с Windows");
         autostart.Click += (_, _) =>
         {
@@ -73,8 +62,7 @@ public sealed class TrayIcon : IDisposable
         menu.ImageScalingSize = new System.Drawing.Size(24, 24);
         (Forms.ToolStripItem Item, string Icon)[] icons =
         {
-            (show, "bear"), (panel, "gear"), (stay, "couch"), (sleep, "moon"), (quiet, "quiet"), (update, "update"),
-            (draw, "pencil"), (reload, "notes"), (exit, "close"),
+            (show, "walk"), (panel, "bear"), (hideAll, "hide"), (update, "update"), (exit, "close"),
         };
         foreach (var (item, icon) in icons) item.Image = PixelIcon(icon);
         exit.Click += (_, _) =>
@@ -86,10 +74,7 @@ public sealed class TrayIcon : IDisposable
         menu.Opening += (_, _) =>
         {
             show.Text = _pet.IsVisible ? "Скрий мечока" : "Покажи мечока";
-            stay.Text = _pet.StaysPut ? "Стани" : "Почивай си: чети";
-            sleep.Text = _pet.IsAsleep ? "Събуди се" : "Лягай да спиш";
-            sleep.Enabled = _pet.CanSleep;
-            quiet.Text = _pet.IsQuiet ? "Може да говориш" : "Тихо за 1 час";
+            hideAll.Text = _pet.DrawingsHidden ? "Покажи рисунките" : "Скрий всичко";
             autostart.Checked = _save.StartWithWindows;
             update.Text = _pet.Updater.IsAvailable
                 ? "Обнови"

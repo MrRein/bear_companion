@@ -16,6 +16,13 @@ public sealed partial class PetWindow
     private double _emoteStart, _emoteUntil, _nextAmbientEmote = 300;
     private string? _emoteName;
 
+    // Говори ли в момента, емоцията е над балончето (в свой малък прозорец), а не
+    // зад него до главата.
+    private readonly Image _emoteFloat = new() { IsHitTestVisible = false };
+    private readonly ScaleTransform _emoteFloatPop = new(1, 1);
+    private OverlayWindow? _emoteWindow;
+    private Rect _bubbleRect = Rect.Empty;
+
     public string? CurrentEmote => _emote.Visibility == Visibility.Visible ? _emoteName : null;
 
     private void InitEmotes()
@@ -24,6 +31,32 @@ public sealed partial class PetWindow
         _emote.RenderTransform = _emotePop;
         _emote.RenderTransformOrigin = new Point(0.2, 1);
         _root.Children.Add(_emote);
+        RenderOptions.SetBitmapScalingMode(_emoteFloat, BitmapScalingMode.NearestNeighbor);
+        _emoteFloat.RenderTransform = _emoteFloatPop;
+        _emoteFloat.RenderTransformOrigin = new Point(0.2, 1);
+    }
+
+    /// <summary>След балончето: ако има и емоция, тя отива над балончето (горе вдясно).</summary>
+    private void PlaceEmoteOverBubble()
+    {
+        bool over = _emote.Visibility == Visibility.Visible && !_bubbleRect.IsEmpty && IsVisible;
+        _emote.Opacity = over ? 0 : _emote.Opacity;
+        if (!over)
+        {
+            _emoteWindow?.Conceal();
+            return;
+        }
+        _emoteWindow ??= new OverlayWindow(new Border { Child = _emoteFloat, Padding = new Thickness(2) });
+        if (!ReferenceEquals(_emoteFloat.Source, _emote.Source)) _emoteFloat.Source = _emote.Source;
+        _emoteFloat.Width = _emote.Width;
+        _emoteFloat.Height = _emote.Height;
+        _emoteFloatPop.ScaleX = _emoteFloatPop.ScaleY = _emotePop.ScaleX;
+        _emoteFloat.Opacity = Math.Clamp((_emoteUntil - Now) / 0.4, 0, 1);
+        double x = _bubbleRect.Right - _emote.Width * 0.8;
+        double y = _bubbleRect.Top - _emote.Height - 2;
+        if (y < Area.Top) y = _bubbleRect.Bottom + 2;
+        _emoteWindow.Place(x, y);
+        NativeMethods.BringToTop(new System.Windows.Interop.WindowInteropHelper(_emoteWindow).Handle);
     }
 
     /// <summary>Показва емоция над главата (сменя предишната).</summary>

@@ -71,6 +71,7 @@ public sealed partial class PetWindow
     public int PomodoroNumber => _save.PomodoroSeries - _save.PomodoroSeriesLeft;
     private readonly Border _timerTag = new();
     private readonly TextBlock _timerText = new();
+    private readonly StackPanel _timerRow = new() { Orientation = Orientation.Horizontal };
 
     public SaveData Save => _save;
 
@@ -86,7 +87,7 @@ public sealed partial class PetWindow
         _timerText.FontSize = Ui.Body;
         _timerText.FontFamily = Ui.MonoFont;
         _timerText.Foreground = Ui.Ink;
-        _timerTag.Child = _timerText;
+        _timerTag.Child = _timerRow;
         _timerTag.Background = TagWork;
         _timerTag.BorderBrush = Ui.Ink;
         _timerTag.BorderThickness = new Thickness(2);
@@ -755,7 +756,12 @@ public sealed partial class PetWindow
         if (text != _timerTagShown)
         {
             _timerTagShown = text;
-            Ui.SetRichText(_timerText, text);
+            Ui.SetIconLine(_timerRow, text, t =>
+            {
+                t.FontFamily = _timerText.FontFamily;
+                t.FontSize = _timerText.FontSize;
+                t.Foreground = _timerText.Foreground;
+            });
         }
         // Зелена – почивка (между мечо-дората или таймер „Почивка“).
         var back = _save.PomodoroPhase == PomodoroPhase.Break || (RestTimer && _save.PomodoroPhase == PomodoroPhase.Off) ? TagBreak : TagWork;

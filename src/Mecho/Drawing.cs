@@ -215,12 +215,22 @@ public sealed class DrawingStore
         return c;
     }
 
-    /// <summary>Само ако вече има рисунка за този екран.</summary>
-    public DrawingCanvas? Existing(Rect area) => _canvases.FirstOrDefault(x => x.Area == area && !x.IsEmpty);
+    /// <summary>„Скрий всичко“: рисунките не се виждат и мечокът не стъпва по тях.</summary>
+    public bool Hidden { get; private set; }
+
+    /// <summary>Само ако вече има рисунка за този екран (и не са скрити).</summary>
+    public DrawingCanvas? Existing(Rect area) => Hidden ? null : _canvases.FirstOrDefault(x => x.Area == area && !x.IsEmpty);
 
     public void ShowAll()
     {
+        Hidden = false;
         foreach (var c in _canvases) c.ShowLayer(true);
+    }
+
+    public void HideAll()
+    {
+        Hidden = true;
+        foreach (var c in _canvases) c.ShowLayer(false);
     }
 
     /// <summary>

@@ -84,7 +84,8 @@ public sealed partial class PetWindow
         if (FavoriteFood is { } fav) list.Add(fav);
         foreach (var f in Kitchen.Cravings(_save))
             if (!list.Contains(f)) list.Add(f);
-        return list.ToArray();
+        // Не му се иска нещо, което сега не може да се сготви (заключено).
+        return list.Where(f => Kitchen.CanCook(f, _save)).ToArray();
     }
 
     /// <summary>
@@ -120,7 +121,7 @@ public sealed partial class PetWindow
     /// <summary>Изяде/изпи: понякога за точно това ядене, понякога общо („Беше вкусно!“).</summary>
     private string DoneLine(Food food) => Kitchen.IsCraving(food, _save)
         ? R.Pick("craving.done", _save.OwnerName).Replace("{ястие}", food.Name.ToLowerInvariant())
-        : _rng.Next(2) == 0 && FoodTalk.For(food).Done.Length > 0
+        : _rng.Next(5) > 0 && FoodTalk.For(food).Done.Length > 0
         ? Lines.Pick(FoodTalk.For(food).Done, _save.OwnerName)
         : R.Pick(IsDrink(food) ? "drank.done" : "ate.done", _save.OwnerName);
 

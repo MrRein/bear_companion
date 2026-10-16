@@ -113,8 +113,14 @@ public static class Kitchen
         var can = Foods.Where(f => f.Cost > 0 && CanCook(f, save)).OrderBy(f => f.Id).ToList();
         if (can.Count == 0) return Array.Empty<Food>();
         var day = new Random(DateTime.Today.Year * 1000 + DateTime.Today.DayOfYear + 31);
-        var picks = can.OrderBy(_ => day.Next()).Take(can.Count >= 4 ? 2 : 1).ToArray();
-        return picks;
+        // Едно желание на ден; с повече от 8 рецепти понякога 2 или 3 (не всеки ден).
+        int count = 1;
+        if (can.Count > 8)
+        {
+            double roll = day.NextDouble();
+            count = roll < 0.45 ? 1 : roll < 0.8 ? 2 : 3;
+        }
+        return can.OrderBy(_ => day.Next()).Take(count).ToArray();
     }
 
     public static bool IsCraving(Food f, SaveData save) => Cravings(save).Contains(f);

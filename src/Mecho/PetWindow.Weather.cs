@@ -77,6 +77,10 @@ public sealed partial class PetWindow
         }
     }
 
+    /// <summary>За менюто: иконка на небето и градусите (null – още не знаем времето).</summary>
+    public (string Icon, string Temp)? WeatherBadge =>
+        _tempC is { } t ? (Weather.SkyIcon(DateTime.Now), $"{t:0}°C") : null;
+
     private void UpdateWeather(double now)
     {
         if (now > _nextWeather && !_weatherBusy)

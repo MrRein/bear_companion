@@ -29,6 +29,7 @@ public sealed partial class PetWindow
             var area = new Rect(wa.Left / dpi, wa.Top / dpi, wa.Width / dpi, wa.Height / dpi);
             _drawings.For(area, PixelSize).ShowLayer(true);
         }
+        if (_save.DrawingsHidden) _drawings.HideAll();
         NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
         RaiseCompanions();
     }
@@ -43,6 +44,7 @@ public sealed partial class PetWindow
         }
         if (MenuIsOpen) _menu!.Hide();
         if (ChatIsOpen) _chat!.Hide();
+        if (_drawings.Hidden) SetDrawingsHidden(false);
         var canvas = _drawings.For(Area, PixelSize);
         _drawWindow = new DrawWindow(this, canvas);
         _drawWindow.Open();
@@ -60,6 +62,22 @@ public sealed partial class PetWindow
         {
             Say(Lines.Pick(Lines.DrawDone, _save.OwnerName), 4);
             if (_state is BearState.Idle or BearState.Walk) Climb();
+        }
+    }
+
+    public bool DrawingsHidden => _drawings.Hidden;
+
+    /// <summary>„Скрий всичко“ (от иконката до часовника): скрива/показва всички рисунки.</summary>
+    public void SetDrawingsHidden(bool hidden)
+    {
+        if (hidden) _drawings.HideAll();
+        else _drawings.ShowAll();
+        _save.DrawingsHidden = hidden;
+        Persist();
+        if (!hidden)
+        {
+            NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
+            RaiseCompanions();
         }
     }
 

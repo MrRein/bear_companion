@@ -87,6 +87,20 @@ public static class Weather
         _ => null,
     };
 
+    /// <summary>Пикселната иконка за небето (assets/ui/w_*.png), като в прогнозата.</summary>
+    public static string SkyIcon(DateTime now) => Code switch
+    {
+        >= 95 => "w_storm",
+        >= 71 and <= 77 or 85 or 86 => "w_snow",
+        63 or 65 or 81 or 82 or 67 => "w_heavyrain",
+        >= 51 and <= 67 or 80 => "w_rain",
+        45 or 48 => "w_fog",
+        _ when Wind >= 30 => "w_wind",
+        0 or 1 => PetWindow.IsDark(now) ? "w_moon" : "w_sun",
+        2 => PetWindow.IsDark(now) ? "w_cloud" : "w_partly",
+        _ => "w_cloud",
+    };
+
     /// <summary>Кратко за менюто: „вали“, „сняг“…</summary>
     public static string? KindText(double? temp) => Kind(temp) switch
     {
