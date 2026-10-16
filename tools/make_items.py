@@ -282,8 +282,35 @@ def painting_honey(c, d):
     d.line((7, 7, 7, 8), fill=(255, 200, 80, 255))
 
 
+def painting_chick(c, d):
+    """Патутник: жълто кръгло смешно човече (пиле) с оранжев контур."""
+    d.rectangle((0, 0, 13, 12), fill=(205, 235, 250, 255))
+    art = [
+        "..............",
+        ".....ooo......",
+        "....owyyo.....",
+        "...owyyyyo....",
+        "..oyyyyyyyo...",
+        "..oykyyykyo...",
+        "..opybbyypo...",
+        "..oyyyyyyyoo..",
+        "..oyYYYYyyo...",
+        "...oyYYyyo....",
+        "....ooooo.....",
+        ".....f..f.....",
+        "..............",
+    ]
+    pal = {"o": (235, 135, 40, 255), "y": (255, 238, 110, 255), "Y": (255, 214, 80, 255),
+           "w": WHITE, "k": (50, 25, 15, 255), "p": (250, 185, 120, 255),
+           "b": (240, 110, 30, 255), "f": (240, 110, 30, 255)}
+    for y, row in enumerate(art):
+        for x, ch in enumerate(row):
+            if ch in pal:
+                d.point((x, y), fill=pal[ch])
+
+
 PAINTINGS = [painting_mountains, painting_night, painting_flower, painting_bear,
-             painting_sea, painting_forest, painting_abstract, painting_honey]
+             painting_sea, painting_forest, painting_abstract, painting_honey, painting_chick]
 
 
 def easel_paintings():

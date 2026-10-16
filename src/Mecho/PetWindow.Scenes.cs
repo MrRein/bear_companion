@@ -340,6 +340,8 @@ public sealed partial class PetWindow
         ClampX();
         if (scene == Scenes.Plant) StartGarden();
         if (IsExhausted && scene != Scenes.Focus && _rng.Next(2) == 0) Announce(Lines.Pick(Lines.SleepyDoing, _save.OwnerName), 3);
+        else if (!quiet && scene == Scenes.Painting && R.Has($"easel.{EaselNumber}"))
+            Announce(R.Pick($"easel.{EaselNumber}", _save.OwnerName));   // какво рисува днес
         else if (!quiet) Announce(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
     }
 
@@ -393,10 +395,13 @@ public sealed partial class PetWindow
         SizeSceneArt();
     }
 
-    /// <summary>Статива: картината на него се сменя на 3 дни (easel_1…8; ако ги няма – празният).</summary>
+    /// <summary>Коя картина е на статива днес (сменя се на 3 дни): 1…9.</summary>
+    private static int EaselNumber => 1 + DateTime.Today.DayOfYear / 3 % 9;
+
+    /// <summary>Статива: картината на него се сменя на 3 дни (easel_1…9; ако ги няма – празният).</summary>
     private string EaselArt()
     {
-        int n = 1 + DateTime.Today.DayOfYear / 3 % 8;
+        int n = EaselNumber;
         return _lib.HasProp("easel_" + n) || System.IO.File.Exists(System.IO.Path.Combine(SpriteLibrary.PropsFolder, $"easel_{n}.png")) ? "easel_" + n : "easel";
     }
 
@@ -485,7 +490,10 @@ public sealed partial class PetWindow
             _nextChatter = now + (stay ? 2400 : 480) + _rng.Next(stay ? 1800 : 480);
             // На настолната игра и на бюрото понякога си говори за игрите.
             bool games = scene == Scenes.Board || scene == Scenes.Desk || scene == Scenes.Write;
-            Mutter(Lines.Pick(games && _rng.Next(2) == 0 ? Lines.Chatter : scene.During, _save.OwnerName), 5);
+            string during = scene == Scenes.Painting && R.Has($"easel.{EaselNumber}") && _rng.Next(2) == 0
+                ? R.Pick($"easel.{EaselNumber}", _save.OwnerName)
+                : Lines.Pick(games && _rng.Next(2) == 0 ? Lines.Chatter : scene.During, _save.OwnerName);
+            Mutter(during, 5);
         }
     }
 
