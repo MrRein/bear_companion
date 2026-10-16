@@ -46,6 +46,8 @@ public static class SelfTest
                 Log("ГРЕШКА: " + ex);
             }
             Log(errors.Count == 0 ? "OK" : $"{errors.Count} грешки");
+            // Накрая пак – само първият ред на всяка (иначе се губят в дългия лог).
+            foreach (var e in errors) Log("  ✗ " + e.Split('\n')[0].Trim());
             app.Shutdown(errors.Count == 0 ? 0 : 1);
         });
         // Ако нещо увисне, след 10 минути спираме с грешка.
@@ -84,7 +86,7 @@ public static class SelfTest
             }
             catch (Exception ex)
             {
-                errors.Add(ex.ToString());
+                errors.Add($"„{name}“: {ex}");
                 Log($"ГРЕШКА в „{name}“: {ex}");
             }
             await Task.Delay(waitMs);
