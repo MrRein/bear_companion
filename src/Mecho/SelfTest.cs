@@ -104,6 +104,9 @@ public sealed partial class PetWindow
             SetDayKind(DayKind.Normal);
             // Без сами изскачащи спомени и въпроси по време на проверката.
             _save.MemoryDay = _save.MemoryLaterDay = DateTime.Today.ToString("yyyy-MM-dd");
+            // На машината за проверка няма мишка и клавиатура: „Тут пише“ би замразил мечока.
+            _save.CalmWhileTyping = false;
+            _save.TutorialDone = true;
         }, 100);
         await step("гардеробът е заключен", () =>
         {
