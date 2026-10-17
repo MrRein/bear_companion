@@ -566,7 +566,8 @@ public sealed partial class PetWindow
             var shirt = Clothes.All.First(g => g.SlotId == "shirt" && !g.Hidden && Clothes.Owns(_save, g) && g.Id != oldShirt);
             Wear(shirt);
             if (_closet == null || _inScene) throw new Exception("не спря да отиде до гардероба");
-            EffectiveOutfit.TryGetValue("shirt", out var shown);
+            // Видимото облекло по пътя (без пижамата – тя зависи от часа на проверката).
+            (_shownOutfit ?? _save.Outfit).TryGetValue("shirt", out var shown);
             if (shown != oldShirt) throw new Exception("преоблече се пред очите ни по пътя");
         }, 4000);
         await step("гардероб докато чете: гардеробът дойде", () =>
