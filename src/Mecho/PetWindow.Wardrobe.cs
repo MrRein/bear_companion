@@ -121,7 +121,10 @@ public sealed partial class PetWindow
     /// <summary>Преди смяната: помни как изглежда, за да не се преоблече пред очите ни по пътя.</summary>
     private void RememberLook()
     {
-        if (!AtWardrobe && _wardrobeTab) _shownOutfit ??= new Dictionary<string, string>(_save.Outfit);
+        if (AtWardrobe || !_wardrobeTab) return;
+        // Още не е тръгнал към гардероба: сегашният вид (не останал от предишна смяна).
+        if (_closet == null) _shownOutfit = new Dictionary<string, string>(_save.Outfit);
+        else _shownOutfit ??= new Dictionary<string, string>(_save.Outfit);
     }
 
     public void BuyGarment(Garment g)
