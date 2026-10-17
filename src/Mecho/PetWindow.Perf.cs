@@ -174,7 +174,8 @@ public sealed partial class PetWindow
             catch (Exception e) { report.AppendLine($"  {name}: не тръгна ({e.Message})"); continue; }
             _perfBench = true;
             var pw = Stopwatch.StartNew();
-            await System.Threading.Tasks.Task.Delay(seconds * 1000);
+            // В самопроверката – по-кратко (само да видим числата и че нищо не гърми).
+            await System.Threading.Tasks.Task.Delay(SelfTest.Running ? 2000 : seconds * 1000);
             _perfBench = false;
             report.AppendLine("  " + PhaseLine(name, pw.Elapsed.TotalSeconds));
         }

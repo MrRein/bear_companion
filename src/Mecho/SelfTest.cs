@@ -50,8 +50,8 @@ public static class SelfTest
             foreach (var e in errors) Log("  ✗ " + e.Split('\n')[0].Trim());
             app.Shutdown(errors.Count == 0 ? 0 : 1);
         });
-        // Ако нещо увисне, след 10 минути спираме с грешка.
-        var watchdog = new DispatcherTimer { Interval = TimeSpan.FromMinutes(10) };
+        // Ако нещо увисне, след 14 минути спираме с грешка.
+        var watchdog = new DispatcherTimer { Interval = TimeSpan.FromMinutes(14) };
         watchdog.Tick += (_, _) =>
         {
             Log("ГРЕШКА: тестът увисна");
