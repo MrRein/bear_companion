@@ -43,6 +43,11 @@ public sealed class OverlayWindow : Window
         return c.DesiredSize;
     }
 
+    private bool _parked;
+
+    /// <summary>Вижда се (не е скрит и не е прибран извън екрана).</summary>
+    public bool Showing => IsVisible && !_parked;
+
     /// <summary>Слага го (горният ляв ъгъл, в DIP) и го показва, ако е скрит.</summary>
     public void Place(double left, double top)
     {
@@ -54,11 +59,25 @@ public sealed class OverlayWindow : Window
             Show();
             UpdateLayout();
         }
+        else if (_parked)
+        {
+            // Връща се отвън: размерът може да се е сменил, докато го е нямало.
+            UpdateLayout();
+            NativeMethods.MoveWindow(this, left, top);
+            NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
+        }
+        _parked = false;
         NativeMethods.MoveWindow(this, left, top);
     }
 
+    /// <summary>
+    /// Маха го от погледа: не се скрива (показването наново на прозрачен прозорец
+    /// струваше до 20 мс при всяко балонче), а отива далече извън екрана.
+    /// </summary>
     public void Conceal()
     {
-        if (IsVisible) Hide();
+        if (!IsVisible || _parked) return;
+        _parked = true;
+        NativeMethods.MoveWindow(this, -32000, -32000);
     }
 }

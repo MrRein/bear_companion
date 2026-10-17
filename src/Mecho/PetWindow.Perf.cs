@@ -125,7 +125,8 @@ public sealed partial class PetWindow
         double dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this).DpiScaleX;
         report.AppendLine($"Екран (работна площ) {area.Width:0}×{area.Height:0} · DPI ×{dpi:0.##} · пиксел на мечока {PixelSize} · прозорец {Width:0}×{Height:0}");
         report.AppendLine($"Записът (save.json): {(File.Exists(SaveData.FilePath) ? new FileInfo(SaveData.FilePath).Length / 1024 : 0)} KB · дни в паметта {_save.Days.Count} · задачи {_save.Tasks.Count} · бележки {_save.Notes.Count}");
-        report.AppendLine($"Отворени прозорци на програмата: {System.Windows.Application.Current.Windows.Count}");
+        var shown = System.Windows.Application.Current.Windows.Cast<System.Windows.Window>().Where(w => w.IsVisible).ToList();
+        report.AppendLine($"Видими прозорци на програмата: {shown.Count} ({string.Join(", ", shown.Select(w => string.IsNullOrEmpty(w.Title) ? w.GetType().Name : w.Title))}) · рисуване: {(System.Windows.Media.RenderCapability.Tier >> 16 == 2 ? "с видеокартата" : System.Windows.Media.RenderCapability.Tier >> 16 == 1 ? "отчасти с видеокартата" : "само с процесора")}");
         report.AppendLine();
 
         // Какво беше преди теста – после се връща.

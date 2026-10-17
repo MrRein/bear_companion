@@ -475,7 +475,7 @@ public sealed partial class PetWindow
         await step("балончето: веднага над мечока", () =>
         {
             Say("Тест на балончето – трябва да е точно над мечока.", 3);
-            if (!_bubbleWindow.IsVisible) throw new Exception("балончето не се показа");
+            if (!_bubbleWindow.Showing) throw new Exception("балончето не се показа");
             double bottom = _bubbleWindow.Top + _bubbleWindow.ActualHeight;
             double mid = _bubbleWindow.Left + _bubbleWindow.ActualWidth / 2;
             if (bottom > _bearRect.Top + 1 || Math.Abs(mid - (_bearRect.Left + _bearRect.Width / 2)) > _bearRect.Width + 300)
@@ -485,10 +485,10 @@ public sealed partial class PetWindow
         await step("балончето: скрива се с мечока", () =>
         {
             Hide();
-            if (_bubbleWindow.IsVisible) throw new Exception("балончето остана без мечока");
+            if (_bubbleWindow.Showing) throw new Exception("балончето остана без мечока");
             Show();
             HideBubble();
-            if (_bubbleWindow.IsVisible) throw new Exception("балончето не се скри");
+            if (_bubbleWindow.Showing) throw new Exception("балончето не се скри");
         }, 300);
         await step("пеперуда: в свой прозорец", () =>
         {
@@ -497,13 +497,13 @@ public sealed partial class PetWindow
         }, 600);
         await step("пеперуда: лети", () =>
         {
-            if (!_butterflyWindow.IsVisible) throw new Exception("пеперудата не се вижда");
+            if (!_butterflyWindow.Showing) throw new Exception("пеперудата не се вижда");
             _bfActive = false;
             SetIdle();
         }, 300);
         await step("пеперуда: отлетя", () =>
         {
-            if (_butterflyWindow.IsVisible) throw new Exception("пеперудата остана");
+            if (_butterflyWindow.Showing) throw new Exception("пеперудата остана");
         }, 200);
         await step("скрий мечока", () =>
         {
@@ -781,7 +781,7 @@ public sealed partial class PetWindow
             _plantPushing = false;
             _plantOut = 0;
             HideGarden();
-            if (_gardenWindow is { IsVisible: true }) throw new Exception("саксията не се прибра");
+            if (_gardenWindow is { Showing: true }) throw new Exception("саксията не се прибра");
             UpdateDrops(Now, 0.016);
             if (_drops.Count > 0) throw new Exception("капчиците останаха");
         }, 300);

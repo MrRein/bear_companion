@@ -295,6 +295,7 @@ public sealed class MenuWindow : Window
         {
             if (i == TasksTab) continue;
             _dirty[i] = true;
+            _foodKey = null;
             var watch = System.Diagnostics.Stopwatch.StartNew();
             SelectTab(i);
             RefreshNow(false);
@@ -775,18 +776,26 @@ public sealed class MenuWindow : Window
     private readonly WrapPanel _foodCats = new();
 
     private string _foodCat = "Всичко";
+    private string? _foodKey;
     private const string Wish = "Желание";
 
     /// <summary>Плочки с храните: картинка, какво дава и бутон „Сготви“. Посочиш ли заключена, казва защо.</summary>
-    private void BuildFoodTiles()
+    private void BuildFoodTiles(bool force = false)
     {
         var s = _pet.Save;
+        // Плочките (около 40, с барчета) струват десетки мс: строят се наново само
+        // ако нещо, което се вижда в тях, се е сменило.
+        var wishes = _pet.Wishes();
+        string key = string.Join("|", _foodCat, s.Hazelnuts, (int)s.Fullness, (int)s.Energy, Kitchen.BerriesIn(s),
+            _pet.FavoriteFood?.Id, string.Join(",", wishes.Select(f => f.Id)), s.Owned.Count, s.RecipePages,
+            string.Join(",", s.Skins.Values));
+        if (!force && key == _foodKey) return;
+        _foodKey = key;
         _foodTiles.Children.Clear();
         // Раздели: Всичко, Манджи, Закуски, Сладко, Напитки (само тези, в които има нещо).
         var known = Kitchen.Foods.Where(f => Kitchen.HasRecipe(f, s)).ToList();
         _foodCats.Children.Clear();
         // „Желание“: какво му се иска днес (любимото и желанията) – дадеш ли му го, понякога връща услугата.
-        var wishes = _pet.Wishes();
         var cats = new[] { "Всичко" }.Concat(wishes.Length > 0 ? new[] { Wish } : Array.Empty<string>())
             .Concat(Kitchen.Categories.Where(c => known.Any(f => Kitchen.CategoryOf(f) == c))).ToList();
         if (!cats.Contains(_foodCat)) _foodCat = "Всичко";

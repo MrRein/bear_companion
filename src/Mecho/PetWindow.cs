@@ -1264,11 +1264,15 @@ public sealed partial class PetWindow : Window
         if (Math.Abs(Width - _window.Width) > 0.01) Width = _window.Width;
         if (Math.Abs(Height - _window.Height) > 0.01) Height = _window.Height;
         // x и y наведнъж, в цели пиксели (Left и Top поотделно го местеха два пъти).
+        P("подреждане");
         NativeMethods.MoveWindow(this, _window.Left, _window.Top);
+        P("местене на прозореца на мечока");
 
         PlaceDrops(dpi);
         PlaceBubble(area, bear, above);
+        P("балончето");
         PlaceButterfly();
+        P("пеперудата (прозорец)");
     }
 
     /// <summary>Балончето: над мечока (над табелката), винаги в екрана.</summary>
@@ -1379,7 +1383,7 @@ public sealed partial class PetWindow : Window
         {
             NativeMethods.BringToTop(new WindowInteropHelper(this).Handle);
             RaiseCompanions();
-            if (_bubbleWindow.IsVisible) NativeMethods.BringToTop(new WindowInteropHelper(_bubbleWindow).Handle);
+            if (_bubbleWindow.Showing) NativeMethods.BringToTop(new WindowInteropHelper(_bubbleWindow).Handle);
         }
         _bubbleUntil = Now + seconds + text.Length * 0.04;
         _lastSpoke = Now;
