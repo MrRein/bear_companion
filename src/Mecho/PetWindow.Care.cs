@@ -103,6 +103,9 @@ public sealed partial class PetWindow
         _root.Children.Add(_timerTag);
         InitEmotes();
 
+        // Колко го е нямало (за поздрава при пускане – виж OnStart).
+        _startAway = _save.LastSeen == default ? 999 : Math.Max(0, (DateTime.Now - _save.LastSeen).TotalHours);
+        _startLastSeen = _save.LastSeen;
         ApplyOfflineTime();
         MorningRefresh(fromStart: true);
         // Отпреди гардеробът да се купува: който вече има дрехи или тапети, го има.

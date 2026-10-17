@@ -75,6 +75,8 @@ public sealed partial class PetWindow : Window
     private Rect _bearRect;
     private Rect _sideRect;   // предметът до мечока (в екранни DIP), за готвенето
     private int _announcedVersion;
+    private double _startAway;          // колко часа го е нямало преди това пускане
+    private DateTime _startLastSeen;
 
     // Мишка
     private bool _pressed;
@@ -215,20 +217,35 @@ public sealed partial class PetWindow : Window
         LearnOwnedDefaultRecipes();
         ResumeOrders();
         ResumeCooking();
-        if (_save.StayPut)
+        // Нов ден (или дълго го е нямало): не продължава вчерашното – почва отначало,
+        // събужда се (освен ако е нощ) и казва добро утро / добър ден… според часа.
+        int hour = DateTime.Now.Hour;
+        bool night = hour < 5 || hour >= 22;
+        bool newDay = _startAway >= 10 || (_startAway >= 4 && _startLastSeen.Date < DateTime.Today && hour >= 5);
+        if (newDay)
         {
-            // Пак си е в кътчето, където го оставихме (или почива на случаен принцип).
-            if (!RelaxesRandomly) StartScene(Scenes.ById(_save.StayScene), quiet: true);
-            Say(Lines.Greeting(_save.OwnerName));
+            _save.StayPut = false;
+            _save.AutoMode = false;
+            if (!night) _save.SleepingByChoice = false;
         }
-        else if (_save.SleepingByChoice)
+        string hello = _startAway >= 72 ? R.Pick("greet.long", _save.OwnerName)
+            : newDay ? Lines.Greeting(_save.OwnerName)
+            : _startAway >= 0.33 ? Lines.GreetingBack(_save.OwnerName)
+            : R.Pick("greet.restart", _save.OwnerName);
+        if (_save.SleepingByChoice)
         {
             EnterSleep(away: false);
         }
-        else if (!MorningRitual())
+        else if (_save.StayPut)
+        {
+            // Същия ден: пак си е в кътчето, където го оставихме (или почива на случаен принцип).
+            if (!RelaxesRandomly) StartScene(Scenes.ById(_save.StayScene), quiet: true);
+            Say(hello);
+        }
+        else if (!(newDay && MorningRitual()))
         {
             Play("happy");
-            Say(Lines.Greeting(_save.OwnerName));
+            Say(hello);
         }
         UpdateLayoutAndWindow();
         MaybeStartTutorial();

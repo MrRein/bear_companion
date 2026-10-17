@@ -171,7 +171,7 @@ public sealed class SaveData
     public static string Folder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mecho");
 
-    private static string FilePath => Path.Combine(Folder, "save.json");
+    public static string FilePath => Path.Combine(Folder, "save.json");
 
     private static readonly JsonSerializerOptions Options = new()
     {

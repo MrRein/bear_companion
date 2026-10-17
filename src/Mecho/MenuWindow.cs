@@ -286,6 +286,25 @@ public sealed class MenuWindow : Window
         }
     }
 
+    /// <summary>Тест за скорост: колко мс строи всеки таб (наново) и подрежда менюто.</summary>
+    internal List<(string Tab, double Ms)> BenchTabs()
+    {
+        var names = new[] { "Мечо", "Храна", "Магазин", "Гардероб", "Задачи", "Бележки", "Работа", "Още" };
+        var result = new List<(string, double)>();
+        for (int i = 0; i < names.Length; i++)
+        {
+            if (i == TasksTab) continue;
+            _dirty[i] = true;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            SelectTab(i);
+            RefreshNow(false);
+            UpdateLayout();
+            result.Add((names[i], watch.Elapsed.TotalMilliseconds));
+        }
+        SelectTab(BearTab);
+        return result;
+    }
+
     private void SelectTab(int index)
     {
         bool tasks = index == TasksTab;

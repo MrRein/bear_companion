@@ -251,12 +251,29 @@ public static class Lines
 
     public static readonly string[] SuperBounce = R.Get("SuperBounce");
 
-    public static string Greeting(string owner)
+    /// <summary>Поздрав според часа (първо пускане за деня): нощ, рано сутрин, утро, обед, следобед, вечер, късно.</summary>
+    public static string Greeting(string owner) => R.Pick("greet." + DaySlot(DateTime.Now), owner);
+
+    /// <summary>Частта от деня: night (0–5), early (5–8), morning (8–11), noon (11–14), day (14–18), evening (18–22), late (22–24).</summary>
+    public static string DaySlot(DateTime t) => t.Hour switch
     {
-        int h = DateTime.Now.Hour;
-        string key = h switch { < 5 => "greet.night", < 11 => "greet.morning", < 18 => "greet.day", _ => "greet.evening" };
-        return R.Pick(key, owner);
-    }
+        < 5 => "night",
+        < 8 => "early",
+        < 11 => "morning",
+        < 14 => "noon",
+        < 18 => "day",
+        < 22 => "evening",
+        _ => "late",
+    };
+
+    /// <summary>Пуснат пак същия ден (след поне 20 мин): „Пак си тук!“ според частта от деня.</summary>
+    public static string GreetingBack(string owner) => R.Pick(DateTime.Now.Hour switch
+    {
+        < 5 or >= 22 => "greet.back.night",
+        < 12 => "greet.back.morning",
+        < 18 => "greet.back.day",
+        _ => "greet.back.evening",
+    }, owner);
 
     public static string DiceRoll(int n) =>
         R.Any(n switch { 6 => "dice.6", 1 => "dice.1", _ => "dice.other" }).Replace("{число}", n.ToString());

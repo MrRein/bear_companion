@@ -452,6 +452,7 @@ public sealed partial class PetWindow
             NotifyCare();
         });
         const string perf = "Скорост (засичане)";
+        yield return (perf, "Тест за скорост (доклад, ~1,5 мин) → perf_report.txt", () => _ = RunPerfReport());
         yield return (perf, "Покажи скоростта", () => Say(PerfSummary(), 14));
         yield return (perf, "Нулирай измерването", PerfReset);
         yield return (perf, "Записвай бавните моменти (perf.log): вкл./изкл.", () =>

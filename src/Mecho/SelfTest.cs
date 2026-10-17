@@ -847,6 +847,20 @@ public sealed partial class PetWindow
             GetUp();
         }, 300);
         await step("скорост", () => SelfTest.Log("   " + PerfSummary()), 100);
+        await step("поздрав за всяка част от деня", () =>
+        {
+            for (int h = 0; h < 24; h++)
+                if (!R.Has("greet." + Lines.DaySlot(new DateTime(2026, 1, 1, h, 0, 0)))) throw new Exception($"няма поздрав за {h} ч.");
+            foreach (var k in new[] { "greet.back.morning", "greet.back.day", "greet.back.evening", "greet.back.night", "greet.long", "greet.restart" })
+                if (!R.Has(k)) throw new Exception("няма " + k);
+        }, 100);
+        SelfTest.Log("• тест за скорост (доклад)");
+        try
+        {
+            await RunPerfReport();
+            foreach (var line in System.IO.File.ReadAllLines(PerfReportPath)) SelfTest.Log("   " + line);
+        }
+        catch (Exception e) { SelfTest.Log("   тестът за скорост не мина: " + e.Message); }
         await step("нива на глад и умора", () =>
         {
             foreach (var (v, lvl) in new[] { (0.0, 1), (20.0, 1), (21.0, 2), (35.0, 2), (36.0, 3), (50.0, 3), (51.0, 4), (65.0, 4), (66.0, 5), (80.0, 5), (81.0, 6), (95.0, 6) })
