@@ -15,6 +15,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Ядрото (шина, състояние, модули) – виж src/Mecho.Core и ARCHITECTURE.md. -->
+    <ProjectReference Include="..\Mecho.Core\Mecho.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="mecho.ico" />
     <!-- Pixeled (OmegaPC777, FontStruct Non-Commercial License) и резервен Pixelify Sans
          (SIL Open Font License, виж fonts/OFL.txt, с добавени кирилски О и П). -->

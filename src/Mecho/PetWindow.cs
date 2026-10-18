@@ -155,6 +155,8 @@ public sealed partial class PetWindow : Window
         Content = _root;
         InitCare();
         InitPlaceables();
+        // Ядрото (шина, състояние, модули) – виж Engine/CoreSetup.cs и ARCHITECTURE.md.
+        CoreEngine = Engine.CoreSetup.Build(this, save, a => Dispatcher.BeginInvoke(a));
         Loaded += (_, _) =>
         {
             RestorePins();
@@ -201,13 +203,21 @@ public sealed partial class PetWindow : Window
             if (_rendering && Now - _lastTime < 0.05) return;
             Tick();
         };
-        Closed += (_, _) => CompositionTarget.Rendering -= OnRendering;
+        Closed += (_, _) =>
+        {
+            CompositionTarget.Rendering -= OnRendering;
+            CoreEngine.Shutdown();
+        };
     }
+
+    /// <summary>Ядрото на играта (модулите, шината, състоянието).</summary>
+    internal Mecho.Core.GameEngine CoreEngine { get; }
 
     private double Now => _clock.Elapsed.TotalSeconds;
 
     private void OnStart()
     {
+        CoreEngine.Start();
         // Балончето и пеперудата стоят над мечока (собственик = мечокът).
         _bubbleWindow.Owner = this;
         _butterflyWindow.Owner = this;
@@ -305,6 +315,8 @@ public sealed partial class PetWindow : Window
         P("готвене");
         RunLater(now);
         P("отложени неща");
+        CoreEngine.Update(dt);
+        P("ядро (модули)");
         UpdateWalkAway();
         CheckIntegrity(now);
         P("разходка");
@@ -789,6 +801,12 @@ public sealed partial class PetWindow : Window
         var watch = System.Diagnostics.Stopwatch.StartNew();
         _save.X = _x;
         _save.Y = _y;
+        // Слоевете на модулите (ядрото) – в същия файл.
+        if (CoreEngine.Store.IsDirty || _save.Core == null)
+        {
+            _save.Core = CoreEngine.Store.Export();
+            CoreEngine.Store.MarkSaved();
+        }
         _save.Save();
         PerfNote("запис на състоянието (save.json)", watch.Elapsed.TotalMilliseconds);
     }

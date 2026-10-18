@@ -6,6 +6,56 @@
 
 ---
 
+## 0. Ядрото (Mecho.Core) – фаза 1 е готова
+
+`src/Mecho.Core` е отделна библиотека без WPF. Тестовете ѝ са в `tests/Mecho.Core.Tests` и CI ги пуска преди всяка версия.
+
+| Част | Файл | За какво |
+|---|---|---|
+| `SignalBus` | `Signals/SignalBus.cs` | Сигнали (`ISignal` – станало е) към много слушатели. Команди (`IGameCommand` – искане) към точно един обработчик. Опашка без рекурсия, грешка в слушател не спира другите, безкраен цикъл се прекъсва, всичко е на една нишка. |
+| Каталог сигнали | `Signals/GameSignals.cs` | Всички сигнали на играта (`NeedsChanged`, `ItemAcquired`, `DayStarted`, `GameEventStarted`…) |
+| `GameStore` | `State/GameStore.cs` | Единственият източник на данните. Слоеве (`IStateSlice` – неизменими records), всяка промяна пуска `StateChanged<T>`. Има запис и четене с версии и миграции. Слой от по-нова версия не се презаписва. |
+| `IGameModule`, `GameModule` | `Modules/IGameModule.cs` | Стандартът за механика: `Register` → `Start` → `Update` → `Shutdown`, с помощници `On`, `Emit`, `Handle`, `Send`, `State`, `Every`, `After` |
+| `ModuleHost` | `Modules/ModuleHost.cs` | Пуска модулите по зависимостите. Липсваща или кръгова зависимост → само този модул не тръгва. 5 грешки за 60 с → модулът се спира и почиства. |
+| `Scheduler` | `Time/Scheduler.cs` | „След…“ и „на всеки…“ с име и собственик (заменя полетата `_nextXxx`) |
+| `IClock`, `IRandom` | `Time/Clock.cs` | Време и случайност, които се подменят в тестовете (и при „симулирай дата“) |
+| `ModifierStack`, `Mods` | `Modifiers/ModifierStack.cs` | Ефектите на събитията (болен ден, Коледа…): множители, флагове, набори. Модулите питат модификатора, а не „болен ли е“. |
+| `GameEngine` | `GameEngine.cs` | Сглобката. Пуска `DayStarted` при нов ден. |
+
+В приложението:
+* `src/Mecho/Engine/CoreSetup.cs` е **единственото** място, където се изброяват модулите.
+* `LegacyBridgeModule` е временен мост: гледа стария код и пуска `NeedsChanged`, `HazelnutsChanged` и `SleepChanged`, докато механиките не станат модули.
+* Състоянието на ядрото се записва в `save.json` → `Core`.
+* В Developer има група „Ядро“: модули, последни сигнали, модификатори, слоеве, лог.
+
+### Как се добавя нова механика (модул)
+```csharp
+public sealed record PajamaDayStarted(DateTime Day) : ISignal;              // 1. сигнал (ако трябва)
+public sealed record PajamaDayState(bool Active, string Day) : IStateSlice; // 2. слой (ако пази данни)
+
+public sealed class PajamaDayModule : GameModule                            // 3. модулът
+{
+    public override string Id => "event.pajama_day";
+    protected override void OnRegister()
+    {
+        Store.Register(this, "event.pajama_day", new PajamaDayState(false, ""));
+        On<DayStarted>(d =>
+        {
+            if (d.Day.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday) || !Random.Chance(0.1)) return;
+            Store.Set(new PajamaDayState(true, Clock.DayKey()));
+            Modifiers.Add(Id, Mods.WantedOutfit, "pajama");
+            Emit(new GameEventStarted(Id));
+        });
+    }
+}
+// 4. в CoreSetup.Build:   engine.Modules.Add(new PajamaDayModule());
+// 5. тест в tests/Mecho.Core.Tests (ManualClock + SystemRandom(зърно)) и стъпка в SelfTest.
+```
+Правила:
+* Модулите **не** се реферират един друг – само шина и хранилище.
+* Всеки слой има един собственик.
+* Изгледът (прозорците) не е модул: чете хранилището, слуша сигналите и праща команди.
+
 ## 1. Сегашният строеж накратко
 
 | Част | Къде | Бележка |

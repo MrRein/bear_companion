@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Ядрото на Мечо: шината за сигнали, хранилището на състоянието, модулите,
+    времето, планировчикът и модификаторите. Без WPF и без прозорци – за да се
+    тества отделно (tests/Mecho.Core.Tests) и да не зависи от изгледа.
+    Виж ARCHITECTURE.md → „Ядро“.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>Mecho.Core</RootNamespace>
+    <AssemblyName>Mecho.Core</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Mecho.Core.Tests" />
+  </ItemGroup>
+
+</Project>

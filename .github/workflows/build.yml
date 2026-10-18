@@ -27,6 +27,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+      # Тестовете на ядрото (шина, състояние, модули) – без тях версия не излиза.
+      - name: Core tests
+        run: dotnet test tests/Mecho.Core.Tests -c Release --logger "console;verbosity=normal"
       - name: Publish
         run: >
           dotnet publish src/Mecho -c Release -r win-x64 --self-contained true

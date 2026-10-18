@@ -550,6 +550,15 @@ public sealed partial class PetWindow
             Persist();
             NotifyCare();
         });
+        const string core = "Ядро (шина, модули, състояние)";
+        void Show(string title, string text) => MessageBox.Show(text.Length > 0 ? text : "(празно)", "Ядро: " + title);
+        yield return (core, "Модули", () => Show("модули", string.Join("\n", CoreEngine.Modules.Modules.Select(m =>
+            $"{m.Id}: {m.Status}{(m.Reason != null ? " – " + m.Reason : "")}{(m.Faults > 0 ? $" (грешки: {m.Faults})" : "")}"))));
+        yield return (core, "Последни сигнали", () => Show("сигнали", string.Join("\n", CoreEngine.Bus.Recent.Reverse().Take(30).Select(r =>
+            $"{r.At:HH:mm:ss}  {r.Name}  {r.Signal}"))));
+        yield return (core, "Модификатори", () => Show("модификатори", CoreEngine.Modifiers.Describe()));
+        yield return (core, "Състояние (слоеве)", () => Show("състояние", CoreEngine.Store.Export().ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true })));
+        yield return (core, "Лог на ядрото", () => Show("лог", string.Join("\n", (Engine.CoreSetup.Memory?.Lines ?? Array.Empty<string>()).Reverse().Take(40))));
         const string perf = "Скорост (засичане)";
         yield return (perf, "Тест за скорост (доклад, ~1,5 мин) → perf_report.txt", () => _ = RunPerfReport());
         yield return (perf, "Покажи скоростта", () => Say(PerfSummary(), 14));

@@ -97,6 +97,8 @@ public static class SelfTest
 
 public sealed partial class PetWindow
 {
+    private Mecho.Core.NeedsChanged? _coreNeeds;
+
     /// <summary>Стъпките на самопроверката (имат достъп до всичко вътре в мечока).</summary>
     internal async Task SelfTestSteps(Func<string, Action, int, Task> step)
     {
@@ -1109,6 +1111,22 @@ public sealed partial class PetWindow
             DevClearFood();
             Sounds.Play(_save);
         }, 1500);
+        await step("ядро: работи, модулите са пуснати, мостът пуска сигнали", () =>
+        {
+            if (!CoreEngine.Started) throw new Exception("ядрото не е пуснато");
+            if (CoreEngine.Modules.Modules.FirstOrDefault(m => m.Id == "legacy.bridge") is not { Status: Mecho.Core.ModuleStatus.Running })
+                throw new Exception("мостът към стария код не работи");
+            _coreNeeds = null;
+            CoreEngine.Bus.Subscribe<Mecho.Core.NeedsChanged>(this, s => _coreNeeds = s);
+            _save.Energy = Math.Max(0, _save.Energy - 20);
+        }, 1600);
+        await step("ядро: NeedsChanged дойде по шината", () =>
+        {
+            CoreEngine.Bus.Unsubscribe(this);
+            if (_coreNeeds == null) throw new Exception("мостът не пусна NeedsChanged за 1,5 с");
+            if (CoreEngine.Modules.Modules.Any(m => m.Status == Mecho.Core.ModuleStatus.Faulted)) throw new Exception("има спрян модул");
+            if (_save.Core == null && !CoreEngine.Store.IsDirty) PersistNow();
+        }, 200);
         await step("developer панел", () =>
         {
             var dev = new DevWindow(this);

@@ -178,6 +178,9 @@ public sealed class SaveData
     /// полета „XxxDay“ + „XxxToday“.
     /// </summary>
     public Dictionary<string, DayCounter> Daily { get; set; } = new();
+
+    /// <summary>Състоянието на ядрото (слоевете на модулите, виж Mecho.Core.GameStore) – пази се тук.</summary>
+    public System.Text.Json.Nodes.JsonObject? Core { get; set; }
     public List<string> WishList { get; set; } = new();        // какво му се иска (id-та на ястия) – изпълненото се маха
     public string WishDay { get; set; } = "";                   // за кой ден е списъкът
     public string WorkPlanDay { get; set; } = "";               // „Ще се работи ли днес?“ – за кой ден
