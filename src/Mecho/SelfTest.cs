@@ -974,6 +974,16 @@ public sealed partial class PetWindow
             dev.UpdateLayout();
             dev.Close();
         }, 500);
+        await step("developer: Dev Mode (всичко) и връщане", () =>
+        {
+            if (DevMode) SetDevMode(false);
+            int owned = _save.Owned.Count, nuts = _save.Hazelnuts;
+            SetDevMode(true);
+            if (!DevMode || !Kitchen.Upgrades.All(u => _save.Owned.Contains(u.Id))) throw new Exception("Dev Mode не отключи всичко");
+            SetDevMode(false);
+            if (DevMode || _save.Owned.Count != owned || _save.Hazelnuts != nuts) throw new Exception("Dev Mode не върна прогреса");
+            if (!DevPasswordOk("mecho") || DevPasswordOk("tut")) throw new Exception("паролата не се проверява");
+        }, 500);
         await step("developer: живот, времето, разговори", () =>
         {
             foreach (var (group, label, act) in DevCommands())
@@ -1022,6 +1032,16 @@ public sealed partial class PetWindow
         {
             double energy = _save.Energy, full = _save.Fullness;
             var ids = Scenes.All.Select(s => (s.Id, Group: Scenes.Work.Contains(s) ? "work" : "relax")).Append(("sit", "relax")).Append(("focus", "work"));
+            // „Тъкмо {какво}… Да спра ли?“: всяко занимание казва какво прави в първо лице
+            // (не името от менюто – „Играй настолна игра“).
+            foreach (var sc in Scenes.All.Append(Scenes.Focus).Append(Scenes.Sit))
+            {
+                if (string.IsNullOrWhiteSpace(sc.Doing) || char.IsUpper(sc.Doing[0]) || sc.Doing == sc.Name)
+                    throw new Exception($"„{sc.Id}“ няма какво прави в първо лице");
+                if (sc != Scenes.Focus && sc != Scenes.Sit && sc != Scenes.Trampoline && !R.Has($"scene.{sc.Id}.intent"))
+                    throw new Exception("няма намерение за " + sc.Id);
+            }
+            if (Scenes.All.Select(x => x.Name).Distinct().Count() != Scenes.All.Length) throw new Exception("две занимания с едно име");
             foreach (var (id, group) in ids)
             {
                 if (!R.Has("poke." + id)) throw new Exception("няма реплики за " + id);

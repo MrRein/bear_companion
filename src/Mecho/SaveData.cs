@@ -196,6 +196,26 @@ public sealed class SaveData
         return new SaveData();
     }
 
+    /// <summary>Запис от друг файл (резервното копие на Dev Mode); null, ако не става.</summary>
+    public static SaveData? LoadFrom(string path)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<SaveData>(File.ReadAllText(path), Options);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Копие на записа в друг файл (Dev Mode пази истинския прогрес там).</summary>
+    public void SaveTo(string path)
+    {
+        Directory.CreateDirectory(Folder);
+        File.WriteAllText(path, JsonSerializer.Serialize(this, Options));
+    }
+
     public void Save()
     {
         try

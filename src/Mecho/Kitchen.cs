@@ -94,6 +94,7 @@ public static class Kitchen
         new("pressed_chicken", "Мачкан с пилешко", "🍗", 40, 0, 4, 1, SandwichMaker, Array.Empty<string>()),
         new("pressed_egg", "Мачкан с яйце", "🥯", 35, 0, 4, 1, SandwichMaker, Array.Empty<string>()) { Prep = Pan },
         new("pressed_mushroom", "Мачкан с гъби", "🍄", 32, 0, 3, 1, SandwichMaker, Array.Empty<string>()),
+        new("pressed_sandwich", "Мачкан сандвич", "🥓", 45, 0, 4, 1, SandwichMaker, Array.Empty<string>()),
         new("sandwich_honey", "Сандвич с банан и мед", "🍌", 30, 5, 3, 1, SandwichMaker, Array.Empty<string>()),
         new("waffle_honey", "Гофрета с мед", "🟨", 25, 0, 2, 2, SandwichMaker, Array.Empty<string>()),
         new("waffle_choco", "Шоколадова гофрета", "🟫", 28, 0, 3, 2, SandwichMaker, Array.Empty<string>()),

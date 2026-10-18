@@ -27,6 +27,21 @@ public sealed partial class PetWindow
     private double _gardenWaterUntil;  // докога трае сегашната грижа
     private double _gardenLast;
     private string _plantTool = "wateringcan";
+    private string? _devPlantTool;
+
+    /// <summary>Developer: изкарва растението (ако не е навън) и прави точно тази грижа.</summary>
+    internal void DevPlantCare(string tool)
+    {
+        if (!InGarden)
+        {
+            if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot);
+            InstantModes = true;
+            Relax(Scenes.Plant);
+            InstantModes = false;
+        }
+        _devPlantTool = tool;
+        if (_gardenPhase >= 2) NextCare(Now);
+    }
 
     private bool InGarden => _inScene && _scene == Scenes.Plant;
 
@@ -205,9 +220,13 @@ public sealed partial class PetWindow
     /// <summary>Следващата грижа: полива; малко – разкопава с лопатката; голямо – подрязва; понякога се любува.</summary>
     private void NextCare(double now)
     {
-        int roll = _rng.Next(10);
+        // Developer може да избере следващата грижа (лейка, лопатка, ножица или „любува се“).
+        string? forced = _devPlantTool;
+        _devPlantTool = null;
+        int roll = forced == null ? _rng.Next(10) : forced == "admire" ? 9 : 0;
         bool small = _save.PlantStage < 5;
-        if (roll < 4) _plantTool = "wateringcan";
+        if (forced is "wateringcan" or "shovel" or "scissors") _plantTool = forced;
+        else if (roll < 4) _plantTool = "wateringcan";
         else if (roll < 8) _plantTool = small ? "shovel" : "scissors";
         else
         {

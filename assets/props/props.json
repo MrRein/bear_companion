@@ -333,6 +333,10 @@
       "file": "food_pressed_mushroom.png",
       "seat": 0
     },
+    "food_pressed_sandwich": {
+      "file": "food_pressed_sandwich.png",
+      "seat": 0
+    },
     "cook_table": {
       "file": "cook_table.png",
       "seat": 0

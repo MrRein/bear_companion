@@ -17,6 +17,15 @@ public sealed record Scene(
     /// <summary>Как се казва в менюто „Почивай си“.</summary>
     public string Name { get; init; } = "";
 
+    /// <summary>
+    /// Какво прави, в първо лице (за „Тъкмо {какво}… Да спра ли?“): „чета книжка“,
+    /// „измислям нова настолна игра“. Името в менюто е заповед („Чети книжка“).
+    /// </summary>
+    public string Doing { get; init; } = "";
+
+    /// <summary>Статив (с картините по дни): работа или за удоволствие.</summary>
+    public bool Easel => Side == "easel";
+
     /// <summary>Иконката в менюто (assets/ui/&lt;Icon&gt;.png).</summary>
     public string Icon { get; init; } = "couch";
 
@@ -30,7 +39,7 @@ public sealed record Scene(
 public static class Scenes
 {
     /// <summary>Забавленията: кътчета, в които сяда сам, когато скучае, или когато Тут му каже „Почивай си“.</summary>
-    public static Scene[] Fun => new[] { Reading, Gaming, Tea, Yoga, Plant, Music, Knit, Guitar, Trampoline };
+    public static Scene[] Fun => new[] { Reading, Gaming, Tea, Yoga, Plant, Music, Knit, Guitar, Trampoline, BoardPlay, PaintFun };
 
     /// <summary>Работа (без мечо-доро): „Работи си“ – бюро, тефтер, настолна игра, статив.</summary>
     public static Scene[] Work => new[] { Desk, Write, Board, Painting };
@@ -42,41 +51,41 @@ public static class Scenes
         R.Get("scene.desk.start"),
         R.Get("scene.desk.during"),
         R.Get("scene.desk.end"))
-    { Name = "Работи на бюрото", Icon = "tasks" };
+    { Doing = "работя на бюрото", Name = "Работи на бюрото", Icon = "tasks" };
 
     /// <summary>Пише в тефтера (без предмет).</summary>
     public static readonly Scene Write = new("write", null, null, 0, "write",
         R.Get("scene.write.start"),
         R.Get("scene.write.during"),
         R.Get("scene.write.end"))
-    { Name = "Пиши в тефтера", Icon = "notes" };
+    { Doing = "пиша идеи в тефтера", Name = "Пиши в тефтера", Icon = "notes" };
 
     /// <summary>Батутът е особен: не седи, а подскача (виж PetWindow.Trampoline.cs).</summary>
     public static readonly Scene Trampoline = new("trampoline", null, null, 0, "bounce",
         R.Get("scene.trampoline.start"),
         R.Get("scene.trampoline.during"),
         R.Get("scene.trampoline.end"))
-    { Name = "Скачай на батута", Icon = "trampoline", Unlock = Kitchen.Trampoline };
+    { Doing = "скачам на батута", Name = "Скачай на батута", Icon = "trampoline", Unlock = Kitchen.Trampoline };
 
     /// <summary>Гардеробът: появява се до него, докато е отворен табът „Гардероб“.</summary>
     public static readonly Scene Wardrobe = new("wardrobe", null, "wardrobe", 1, "idle",
         R.Get("scene.wardrobe.start"),
         Array.Empty<string>(),
         R.Get("scene.wardrobe.end"))
-    { Name = "Гардероб", Icon = "wardrobe" };
+    { Doing = "избирам дрехи", Name = "Гардероб", Icon = "wardrobe" };
 
     /// <summary>Седи на земята и пие напитката, която му дадоха (чай, кафе, сок).</summary>
     public static readonly Scene Drink = new("drink", null, null, 0, "sit_drinking",
         Array.Empty<string>(), Array.Empty<string>(),
         R.Get("scene.drink.end"))
-    { Name = "Пие", Icon = "tea" };
+    { Doing = "пия си питието", Name = "Пие", Icon = "tea" };
 
     /// <summary>Просто си седи (когато дълго няма какво да прави).</summary>
     public static readonly Scene Sit = new("sit", null, null, 0, "sit",
         R.Get("scene.sit.start"),
         R.Get("scene.sit.during"),
         R.Get("scene.sit.end"))
-    { Name = "Седни", Icon = "couch" };
+    { Doing = "седя си", Name = "Седни", Icon = "couch" };
 
     public static Scene ById(string? id) => All.FirstOrDefault(s => s.Id == id) ?? Reading;
 
@@ -84,69 +93,84 @@ public static class Scenes
 
     public static readonly Scene Reading = new("reading", "couch", null, 0, "read",
         Lines.SatDown, Lines.Reading, Lines.DoneReading)
-    { Name = "Чети книжка", Icon = "book", Unlock = null };
+    { Doing = "чета книжка", Name = "Чети книжка", Icon = "book", Unlock = null };
 
     /// <summary>Работният режим: сериозен, с очила, на бюро. Не говори, докато работи.</summary>
     public static readonly Scene Focus = new("focus", "stool", "desk", 1, "focus",
         R.Get("scene.focus.start"),
         Array.Empty<string>(),
-        R.Get("scene.focus.end"));
+        R.Get("scene.focus.end"))
+    { Doing = "работя" };
 
     public static readonly Scene Gaming = new("gaming", "stool", "computer", -1, "game",
         R.Get("scene.gaming.start"),
         R.Get("scene.gaming.during"),
         R.Get("scene.gaming.end"))
-    { Name = "Играй на компютър", Icon = "game", Unlock = Kitchen.Computer };
+    { Doing = "играя на компютъра", Name = "Играй на компютър", Icon = "game", Unlock = Kitchen.Computer };
 
     public static readonly Scene Painting = new("painting", "stool", "easel", 1, "doing_sit",   // с четка в лапата
         R.Get("scene.painting.start"),
         R.Get("scene.painting.during"),
         R.Get("scene.painting.end"))
-    { Name = "Рисувай на статив", Icon = "easel", Unlock = Kitchen.Easel };
+    { Doing = "рисувам корица за играта", Name = "Рисувай корица", Icon = "easel", Unlock = Kitchen.Easel };
 
     public static readonly Scene Tea = new("tea", "stool", "table_tea", 1, "sit_drinking",
         R.Get("scene.tea.start"),
         R.Get("scene.tea.during"),
         R.Get("scene.tea.end"))
-    { Name = "Пий чай", Icon = "tea", Unlock = Kitchen.Kettle };
+    { Doing = "пия чай", Name = "Пий чай", Icon = "tea", Unlock = Kitchen.Kettle };
 
     public static readonly Scene Yoga = new("yoga", "mat", null, 0, "yoga",
         R.Get("scene.yoga.start"),
         R.Get("scene.yoga.during"),
         R.Get("scene.yoga.end"))
-    { Name = "Прави йога", Icon = "yoga", Unlock = Kitchen.YogaMat };
+    { Doing = "правя йога", Name = "Прави йога", Icon = "yoga", Unlock = Kitchen.YogaMat };
 
     public static readonly Scene Plant = new("plant", null, null, 1, "doing",   // издърпва саксията и се грижи за растението (PetWindow.Garden.cs)
         R.Get("scene.plant.start"),
         R.Get("scene.plant.during"),
         R.Get("scene.plant.end"))
-    { Name = "Грижи се за растението", Icon = "plant", Unlock = Kitchen.PlantPot };
+    { Doing = "се грижа за цветето", Name = "Грижи се за растението", Icon = "plant", Unlock = Kitchen.PlantPot };
 
     public static readonly Scene Music = new("music", null, "radio", -1, "dance",   // танцува на музиката
         R.Get("scene.music.start"),
         R.Get("scene.music.during"),
         R.Get("scene.music.end"))
-    { Name = "Слушай музика", Icon = "music", Unlock = Kitchen.Radio };
+    { Doing = "слушам музика", Name = "Слушай музика", Icon = "music", Unlock = Kitchen.Radio };
 
     /// <summary>Плете на столче, кошницата с преждата е до него (куките са в лапите).</summary>
     public static readonly Scene Knit = new("knit", "stool", "yarn_basket", -1, "knit",
         R.Get("scene.knit.start"),
         R.Get("scene.knit.during"),
         R.Get("scene.knit.end"))
-    { Name = "Плети", Icon = "yarn", Unlock = Kitchen.YarnBasket, Fallback = "doing_sit" };
+    { Doing = "плета", Name = "Плети", Icon = "yarn", Unlock = Kitchen.YarnBasket, Fallback = "doing_sit" };
 
     /// <summary>Свири на китара на столчето (китарата е в лапите; скинът ѝ се вижда).</summary>
     public static readonly Scene Guitar = new("guitar", "stool", null, 0, "guitar",
         R.Get("scene.guitar.start"),
         R.Get("scene.guitar.during"),
         R.Get("scene.guitar.end"))
-    { Name = "Свири на китара", Icon = "guitar", Unlock = Kitchen.Guitar, Fallback = "doing_sit" };
+    { Doing = "свиря на китара", Name = "Свири на китара", Icon = "guitar", Unlock = Kitchen.Guitar, Fallback = "doing_sit" };
 
     public static readonly Scene Board = new("board", "stool", "table_board", 1, "work",
         R.Get("scene.board.start"),
         R.Get("scene.board.during"),
         R.Get("scene.board.end"))
-    { Name = "Играй настолна игра", Icon = "board", Unlock = Kitchen.BoardGame };
+    { Doing = "измислям нова настолна игра", Name = "Измисляй настолна игра", Icon = "board", Unlock = Kitchen.BoardGame };
+
+    /// <summary>Почивка: играе си настолна игра сам (същата масичка, но за удоволствие, не тества).</summary>
+    public static readonly Scene BoardPlay = new("boardplay", "stool", "table_board", 1, "work",
+        R.Get("scene.boardplay.start"),
+        R.Get("scene.boardplay.during"),
+        R.Get("scene.boardplay.end"))
+    { Doing = "играя настолна игра соло", Name = "Играй настолна игра", Icon = "board", Unlock = Kitchen.BoardGame };
+
+    /// <summary>Почивка: рисува на статива просто така, за удоволствие.</summary>
+    public static readonly Scene PaintFun = new("paintfun", "stool", "easel", 1, "doing_sit",
+        R.Get("scene.paintfun.start"),
+        R.Get("scene.paintfun.during"),
+        R.Get("scene.paintfun.end"))
+    { Doing = "рисувам си за удоволствие", Name = "Рисувай за удоволствие", Icon = "easel", Unlock = Kitchen.Easel };
 }
 
 // Кътчетата: сяда, прави нещо и после всичко изчезва.
@@ -361,7 +385,7 @@ public sealed partial class PetWindow
         }
         if (_onTrampoline) EndBounce(null);
         // Статив: всеки път с друга четка (червена или синя).
-        if (scene == Scenes.Painting) _brush = _rng.Next(2) == 0 ? "paintbrush_red" : "paintbrush_blue";
+        if (scene.Easel) _brush = _rng.Next(2) == 0 ? "paintbrush_red" : "paintbrush_blue";
         _scene = scene;
         _inScene = true;
         _sceneUntil = 0;
@@ -372,7 +396,7 @@ public sealed partial class PetWindow
         ClampX();
         if (scene == Scenes.Plant) StartGarden();
         if (IsExhausted && scene != Scenes.Focus && _rng.Next(2) == 0) Announce(Lines.Pick(Lines.SleepyDoing, _save.OwnerName), 3);
-        else if (!quiet && scene == Scenes.Painting && R.Has($"easel.{EaselNumber}"))
+        else if (!quiet && scene.Easel && R.Has($"easel.{EaselNumber}"))
             Announce(R.Pick($"easel.{EaselNumber}", _save.OwnerName));   // какво рисува днес
         else if (!quiet) Announce(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
     }
@@ -533,8 +557,8 @@ public sealed partial class PetWindow
         {
             _nextChatter = now + (stay ? 2400 : 480) + _rng.Next(stay ? 1800 : 480);
             // На настолната игра и на бюрото понякога си говори за игрите.
-            bool games = scene == Scenes.Board || scene == Scenes.Desk || scene == Scenes.Write;
-            string during = scene == Scenes.Painting && R.Has($"easel.{EaselNumber}") && _rng.Next(2) == 0
+            bool games = scene == Scenes.Board || scene == Scenes.BoardPlay || scene == Scenes.Desk || scene == Scenes.Write;
+            string during = scene.Easel && R.Has($"easel.{EaselNumber}") && _rng.Next(2) == 0
                 ? R.Pick($"easel.{EaselNumber}", _save.OwnerName)
                 : Lines.Pick(games && _rng.Next(2) == 0 ? Lines.Chatter : scene.During, _save.OwnerName);
             Mutter(during, 5);

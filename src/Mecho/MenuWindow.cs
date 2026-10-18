@@ -2178,6 +2178,8 @@ public sealed class MenuWindow : Window
         var dev = Button("Developer: тествай всичко", () =>
         {
             Hide();
+            // С парола („mecho“), за да не се пипа случайно.
+            if (!DevPasswordWindow.Ask(_pet)) return;
             _dev ??= new DevWindow(_pet);
             _dev.Closed += (_, _) => _dev = null;
             _dev.Show();

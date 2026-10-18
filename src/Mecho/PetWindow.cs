@@ -1035,7 +1035,7 @@ public sealed partial class PetWindow : Window
     /// <summary>Прави нещо (кътче, хоби, „Почивай си“/„Работи си“), а не просто се разхожда.</summary>
     private bool InAction => _onTrampoline || (_inScene && _scene != null && _scene != Scenes.Focus && _scene != Scenes.Wardrobe);
 
-    private string CurrentActionName => _onTrampoline ? "скачам на батута" : _scene?.Name is { Length: > 0 } n ? n : "правя нещо";
+    private string CurrentActionName => _onTrampoline ? Scenes.Trampoline.Doing : _scene?.Doing is { Length: > 0 } d ? d : "правя нещо";
 
     /// <summary>„Да, спри“: става и пак се разхожда свободно (и сам не почва веднага пак).</summary>
     public void StopAction()

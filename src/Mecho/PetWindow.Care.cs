@@ -772,7 +772,7 @@ public sealed partial class PetWindow
             {
                 t.FontFamily = Ui.MonoFont;
                 t.FontWeight = FontWeights.Bold;
-            });
+            }, nudge: 1);
         }
         if (_timerBadge.Content is Border badge)
         {
@@ -827,7 +827,7 @@ public sealed partial class PetWindow
                 t.FontFamily = _timerText.FontFamily;
                 t.FontSize = _timerText.FontSize;
                 t.Foreground = _timerText.Foreground;
-            });
+            }, nudge: 1);
         }
         // Зелена – почивка (между мечо-дората или таймер „Почивка“).
         var back = _save.PomodoroPhase == PomodoroPhase.Break || (RestTimer && _save.PomodoroPhase == PomodoroPhase.Off) ? TagBreak : TagWork;

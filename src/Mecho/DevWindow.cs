@@ -112,13 +112,91 @@ public sealed class DevWindow : Window
     {
         var s = _pet.Save;
         string gift = s.GiftPending ? "чака да се отвори" : s.GiftAt == DateTime.MinValue ? "днес няма / вече е" : $"в {s.GiftAt:HH:mm}";
-        _status.Text = $"Лешници {s.Hazelnuts} · Ситост {s.Fullness:0} · Енергия {s.Energy:0} · Подарък: {gift} · " +
+        _status.Text = (_pet.DevMode ? "DEV MODE (има всичко) · " : "") + $"Лешници {s.Hazelnuts} · Ситост {s.Fullness:0} · Енергия {s.Energy:0} · Подарък: {gift} · " +
                        $"Купени: {s.Owned.Count} неща, {s.OwnedClothes.Count} дрехи · Задачи общо {s.TasksDoneTotal}\n{_pet.EnergyDebug}";
+    }
+}
+
+/// <summary>Паролата за Developer панела (за да не го отваря Тут случайно).</summary>
+public sealed class DevPasswordWindow : Window
+{
+    private readonly PasswordBox _box = new() { Width = 180, FontSize = Ui.Body, Padding = new Thickness(4, 2, 4, 2) };
+    private readonly TextBlock _hint = new() { Foreground = Muted, Margin = new Thickness(0, 6, 0, 0), Text = " " };
+    private readonly PetWindow _pet;
+
+    private DevPasswordWindow(PetWindow pet)
+    {
+        _pet = pet;
+        Title = "Мечо: Developer";
+        WindowStyle = WindowStyle.None;
+        ResizeMode = ResizeMode.NoResize;
+        AllowsTransparency = true;
+        Background = Brushes.Transparent;
+        Topmost = true;
+        ShowInTaskbar = false;
+        SizeToContent = SizeToContent.WidthAndHeight;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        FontFamily = GameFont;
+        FontSize = Body;
+        Foreground = Ink;
+        UseLayoutRounding = true;
+        TextOptions.SetTextRenderingMode(this, TextRenderingMode.Aliased);
+
+        var ok = Button("Влез", Submit, primary: true);
+        var cancel = Button("Откажи", () => { DialogResult = false; });
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(ok);
+        var body = new StackPanel();
+        body.Children.Add(new TextBlock { Text = "Парола за Developer:", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6) });
+        body.Children.Add(_box);
+        body.Children.Add(_hint);
+        body.Children.Add(buttons);
+        Content = new Border
+        {
+            Background = WoodTexture,
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(3),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(7),
+            Child = new Border { Background = PaperTexture, BorderBrush = Ink, BorderThickness = new Thickness(2), Padding = new Thickness(12), Child = body },
+        };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter) Submit();
+            else if (e.Key == Key.Escape) DialogResult = false;
+        };
+        Loaded += (_, _) => { Activate(); _box.Focus(); };
+    }
+
+    private void Submit()
+    {
+        if (_pet.DevPasswordOk(_box.Password))
+        {
+            DialogResult = true;
+            return;
+        }
+        _box.Clear();
+        _hint.Text = "Грешна парола.";
+    }
+
+    /// <summary>Пита за паролата (веднъж, докато програмата е пусната). true – може.</summary>
+    public static bool Ask(PetWindow pet)
+    {
+        if (pet.DevUnlocked) return true;
+        bool ok = new DevPasswordWindow(pet).ShowDialog() == true;
+        if (ok) pet.DevUnlocked = true;
+        return ok;
     }
 }
 
 public sealed partial class PetWindow
 {
+    /// <summary>Паролата за Developer е въведена (до затваряне на програмата).</summary>
+    internal bool DevUnlocked { get; set; }
+
+    internal bool DevPasswordOk(string password) => string.Equals(password.Trim(), "mecho", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Всички бутони на Developer панела: (група, надпис, действие).</summary>
     internal IEnumerable<(string Group, string Label, Action Act)> DevCommands()
     {
@@ -171,6 +249,7 @@ public sealed partial class PetWindow
         yield return (gifts, "Подарък направо в средата", DevGiftDrop);
         yield return (gifts, "Нов ден за подаръци", DevGiftNewDay);
 
+        yield return (unlock, "Dev Mode: вкл./изкл. (има всичко; при изключване всичко се връща)", () => SetDevMode(!DevMode));
         yield return (unlock, "Отключи всичко", DevUnlockAll);
         yield return (unlock, "Заключи всичко", DevLockAll);
         yield return (unlock, "Изчисти задачите и историята", () =>
@@ -372,6 +451,11 @@ public sealed partial class PetWindow
         yield return (giftNew, "Остави го на земята", PutGiftDown);
         yield return (garden, "Извади растението и се грижи", () => { if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot); InstantModes = true; Relax(Scenes.Plant); InstantModes = false; });
         yield return (garden, "Прибери растението", () => { if (InGarden) { GetUp(); } });
+        yield return (garden, "Полива (лейка)", () => DevPlantCare("wateringcan"));
+        yield return (garden, "Разкопава (лопатка)", () => DevPlantCare("shovel"));
+        yield return (garden, "Подрязва (ножица)", () => DevPlantCare("scissors"));
+        yield return (garden, "Любува му се", () => DevPlantCare("admire"));
+        yield return (garden, "Расте с времето сега", () => { _save.PlantLastGrow = DateTime.Now.AddDays(-5.1); GrowPlantByTime(); DrawGarden(); Persist(); });
         yield return (garden, "Смени вида (слънчоглед → монстера → кактус)", () =>
         {
             var skins = Furniture.SkinsFor(Kitchen.PlantPot);
@@ -380,7 +464,7 @@ public sealed partial class PetWindow
             UseSkin(skins[(i + 1) % skins.Length]);
             DrawGarden();
         });
-        yield return (garden, "Следваща картина на статива", () => { EaselShift++; if (_inScene && _scene == Scenes.Painting) LoadSceneArt(_scene); Say("Картина " + EaselNumber, 2); });
+        yield return (garden, "Следваща картина на статива", () => { EaselShift++; if (_inScene && _scene is { Easel: true }) LoadSceneArt(_scene); Say("Картина " + EaselNumber, 2); });
         yield return (garden, "Растението: +1 фаза", () => { _save.PlantGrowToday = 0; GrowPlant(fromCare: true); });
         yield return (garden, "Растението: голямо (фаза 10)", () => { _save.PlantStage = PlantStages - 1; DrawGarden(); Persist(); });
         yield return (garden, "Растението: кълнче (фаза 1)", () => { _save.PlantStage = 0; DrawGarden(); Persist(); });
@@ -499,6 +583,54 @@ public sealed partial class PetWindow
         _save.Hazelnuts = Math.Max(_save.Hazelnuts, 20);
         _save.BerriesReadyAt = DateTime.MinValue;
         _save.CoffeeTimes.Clear();
+    }
+
+    private static string DevBackupPath => System.IO.Path.Combine(SaveData.Folder, "dev_backup.json");
+
+    /// <summary>Dev Mode: всичко е отключено, а истинският прогрес чака в dev_backup.json.</summary>
+    public bool DevMode => System.IO.File.Exists(DevBackupPath);
+
+    /// <summary>
+    /// Включва: пази копие на записа, отключва всичко и дава лешници. Изключва: връща
+    /// купеното, дрехите, лешниците и вида отпреди (задачите, мечо-дората и т.н. остават).
+    /// </summary>
+    internal void SetDevMode(bool on)
+    {
+        if (on == DevMode) return;
+        if (on)
+        {
+            _save.SaveTo(DevBackupPath);
+            DevUnlockAll();
+            _save.Hazelnuts = Math.Max(_save.Hazelnuts, 9999);
+            Say("Dev Mode: имам всичко!", 3);
+        }
+        else
+        {
+            var old = SaveData.LoadFrom(DevBackupPath);
+            if (old != null)
+            {
+                if (_inScene) LeaveScene();
+                _save.Owned = old.Owned;
+                _save.OwnedClothes = old.OwnedClothes;
+                _save.Hazelnuts = old.Hazelnuts;
+                _save.Outfit = old.Outfit;
+                _save.Skins = old.Skins;
+                _save.CouchSkin = old.CouchSkin;
+                _save.BedSkin = old.BedSkin;
+                _save.Pajama = old.Pajama;
+                _save.UiTheme = old.UiTheme;
+                _save.Background = old.Background;
+                _save.RecipePages = old.RecipePages;
+                _save.NextRecipe = old.NextRecipe;
+                _save.PlantStage = old.PlantStage;
+                Ui.Apply(UiThemes.All.FirstOrDefault(t => t.Id == _save.UiTheme) ?? UiThemes.All[0]);
+                _bedProp = null;
+            }
+            System.IO.File.Delete(DevBackupPath);
+            Say("Dev Mode е изключен. Всичко е както беше.", 3);
+        }
+        PersistNow();
+        NotifyCare();
     }
 
     internal void DevLockAll()

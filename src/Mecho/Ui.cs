@@ -255,7 +255,7 @@ public static class Ui
         ["💡"] = "pencil", ["📝"] = "notes", ["📋"] = "tasks", ["🛋"] = "couch", ["🎁"] = "gift", ["🚶"] = "walk", ["🔒"] = "lock",
         ["💤"] = "moon", ["🌙"] = "moon", ["☀"] = "sun", ["❤"] = "heart", ["♪"] = "music",
         ["🌡"] = "shop_heater", ["🗄"] = "shop_desk", ["🐦"] = "shop_feeder", ["🫓"] = "food_sandwich", ["🫕"] = "food_roast_soup", ["🍅"] = "food_pressed_caprese", ["🥬"] = "food_pressed_veggie",
-        ["🍗"] = "food_pressed_chicken", ["🥯"] = "food_pressed_egg", ["🍄"] = "food_pressed_mushroom", ["📌"] = "pin", ["➖"] = "minimize", ["⧉"] = "copy", ["★"] = "star", ["🔄"] = "reroll", ["👁"] = "hide", ["🔊"] = "sound", ["☰"] = "menu", ["🐻"] = "bear", ["🧶"] = "shop_yarn_basket", ["🎸"] = "shop_guitar", ["🪔"] = "shop_lamp",
+        ["🍗"] = "food_pressed_chicken", ["🥯"] = "food_pressed_egg", ["🍄"] = "food_pressed_mushroom", ["🥓"] = "food_pressed_sandwich", ["📌"] = "pin", ["➖"] = "minimize", ["⧉"] = "copy", ["★"] = "star", ["🔄"] = "reroll", ["👁"] = "hide", ["🔊"] = "sound", ["☰"] = "menu", ["🐻"] = "bear", ["🧶"] = "shop_yarn_basket", ["🎸"] = "shop_guitar", ["🪔"] = "shop_lamp",
         ["🥄"] = "shop_mixer", ["🧇"] = "shop_sandwich", ["🍨"] = "shop_icecream", ["♨"] = "shop_grill",
         ["🍋"] = "food_lemonade", ["🥣"] = "food_soup", ["🌽"] = "food_corn", ["🍫"] = "food_cocoa", ["🌼"] = "food_linden_tea",
         ["🥚"] = "food_eggs", ["🥞"] = "food_pancakes", ["🫘"] = "food_espresso", ["🥛"] = "food_latte", ["🟤"] = "food_mocha",
@@ -273,7 +273,8 @@ public static class Ui
     /// Като SetRichText, но в ред (StackPanel): иконките са центрирани спрямо буквите
     /// (в TextBlock с моно шрифта стояха забити горе). style – шрифт/цвят на буквите.
     /// </summary>
-    public static void SetIconLine(StackPanel row, string text, Action<TextBlock> style)
+    /// <param name="nudge">С колко пиксела на иконката да я свали надолу (табелката с таймера: 1).</param>
+    public static void SetIconLine(StackPanel row, string text, Action<TextBlock> style, int nudge = 0)
     {
         row.Children.Clear();
         var plain = new System.Text.StringBuilder();
@@ -300,7 +301,7 @@ public static class Ui
             else if (!IsEmoji(el)) plain.Append(el);
         }
         Flush();
-        AlignIconsToDigits(row);
+        AlignIconsToDigits(row, nudge);
     }
 
     /// <summary>Отместването на иконката (отгоре), за да е средата ѝ на средата на цифрите.</summary>
@@ -311,7 +312,7 @@ public static class Ui
     /// (по очертанията на шрифта; редът на шрифта има празно място отгоре, затова
     /// „центрирано“ по реда изглеждаше забито нагоре).
     /// </summary>
-    private static void AlignIconsToDigits(StackPanel row)
+    private static void AlignIconsToDigits(StackPanel row, int nudge = 0)
     {
         var text = row.Children.OfType<TextBlock>().FirstOrDefault();
         if (text == null) return;
@@ -322,7 +323,7 @@ public static class Ui
         // Средата на иконката – на средата на изрисуваните цифри (мерено по пикселите).
         double center = (top + bottom) / 2;
         double textTop = Math.Max(0, icon / 2 - center);
-        double iconTop = Math.Round(textTop + center - icon / 2);
+        double iconTop = Math.Round(textTop + center - icon / 2) + nudge * (double)_k / _dpi;
         LastIconOffset = iconTop - textTop;
         foreach (FrameworkElement c in row.Children)
         {
