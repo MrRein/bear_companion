@@ -1266,6 +1266,9 @@ public sealed partial class PetWindow
             if (TimerRunning) StopTimer();
             if (OnWalk) ReturnFromWalk(called: true);
             DevClearFood();
+            // Доставка от покупките в предишните стъпки: кашонът пада в случаен момент и
+            // Relax → OpenParcelFirst го праща към него (затова понякога „върви“, а не чете).
+            ClearDeliveries();
             HideBubble();
             // Без плавния преход и без недовършена разходка/връщане от предишните стъпки
             // (иначе понякога още върви, когато се проверява – нестабилен тест).
