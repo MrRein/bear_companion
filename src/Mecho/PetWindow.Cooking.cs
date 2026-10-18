@@ -143,18 +143,15 @@ public sealed partial class PetWindow
             var a = AreaAt(cx, window.Top + window.ActualHeight / 2);
             double nx = Math.Clamp(cx, a.Left + CookerHalf, a.Right - CookerHalf);
             window.FallTo(nx, a.Bottom);
-            _save.CookX = nx;
+            CoreEngine.Bus.Send(new Mecho.Core.MoveCooker(nx));
             Persist();
         };
         window.SetAway(!IsVisible);
         window.Place(CookerArt(""), PixelSize, x, area.Bottom);
         UpdateCookingTag();
 
-        _save.CookFood = food.Id;
-        _save.CookStage = stage;
-        _save.CookReadyAt = DateTime.Now.AddSeconds(seconds);
-        _save.CookCost = cost;
-        _save.CookX = x;
+        // Какво се готви живее в ядрото (KitchenModule) – оттам се продължава след рестарт.
+        CoreEngine.Bus.Send(new Mecho.Core.StartCook(food.Id, DateTime.Now.AddSeconds(seconds), cost, stage, x));
         Persist();
 
         if (!InFocus && !quiet) Say(Lines.Pick(FoodTalk.For(food, tool).Start, _save.OwnerName), 5);
@@ -169,7 +166,7 @@ public sealed partial class PetWindow
         var food = Kitchen.Foods.FirstOrDefault(f => f.Id == _save.CookFood);
         if (food?.Tool == null)
         {
-            _save.CookFood = null;
+            CoreEngine.Bus.Send(new Mecho.Core.EndCook(false));
             return;
         }
         double left = Math.Max(3, (_save.CookReadyAt - DateTime.Now).TotalSeconds);
@@ -377,7 +374,7 @@ public sealed partial class PetWindow
     private void NextCookingStage(Cooking c)
     {
         _cook = null;
-        _save.CookX = c.Window.CenterX;
+        CoreEngine.Bus.Send(new Mecho.Core.MoveCooker(c.Window.CenterX));
         c.Window.Close();
         StartCooking(c.Food, c.Fullness, c.Energy, c.Cost, quiet: true, stage: 1);
         string next = ToolName(c.Food.Tool!);
@@ -400,7 +397,7 @@ public sealed partial class PetWindow
         var c = _cook!;
         _cook = null;
         c.Window.Close();
-        _save.CookFood = null;
+        CoreEngine.Bus.Send(new Mecho.Core.EndCook(food != null));
         Persist();
         if (food != null && !InFocus) FoodReady(food);
     }

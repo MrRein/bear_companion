@@ -525,12 +525,16 @@ public sealed partial class PetWindow
             var pot = Kitchen.Foods.First(f => f.Tool == Kitchen.Pot);
             Cook(pot);
             StartPendingCook();
+            // Вълна 3: какво се готви е в ядрото (оттам се продължава след рестарт).
+            if (CoreEngine.Store.Get<Mecho.Core.CookingState>().FoodId != pot.Id || _save.CookFood != pot.Id)
+                throw new Exception("готвенето не е в ядрото");
             _save.Energy = 50;
             GoToSleep();
             if (IsAsleep || _save.SleepingByChoice) throw new Exception("заспа, докато се готви");
             AskStopCooking();
             _chat?.Hide();
             StopCooking();
+            if (CoreEngine.Store.Get<Mecho.Core.CookingState>().Cooking) throw new Exception("спряното готвене остана в ядрото");
         }, 800);
         await step("готвене и мечо-доро заедно", () =>
         {
@@ -907,8 +911,13 @@ public sealed partial class PetWindow
             _save.WishDay = "";
             var w = Wishes();
             if (w.Length == 0) throw new Exception("няма желания");
+            bool fulfilled = false;
+            var listener = new object();
+            CoreEngine.Bus.Subscribe<Mecho.Core.WishFulfilled>(listener, x => fulfilled |= x.FoodId == w[0].Id);
             FulfillWish(w[0]);
+            CoreEngine.Bus.Unsubscribe(listener);
             if (Wishes().Contains(w[0])) throw new Exception("изпълненото желание остана");
+            if (!fulfilled) throw new Exception("няма сигнал WishFulfilled");
             _save.WishDay = "";
             HideBubble();
         }, 300);
@@ -1117,7 +1126,7 @@ public sealed partial class PetWindow
             if (CoreEngine.Modules.Modules.FirstOrDefault(m => m.Id == "legacy.bridge") is not { Status: Mecho.Core.ModuleStatus.Running })
                 throw new Exception("мостът към стария код не работи");
             // Вълна 1: лешниците, притежаваното и предметите на земята са само в ядрото.
-            foreach (var id in new[] { "economy", "placement", "bear", "needs" })
+            foreach (var id in new[] { "economy", "placement", "bear", "needs", "kitchen" })
                 if (!CoreEngine.Modules.IsRunning(id)) throw new Exception($"модулът {id} не работи");
             int nuts = CoreEngine.Store.Get<Mecho.Core.WalletState>().Nuts;
             if (_save.Hazelnuts != nuts || _save.LegacyHazelnuts != 0) throw new Exception("лешниците не са в ядрото");
@@ -1134,7 +1143,7 @@ public sealed partial class PetWindow
             _save.Core = CoreEngine.Store.Export();
             _save.SaveTo(tmp);
             string json = System.IO.File.ReadAllText(tmp);
-            if (json.Contains("\"Hazelnuts\"") || json.Contains("\"Owned\"")) throw new Exception("старите полета пак се записват (двоен източник)");
+            if (json.Contains("\"Hazelnuts\"") || json.Contains("\"Owned\"") || json.Contains("\"WishList\"") || json.Contains("\"CookFood\"")) throw new Exception("старите полета пак се записват (двоен източник)");
             if (!json.Contains("economy.wallet")) throw new Exception("ядрото не е в записа");
             _coreNeeds = null;
             CoreEngine.Bus.Subscribe<Mecho.Core.NeedsChanged>(this, s => _coreNeeds = s);

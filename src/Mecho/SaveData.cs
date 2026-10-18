@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -33,11 +34,6 @@ public sealed class SaveData
     public DateTime GiftAt { get; set; } = DateTime.MinValue;  // кога тръгва за подаръка (MinValue = днес няма)
     public bool GiftPending { get; set; }
     public string GiftColor { get; set; } = "";                // цветът на днешния подарък ("" – синият)                      // подаръкът чака в средата на екрана
-    public string? CookFood { get; set; }                     // какво се готви (виж PetWindow.Cooking.cs)
-    public DateTime CookReadyAt { get; set; }
-    public int CookCost { get; set; }
-    public int CookStage { get; set; } = 1;                     // рецепта в два уреда: 0 – първият, 1 – вторият
-    public double CookX { get; set; } = double.NaN;
     public List<string> MealsDone { get; set; } = new();      // "lunch:2026-10-11", "lunch-thanks:…" (виж Meals)
     public string CouchSkin { get; set; } = "classic";
     public string BedSkin { get; set; } = "classic";
@@ -186,6 +182,10 @@ public sealed class SaveData
             _bus.Send(new Mecho.Core.SetInventory(LegacyOwned ?? new List<string>(), LegacyOwnedClothes ?? new List<string>(), "стар запис"));
         if (!st.WasLoaded(Mecho.Core.NeedsModule.Key))
             _bus.Send(new Mecho.Core.SetNeeds(LegacyFullness, LegacyEnergy, "стар запис"));
+        if (!st.WasLoaded(Mecho.Core.KitchenModule.CookingKey) && LegacyCookFood != null)
+            _bus.Send(new Mecho.Core.StartCook(LegacyCookFood, LegacyCookReadyAt, Math.Max(0, LegacyCookCost), LegacyCookStage is 0 ? 0 : 1, LegacyCookX));
+        if (!st.WasLoaded(Mecho.Core.KitchenModule.WishesKey) && LegacyWishList != null)
+            _bus.Send(new Mecho.Core.SetWishes(LegacyWishDay ?? "", LegacyWishList));
         if (!st.WasLoaded(Mecho.Core.PlacementModule.Key))
         {
             void Put(string kind, bool placed, bool bear, bool on, bool onByBear, double x, int supply = 0, string offDay = "") =>
@@ -203,6 +203,13 @@ public sealed class SaveData
         LegacyRadioPlaced = LegacyRadioOn = LegacyRadioAuto = LegacyRadioAutoOn = LegacyHeaterOn = LegacyLampPlaced = LegacyFeederPlaced = LegacyPlantPlaced = false;
         LegacyFeederFood = 0;
         LegacyLampOffDay = null;
+        LegacyCookFood = null;
+        LegacyCookReadyAt = default;
+        LegacyCookCost = 0;
+        LegacyCookStage = 1;
+        LegacyCookX = double.NaN;
+        LegacyWishList = null;
+        LegacyWishDay = null;
         LegacyRadioX = LegacyHeaterX = LegacyLampX = LegacyFeederX = LegacyPlantX = double.NaN;
     }
 
@@ -238,6 +245,31 @@ public sealed class SaveData
         {
             if (_bus == null) LegacyEnergy = value;
             else _bus.Send(new Mecho.Core.SetNeeds(null, value, "стар код"));
+        }
+    }
+
+    // ── Кухня (вълна 3: KitchenModule) – само за четене; пише се с команди (StartCook, EndCook, SetWishes…) ──
+    private Mecho.Core.CookingState CookNow => _store?.Get<Mecho.Core.CookingState>() ?? Mecho.Core.CookingState.None;
+
+    [System.Text.Json.Serialization.JsonIgnore] public string? CookFood => _store == null ? LegacyCookFood : CookNow.FoodId;
+    [System.Text.Json.Serialization.JsonIgnore] public DateTime CookReadyAt => _store == null ? LegacyCookReadyAt : CookNow.ReadyAt;
+    [System.Text.Json.Serialization.JsonIgnore] public int CookCost => _store == null ? LegacyCookCost : CookNow.Cost;
+    [System.Text.Json.Serialization.JsonIgnore] public int CookStage => _store == null ? LegacyCookStage : CookNow.Stage;
+    [System.Text.Json.Serialization.JsonIgnore] public double CookX => _store == null ? LegacyCookX : CookNow.X;
+
+    /// <summary>Какво му се иска днес (изпълненото се маха).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<string> WishList => _store?.Get<Mecho.Core.WishesState>().Foods ?? (IReadOnlyList<string>?)LegacyWishList ?? Array.Empty<string>();
+
+    /// <summary>За кой ден е списъкът. "" – изчиства го (утре/тест: ще се направи нов).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string WishDay
+    {
+        get => _store?.Get<Mecho.Core.WishesState>().Day ?? LegacyWishDay ?? "";
+        set
+        {
+            if (_bus == null) LegacyWishDay = value;
+            else _bus.Send(new Mecho.Core.SetWishes(value ?? "", value == "" ? Array.Empty<string>() : WishList.ToArray()));
         }
     }
 
@@ -415,11 +447,16 @@ public sealed class SaveData
     [System.Text.Json.Serialization.JsonPropertyName("FeederX")] public double LegacyFeederX { get; set; } = double.NaN;
     [System.Text.Json.Serialization.JsonPropertyName("PlantPlaced"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public bool LegacyPlantPlaced { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("PlantX")] public double LegacyPlantX { get; set; } = double.NaN;
+    [System.Text.Json.Serialization.JsonPropertyName("CookFood"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyCookFood { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("CookReadyAt"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public DateTime LegacyCookReadyAt { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("CookCost"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyCookCost { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("CookStage")] public int LegacyCookStage { get; set; } = 1;
+    [System.Text.Json.Serialization.JsonPropertyName("CookX")] public double LegacyCookX { get; set; } = double.NaN;
+    [System.Text.Json.Serialization.JsonPropertyName("WishList"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public List<string>? LegacyWishList { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("WishDay"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyWishDay { get; set; }
 
     /// <summary>Състоянието на ядрото (слоевете на модулите, виж Mecho.Core.GameStore) – пази се тук.</summary>
     public System.Text.Json.Nodes.JsonObject? Core { get; set; }
-    public List<string> WishList { get; set; } = new();        // какво му се иска (id-та на ястия) – изпълненото се маха
-    public string WishDay { get; set; } = "";                   // за кой ден е списъкът
     public string WorkPlanDay { get; set; } = "";               // „Ще се работи ли днес?“ – за кой ден
     public string WorkPlan { get; set; } = "";                  // yes / light / no / later („още не знам“)
     public int WorkPlanAsks { get; set; }                       // колко пъти е питал днес

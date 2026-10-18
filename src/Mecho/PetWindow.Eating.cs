@@ -73,6 +73,7 @@ public sealed partial class PetWindow
     private void FinishedAll(Food food)
     {
         Joy(JoyFed);
+        CoreEngine.Bus.Publish(new Mecho.Core.FoodEaten(food.Id, Whole: true));
         bool thanked = WishThanks(food);
         if (!thanked && !ThankForMeal()) Say(DoneLine(food), 4);
         FulfillWish(food);
@@ -96,19 +97,19 @@ public sealed partial class PetWindow
     {
         string today = DayKey(DateTime.Today);
         if (_save.WishDay == today) return;
-        _save.WishDay = today;
-        _save.WishList.Clear();
+        var list = new List<string>();
         var cravings = Kitchen.Cravings(_save);
-        if (FavoriteFood is { } fav) _save.WishList.Add(fav.Id);
+        if (FavoriteFood is { } fav) list.Add(fav.Id);
         foreach (var f in cravings)
-            if (_save.WishList.Count < Math.Max(1, cravings.Length) && !_save.WishList.Contains(f.Id)) _save.WishList.Add(f.Id);
+            if (list.Count < Math.Max(1, cravings.Length) && !list.Contains(f.Id)) list.Add(f.Id);
+        CoreEngine.Bus.Send(new Mecho.Core.SetWishes(today, list));
     }
 
     /// <summary>Получи желаното: маха го от списъка; понякога (рядко) му се дояжда нещо друго за следващия път.</summary>
     private void FulfillWish(Food food)
     {
         EnsureWishes();
-        if (!_save.WishList.Remove(food.Id)) return;
+        if (!CoreEngine.Bus.Send(new Mecho.Core.FulfillWish(food.Id)).Ok) return;
         Persist();
         NotifyCare();
         if (_save.TodayCount("wish.added") >= 2 || _rng.NextDouble() > 0.15) return;
@@ -116,7 +117,7 @@ public sealed partial class PetWindow
             && f.Id != food.Id && !_save.WishList.Contains(f.Id) && !TodayRec.Foods.Contains(f.Id)).ToList();
         if (options.Count == 0) return;
         var next = options[_rng.Next(options.Count)];
-        _save.WishList.Add(next.Id);
+        if (!CoreEngine.Bus.Send(new Mecho.Core.AddWish(next.Id)).Ok) return;
         _save.CountToday("wish.added");
         Persist();
         NotifyCare();

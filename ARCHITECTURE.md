@@ -65,7 +65,7 @@ public sealed class PajamaDayModule : GameModule                            // 3
 | 1 | Лешници + притежавано | `EconomyModule` | `WalletState`, `InventoryState` | `EarnNuts`, `SpendNuts`, `Purchase`, `GrantItem`, `RevokeItem`, `SetInventory` → `HazelnutsChanged`, `ItemAcquired`, `ItemRevoked` | ✅ |
 | 1 | Предмети на земята | `PlacementModule` (зависи от economy) | `PlacementState` | `PlaceItem`, `RemoveItem`, `ReleaseByBear`, `SwitchItem`, `MoveItem`, `SetSupply` → `ItemPlaced`, `ItemRemoved`, `ItemSwitched`, `ItemMoved` | ✅ |
 | 2 | Нужди (глад, енергия) + какво прави мечокът | `NeedsModule` (гладът спада тук, × `Mods.HungerRate`), `BearStatusModule` | `NeedsState`, `BearStatusState` | `AdjustNeeds`, `SetNeeds`, `ReportBearStatus` → `NeedsChanged`, `SleepChanged`, `ActivityChanged` | ✅ (енергията още се смята в `PetWindow.Energy`, но пише в ядрото и ползва `Mods.EnergyDrain`) |
-| 3 | Храна и готвене, желания | `KitchenModule` | `CookingState`, `WishesState` | `Cook`, `FinishCooking` → `FoodCooked`, `FoodEaten`, `WishFulfilled` | |
+| 3 | Храна и готвене, желания | `KitchenModule` | `CookingState`, `WishesState` | `StartCook`, `NextCookStage`, `MoveCooker`, `EndCook`, `SetWishes`, `AddWish`, `FulfillWish` → `CookingStarted`, `CookingEnded`, `WishAdded`, `WishFulfilled`; приложението пуска `FoodEaten` | ✅ (каталогът с ястия и анимациите остават в приложението) |
 | 4 | Работа: мечо-доро, таймери, задачи, план | `WorkModule` | `WorkState`, `TasksState` | `StartPomodoro`, `CompleteTask`… → `PomodoroFinished`, `TaskCompleted` | |
 | 5 | Магазин, гардероб, скинове, оферта, цел | `ShopModule`, `WardrobeModule` | `OutfitState`, `ShopState` | `Purchase` (вече), `Wear` → `OutfitChanged` | |
 | 6 | Подаръци, растение, хранилка, гости | `GiftsModule`, `GardenModule`… | по един | … | |
@@ -80,6 +80,7 @@ public sealed class PajamaDayModule : GameModule                            // 3
 * Сложеното от мечока не оцелява след рестарт (`PlacementModule.Start`).
 * Dev Mode пази и връща слоевете през `Store.Restore`.
 * Стари записи се местят в ядрото при първото пускане (`SaveData.Bind`).
+* Вълна 3: готвенето (какво, докога, кой уред, къде) и желанията за деня са само в ядрото; `SaveData.CookFood`/`WishList` са само за четене, пише се с команди. Желано ястие се маха с `FulfillWish` и пуска `WishFulfilled`; всяко изядено пуска `FoodEaten`.
 
 ## 1. Сегашният строеж накратко
 
