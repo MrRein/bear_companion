@@ -80,6 +80,9 @@ public sealed class SaveData
     /// <summary>Вечерта, в която в 22:00 енергията вече е паднала.</summary>
     public string NightDropDay { get; set; } = "";
 
+    /// <summary>Вечерта, в която в 23:00 е решено дали ще капне (много голям шанс).</summary>
+    public string LateDropDay { get; set; } = "";
+
     /// <summary>„Почивай си“/„Работи си“ е избрано от самия мечок (по часовника), не от Тут.</summary>
     public bool AutoMode { get; set; }
     public string JoyDay { get; set; } = "";        // за кой ден са JoyFlags

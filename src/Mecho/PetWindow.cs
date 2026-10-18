@@ -710,12 +710,6 @@ public sealed partial class PetWindow : Window
     {
         _busyNear = null;   // кратко нещо с предмет: PlayNear я слага наново след Play
         // Ако го вдигнат или заспи, слиза от батута (батутът изчезва).
-        if (_onTrampoline && state is BearState.Drag or BearState.Sleep or BearState.Couch)
-        {
-            _onTrampoline = false;
-            _streak = 0;
-            _trampWindow?.Hide();
-        }
         _state = state;
         if (state is BearState.Drag or BearState.Sleep or BearState.Couch) _peeking = false;
         if (state != BearState.Busy) _afterBusy = null;

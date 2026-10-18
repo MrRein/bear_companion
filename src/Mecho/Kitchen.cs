@@ -185,7 +185,7 @@ public static class Kitchen
         new(Radio, "Радио", "📻", 20, "Музика.", FunShelf),
         new(BoardGame, "Настолна игра", "🎲", 25, "Игра на масичка.", FunShelf),
         new(Easel, "Статив", "🎨", 30, "За рисуване.", FunShelf),
-        new(Trampoline, "Батут", "🤸", 35, "За скачане.", FunShelf),
+        // Батутът е архивиран (archive/trampoline) – не се продава.
         new(Computer, "Компютър", "🎮", 50, "Игрички.", FunShelf),
         new(YarnBasket, "Кошница с прежда", "🧶", 25, "За плетене.", FunShelf),
         new(Guitar, "Китара", "🎸", 35, "Свири си песнички.", FunShelf),

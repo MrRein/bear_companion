@@ -145,6 +145,27 @@ public sealed partial class PetWindow
         _save.WokeAt = DateTime.Now;
     }
 
+    /// <summary>
+    /// След 23:00 (нощната птица – след полунощ): много голям шанс (85%) да капне от умора –
+    /// енергията пада до 10–18 (веднъж на вечер). Иначе само до 30 (както в 22:00).
+    /// </summary>
+    private void LateNightDrop()
+    {
+        var now = DateTime.Now;
+        bool owl = Today == DayKind.NightOwl;
+        bool late = owl ? now.Hour < 5 : now.Hour >= 23 || now.Hour < 5;
+        if (!late || IsAsleep) return;
+        string key = (now.Hour < 5 ? now.Date.AddDays(-1) : now.Date).ToString("yyyy-MM-dd");
+        if (_save.LateDropDay == key) return;
+        _save.LateDropDay = key;
+        if (_rng.NextDouble() >= 0.85) return;
+        double to = 10 + _rng.Next(9);
+        if (_save.Energy <= to) return;
+        _save.Energy = to;
+        if (!IsQuiet && !InFocus) Say(Lines.Pick(Lines.Bedtime, _save.OwnerName), 6);
+        Emote("zzz", 4);
+    }
+
     /// <summary>В 22:00 енергията пада рязко (веднъж на вечер): доспива му се.</summary>
     private void NightDrop()
     {
@@ -202,6 +223,7 @@ public sealed partial class PetWindow
         if (!IsAsleep && !walkNap && _save.Energy > cap) _save.Energy = Math.Max(cap, _save.Energy - 30 * h);
         MorningRefresh(fromStart: false);
         NightDrop();
+        LateNightDrop();
 
         UpdatePomodoro();
         UpdateTimer();

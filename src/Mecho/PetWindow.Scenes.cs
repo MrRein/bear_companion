@@ -44,7 +44,7 @@ public static class Scenes
     /// <summary>Забавленията: кътчета, в които сяда сам, когато скучае, или когато Тут му каже „Почивай си“.</summary>
     // Пазят се (не се правят наново при всяко питане – питат се всеки кадър). Мързеливо,
     // защото полетата със самите кътчета са по-надолу във файла.
-    public static Scene[] Fun => _fun ??= new[] { Reading, Gaming, Tea, Yoga, Plant, Music, Knit, Guitar, Trampoline, BoardPlay, PaintFun };
+    public static Scene[] Fun => _fun ??= new[] { Reading, Gaming, Tea, Yoga, Plant, Music, Knit, Guitar, BoardPlay, PaintFun };
 
     private static Scene[]? _fun, _work, _all;
 

@@ -2339,7 +2339,7 @@ public sealed class MenuWindow : Window
         {
             >= 70 => "бодър",
             >= 50 => "добре",
-            >= PetWindow.TiredBelow => "поуморен",
+            >= PetWindow.TiredBelow => "леко уморен",
             >= 15 => "уморен",
             _ => "капнал!",
         });

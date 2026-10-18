@@ -108,7 +108,7 @@ public static class GameEvents
                 m.Set(s, Mods.HungerRate, 0.8);
                 m.Set(s, Mods.Appetite, 0.7);
                 m.Add(s, Mods.ShopExtras, Medicine);             // лекарството се продава само днес
-                m.Add(s, Mods.BlockedHobbies, "trampoline", "yoga", "music");
+                m.Add(s, Mods.BlockedHobbies, "yoga", "music");
                 m.Add(s, Mods.PreferredHobbies, "reading", "tea");
                 m.Add(s, Mods.LinePacks, "event.sick_day");
             },

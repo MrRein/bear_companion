@@ -63,11 +63,6 @@ public sealed partial class PetWindow
             _bubbleWindow.Conceal();
             _butterflyWindow.Conceal();
         }
-        if (_trampWindow != null)
-        {
-            if (!show && _trampWindow.IsVisible) _trampWindow.Hide();
-            else if (show && _onTrampoline && !_trampWindow.IsVisible) _trampWindow.Show();
-        }
         if (show) RaiseCompanions();
         if (_giftWindow != null)
         {
