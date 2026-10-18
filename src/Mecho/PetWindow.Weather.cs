@@ -101,6 +101,7 @@ public sealed partial class PetWindow
         UpdateLamp();
         UpdateRadio(now);
         AskHeaterCloser(now);
+        UpdateItems(now);   // предметите на земята: понякога прави нещо с тях (Items/*.cs)
         if (now < _nextWarmthLine || _tempC == null) return;
         // Колкото му е по-неудобно, толкова по-често казва (40–80 мин, а в мраза без дрехи – 15–30).
         int gap = Comfortable ? 100 : ColdLevel >= 3 ? 45 : ColdLevel == 2 ? 60 : 80;
@@ -143,6 +144,8 @@ public sealed partial class PetWindow
             }
             if (WantsHeater && !_save.HeaterOn)
             {
+                // Печицата е сложена, но изключена: отива и я пуска сам (Items/HeaterItem.cs).
+                if (_save.HeaterPlaced && TryItem(Kitchen.Heater, "turn_on")) return;
                 Say(Lines.Pick(Lines.HeaterPlease, o), 8);
                 _heaterAskUntil = Now + 120;
                 return;
@@ -171,8 +174,12 @@ public sealed partial class PetWindow
         {
             if (_save.HeaterOn)
             {
-                SetHeater(false);
-                Say(Lines.Pick(Lines.HotHeaterOff, o), 4);
+                // Отива и я спира сам; ако не може сега – спира я от разстояние.
+                if (!TryItem(Kitchen.Heater, "turn_off"))
+                {
+                    SetHeater(false);
+                    Say(Lines.Pick(Lines.HotHeaterOff, o), 4);
+                }
             }
             else if (Warmth >= 2)
                 Say(Lines.Pick(Lines.HotTooDressed, o), 6);
@@ -182,8 +189,11 @@ public sealed partial class PetWindow
         }
         if (_save.HeaterOn && _tempC >= Weather.Cool + 3)
         {
-            SetHeater(false);
-            Say(R.Any("weather.heateroff"), 4);
+            if (!TryItem(Kitchen.Heater, "turn_off"))
+            {
+                SetHeater(false);
+                Say(R.Any("weather.heateroff"), 4);
+            }
             return;
         }
         if (Warmth >= 3)
@@ -205,7 +215,7 @@ public sealed partial class PetWindow
         return true;
     }
 
-    /// <summary>Включва/изключва печицата (ако е купена).</summary>
+    /// <summary>Включва/изключва печицата (ако е купена; включена – и сложена на земята).</summary>
     public void SetHeater(bool on)
     {
         if (on && !Kitchen.Owns(_save, Kitchen.Heater)) return;
@@ -214,12 +224,23 @@ public sealed partial class PetWindow
         NotifyCare();
     }
 
+    /// <summary>Тут я слага (включена) или прибира („Сложи“ в менюто).</summary>
+    public void SetHeaterPlaced(bool placed)
+    {
+        if (placed && !Kitchen.Owns(_save, Kitchen.Heater)) return;
+        if (placed) _save.HeaterOn = true;
+        else _save.HeaterPlaced = false;
+        Persist();
+        NotifyCare();
+    }
+
     /// <summary>Печицата на земята: показва се, докато е включена, и свети (два кадъра).</summary>
     private void UpdateHeater(double now)
     {
-        // Печицата е на земята само докато е включена (от бутона в менюто).
-        bool on = _save.HeaterOn && Kitchen.Owns(_save, Kitchen.Heater);
-        if (!on)
+        // Печицата е на земята, докато е сложена; включена – грее (два кадъра), изключена – „_off“.
+        bool placed = _save.HeaterPlaced && Kitchen.Owns(_save, Kitchen.Heater);
+        bool on = placed && _save.HeaterOn;
+        if (!placed)
         {
             if (_heaterWindow != null)
             {
@@ -235,10 +256,16 @@ public sealed partial class PetWindow
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _heaterWindow = new CookerWindow("Печица");
             _heaterWindow.SetTime(null);
-            _heaterWindow.Hint = "Печицата грее.";
-            _heaterWindow.Clicked += () => Ask(new ChatQuestion("Да изключа ли печицата?",
-                new ChatOption("Изключи я", p => p.SetHeater(false)),
-                new ChatOption("Не, нека грее", p => p.Say(R.Any("heater.keep"), 3))));
+            _heaterWindow.Hint = "Печицата.";
+            _heaterWindow.Clicked += () => Ask(_save.HeaterOn
+                ? new ChatQuestion("Да изключа ли печицата?",
+                    new ChatOption("Изключи я", p => p.SetHeater(false)),
+                    new ChatOption("Прибери я", p => p.SetHeaterPlaced(false)),
+                    new ChatOption("Не, нека грее", p => p.Say(R.Any("heater.keep"), 3)))
+                : new ChatQuestion("Печицата е изключена. Да я включа ли?",
+                    new ChatOption("🔥 Включи я", p => { p.SetHeater(true); p.Say(Lines.Fill(R.Any("heater.on"), p.Save.OwnerName), 4); }),
+                    new ChatOption("Прибери я", p => p.SetHeaterPlaced(false)),
+                    new ChatOption("Остави", _ => { })));
             _heaterWindow.Dropped += (cx, _) =>
             {
                 var a = AreaAt(cx, _heaterWindow!.Top + _heaterWindow.ActualHeight / 2);
@@ -248,16 +275,26 @@ public sealed partial class PetWindow
                 Persist();
             };
             _heaterWindow.SetAway(!IsVisible);
-            _heaterWindow.Place(_lib.GetProp(Furniture.CurrentArt(_save, Kitchen.Heater), 20, 22, 0).Image, PixelSize, x, area.Bottom);
+            _heaterWindow.Place(_lib.GetProp(HeaterArt(on, now), 20, 22, 0).Image, PixelSize, x, area.Bottom);
             _save.HeaterX = x;
         }
         _heaterWindow.Step(0.033);
         if (now > _nextHeaterFrame)
         {
             _nextHeaterFrame = now + 0.4;
-            string art = Furniture.CurrentArt(_save, Kitchen.Heater, (int)(now / 0.4) % 2 == 0 ? "" : "_b");
-            _heaterWindow.SetArt(_lib.GetProp(art, 20, 22, 0).Image, PixelSize);
+            _heaterWindow.SetArt(_lib.GetProp(HeaterArt(on, now), 20, 22, 0).Image, PixelSize);
         }
+    }
+
+    /// <summary>Рисунката на печицата: включена мига (два кадъра), изключена – „_off“ (ако е нарисувана).</summary>
+    private string HeaterArt(bool on, double now)
+    {
+        if (!on)
+        {
+            string off = Furniture.CurrentArt(_save, Kitchen.Heater, "_off");
+            return _lib.HasProp(off) ? off : Furniture.CurrentArt(_save, Kitchen.Heater);
+        }
+        return Furniture.CurrentArt(_save, Kitchen.Heater, (int)(now / 0.4) % 2 == 0 ? "" : "_b");
     }
 
     /// <summary>Сяда до печицата (когато е включена) и се топли.</summary>

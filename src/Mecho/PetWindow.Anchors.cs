@@ -44,7 +44,7 @@ public sealed partial class PetWindow
 
     private ItemAnchor RadioAnchor => new("radio", () => ItemBounds(_radioWindow, RadioPlaced, _save.RadioX, 14, 12), SpriteWidth * 0.45);
 
-    private ItemAnchor HeaterAnchor => new("heater", () => ItemBounds(_heaterWindow, _save.HeaterOn && Kitchen.Owns(_save, Kitchen.Heater), _save.HeaterX, 20, 22), SpriteWidth * 0.4);
+    private ItemAnchor HeaterAnchor => new("heater", () => ItemBounds(_heaterWindow, _save.HeaterPlaced && Kitchen.Owns(_save, Kitchen.Heater), _save.HeaterX, 20, 22), SpriteWidth * 0.4);
 
     private ItemAnchor CookerAnchor => new("cooker", () => _cook?.Window.Bounds, SpriteWidth * 0.35);
 

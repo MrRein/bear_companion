@@ -101,6 +101,7 @@ public sealed partial class PetWindow : Window
         WireWork();     // мечо-доро и таймер: ядрото засича края, мечокът реагира
         WireEvents();   // събития (пижамен ден, болен ден, Коледа, пеперуда…)
         WireBehaviour(); // продаден/махнат предмет спира заниманието; нов скин – пречертава
+        InitItems();     // предметите на земята и какво прави мечокът с тях (Items/*.cs)
         Kitchen.ExtrasNow = () => CoreEngine.Modifiers.Get(Mecho.Core.Mods.ShopExtras);
         R.Owner = () => _save.OwnerName;
         // Размерите на шрифта и иконките зависят от мащаба на екрана.

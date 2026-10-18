@@ -557,6 +557,15 @@ public sealed partial class PetWindow
         yield return (core, "Модификатори", () => Show("модификатори", CoreEngine.Modifiers.Describe()));
         yield return (core, "Състояние (слоеве)", () => Show("състояние", CoreEngine.Store.Export().ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true })));
         yield return (core, "Лог на ядрото", () => Show("лог", string.Join("\n", (Engine.CoreSetup.Memory?.Lines ?? Array.Empty<string>()).Reverse().Take(40))));
+        const string items = "Предмети на земята (какво прави с тях)";
+        yield return (items, "Какво би направил сега", () => Show("предмети", string.Join("\n",
+            ItemActionsForTest().Select(a => $"{a.Kind}: {a.Action} ({a.Weight:0.#})"))));
+        foreach (var (kind, label) in new[] { (Kitchen.Heater, "Печица"), (Kitchen.Lamp, "Лампа"), (Kitchen.Radio, "Радио"), (Kitchen.Feeder, "Хранилка"), (Kitchen.PlantPot, "Растение") })
+        {
+            var k = kind;
+            yield return (items, label + ": направи нещо с нея сега", () => DevItemAction(k));
+        }
+        yield return (items, "Печица: сложи изключена", () => { if (!Kitchen.Owns(_save, Kitchen.Heater)) _save.Owned.Add(Kitchen.Heater); SetHeaterPlaced(true); SetHeater(false); });
         const string events = "Събития (пижамен ден, болен ден, Коледа…)";
         yield return (events, "Какво тече сега", () => Show("събития", string.Join("\n", ActiveEventNames())));
         foreach (var ev in Mecho.Core.GameEvents.All)

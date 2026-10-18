@@ -603,7 +603,7 @@ public sealed class MenuWindow : Window
             SetOn(chip, on);
             _placeOptions.Children.Add(chip);
         }
-        Add(Kitchen.Heater, "Печица", s.HeaterOn, () => _pet.SetHeater(!s.HeaterOn));
+        Add(Kitchen.Heater, "Печица", s.HeaterPlaced, () => _pet.SetHeaterPlaced(!s.HeaterPlaced));
         Add(Kitchen.Lamp, "Лампа", _pet.LampOn, () => _pet.SetLamp(!_pet.LampOn));
         Add(Kitchen.Radio, "Радио", _pet.RadioPlaced, _pet.ToggleRadioPlaced);
         Add(Kitchen.Feeder, "Хранилка", _pet.FeederPlaced, () => _pet.SetFeeder(!_pet.FeederPlaced));

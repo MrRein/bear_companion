@@ -34,7 +34,8 @@ public static class CoreSetup
         engine.Modules.Add(new WardrobeModule());         // облекло, скинове, пижама, меню, фон
         engine.Modules.Add(new GiftsModule());            // подаръкът на деня (шанс × Mods.GiftChance)
         engine.Modules.Add(new GardenModule(Kitchen.PlantPot)); // растението в саксията (зависи от economy)
-        engine.Modules.Add(new EventDirector(automatic: !SelfTest.Running));          // събития: пижамен ден, болен ден, Коледа, пеперуда… (GameEvents.All)
+        engine.Modules.Add(new EventDirector(automatic: !SelfTest.Running)); // събития: пижамен ден, болен ден, Коледа, пеперуда… (GameEvents.All)
+        engine.Modules.Add(new InteractionsModule());     // колко често мечокът прави нещо с предметите на земята
         engine.Modules.Add(new LegacyBridgeModule(pet, save));
 
         // Пуска се веднага (не чак при показване на прозореца): старият код чете

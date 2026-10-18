@@ -1131,7 +1131,7 @@ public sealed partial class PetWindow
             if (CoreEngine.Modules.Modules.FirstOrDefault(m => m.Id == "legacy.bridge") is not { Status: Mecho.Core.ModuleStatus.Running })
                 throw new Exception("мостът към стария код не работи");
             // Вълна 1: лешниците, притежаваното и предметите на земята са само в ядрото.
-            foreach (var id in new[] { "economy", "placement", "bear", "needs", "kitchen", "work", "tasks", "wardrobe", "gifts", "garden", "events" })
+            foreach (var id in new[] { "economy", "placement", "bear", "needs", "kitchen", "work", "tasks", "wardrobe", "gifts", "garden", "events", "interactions" })
                 if (!CoreEngine.Modules.IsRunning(id)) throw new Exception($"модулът {id} не работи");
             int nuts = CoreEngine.Store.Get<Mecho.Core.WalletState>().Nuts;
             if (_save.Hazelnuts != nuts || _save.LegacyHazelnuts != 0) throw new Exception("лешниците не са в ядрото");
@@ -1189,7 +1189,7 @@ public sealed partial class PetWindow
                 _chat?.Hide();
             }
             EndVisitor();
-            SetHeater(false);
+            SetHeaterPlaced(false);
             _save.Owned.Remove(Kitchen.Heater);
             _tempC = null;
             Weather.Fake(-1, 0);
@@ -1303,7 +1303,7 @@ public sealed partial class PetWindow
             TalkAboutWeather();
             if (WeatherText == null) throw new Exception("няма текст за времето");
             _save.Owned.Add(Kitchen.Heater);
-            SetHeater(false);
+            SetHeaterPlaced(false);
             TalkAboutWeather();
             if (!TakeHeaterQuestion()) throw new Exception("не пита за печицата");
             _chat?.UpdateLayout();
@@ -1323,7 +1323,8 @@ public sealed partial class PetWindow
             _save.Owned.Add(Kitchen.Heater);
             TalkAboutWeather();
             _ = Warmth;
-            SetHeater(false);
+            if (_save.HeaterOn) throw new Exception("в жегата печицата остана включена");
+            SetHeaterPlaced(false);
             UpdateHeater(Now);
             if (_heaterWindow != null) throw new Exception("печицата не изчезна");
             _save.Owned.Remove(Kitchen.Heater);
@@ -1784,6 +1785,65 @@ public sealed partial class PetWindow
             HideBubble();
             if (stillGaming) throw new Exception("играе на компютър, който го няма");
         }, 300);
+        await step("предмети: печицата знае кога ѝ трябва", () =>
+        {
+            if (!Kitchen.Owns(_save, Kitchen.Heater)) _save.Owned.Add(Kitchen.Heater);
+            double x = _x;
+            double Weight(string action) => ItemActionsForTest().Where(a => a.Kind == Kitchen.Heater && a.Action == action).Select(a => a.Weight).DefaultIfEmpty(0).First();
+            _tempC = 3;
+            SetHeaterPlaced(true);
+            SetHeater(false);
+            UpdateHeater(Now);
+            if (_heaterWindow == null || !_save.HeaterPlaced) throw new Exception("изключената печица не стои на земята");
+            if (Weight("turn_on") <= 0) throw new Exception("студено, а не иска да пусне печицата");
+            if (Weight("turn_off") > 0) throw new Exception("студено, а иска да я спре");
+            SetHeater(true);
+            UpdateHeater(Now);
+            _x = _heaterWindow!.CenterX;
+            _nextItemBonus = 0;
+            UpdateItems(Now);
+            if (!CoreEngine.Modifiers.Sources.Contains("item.heater")) throw new Exception("до печицата в студа няма бонус");
+            _tempC = 30;
+            if (Weight("turn_off") <= 0) throw new Exception("жега е, а не иска да спре печицата");
+            SetHeaterPlaced(false);
+            UpdateHeater(Now);
+            _nextItemBonus = 0;
+            UpdateItems(Now);
+            if (CoreEngine.Modifiers.Sources.Contains("item.heater")) throw new Exception("прибраната печица още дава бонус");
+            _tempC = null;
+            _x = x;
+        }, 300);
+        await step("предмети: всеки сложен предмет има какво да прави", () =>
+        {
+            DevUnlockAll();
+            SetLamp(true);
+            SetRadio(true);
+            SetFeeder(true);
+            SetPlant(true);
+            UpdateLamp();
+            UpdateRadio(Now);
+            UpdateFeeder(Now, 0);
+            foreach (var kind in new[] { Kitchen.Lamp, Kitchen.Radio, Kitchen.Feeder, Kitchen.PlantPot })
+            {
+                var acts = ItemActionsForTest().Where(a => a.Kind == kind).ToList();
+                if (acts.Count == 0) throw new Exception($"{kind} е сложен, а мечокът не го „вижда“");
+                if (!acts.Any(a => a.Weight > 0)) throw new Exception($"{kind}: няма какво да прави с него");
+                foreach (var a in acts)
+                    if (!R.Has($"item.{kind}.{a.Action}") && a.Action is "love" or "cozy" or "proud")
+                        throw new Exception($"липсват реплики item.{kind}.{a.Action}");
+            }
+            SetLamp(false);
+            SetRadio(false);
+            SetFeeder(false);
+            SetPlant(false);
+            UpdateLamp();
+            UpdateRadio(Now);
+            UpdateFeeder(Now, 0);
+            _nextItemBonus = 0;
+            UpdateItems(Now);
+            if (CoreEngine.Modifiers.Sources.Any(s => s.StartsWith("item."))) throw new Exception("прибраните предмети още дават бонус");
+            HideBubble();
+        }, 400);
         await step("всички реплики са във файла", () =>
         {
             if (R.Keys.Count < 200) throw new Exception("repliki.txt не се зареди");

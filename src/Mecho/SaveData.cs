@@ -529,9 +529,9 @@ public sealed class SaveData
         set { if (_store == null) LegacyRadioX = value; else SetPlace(Kitchen.Radio, p => p with { X = value }); }
     }
 
-    /// <summary>Печицата: „сложена“ = включена (стои на земята, докато грее).</summary>
+    /// <summary>Печицата стои на земята (включена или не).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool HeaterOn
+    public bool HeaterPlaced
     {
         get => _store == null ? LegacyHeaterOn : Place(Kitchen.Heater).Placed;
         set
@@ -539,6 +539,19 @@ public sealed class SaveData
             if (_store == null) { LegacyHeaterOn = value; return; }
             if (value) _bus!.Send(new Mecho.Core.PlaceItem(Kitchen.Heater, Mecho.Core.PlacedBy.Player));
             else _bus!.Send(new Mecho.Core.RemoveItem(Kitchen.Heater));
+        }
+    }
+
+    /// <summary>Печицата грее: сложена и включена (включиш ли я – слага се, ако я няма).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HeaterOn
+    {
+        get => _store == null ? LegacyHeaterOn : Place(Kitchen.Heater) is { Placed: true, On: true };
+        set
+        {
+            if (_store == null) { LegacyHeaterOn = value; return; }
+            if (value && !Place(Kitchen.Heater).Placed) _bus!.Send(new Mecho.Core.PlaceItem(Kitchen.Heater, Mecho.Core.PlacedBy.Player));
+            _bus!.Send(new Mecho.Core.SwitchItem(Kitchen.Heater, value));
         }
     }
 
