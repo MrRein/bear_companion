@@ -46,8 +46,7 @@ public sealed partial class PetWindow
             return;
         }
         if (_inScene && _scene == Scenes.Music) GetUp();   // EndMusic маха сам сложеното
-        if (RadioPlaced) SetRadio(false);
-        _save.RadioAuto = _save.RadioAutoOn = false;
+        if (RadioPlaced) CoreEngine.Bus.Send(new Mecho.Core.RemoveItem(Kitchen.Radio));
         Persist();
         NotifyCare();
     }
@@ -98,52 +97,37 @@ public sealed partial class PetWindow
     }
 
     /// <summary>
-    /// Почва да танцува: няма радио – слага го до себе си и го пуска (маха го после);
-    /// радиото на Тут е изключено – пуска го (и после пак го спира).
+    /// Почва да танцува: няма радио – мечокът го слага до себе си и го пуска (PlacedBy.Bear –
+    /// ядрото го маха с ReleaseByBear); радиото на Тут е изключено – пуска го (ByBear – после
+    /// пак го спира). Правилата са в PlacementModule; тук са само мястото и посоката.
     /// </summary>
     private void BeginMusic()
     {
         if (!Kitchen.Owns(_save, Kitchen.Radio)) return;
+        var bus = CoreEngine.Bus;
         if (!RadioPlaced)
         {
             var area = Area;
             int side = _facingLeft ? -1 : 1;
             double x = _x + side * (SpriteWidth * 0.6 + 8 * PixelSize);
             if (x < area.Left + 30 || x > area.Right - 30) x = _x - side * (SpriteWidth * 0.6 + 8 * PixelSize);
+            x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _radioWindow?.Close();
             _radioWindow = null;
-            _save.RadioX = Math.Clamp(x, area.Left + 30, area.Right - 30);
-            _save.RadioPlaced = true;
-            _save.RadioOn = true;
-            _save.RadioAuto = true;
-            _facingLeft = _save.RadioX < _x;
+            bus.Send(new Mecho.Core.MoveItem(Kitchen.Radio, x));
+            bus.Send(new Mecho.Core.PlaceItem(Kitchen.Radio, Mecho.Core.PlacedBy.Bear, x));
+            bus.Send(new Mecho.Core.SwitchItem(Kitchen.Radio, true, ByBear: true));
+            _facingLeft = x < _x;
         }
-        else if (!_save.RadioOn)
-        {
-            _save.RadioOn = true;
-            _save.RadioAutoOn = true;
-        }
+        else if (!_save.RadioOn) bus.Send(new Mecho.Core.SwitchItem(Kitchen.Radio, true, ByBear: true));
         Persist();
         NotifyCare();
     }
 
-    /// <summary>Спря да танцува: прибира/изключва каквото е сложил/пуснал сам.</summary>
+    /// <summary>Спря да танцува: ядрото прибира/изключва каквото мечокът е сложил/пуснал сам.</summary>
     private void EndMusic()
     {
-        bool changed = false;
-        if (_save.RadioAuto)
-        {
-            _save.RadioAuto = false;
-            _save.RadioPlaced = false;
-            changed = true;
-        }
-        if (_save.RadioAutoOn)
-        {
-            _save.RadioAutoOn = false;
-            _save.RadioOn = false;
-            changed = true;
-        }
-        if (!changed) return;
+        CoreEngine.Bus.Send(new Mecho.Core.ReleaseByBear(Kitchen.Radio));
         Persist();
         NotifyCare();
     }

@@ -24,8 +24,14 @@ public static class CoreSetup
         if (save.Core != null) engine.Store.Import(save.Core);
 
         // ── Модулите (по реда на добавяне; зависимостите се подреждат сами) ──
+        engine.Modules.Add(new EconomyModule());          // лешници + притежавано
+        engine.Modules.Add(new PlacementModule());        // предмети на земята (зависи от economy)
         engine.Modules.Add(new LegacyBridgeModule(pet, save));
 
+        // Пуска се веднага (не чак при показване на прозореца): старият код чете
+        // данните през фасадата на SaveData още в конструктора на мечока.
+        engine.Start();
+        save.Bind(engine);
         return engine;
     }
 

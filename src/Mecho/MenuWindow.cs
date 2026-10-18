@@ -167,11 +167,14 @@ public sealed class MenuWindow : Window
             Child = root,
         };
 
-        _pet.CareChanged += (_, _) =>
-        {
-            if (IsOpen) Refresh(rebuild: true);
-            else Array.Fill(_dirty, true);   // строи се наново, като се отвори
-        };
+        _pet.CareChanged += (_, _) => StateChangedRefresh();
+        // Менюто само показва състоянието: всяка промяна в ядрото (лешници, притежавано,
+        // предмети на земята) го пречертава. Абонаментите се махат при затваряне.
+        var bus = _pet.CoreEngine.Bus;
+        bus.Subscribe<Mecho.Core.StateChanged<Mecho.Core.WalletState>>(this, _ => StateChangedRefresh());
+        bus.Subscribe<Mecho.Core.StateChanged<Mecho.Core.InventoryState>>(this, _ => StateChangedRefresh());
+        bus.Subscribe<Mecho.Core.StateChanged<Mecho.Core.PlacementState>>(this, _ => StateChangedRefresh());
+        Closed += (_, _) => bus.Unsubscribe(this);
         _refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _refresh.Tick += (_, _) => Refresh(rebuild: false);
 
@@ -2283,6 +2286,13 @@ public sealed class MenuWindow : Window
     /// след като свършат всички промени в този момент: три цъкания подред или няколко
     /// известия наведнъж = едно строене (иначе менюто „засичаше“).
     /// </summary>
+    /// <summary>Нещо в състоянието се смени: отворено – пречертава (събрано наведнъж); иначе – при отваряне.</summary>
+    private void StateChangedRefresh()
+    {
+        if (IsOpen) Refresh(rebuild: true);
+        else Array.Fill(_dirty, true);
+    }
+
     private void Refresh(bool rebuild)
     {
         if (!rebuild || !IsOpen || SelfTest.Running)

@@ -56,6 +56,31 @@ public sealed class PajamaDayModule : GameModule                            // 3
 * Всеки слой има един собственик.
 * Изгледът (прозорците) не е модул: чете хранилището, слуша сигналите и праща команди.
 
+## 0.1 Фаза 3: свързване на системите (по вълни)
+
+Свързването става на вълни. След всяка вълна CI проверява самопроверката и тестовете и чак тогава почва следващата. Старият код продължава да работи през **фасадата** на `SaveData`: свойствата ѝ четат от `GameStore` и пращат команди. Така данните са на едно място още от първата вълна, без целият стар код да се пренаписва наведнъж.
+
+| Вълна | Система | Модул (ядро) | Слой | Команди → сигнали | Състояние |
+|---|---|---|---|---|---|
+| 1 | Лешници + притежавано | `EconomyModule` | `WalletState`, `InventoryState` | `EarnNuts`, `SpendNuts`, `Purchase`, `GrantItem`, `RevokeItem`, `SetInventory` → `HazelnutsChanged`, `ItemAcquired`, `ItemRevoked` | ✅ |
+| 1 | Предмети на земята | `PlacementModule` (зависи от economy) | `PlacementState` | `PlaceItem`, `RemoveItem`, `ReleaseByBear`, `SwitchItem`, `MoveItem`, `SetSupply` → `ItemPlaced`, `ItemRemoved`, `ItemSwitched`, `ItemMoved` | ✅ |
+| 2 | Нужди (глад, енергия, сън) | `NeedsModule` (поема спадането) | `NeedsState` | `Feed`, `Rest`, `Wake` → `NeedsChanged`, `SleepChanged` | следва |
+| 3 | Храна и готвене, желания | `KitchenModule` | `CookingState`, `WishesState` | `Cook`, `FinishCooking` → `FoodCooked`, `FoodEaten`, `WishFulfilled` | |
+| 4 | Работа: мечо-доро, таймери, задачи, план | `WorkModule` | `WorkState`, `TasksState` | `StartPomodoro`, `CompleteTask`… → `PomodoroFinished`, `TaskCompleted` | |
+| 5 | Магазин, гардероб, скинове, оферта, цел | `ShopModule`, `WardrobeModule` | `OutfitState`, `ShopState` | `Purchase` (вече), `Wear` → `OutfitChanged` | |
+| 6 | Подаръци, растение, хранилка, гости | `GiftsModule`, `GardenModule`… | по един | … | |
+| 7 | Разговори, въпросник, спомени, реплики | `DialogueModule`, `MemoryModule` | `SurveyState`, `MemoryState` | `Ask`, `Answer` → `SpeechRequested` | |
+| 8 | Събития (пижамен ден, болен ден, Коледа) | `EventDirector` + модули за събития | `EventsState` | → `GameEventStarted/Ended` | |
+| 9 | Изгледи: менюто по табове, мечокът, уредите | – (изглед) | – | само четат и слушат | |
+
+**Свързано досега (вълна 1):**
+* Менюто слуша `StateChanged<WalletState|InventoryState|PlacementState>` и се пречертава само. Абонаментът се маха при затваряне.
+* Танцът при радиото праща `PlaceItem(radio, Bear)` и `SwitchItem(…, ByBear)`; краят на танца праща `ReleaseByBear`.
+* Продаден предмет слиза от земята сам (`ItemRevoked`).
+* Сложеното от мечока не оцелява след рестарт (`PlacementModule.Start`).
+* Dev Mode пази и връща слоевете през `Store.Restore`.
+* Стари записи се местят в ядрото при първото пускане (`SaveData.Bind`).
+
 ## 1. Сегашният строеж накратко
 
 | Част | Къде | Бележка |

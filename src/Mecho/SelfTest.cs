@@ -1116,6 +1116,24 @@ public sealed partial class PetWindow
             if (!CoreEngine.Started) throw new Exception("ядрото не е пуснато");
             if (CoreEngine.Modules.Modules.FirstOrDefault(m => m.Id == "legacy.bridge") is not { Status: Mecho.Core.ModuleStatus.Running })
                 throw new Exception("мостът към стария код не работи");
+            // Вълна 1: лешниците, притежаваното и предметите на земята са само в ядрото.
+            foreach (var id in new[] { "economy", "placement" })
+                if (!CoreEngine.Modules.IsRunning(id)) throw new Exception($"модулът {id} не работи");
+            int nuts = CoreEngine.Store.Get<Mecho.Core.WalletState>().Nuts;
+            if (_save.Hazelnuts != nuts || _save.LegacyHazelnuts != 0) throw new Exception("лешниците не са в ядрото");
+            int before = nuts;
+            _save.Hazelnuts += 3;   // стар код → команда → ядро
+            if (CoreEngine.Store.Get<Mecho.Core.WalletState>().Nuts != before + 3) throw new Exception("старият код не пише в ядрото");
+            _save.Hazelnuts -= 3;
+            _save.Owned.Add("selftest_item");
+            if (!CoreEngine.Store.Get<Mecho.Core.InventoryState>().Has("selftest_item")) throw new Exception("притежаваното не е в ядрото");
+            _save.Owned.Remove("selftest_item");
+            string tmp = System.IO.Path.Combine(SaveData.Folder, "core_check.json");
+            _save.Core = CoreEngine.Store.Export();
+            _save.SaveTo(tmp);
+            string json = System.IO.File.ReadAllText(tmp);
+            if (json.Contains("\"Hazelnuts\"") || json.Contains("\"Owned\"")) throw new Exception("старите полета пак се записват (двоен източник)");
+            if (!json.Contains("economy.wallet")) throw new Exception("ядрото не е в записа");
             _coreNeeds = null;
             CoreEngine.Bus.Subscribe<Mecho.Core.NeedsChanged>(this, s => _coreNeeds = s);
             _save.Energy = Math.Max(0, _save.Energy - 20);

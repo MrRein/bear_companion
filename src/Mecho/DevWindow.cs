@@ -623,6 +623,7 @@ public sealed partial class PetWindow
         if (on == DevMode) return;
         if (on)
         {
+            _save.Core = CoreEngine.Store.Export();   // прогресът в ядрото – също в копието
             _save.SaveTo(DevBackupPath);
             DevUnlockAll();
             _save.Hazelnuts = Math.Max(_save.Hazelnuts, 9999);
@@ -634,9 +635,14 @@ public sealed partial class PetWindow
             if (old != null)
             {
                 if (_inScene) LeaveScene();
-                _save.Owned = old.Owned;
-                _save.OwnedClothes = old.OwnedClothes;
-                _save.Hazelnuts = old.Hazelnuts;
+                // Лешниците, притежаваното и предметите на земята са в ядрото.
+                if (old.Core != null)
+                    CoreEngine.Store.Restore(old.Core, Mecho.Core.EconomyModule.WalletKey, Mecho.Core.EconomyModule.InventoryKey, Mecho.Core.PlacementModule.Key);
+                else
+                {
+                    CoreEngine.Bus.Send(new Mecho.Core.SetInventory(old.LegacyOwned ?? new(), old.LegacyOwnedClothes ?? new(), "dev mode"));
+                    CoreEngine.Bus.Send(new Mecho.Core.SetNuts(old.LegacyHazelnuts, "dev mode"));
+                }
                 _save.Outfit = old.Outfit;
                 _save.Skins = old.Skins;
                 _save.CouchSkin = old.CouchSkin;

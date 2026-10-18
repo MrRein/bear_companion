@@ -121,6 +121,32 @@ public sealed class GameStore
         if (_pending.Remove(key, out var saved)) Load(entry, saved);
     }
 
+    /// <summary>Слоят е дошъл от записа (Import), а не е с началната си стойност – за миграция от стари записи.</summary>
+    public bool WasLoaded(string key) => _loaded.Contains(key);
+
+    private readonly HashSet<string> _loaded = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Връща само избрани слоеве от друг запис (Developer: „Dev Mode“ връща истинския
+    /// прогрес). Всеки върнат слой пуска StateChanged.
+    /// </summary>
+    public void Restore(JsonObject root, params string[] keys)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        if (root["slices"] is not JsonObject slices) return;
+        foreach (string key in keys)
+        {
+            if (!_byKey.TryGetValue(key, out var e) || slices[key] is not { } node) continue;
+            var old = e.Value;
+            Load(e, node.DeepClone());
+            if (!Equals(old, e.Value))
+            {
+                IsDirty = true;
+                e.Announce(old, e.Value);
+            }
+        }
+    }
+
     /// <summary>Регистриран ли е слоят.</summary>
     public bool Has<T>() where T : class, IStateSlice => _byType.ContainsKey(typeof(T));
 
@@ -244,6 +270,7 @@ public sealed class GameStore
             }
             var value = data.Deserialize(e.Type, Json) ?? throw new JsonException("празни данни");
             e.Value = value;
+            _loaded.Add(e.Key);
         }
         catch (Exception ex)
         {
