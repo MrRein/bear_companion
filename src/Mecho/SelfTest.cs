@@ -98,6 +98,7 @@ public static class SelfTest
 public sealed partial class PetWindow
 {
     private Mecho.Core.NeedsChanged? _coreNeeds;
+    private readonly object _coreListener = new();   // самопроверката слуша с този собственик (не с мечока – той има свои абонаменти)
 
     /// <summary>Стъпките на самопроверката (имат достъп до всичко вътре в мечока).</summary>
     internal async Task SelfTestSteps(Func<string, Action, int, Task> step)
@@ -1126,7 +1127,7 @@ public sealed partial class PetWindow
             if (CoreEngine.Modules.Modules.FirstOrDefault(m => m.Id == "legacy.bridge") is not { Status: Mecho.Core.ModuleStatus.Running })
                 throw new Exception("мостът към стария код не работи");
             // Вълна 1: лешниците, притежаваното и предметите на земята са само в ядрото.
-            foreach (var id in new[] { "economy", "placement", "bear", "needs", "kitchen" })
+            foreach (var id in new[] { "economy", "placement", "bear", "needs", "kitchen", "work" })
                 if (!CoreEngine.Modules.IsRunning(id)) throw new Exception($"модулът {id} не работи");
             int nuts = CoreEngine.Store.Get<Mecho.Core.WalletState>().Nuts;
             if (_save.Hazelnuts != nuts || _save.LegacyHazelnuts != 0) throw new Exception("лешниците не са в ядрото");
@@ -1143,15 +1144,15 @@ public sealed partial class PetWindow
             _save.Core = CoreEngine.Store.Export();
             _save.SaveTo(tmp);
             string json = System.IO.File.ReadAllText(tmp);
-            if (json.Contains("\"Hazelnuts\"") || json.Contains("\"Owned\"") || json.Contains("\"WishList\"") || json.Contains("\"CookFood\"")) throw new Exception("старите полета пак се записват (двоен източник)");
+            if (json.Contains("\"Hazelnuts\"") || json.Contains("\"Owned\"") || json.Contains("\"WishList\"") || json.Contains("\"CookFood\"") || json.Contains("\"PomodoroPhase\"") || json.Contains("\"TimerEndsAt\"") || json.Contains("\"TimerIsWork\"")) throw new Exception("старите полета пак се записват (двоен източник)");
             if (!json.Contains("economy.wallet")) throw new Exception("ядрото не е в записа");
             _coreNeeds = null;
-            CoreEngine.Bus.Subscribe<Mecho.Core.NeedsChanged>(this, s => _coreNeeds = s);
+            CoreEngine.Bus.Subscribe<Mecho.Core.NeedsChanged>(_coreListener, s => _coreNeeds = s);
             _save.Energy = Math.Max(0, _save.Energy - 20);
         }, 1600);
         await step("ядро: NeedsChanged дойде по шината", () =>
         {
-            CoreEngine.Bus.Unsubscribe(this);
+            CoreEngine.Bus.Unsubscribe(_coreListener);
             if (_coreNeeds == null) throw new Exception("мостът не пусна NeedsChanged за 1,5 с");
             if (CoreEngine.Modules.Modules.Any(m => m.Status == Mecho.Core.ModuleStatus.Faulted)) throw new Exception("има спрян модул");
             if (_save.Core == null && !CoreEngine.Store.IsDirty) PersistNow();
@@ -1473,6 +1474,9 @@ public sealed partial class PetWindow
         await step("мечо-доро подред", () =>
         {
             SetPomodoroSeries(2);
+            int done = 0, today = _save.PomodorosToday;
+            var listener = new object();
+            CoreEngine.Bus.Subscribe<Mecho.Core.PomodoroFocusDone>(listener, _ => done++);
             StartFocus();
             if (PomodoroNumber != 1) throw new Exception("не е първото");
             _save.PomodoroEndsAt = DateTime.Now;
@@ -1487,6 +1491,10 @@ public sealed partial class PetWindow
             _save.PomodoroEndsAt = DateTime.Now;
             UpdatePomodoro();
             if (_save.PomodoroPhase != PomodoroPhase.Off) throw new Exception("поредицата не свърши");
+            CoreEngine.Bus.Unsubscribe(listener);
+            // Вълна 4: краят го засича ядрото (WorkModule) и брои там.
+            if (done != 2) throw new Exception($"ядрото пусна PomodoroFocusDone {done} пъти, а не 2");
+            if (_save.PomodorosToday != today + 2) throw new Exception("броячът за днес не е от ядрото");
             SetPomodoroSeries(1);
             GetUp();
             SetIdle();

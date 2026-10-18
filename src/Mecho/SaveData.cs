@@ -68,12 +68,9 @@ public sealed class SaveData
     public int RecipePages { get; set; }
     public List<string> OfferItems { get; set; } = new();
     public Dictionary<string, string> Outfit { get; set; } = new(); // слот → облечената дреха
-    public double FocusMinutesBank { get; set; }                // минути фокус, още неизплатени в лешници
     public DateTime BerriesReadyAt { get; set; }
     public List<DateTime> CoffeeTimes { get; set; } = new();
     public int TasksDoneTotal { get; set; }
-    public int PomodorosTotal { get; set; }
-    public string PomodoroDay { get; set; } = "";
 
     /// <summary>Денят, в който сутринта се е събудил бодър (енергия 100).</summary>
     public string MorningRefill { get; set; } = "";
@@ -117,23 +114,6 @@ public sealed class SaveData
     public string WeatherPlaceDay { get; set; } = "";
 
     /// <summary>Печицата е включена.</summary>
-    public int PomodorosToday { get; set; }
-
-    // Мечо-доро, което тече в момента (за да продължи след рестарт)
-    public PomodoroPhase PomodoroPhase { get; set; }
-
-    /// <summary>Видът мечо-доро: "25" (25/5), "52" (52/17) или "90" (90/20).</summary>
-    public string PomodoroMode { get; set; } = "25";
-    public int PomodoroSeries { get; set; } = 1;        // колко мечо-дора подред (почивката е между тях)
-    public int PomodoroSeriesLeft { get; set; }         // още колко след текущото
-    public DateTime PomodoroEndsAt { get; set; }
-
-    // Обикновен таймер (MinValue = не тече)
-    public DateTime TimerEndsAt { get; set; } = DateTime.MinValue;
-    public string TimerLabel { get; set; } = "";
-    public double TimerMinutes { get; set; }
-    public bool TimerIsWork { get; set; } = true;   // работен таймер: мечокът работи сериозно
-    public string TimerKind { get; set; } = "work"; // "work" – работен, "rest" – почивка, "other" – друго
 
     public List<TaskItem> Tasks { get; set; } = new();
     public List<TaskItem> TaskHistory { get; set; } = new();   // свършените от минали дни (най-новите отпред)
@@ -186,6 +166,15 @@ public sealed class SaveData
             _bus.Send(new Mecho.Core.StartCook(LegacyCookFood, LegacyCookReadyAt, Math.Max(0, LegacyCookCost), LegacyCookStage is 0 ? 0 : 1, LegacyCookX));
         if (!st.WasLoaded(Mecho.Core.KitchenModule.WishesKey) && LegacyWishList != null)
             _bus.Send(new Mecho.Core.SetWishes(LegacyWishDay ?? "", LegacyWishList));
+        if (!st.WasLoaded(Mecho.Core.WorkModule.PomodoroKey))
+            _bus.Send(new Mecho.Core.SetPomodoro(new Mecho.Core.PomodoroState((Mecho.Core.WorkPhase)LegacyPomodoroPhase, LegacyPomodoroEndsAt,
+                LegacyPomodoroMode ?? "25", LegacyModeLength(true), LegacyModeLength(false), LegacyPomodoroSeries, LegacyPomodoroSeriesLeft,
+                LegacyPomodorosToday, LegacyPomodoroDay ?? "", LegacyPomodorosTotal)));
+        if (!st.WasLoaded(Mecho.Core.WorkModule.TimerKey))
+            _bus.Send(new Mecho.Core.SetWorkTimer(new Mecho.Core.WorkTimerState(LegacyTimerEndsAt, LegacyTimerMinutes, LegacyTimerLabel ?? "",
+                LegacyTimerKind ?? (LegacyTimerIsWork ? "work" : "other"))));
+        if (!st.WasLoaded(Mecho.Core.WorkModule.BankKey))
+            _bus.Send(new Mecho.Core.SetWorkBank(LegacyFocusMinutesBank));
         if (!st.WasLoaded(Mecho.Core.PlacementModule.Key))
         {
             void Put(string kind, bool placed, bool bear, bool on, bool onByBear, double x, int supply = 0, string offDay = "") =>
@@ -206,9 +195,19 @@ public sealed class SaveData
         LegacyCookFood = null;
         LegacyCookReadyAt = default;
         LegacyCookCost = 0;
-        LegacyCookStage = 1;
+        LegacyCookStage = 0;
         LegacyCookX = double.NaN;
         LegacyWishList = null;
+        LegacyPomodoroPhase = PomodoroPhase.Off;
+        LegacyPomodoroEndsAt = default;
+        LegacyPomodoroMode = null;
+        LegacyPomodoroSeries = 0;          // 0/false – по подразбиране, не се записват
+        LegacyPomodoroSeriesLeft = LegacyPomodorosToday = LegacyPomodorosTotal = 0;
+        LegacyPomodoroDay = null;
+        LegacyTimerEndsAt = DateTime.MinValue;
+        LegacyTimerMinutes = LegacyFocusMinutesBank = 0;
+        LegacyTimerLabel = LegacyTimerKind = null;
+        LegacyTimerIsWork = false;
         LegacyWishDay = null;
         LegacyRadioX = LegacyHeaterX = LegacyLampX = LegacyFeederX = LegacyPlantX = double.NaN;
     }
@@ -271,6 +270,69 @@ public sealed class SaveData
             if (_bus == null) LegacyWishDay = value;
             else _bus.Send(new Mecho.Core.SetWishes(value ?? "", value == "" ? Array.Empty<string>() : WishList.ToArray()));
         }
+    }
+
+    // ── Работа (вълна 4: WorkModule) – ядрото засича края; тук са тънки фасади ──
+    private Mecho.Core.PomodoroState Pom => _store?.Get<Mecho.Core.PomodoroState>() ?? Mecho.Core.PomodoroState.Default;
+    private Mecho.Core.WorkTimerState Tmr => _store?.Get<Mecho.Core.WorkTimerState>() ?? Mecho.Core.WorkTimerState.None;
+    private void SetPom(Func<Mecho.Core.PomodoroState, Mecho.Core.PomodoroState> change) => _bus?.Send(new Mecho.Core.SetPomodoro(change(Pom)));
+    private void SetTmr(Func<Mecho.Core.WorkTimerState, Mecho.Core.WorkTimerState> change) => _bus?.Send(new Mecho.Core.SetWorkTimer(change(Tmr)));
+
+    /// <summary>Дължините на вида мечо-доро от стар запис (виж PetWindow.PomodoroModes).</summary>
+    private int LegacyModeLength(bool focus) => (LegacyPomodoroMode, focus) switch
+    {
+        ("52", true) => 52, ("52", false) => 17, ("90", true) => 90, ("90", false) => 20, (_, true) => 25, _ => 5,
+    };
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public PomodoroPhase PomodoroPhase { get => _store == null ? LegacyPomodoroPhase : (PomodoroPhase)Pom.Phase; set { if (_store == null) LegacyPomodoroPhase = value; else SetPom(p => p with { Phase = (Mecho.Core.WorkPhase)value }); } }
+
+    /// <summary>Видът мечо-доро: "25" (25/5), "52" (52/17) или "90" (90/20).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string PomodoroMode => _store == null ? LegacyPomodoroMode ?? "25" : Pom.Mode;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int PomodoroSeries => _store == null ? LegacyPomodoroSeries : Pom.Series;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int PomodoroSeriesLeft { get => _store == null ? LegacyPomodoroSeriesLeft : Pom.SeriesLeft; set { if (_store == null) LegacyPomodoroSeriesLeft = value; else SetPom(p => p with { SeriesLeft = value }); } }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public DateTime PomodoroEndsAt { get => _store == null ? LegacyPomodoroEndsAt : Pom.EndsAt; set { if (_store == null) LegacyPomodoroEndsAt = value; else SetPom(p => p with { EndsAt = value }); } }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int PomodorosToday { get => _store == null ? LegacyPomodorosToday : Pom.Today; set { if (_store == null) LegacyPomodorosToday = value; else SetPom(p => p with { Today = value }); } }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string PomodoroDay { get => _store == null ? LegacyPomodoroDay ?? "" : Pom.Day; set { if (_store == null) LegacyPomodoroDay = value; else SetPom(p => p with { Day = value ?? "" }); } }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int PomodorosTotal { get => _store == null ? LegacyPomodorosTotal : Pom.Total; set { if (_store == null) LegacyPomodorosTotal = value; else SetPom(p => p with { Total = value }); } }
+
+    /// <summary>Таймерът (MinValue = не тече).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public DateTime TimerEndsAt { get => _store == null ? LegacyTimerEndsAt : Tmr.EndsAt; set { if (_store == null) LegacyTimerEndsAt = value; else SetTmr(t => t with { EndsAt = value }); } }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string TimerLabel => _store == null ? LegacyTimerLabel ?? "" : Tmr.Label;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double TimerMinutes => _store == null ? LegacyTimerMinutes : Tmr.Minutes;
+
+    /// <summary>Работен таймер: мечокът работи сериозно (= TimerKind "work").</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool TimerIsWork => _store == null ? LegacyTimerIsWork : Tmr.IsWork;
+
+    /// <summary>"work" – работен, "rest" – почивка, "other" – друго.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string TimerKind { get => _store == null ? LegacyTimerKind ?? "work" : Tmr.Kind; set { if (_store == null) LegacyTimerKind = value; else SetTmr(t => t with { Kind = value ?? "work" }); } }
+
+    /// <summary>Минути работа, още неизплатени в лешници.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double FocusMinutesBank
+    {
+        get => _store?.Get<Mecho.Core.WorkBankState>().Minutes ?? LegacyFocusMinutesBank;
+        set { if (_bus == null) LegacyFocusMinutesBank = value; else _bus.Send(new Mecho.Core.SetWorkBank(value)); }
     }
 
     // ── Притежаваното ──
@@ -450,9 +512,23 @@ public sealed class SaveData
     [System.Text.Json.Serialization.JsonPropertyName("CookFood"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyCookFood { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("CookReadyAt"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public DateTime LegacyCookReadyAt { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("CookCost"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyCookCost { get; set; }
-    [System.Text.Json.Serialization.JsonPropertyName("CookStage")] public int LegacyCookStage { get; set; } = 1;
+    [System.Text.Json.Serialization.JsonPropertyName("CookStage"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyCookStage { get; set; } = 1;
     [System.Text.Json.Serialization.JsonPropertyName("CookX")] public double LegacyCookX { get; set; } = double.NaN;
     [System.Text.Json.Serialization.JsonPropertyName("WishList"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public List<string>? LegacyWishList { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PomodoroPhase"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public PomodoroPhase LegacyPomodoroPhase { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PomodoroEndsAt"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public DateTime LegacyPomodoroEndsAt { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PomodoroMode"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyPomodoroMode { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PomodoroSeries"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyPomodoroSeries { get; set; } = 1;
+    [System.Text.Json.Serialization.JsonPropertyName("PomodoroSeriesLeft"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyPomodoroSeriesLeft { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PomodorosToday"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyPomodorosToday { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PomodoroDay"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyPomodoroDay { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PomodorosTotal"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyPomodorosTotal { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("TimerEndsAt"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public DateTime LegacyTimerEndsAt { get; set; } = DateTime.MinValue;
+    [System.Text.Json.Serialization.JsonPropertyName("TimerLabel"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyTimerLabel { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("TimerMinutes"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public double LegacyTimerMinutes { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("TimerIsWork"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public bool LegacyTimerIsWork { get; set; } = true;
+    [System.Text.Json.Serialization.JsonPropertyName("TimerKind"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyTimerKind { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("FocusMinutesBank"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public double LegacyFocusMinutesBank { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("WishDay"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyWishDay { get; set; }
 
     /// <summary>Състоянието на ядрото (слоевете на модулите, виж Mecho.Core.GameStore) – пази се тук.</summary>

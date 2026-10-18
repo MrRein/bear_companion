@@ -39,8 +39,8 @@ public sealed partial class PetWindow
     /// <summary>Сменя вида мечо-доро (само докато не тече).</summary>
     public void SetPomodoroMode(string id)
     {
-        if (_save.PomodoroPhase != PomodoroPhase.Off || PomodoroModes.All(m => m.Id != id)) return;
-        _save.PomodoroMode = id;
+        if (PomodoroModes.FirstOrDefault(m => m.Id == id) is not { Id: not null } mode) return;
+        if (!CoreEngine.Bus.Send(new Mecho.Core.SetPomodoroMode(mode.Id, mode.Focus, mode.Break)).Ok) return;
         Persist();
         NotifyCare();
     }
@@ -61,8 +61,7 @@ public sealed partial class PetWindow
     /// <summary>Колко мечо-дора подред (1–4); сменя се, докато не тече.</summary>
     public void SetPomodoroSeries(int count)
     {
-        if (_save.PomodoroPhase != PomodoroPhase.Off) return;
-        _save.PomodoroSeries = Math.Clamp(count, 1, 4);
+        if (!CoreEngine.Bus.Send(new Mecho.Core.SetPomodoroSeries(count)).Ok) return;
         Persist();
         NotifyCare();
     }
@@ -541,14 +540,25 @@ public sealed partial class PetWindow
     public void StartFocus()
     {
         NoteWorkStarted();
-        _save.PomodoroSeriesLeft = Math.Max(0, _save.PomodoroSeries - 1);
-        BeginFocus();
+        if (!CoreEngine.Bus.Send(new Mecho.Core.StartPomodoro(PomodoroMode.Focus, PomodoroMode.Break, NewSeries: true)).Ok) return;
+        FocusBegan();
     }
 
-    private void BeginFocus()
+    /// <summary>
+    /// Връзката с ядрото (WorkModule): то засича края на работата, почивката и
+    /// таймера, а мечокът тук само реагира. Вика се веднъж от конструктора.
+    /// </summary>
+    private void WireWork()
     {
-        _save.PomodoroPhase = PomodoroPhase.Focus;
-        _save.PomodoroEndsAt = DateTime.Now + FocusLength;
+        var bus = CoreEngine.Bus;
+        bus.Subscribe<Mecho.Core.PomodoroFocusDone>(this, _ => FocusDone());
+        bus.Subscribe<Mecho.Core.PomodoroBreakDone>(this, s => BreakDone(s.NextFocus));
+        bus.Subscribe<Mecho.Core.WorkTimerFinished>(this, s => TimerDone(s.Minutes, s.Label, s.Kind));
+    }
+
+    /// <summary>Работата почна (Тут я пусна или е следващата от поредицата).</summary>
+    private void FocusBegan()
+    {
         // Ако е уморен, EnterWorkMode казва „ти поработи, аз ще посънча“ и той дрямва.
         EndBreakRelax();
         // Казва и колко лешника ще донесе (само тук: тогава наистина ги получаваш).
@@ -571,17 +581,14 @@ public sealed partial class PetWindow
     private int PayForMinutes(double minutes)
     {
         if (minutes <= 0) return 0;
-        _save.FocusMinutesBank += minutes;
-        int nuts = (int)Math.Floor(_save.FocusMinutesBank / 10 + 1e-9);
-        _save.FocusMinutesBank -= nuts * 10;
-        _save.Hazelnuts += nuts;
-        return nuts;
+        int nuts = Mecho.Core.WorkModule.NutsFor(_save.FocusMinutesBank, minutes);
+        return CoreEngine.Bus.Send(new Mecho.Core.PayWork(minutes)).Ok ? nuts : 0;
     }
 
     private static string Earned(int nuts) => nuts > 0 ? $" +{nuts} 🌰" : "";
 
     /// <summary>Колко лешника ще донесат толкова минути работа (с остатъка от миналия път).</summary>
-    public int NutsFor(double minutes) => minutes <= 0 ? 0 : (int)Math.Floor((_save.FocusMinutesBank + minutes) / 10 + 1e-9);
+    public int NutsFor(double minutes) => Mecho.Core.WorkModule.NutsFor(_save.FocusMinutesBank, minutes);
 
     /// <summary>Колко лешника носи едно мечо-доро от избрания вид (със слушалките +1).</summary>
     public int PomodoroNuts => NutsFor(FocusLength.TotalMinutes) + (Kitchen.Owns(_save, Kitchen.Headphones) ? 1 : 0);
@@ -592,8 +599,7 @@ public sealed partial class PetWindow
         bool wasFocus = InFocus;
         int nuts = wasFocus ? PayForMinutes((FocusLength - PomodoroLeft).TotalMinutes) : 0;
         if (wasFocus && PomodoroFocus) RecordWork((FocusLength - PomodoroLeft).TotalMinutes);
-        _save.PomodoroPhase = PomodoroPhase.Off;
-        _save.PomodoroSeriesLeft = 0;
+        CoreEngine.Bus.Send(new Mecho.Core.StopPomodoro());
         EndBreakRelax();
         if (!InFocus) LeaveWorkMode();
         Say((wasFocus ? "Добре, спираме. Ще продължим после." : "Почивката свърши по-рано. Хайде!") + Earned(nuts), 3);
@@ -601,50 +607,43 @@ public sealed partial class PetWindow
         Persist();
     }
 
-    private void UpdatePomodoro()
-    {
-        if (_save.PomodoroPhase == PomodoroPhase.Off || DateTime.Now < _save.PomodoroEndsAt) return;
+    /// <summary>Пита ядрото дали нещо е свършило (то и само проверява всяка секунда).</summary>
+    private void UpdatePomodoro() => CoreEngine.Bus.Send(new Mecho.Core.CheckWork());
 
+    /// <summary>Работата свърши (ядрото вече е преброило мечо-дорото и е пуснало почивката).</summary>
+    private void FocusDone()
+    {
         StartNewDay();
-        if (InFocus)
+        RecordPomodoro(FocusLength.TotalMinutes);
+        int nuts = PayForMinutes(FocusLength.TotalMinutes) + LazyBonus();
+        if (Kitchen.Owns(_save, Kitchen.Headphones))
         {
-            _save.PomodorosTotal++;
-            _save.PomodorosToday++;
-            RecordPomodoro(FocusLength.TotalMinutes);
-            int nuts = PayForMinutes(FocusLength.TotalMinutes) + LazyBonus();
-            if (Kitchen.Owns(_save, Kitchen.Headphones))
-            {
-                _save.Hazelnuts++;
-                nuts++;
-            }
-            _save.PomodoroPhase = PomodoroPhase.Break;
-            _save.PomodoroEndsAt = DateTime.Now + BreakLength;
-            // Понякога (1 на 5) – страница от готварската книга.
-            string page = _rng.Next(5) == 0 ? FindRecipePage() : "";
-            Joy(JoyWorked);
-            if (_save.PomodorosToday % 3 == 0) Pride();
-            Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts) + page, 8);
-            Sounds.Play(_save);
-            Emote("happy", 3);
-            AskAboutFocusTask();
-            if (!InFocus) StartBreakRelax();
+            _save.Hazelnuts++;
+            nuts++;
         }
+        // Понякога (1 на 5) – страница от готварската книга.
+        string page = _rng.Next(5) == 0 ? FindRecipePage() : "";
+        Joy(JoyWorked);
+        if (_save.PomodorosToday % 3 == 0) Pride();
+        Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts) + page, 8);
+        Sounds.Play(_save);
+        Emote("happy", 3);
+        AskAboutFocusTask();
+        if (!InFocus) StartBreakRelax();
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>Почивката свърши. next – ядрото вече пусна следващото от поредицата.</summary>
+    private void BreakDone(bool next)
+    {
+        EndBreakRelax();
+        if (next) FocusBegan();
         else
         {
-            _save.PomodoroPhase = PomodoroPhase.Off;
-            EndBreakRelax();
-            if (_save.PomodoroSeriesLeft > 0)
-            {
-                // Поредица: след почивката почва следващото.
-                _save.PomodoroSeriesLeft--;
-                BeginFocus();
-            }
-            else
-            {
-                Say(Lines.Pick(Lines.BreakDone, _save.OwnerName), 6);
-                Sounds.Play(_save);
-                React("happy");
-            }
+            Say(Lines.Pick(Lines.BreakDone, _save.OwnerName), 6);
+            Sounds.Play(_save);
+            React("happy");
         }
         NotifyCare();
         Persist();
@@ -667,11 +666,8 @@ public sealed partial class PetWindow
         if (TimerRunning && _save.TimerIsWork) PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes);
         bool work = kind == "work";
         if (work) NoteWorkStarted();
-        _save.TimerEndsAt = DateTime.Now.AddMinutes(minutes);
-        _save.TimerMinutes = minutes;
-        _save.TimerLabel = label.Trim().Length == 0 && work && FocusTask is { } ft ? ft.Title : label.Trim();
-        _save.TimerKind = kind;
-        _save.TimerIsWork = work;
+        string text = label.Trim().Length == 0 && work && FocusTask is { } ft ? ft.Title : label.Trim();
+        if (!CoreEngine.Bus.Send(new Mecho.Core.StartWorkTimer(minutes, text, kind)).Ok) return;
         Say($"⏰ Пускам таймер за {minutes:0.#} мин.{(_save.TimerLabel.Length > 0 ? $" ({_save.TimerLabel})" : "")}", 3);
         if (work) EnterWorkMode();
         else if (kind == "rest" && !InFocus && !IsAsleep)
@@ -690,7 +686,7 @@ public sealed partial class PetWindow
         int nuts = _save.TimerIsWork ? PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes) : 0;
         if (_save.TimerIsWork) RecordWork(_save.TimerMinutes - TimerLeft.TotalMinutes);
         bool rest = RestTimer;
-        _save.TimerEndsAt = DateTime.MinValue;
+        CoreEngine.Bus.Send(new Mecho.Core.StopWorkTimer());
         if (!InFocus) LeaveWorkMode();
         if (rest && RelaxesRandomly) GetUp();
         Say("Спрях таймера." + Earned(nuts), 2);
@@ -698,15 +694,15 @@ public sealed partial class PetWindow
         Persist();
     }
 
-    private void UpdateTimer()
+    private void UpdateTimer() => CoreEngine.Bus.Send(new Mecho.Core.CheckWork());
+
+    /// <summary>Таймерът свърши (ядрото вече го е спряло).</summary>
+    private void TimerDone(double minutes, string label, string kind)
     {
-        if (!TimerRunning || DateTime.Now < _save.TimerEndsAt) return;
-        string label = _save.TimerLabel;
-        bool rest = RestTimer, work = _save.TimerIsWork;
-        _save.TimerEndsAt = DateTime.MinValue;
+        bool rest = kind == Mecho.Core.WorkTimerKinds.Rest, work = kind == Mecho.Core.WorkTimerKinds.Work;
         // Лешници – само за работен таймер.
-        int nuts = work ? PayForMinutes(_save.TimerMinutes) : 0;
-        if (work) RecordWork(_save.TimerMinutes);
+        int nuts = work ? PayForMinutes(minutes) : 0;
+        if (work) RecordWork(minutes);
         Say((label.Length > 0 ? $"⏰ Времето изтече: {label}!" : "⏰ Времето изтече!") + Earned(nuts), 12);
         if (work) AskAboutFocusTask();
         Sounds.Play(_save);

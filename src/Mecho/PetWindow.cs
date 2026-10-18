@@ -98,6 +98,7 @@ public sealed partial class PetWindow : Window
         // Ядрото (шина, състояние, модули) – първо, защото всичко след това чете и пише
         // данните през него (виж Engine/CoreSetup.cs и ARCHITECTURE.md).
         CoreEngine = Engine.CoreSetup.Build(this, save, a => Dispatcher.BeginInvoke(a));
+        WireWork();     // мечо-доро и таймер: ядрото засича края, мечокът реагира
         R.Owner = () => _save.OwnerName;
         // Размерите на шрифта и иконките зависят от мащаба на екрана.
         Ui.Init(VisualTreeHelper.GetDpi(this).DpiScaleX);
