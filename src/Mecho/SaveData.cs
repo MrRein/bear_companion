@@ -70,7 +70,6 @@ public sealed class SaveData
     public Dictionary<string, string> Outfit { get; set; } = new(); // слот → облечената дреха
     public DateTime BerriesReadyAt { get; set; }
     public List<DateTime> CoffeeTimes { get; set; } = new();
-    public int TasksDoneTotal { get; set; }
 
     /// <summary>Денят, в който сутринта се е събудил бодър (енергия 100).</summary>
     public string MorningRefill { get; set; } = "";
@@ -115,8 +114,6 @@ public sealed class SaveData
 
     /// <summary>Печицата е включена.</summary>
 
-    public List<TaskItem> Tasks { get; set; } = new();
-    public List<TaskItem> TaskHistory { get; set; } = new();   // свършените от минали дни (най-новите отпред)
     public List<NoteItem> Notes { get; set; } = new();
     public List<DayRecord> Days { get; set; } = new();          // какво сме правили всеки ден (последните 60)
     public string MemoryDay { get; set; } = "";                 // за кой ден вече каза спомена от вчера
@@ -125,7 +122,6 @@ public sealed class SaveData
     public string FavFood { get; set; } = "";                   // любимата храна за днес (виж PetWindow.Memory.cs)
     public string FavFoodDay { get; set; } = "";
     public bool FavFoodSaid { get; set; }                       // каза ли днес какво му се яде
-    public Guid? FocusTask { get; set; }                         // задачата, по която работим (мечо-доро/таймер)
     public PinState PinTasks { get; set; } = new();              // закаченото прозорче със задачите
     public PinState PinNotes { get; set; } = new();
     public Dictionary<string, SurveyAnswer> Answers { get; set; } = new();   // въпросникът: id → какво отговори Тут
@@ -175,6 +171,11 @@ public sealed class SaveData
                 LegacyTimerKind ?? (LegacyTimerIsWork ? "work" : "other"))));
         if (!st.WasLoaded(Mecho.Core.WorkModule.BankKey))
             _bus.Send(new Mecho.Core.SetWorkBank(LegacyFocusMinutesBank));
+        if (!st.WasLoaded(Mecho.Core.TasksModule.Key) && (LegacyTasks != null || LegacyTaskHistory != null || LegacyTasksDoneTotal != 0))
+            _bus.Send(new Mecho.Core.SetTasks(new Mecho.Core.TasksState(
+                System.Collections.Immutable.ImmutableList.CreateRange((LegacyTasks ?? new()).Select(t => t.ToCore())),
+                System.Collections.Immutable.ImmutableList.CreateRange((LegacyTaskHistory ?? new()).Select(t => t.ToCore())),
+                LegacyTasksDoneTotal, LegacyFocusTask)));
         if (!st.WasLoaded(Mecho.Core.PlacementModule.Key))
         {
             void Put(string kind, bool placed, bool bear, bool on, bool onByBear, double x, int supply = 0, string offDay = "") =>
@@ -198,6 +199,9 @@ public sealed class SaveData
         LegacyCookStage = 0;
         LegacyCookX = double.NaN;
         LegacyWishList = null;
+        LegacyTasks = LegacyTaskHistory = null;
+        LegacyTasksDoneTotal = 0;
+        LegacyFocusTask = null;
         LegacyPomodoroPhase = PomodoroPhase.Off;
         LegacyPomodoroEndsAt = default;
         LegacyPomodoroMode = null;
@@ -333,6 +337,28 @@ public sealed class SaveData
     {
         get => _store?.Get<Mecho.Core.WorkBankState>().Minutes ?? LegacyFocusMinutesBank;
         set { if (_bus == null) LegacyFocusMinutesBank = value; else _bus.Send(new Mecho.Core.SetWorkBank(value)); }
+    }
+
+    // ── Задачи (вълна 4б: TasksModule) – само за четене; пише се с AddTask, SetTaskDone… ──
+    private Mecho.Core.TasksState TasksNow => _store?.Get<Mecho.Core.TasksState>() ?? Mecho.Core.TasksState.Empty;
+
+    /// <summary>Днешните задачи (и несвършените).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<TaskItem> Tasks => TasksNow.Open;
+
+    /// <summary>Свършените от минали дни (най-новите отпред).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<TaskItem> TaskHistory => TasksNow.History;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int TasksDoneTotal => TasksNow.DoneTotal;
+
+    /// <summary>Задачата, по която работим (мечо-доро/таймер).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Guid? FocusTask
+    {
+        get => TasksNow.Focus;
+        set => _bus?.Send(new Mecho.Core.SetFocusTask(value));
     }
 
     // ── Притежаваното ──
@@ -529,6 +555,10 @@ public sealed class SaveData
     [System.Text.Json.Serialization.JsonPropertyName("TimerIsWork"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public bool LegacyTimerIsWork { get; set; } = true;
     [System.Text.Json.Serialization.JsonPropertyName("TimerKind"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyTimerKind { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("FocusMinutesBank"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public double LegacyFocusMinutesBank { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("Tasks"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public List<LegacyTaskItem>? LegacyTasks { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("TaskHistory"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public List<LegacyTaskItem>? LegacyTaskHistory { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("TasksDoneTotal"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyTasksDoneTotal { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("FocusTask"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public Guid? LegacyFocusTask { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("WishDay"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyWishDay { get; set; }
 
     /// <summary>Състоянието на ядрото (слоевете на модулите, виж Mecho.Core.GameStore) – пази се тук.</summary>
@@ -705,7 +735,8 @@ public sealed class SurveyAnswer
 }
 
 /// <summary>Задача от списъка на Тут.</summary>
-public sealed class TaskItem
+/// <summary>Задача в стар запис (преди ядрото). Сега задачите са Mecho.Core.TaskEntry (TaskItem).</summary>
+public sealed class LegacyTaskItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "";
@@ -722,7 +753,7 @@ public sealed class TaskItem
     /// <summary>Вече е дала шанс за страница (отмяна и пак „свършено“ не дава втори).</summary>
     public bool PageRolled { get; set; }
 
-    public int Reward => Size switch { 3 => 5, 2 => 3, _ => 1 };
+    internal Mecho.Core.TaskEntry ToCore() => new(Id, Title ?? "", Description ?? "", Math.Clamp(Size, 1, 3), Done, DoneAt, PageRolled);
 }
 
 /// <summary>Един ден заедно: колко сме работили, какво е ял, кога е легнал… (за спомените).</summary>

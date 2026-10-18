@@ -30,6 +30,7 @@ public static class CoreSetup
         engine.Modules.Add(new NeedsModule());            // ситост и енергия (зависи от bear)
         engine.Modules.Add(new KitchenModule());          // какво се готви + желания
         engine.Modules.Add(new WorkModule());             // мечо-доро, таймер, плащане за работа (зависи от economy)
+        engine.Modules.Add(new TasksModule());            // задачи, награди, история (зависи от economy)
         engine.Modules.Add(new LegacyBridgeModule(pet, save));
 
         // Пуска се веднага (не чак при показване на прозореца): старият код чете

@@ -67,7 +67,7 @@ public sealed class PajamaDayModule : GameModule                            // 3
 | 2 | Нужди (глад, енергия) + какво прави мечокът | `NeedsModule` (гладът спада тук, × `Mods.HungerRate`), `BearStatusModule` | `NeedsState`, `BearStatusState` | `AdjustNeeds`, `SetNeeds`, `ReportBearStatus` → `NeedsChanged`, `SleepChanged`, `ActivityChanged` | ✅ (енергията още се смята в `PetWindow.Energy`, но пише в ядрото и ползва `Mods.EnergyDrain`) |
 | 3 | Храна и готвене, желания | `KitchenModule` | `CookingState`, `WishesState` | `StartCook`, `NextCookStage`, `MoveCooker`, `EndCook`, `SetWishes`, `AddWish`, `FulfillWish` → `CookingStarted`, `CookingEnded`, `WishAdded`, `WishFulfilled`; приложението пуска `FoodEaten` | ✅ (каталогът с ястия и анимациите остават в приложението) |
 | 4а | Работа: мечо-доро, таймер, плащане | `WorkModule` (зависи от economy; САМ засича края всяка секунда) | `PomodoroState`, `WorkTimerState`, `WorkBankState` | `StartPomodoro`, `StopPomodoro`, `SetPomodoroMode`, `SetPomodoroSeries`, `StartWorkTimer`, `StopWorkTimer`, `CheckWork`, `PayWork` → `PomodoroStarted`, `PomodoroFocusDone`, `PomodoroBreakDone`, `PomodoroStopped`, `WorkTimerFinished`, `WorkTimerStopped`, `WorkPaid` | ✅ (мечокът само слуша сигналите: `PetWindow.WireWork`) |
-| 4б | Задачи и план за деня | `TasksModule` | `TasksState` | `AddTask`, `CompleteTask`… → `TaskCompleted` | |
+| 4б | Задачи | `TasksModule` (зависи от economy) | `TasksState` (`TaskEntry` = `TaskItem` в приложението) | `AddTask`, `SetTaskDone`, `DeleteTask`, `SetFocusTask`, `ArchiveDoneTasks` → `TaskAdded`, `TaskCompleted`, `TaskReopened`, `TaskDeleted` | ✅ (планът за деня „Ще се работи ли днес?“ остава в приложението) |
 | 5 | Магазин, гардероб, скинове, оферта, цел | `ShopModule`, `WardrobeModule` | `OutfitState`, `ShopState` | `Purchase` (вече), `Wear` → `OutfitChanged` | |
 | 6 | Подаръци, растение, хранилка, гости | `GiftsModule`, `GardenModule`… | по един | … | |
 | 7 | Разговори, въпросник, спомени, реплики | `DialogueModule`, `MemoryModule` | `SurveyState`, `MemoryState` | `Ask`, `Answer` → `SpeechRequested` | |
@@ -83,6 +83,7 @@ public sealed class PajamaDayModule : GameModule                            // 3
 * Стари записи се местят в ядрото при първото пускане (`SaveData.Bind`).
 * Вълна 3: готвенето (какво, докога, кой уред, къде) и желанията за деня са само в ядрото; `SaveData.CookFood`/`WishList` са само за четене, пише се с команди. Желано ястие се маха с `FulfillWish` и пуска `WishFulfilled`; всяко изядено пуска `FoodEaten`.
 * Вълна 4а: мечо-дорото и таймерът са в ядрото. `WorkModule` сам засича края (и поредицата работа → почивка → работа), брои мечо-дората за деня и плаща по 1 лешник на 10 минути. Мечокът (`PetWindow.WireWork`) само слуша `PomodoroFocusDone`, `PomodoroBreakDone` и `WorkTimerFinished` и реагира.
+* Вълна 4б: задачите са неизменими записи в ядрото. Наградата (1/3/5 лешника), броячът и връщането при отмяна са в `TasksModule`. Свършените от минали дни отиват в историята сами в полунощ.
 
 ## 1. Сегашният строеж накратко
 

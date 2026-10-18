@@ -254,9 +254,7 @@ public sealed partial class PetWindow
         yield return (unlock, "Заключи всичко", DevLockAll);
         yield return (unlock, "Изчисти задачите и историята", () =>
         {
-            _save.Tasks.Clear();
-            _save.TaskHistory.Clear();
-            _save.TasksDoneTotal = 0;
+            CoreEngine.Bus.Send(new Mecho.Core.SetTasks(Mecho.Core.TasksState.Empty));
             Persist();
             NotifyCare();
         });
@@ -690,10 +688,8 @@ public sealed partial class PetWindow
         _save.Hazelnuts = fresh.Hazelnuts;
         _save.Fullness = fresh.Fullness;
         _save.Energy = fresh.Energy;
-        _save.Tasks.Clear();
-        _save.TaskHistory.Clear();
+        CoreEngine.Bus.Send(new Mecho.Core.SetTasks(Mecho.Core.TasksState.Empty));
         _save.Notes.Clear();
-        _save.TasksDoneTotal = 0;
         _save.PomodorosTotal = 0;
         _save.PomodorosToday = 0;
         _save.FocusMinutesBank = 0;

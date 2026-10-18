@@ -169,14 +169,8 @@ public sealed partial class PetWindow
             _save.PomodoroDay = today;
             _save.PomodorosToday = 0;
         }
-        // Свършените от минали дни отиват в историята (виж „Задачи“ → „История“).
-        var old = _save.Tasks.Where(t => t.Done && t.DoneAt?.Date < DateTime.Today).ToList();
-        if (old.Count > 0)
-        {
-            _save.TaskHistory.InsertRange(0, old.OrderByDescending(t => t.DoneAt));
-            if (_save.TaskHistory.Count > 2000) _save.TaskHistory.RemoveRange(2000, _save.TaskHistory.Count - 2000);
-            _save.Tasks.RemoveAll(old.Contains);
-        }
+        // Свършените от минали дни отиват в историята (виж „Задачи“ → „История“; ядрото го прави и само в полунощ).
+        CoreEngine.Bus.Send(new Mecho.Core.ArchiveDoneTasks());
     }
 
     private bool IsResting => IsAsleep || _anim == "read_sleep";
@@ -401,9 +395,7 @@ public sealed partial class PetWindow
 
     public void AddTask(string title, int size, string? description = null)
     {
-        title = title.Trim();
-        if (title.Length == 0) return;
-        _save.Tasks.Add(new TaskItem { Title = title, Size = Math.Clamp(size, 1, 3), Description = description?.Trim() ?? "" });
+        if (!CoreEngine.Bus.Send(new Mecho.Core.AddTask(title, size, description)).Ok) return;
         Say(Lines.Pick(Lines.TaskAdded, _save.OwnerName), 3);
         NotifyCare();
         Persist();
@@ -411,30 +403,22 @@ public sealed partial class PetWindow
 
     public void SetTaskDone(TaskItem task, bool done)
     {
-        if (task.Done == done) return;
-        task.Done = done;
-        task.DoneAt = done ? DateTime.Now : null;
+        // Наградата, брояча и историята ги пази ядрото (TasksModule); тук – само реакцията.
+        if (_save.Tasks.FirstOrDefault(t => t.Id == task.Id) is not { } cur || cur.Done == done) return;
+        bool firstBig = done && cur.Size >= 3 && !cur.PageRolled;
+        if (!CoreEngine.Bus.Send(new Mecho.Core.SetTaskDone(cur.Id, done)).Ok) return;
+        task = cur;
         RecordTask(task, done);
 
         if (!done)
         {
-            // Отмяна: връщаме наградата.
-            _save.Hazelnuts = Math.Max(0, _save.Hazelnuts - task.Reward);
-            _save.TasksDoneTotal = Math.Max(0, _save.TasksDoneTotal - 1);
             NotifyCare();
             Persist();
             return;
         }
 
-        _save.Hazelnuts += task.Reward;
-        _save.TasksDoneTotal++;
         // Трудна задача: малък шанс за страница (веднъж на задача).
-        string page = "";
-        if (task.Size >= 3 && !task.PageRolled)
-        {
-            task.PageRolled = true;
-            if (_rng.Next(4) == 0) page = FindRecipePage();
-        }
+        string page = firstBig && _rng.Next(4) == 0 ? FindRecipePage() : "";
 
         Joy(JoyWorked);
         if (task.Size >= 3) Pride();
@@ -449,7 +433,7 @@ public sealed partial class PetWindow
 
     public void DeleteTask(TaskItem task)
     {
-        _save.Tasks.Remove(task);
+        CoreEngine.Bus.Send(new Mecho.Core.DeleteTask(task.Id));
         NotifyCare();
         Persist();
     }

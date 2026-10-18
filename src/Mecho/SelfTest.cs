@@ -331,8 +331,11 @@ public sealed partial class PetWindow
         await step("магазин: целта и офертата", () => _menu!.SelfTestShop(), 400);
         await step("задачи и история", () =>
         {
+            int nuts = _save.Hazelnuts, total = _save.TasksDoneTotal;
             AddTask("Тестова задача", 2);
             SetTaskDone(_save.Tasks[^1], true);
+            // Вълна 4б: наградата и броячът са от ядрото (TasksModule).
+            if (_save.Hazelnuts != nuts + 3 || _save.TasksDoneTotal != total + 1) throw new Exception("задачата не плати през ядрото");
             _menu!.SelfTestHistory();
         }, 400);
         await step("затвори менюто", () => _menu!.Hide(), 300);
@@ -1099,7 +1102,8 @@ public sealed partial class PetWindow
             pin.UpdateLayout();
             if (Math.Abs(pin.Height - 333) > 2) throw new Exception($"след разгъване е {pin.Height:0}, а беше 333");
             SetPinned(PinWindow.Tasks, false);
-            _save.Tasks.Remove(t);
+            DeleteTask(t);
+            if (_save.Tasks.Any(x => x.Id == t.Id)) throw new Exception("изтритата задача остана в ядрото");
         }, 600);
         await step("обиколка (tutorial)", () =>
         {
@@ -1127,7 +1131,7 @@ public sealed partial class PetWindow
             if (CoreEngine.Modules.Modules.FirstOrDefault(m => m.Id == "legacy.bridge") is not { Status: Mecho.Core.ModuleStatus.Running })
                 throw new Exception("мостът към стария код не работи");
             // Вълна 1: лешниците, притежаваното и предметите на земята са само в ядрото.
-            foreach (var id in new[] { "economy", "placement", "bear", "needs", "kitchen", "work" })
+            foreach (var id in new[] { "economy", "placement", "bear", "needs", "kitchen", "work", "tasks" })
                 if (!CoreEngine.Modules.IsRunning(id)) throw new Exception($"модулът {id} не работи");
             int nuts = CoreEngine.Store.Get<Mecho.Core.WalletState>().Nuts;
             if (_save.Hazelnuts != nuts || _save.LegacyHazelnuts != 0) throw new Exception("лешниците не са в ядрото");
@@ -1144,7 +1148,7 @@ public sealed partial class PetWindow
             _save.Core = CoreEngine.Store.Export();
             _save.SaveTo(tmp);
             string json = System.IO.File.ReadAllText(tmp);
-            if (json.Contains("\"Hazelnuts\"") || json.Contains("\"Owned\"") || json.Contains("\"WishList\"") || json.Contains("\"CookFood\"") || json.Contains("\"PomodoroPhase\"") || json.Contains("\"TimerEndsAt\"") || json.Contains("\"TimerIsWork\"")) throw new Exception("старите полета пак се записват (двоен източник)");
+            if (json.Contains("\"Hazelnuts\"") || json.Contains("\"Owned\"") || json.Contains("\"WishList\"") || json.Contains("\"CookFood\"") || json.Contains("\"PomodoroPhase\"") || json.Contains("\"TimerEndsAt\"") || json.Contains("\"TimerIsWork\"") || json.Contains("\"TaskHistory\"")) throw new Exception("старите полета пак се записват (двоен източник)");
             if (!json.Contains("economy.wallet")) throw new Exception("ядрото не е в записа");
             _coreNeeds = null;
             CoreEngine.Bus.Subscribe<Mecho.Core.NeedsChanged>(_coreListener, s => _coreNeeds = s);
