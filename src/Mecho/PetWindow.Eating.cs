@@ -74,6 +74,7 @@ public sealed partial class PetWindow
     {
         Joy(JoyFed);
         CoreEngine.Bus.Publish(new Mecho.Core.FoodEaten(food.Id, Whole: true));
+        TookMedicine(food);
         bool thanked = WishThanks(food);
         if (!thanked && !ThankForMeal()) Say(DoneLine(food), 4);
         FulfillWish(food);
@@ -113,7 +114,7 @@ public sealed partial class PetWindow
         Persist();
         NotifyCare();
         if (_save.TodayCount("wish.added") >= 2 || _rng.NextDouble() > 0.15) return;
-        var options = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 5 && Kitchen.CanCook(f, _save)
+        var options = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 5 && Kitchen.Regular(f) && Kitchen.CanCook(f, _save)
             && f.Id != food.Id && !_save.WishList.Contains(f.Id) && !TodayRec.Foods.Contains(f.Id)).ToList();
         if (options.Count == 0) return;
         var next = options[_rng.Next(options.Count)];

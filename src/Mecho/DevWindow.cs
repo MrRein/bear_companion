@@ -468,7 +468,7 @@ public sealed partial class PetWindow
         yield return (garden, "Разкопава (лопатка)", () => DevPlantCare("shovel"));
         yield return (garden, "Подрязва (ножица)", () => DevPlantCare("scissors"));
         yield return (garden, "Любува му се", () => DevPlantCare("admire"));
-        yield return (garden, "Расте с времето сега", () => { _save.PlantLastGrow = DateTime.Now.AddDays(-5.1); GrowPlantByTime(); DrawGarden(); Persist(); });
+        yield return (garden, "Расте с времето сега", () => { _save.PlantLastGrow = DateTime.Now.AddDays(-5.1); GrowPlantByTime(); });
         yield return (garden, "Смени вида (слънчоглед → монстера → кактус)", () =>
         {
             var skins = Furniture.SkinsFor(Kitchen.PlantPot);
@@ -557,6 +557,18 @@ public sealed partial class PetWindow
         yield return (core, "Модификатори", () => Show("модификатори", CoreEngine.Modifiers.Describe()));
         yield return (core, "Състояние (слоеве)", () => Show("състояние", CoreEngine.Store.Export().ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true })));
         yield return (core, "Лог на ядрото", () => Show("лог", string.Join("\n", (Engine.CoreSetup.Memory?.Lines ?? Array.Empty<string>()).Reverse().Take(40))));
+        const string events = "Събития (пижамен ден, болен ден, Коледа…)";
+        yield return (events, "Какво тече сега", () => Show("събития", string.Join("\n", ActiveEventNames())));
+        foreach (var ev in Mecho.Core.GameEvents.All)
+        {
+            var e = ev;
+            yield return (events, "Пусни: " + e.Name, () => CoreEngine.Bus.Send(new Mecho.Core.StartGameEvent(e.Id, Force: true)));
+        }
+        yield return (events, "Спри всички", () =>
+        {
+            foreach (var id in CoreEngine.Store.Get<Mecho.Core.EventsState>().Active.Keys.ToList())
+                CoreEngine.Bus.Send(new Mecho.Core.EndGameEvent(id, "developer"));
+        });
         const string perf = "Скорост (засичане)";
         yield return (perf, "Тест за скорост (доклад, ~1,5 мин) → perf_report.txt", () => _ = RunPerfReport());
         yield return (perf, "Покажи скоростта", () => Say(PerfSummary(), 14));
@@ -635,22 +647,27 @@ public sealed partial class PetWindow
                 if (_inScene) LeaveScene();
                 // Лешниците, притежаваното и предметите на земята са в ядрото.
                 if (old.Core != null)
-                    CoreEngine.Store.Restore(old.Core, Mecho.Core.EconomyModule.WalletKey, Mecho.Core.EconomyModule.InventoryKey, Mecho.Core.PlacementModule.Key);
+                    CoreEngine.Store.Restore(old.Core, Mecho.Core.EconomyModule.WalletKey, Mecho.Core.EconomyModule.InventoryKey, Mecho.Core.PlacementModule.Key,
+                        Mecho.Core.WardrobeModule.Key, Mecho.Core.GardenModule.Key);
                 else
                 {
                     CoreEngine.Bus.Send(new Mecho.Core.SetInventory(old.LegacyOwned ?? new(), old.LegacyOwnedClothes ?? new(), "dev mode"));
                     CoreEngine.Bus.Send(new Mecho.Core.SetNuts(old.LegacyHazelnuts, "dev mode"));
                 }
-                _save.Outfit = old.Outfit;
-                _save.Skins = old.Skins;
-                _save.CouchSkin = old.CouchSkin;
-                _save.BedSkin = old.BedSkin;
-                _save.Pajama = old.Pajama;
-                _save.UiTheme = old.UiTheme;
-                _save.Background = old.Background;
+                // Видът (облекло, скинове, пижама, меню, фон) – в ядрото (WardrobeModule): връща се горе с Restore.
+                if (old.Core == null)
+                {
+                    _save.Outfit.Clear();
+                    foreach (var kv in old.Outfit) _save.Outfit[kv.Key] = kv.Value;
+                    _save.Skins.Clear();
+                    foreach (var kv in old.Skins) _save.Skins[kv.Key] = kv.Value;
+                    _save.Pajama = old.Pajama;
+                    _save.UiTheme = old.UiTheme;
+                    _save.Background = old.Background;
+                }
                 _save.RecipePages = old.RecipePages;
                 _save.NextRecipe = old.NextRecipe;
-                _save.PlantStage = old.PlantStage;
+                if (old.Core == null) _save.PlantStage = old.PlantStage;
                 Ui.Apply(UiThemes.All.FirstOrDefault(t => t.Id == _save.UiTheme) ?? UiThemes.All[0]);
                 _bedProp = null;
             }

@@ -30,7 +30,7 @@ public static class Recipes
     /// рецепта, а всеки уред идва със своята първа рецепта (Kitchen.DefaultRecipe).
     /// </summary>
     /// Учат се само рецепти за уредите, които вече има (иначе няма с какво да се сготвят).
-    private static Food[] Unknown(SaveData s) => Kitchen.Foods.Where(f => f.Cost > 0 && !Kitchen.IsDefaultRecipe(f) && !Kitchen.HasRecipe(f, s) && Kitchen.HasTool(f, s)).ToArray();
+    private static Food[] Unknown(SaveData s) => Kitchen.Foods.Where(f => f.Cost > 0 && Kitchen.Regular(f) && !Kitchen.IsDefaultRecipe(f) && !Kitchen.HasRecipe(f, s) && Kitchen.HasTool(f, s)).ToArray();
 
     /// <summary>Страници се събират чак след първия купен кухненски уред.</summary>
     public static bool Started(SaveData s) => Kitchen.Upgrades.Any(u => u.Shelf == Kitchen.KitchenShelf && Kitchen.Owns(s, u.Id));

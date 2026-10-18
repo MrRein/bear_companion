@@ -243,7 +243,7 @@ public sealed partial class PetWindow
                 if (done != next || got != need || !Kitchen.HasRecipe(next, t)) throw new Exception($"{next.Id}: грешно отключване");
                 learned++;
             }
-            if (learned != Kitchen.Foods.Count(f => f.Cost > 0 && !Kitchen.IsDefaultRecipe(f))) throw new Exception("не всички рецепти се научиха");
+            if (learned != Kitchen.Foods.Count(f => f.Cost > 0 && Kitchen.Regular(f) && !Kitchen.IsDefaultRecipe(f))) throw new Exception("не всички рецепти се научиха");
             // Всеки уред идва със своята първа рецепта.
             foreach (var tool in new[] { Kitchen.Pot, Kitchen.Pan, Kitchen.Oven, Kitchen.CoffeeMachine, Kitchen.Kettle, Kitchen.Jug,
                 Kitchen.Mixer, Kitchen.SandwichMaker, Kitchen.IceCream, Kitchen.Grill })
@@ -577,7 +577,7 @@ public sealed partial class PetWindow
             Wear(shirt);
             if (_closet == null || _inScene) throw new Exception("не спря да отиде до гардероба");
             // Видимото облекло по пътя (без пижамата – тя зависи от часа на проверката).
-            (_shownOutfit ?? _save.Outfit).TryGetValue("shirt", out var shown);
+            ((IReadOnlyDictionary<string, string>?)_shownOutfit ?? _save.Outfit).TryGetValue("shirt", out var shown);
             if (shown != oldShirt) throw new Exception("преоблече се пред очите ни по пътя");
         }, 4000);
         await step("гардероб докато чете: гардеробът дойде", () =>
@@ -1131,7 +1131,7 @@ public sealed partial class PetWindow
             if (CoreEngine.Modules.Modules.FirstOrDefault(m => m.Id == "legacy.bridge") is not { Status: Mecho.Core.ModuleStatus.Running })
                 throw new Exception("мостът към стария код не работи");
             // Вълна 1: лешниците, притежаваното и предметите на земята са само в ядрото.
-            foreach (var id in new[] { "economy", "placement", "bear", "needs", "kitchen", "work", "tasks" })
+            foreach (var id in new[] { "economy", "placement", "bear", "needs", "kitchen", "work", "tasks", "wardrobe", "gifts", "garden", "events" })
                 if (!CoreEngine.Modules.IsRunning(id)) throw new Exception($"модулът {id} не работи");
             int nuts = CoreEngine.Store.Get<Mecho.Core.WalletState>().Nuts;
             if (_save.Hazelnuts != nuts || _save.LegacyHazelnuts != 0) throw new Exception("лешниците не са в ядрото");
@@ -1148,7 +1148,7 @@ public sealed partial class PetWindow
             _save.Core = CoreEngine.Store.Export();
             _save.SaveTo(tmp);
             string json = System.IO.File.ReadAllText(tmp);
-            if (json.Contains("\"Hazelnuts\"") || json.Contains("\"Owned\"") || json.Contains("\"WishList\"") || json.Contains("\"CookFood\"") || json.Contains("\"PomodoroPhase\"") || json.Contains("\"TimerEndsAt\"") || json.Contains("\"TimerIsWork\"") || json.Contains("\"TaskHistory\"")) throw new Exception("старите полета пак се записват (двоен източник)");
+            if (json.Contains("\"Hazelnuts\"") || json.Contains("\"Owned\"") || json.Contains("\"WishList\"") || json.Contains("\"CookFood\"") || json.Contains("\"PomodoroPhase\"") || json.Contains("\"TimerEndsAt\"") || json.Contains("\"TimerIsWork\"") || json.Contains("\"TaskHistory\"") || json.Contains("\"CouchSkin\"") || json.Contains("\"PlantStage\"") || json.Contains("\"GiftDay\"")) throw new Exception("старите полета пак се записват (двоен източник)");
             if (!json.Contains("economy.wallet")) throw new Exception("ядрото не е в записа");
             _coreNeeds = null;
             CoreEngine.Bus.Subscribe<Mecho.Core.NeedsChanged>(_coreListener, s => _coreNeeds = s);
@@ -1688,6 +1688,54 @@ public sealed partial class PetWindow
             if (_scene != Scenes.Focus) throw new Exception("не се върна на бюрото");
             StopPomodoro();
         }, 1000);
+        await step("събития: болен ден – лекарството е само днес", () =>
+        {
+            var med = Kitchen.Foods.First(f => f.Id == Kitchen.Medicine);
+            CoreEngine.Bus.Send(new Mecho.Core.EndGameEvent(Mecho.Core.GameEvents.SickDay, "тест"));
+            if (Kitchen.CanCook(med, _save)) throw new Exception("лекарството се продава и без да е болен");
+            CoreEngine.Bus.Send(new Mecho.Core.StartGameEvent(Mecho.Core.GameEvents.SickDay, Force: true));
+            if (!IsSick || !Kitchen.CanCook(med, _save)) throw new Exception("болен е, а лекарството го няма");
+            if (CoreEngine.Modifiers.Get(Mecho.Core.Mods.EnergyDrain) <= 1) throw new Exception("болен, а не се уморява повече");
+            if (Kitchen.Cravings(_save).Contains(med)) throw new Exception("лекарството е желание");
+            TookMedicine(med);
+            if (IsSick || Kitchen.CanCook(med, _save)) throw new Exception("лекарството не го излекува");
+            HideBubble();
+        }, 300);
+        await step("събития: пижамен ден – по пижама и денем", () =>
+        {
+            CoreEngine.Bus.Send(new Mecho.Core.StartGameEvent(Mecho.Core.GameEvents.PajamaDay, Force: true));
+            var outfit = EffectiveOutfit;
+            foreach (var (slot, id) in Clothes.PajamaOutfit(Clothes.CurrentPajama(_save)))
+                if (!outfit.TryGetValue(slot, out var worn) || worn != id) throw new Exception("в пижамен ден не е по пижама");
+            if (!ActiveEventNames().Contains("Пижамен ден")) throw new Exception("менюто не казва, че е пижамен ден");
+            CoreEngine.Bus.Send(new Mecho.Core.EndGameEvent(Mecho.Core.GameEvents.PajamaDay, "тест"));
+            if (PajamaDay) throw new Exception("пижамният ден не свърши");
+            HideBubble();
+        }, 300);
+        await step("събития: Коледа вдига шанса за подарък; пеперуда", () =>
+        {
+            CoreEngine.Bus.Send(new Mecho.Core.StartGameEvent(Mecho.Core.GameEvents.Christmas, Force: true));
+            if (CoreEngine.Modifiers.Get(Mecho.Core.Mods.GiftChance) <= 1) throw new Exception("по Коледа подаръците не са по-чести");
+            CoreEngine.Bus.Send(new Mecho.Core.EndGameEvent(Mecho.Core.GameEvents.Christmas, "тест"));
+            CoreEngine.Bus.Send(new Mecho.Core.StartGameEvent(Mecho.Core.GameEvents.Butterfly, Force: true));
+            CoreEngine.Bus.Send(new Mecho.Core.EndGameEvent(Mecho.Core.GameEvents.Butterfly, "тест"));
+            if (CoreEngine.Store.Get<Mecho.Core.EventsState>().Active.Count != 0) throw new Exception("останаха активни събития");
+            if (CoreEngine.Modules.Modules.Any(m => m.Status == Mecho.Core.ModuleStatus.Faulted)) throw new Exception("има спрян модул");
+            _bfActive = false;
+            SetIdle();
+            HideBubble();
+        }, 300);
+        await step("ядро: растение и вид през ядрото", () =>
+        {
+            int stage = _save.PlantStage;
+            _save.PlantStage = 3;
+            if (CoreEngine.Store.Get<Mecho.Core.PlantState>().Stage != 3) throw new Exception("растението не е в ядрото");
+            _save.PlantStage = stage;
+            string? hat = _save.Outfit.TryGetValue("hat", out var h) ? h : null;
+            _save.Outfit["hat"] = "selftest_hat";
+            if (CoreEngine.Store.Get<Mecho.Core.LooksState>().Worn("hat") != "selftest_hat") throw new Exception("облеклото не е в ядрото");
+            if (hat == null) _save.Outfit.Remove("hat"); else _save.Outfit["hat"] = hat;
+        }, 200);
         await step("всички реплики са във файла", () =>
         {
             if (R.Keys.Count < 200) throw new Exception("repliki.txt не се зареди");

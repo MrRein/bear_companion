@@ -20,7 +20,6 @@ namespace Mecho;
 // страница от готварската книга или лешници.
 public sealed partial class PetWindow
 {
-    private const double GiftChance = 0.7;          // в 7 от 10 дни има подарък
     private const double GiftReminder = 15 * 60;    // напомня на 15 мин (през Mutter)
     private const double GiftHoldMax = 10 * 60;     // толкова го държи, после го оставя в средата
 
@@ -51,13 +50,10 @@ public sealed partial class PetWindow
     /// <summary>Нов ден: решава дали днес ще има подарък и кога (след 20 мин до 3 ч).</summary>
     private void PlanGift()
     {
-        string today = DateTime.Today.ToString("yyyy-MM-dd");
-        if (_save.GiftDay == today) return;
-        _save.GiftDay = today;
-        _save.GiftAt = _rng.NextDouble() < GiftChance
-            ? DateTime.Now.AddMinutes(20 + _rng.Next(160))
-            : DateTime.MinValue;
-        Persist();
+        // Решава ядрото (GiftsModule: шанс × Mods.GiftChance – празниците го вдигат).
+        string day = _save.GiftDay;
+        CoreEngine.Bus.Send(new Mecho.Core.PlanGiftToday());
+        if (_save.GiftDay != day) Persist();
     }
 
     /// <summary>Време е и е свободен: тръгва за подаръка (вика се от UpdateIdle).</summary>
@@ -104,8 +100,7 @@ public sealed partial class PetWindow
     private void PresentGift()
     {
         _peeking = false;
-        _save.GiftPending = true;
-        _save.GiftAt = DateTime.MinValue;
+        CoreEngine.Bus.Send(new Mecho.Core.GiftPresented(_save.GiftColor));
         Persist();
         Say(R.Pick("gift.present", _save.OwnerName), 5);
         Emote("heart");

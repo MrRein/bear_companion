@@ -97,8 +97,8 @@ public sealed partial class PetWindow
         get
         {
             // На път към гардероба: още със старите дрехи (сменя ги зад вратата).
-            var outfit = _shownOutfit ?? _save.Outfit;
-            if (!PajamaTime) return WithCup(outfit);
+            IReadOnlyDictionary<string, string> outfit = (IReadOnlyDictionary<string, string>?)_shownOutfit ?? _save.Outfit;
+            if (!PajamaTime && !PajamaDay) return WithCup(outfit);
             var night = new Dictionary<string, string>(outfit);
             night.Remove(Clothes.Glasses.Id);
             night.Remove(Clothes.Neck.Id);

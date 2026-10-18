@@ -331,7 +331,10 @@ public sealed partial class PetWindow
     /// <summary>Следващото случайно кътче (по възможност различно от предното), за 3–6 минути.</summary>
     private Scene StartRandomRelax(Scene? last, bool quiet = true)
     {
-        var options = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save) && f != last).ToList();
+        // Събитие днес може да забрани някои (болен – без батут) или да предпочете други (пижамен ден – четене).
+        var options = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save) && f != last && !HobbyBlocked(f)).ToList();
+        var preferred = options.Where(HobbyPreferred).ToList();
+        if (preferred.Count > 0 && _rng.Next(3) > 0) options = preferred;
         var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Reading;
         if (scene == Scenes.Trampoline) StartTrampoline(180 + _rng.Next(180), quiet: quiet);
         else
@@ -581,9 +584,9 @@ public sealed partial class PetWindow
             _nextChatter = now + (stay ? 2400 : 480) + _rng.Next(stay ? 1800 : 480);
             // На настолната игра и на бюрото понякога си говори за игрите.
             bool games = scene == Scenes.Board || scene == Scenes.BoardPlay || scene == Scenes.Desk || scene == Scenes.Write;
-            string during = scene.Easel && R.Has($"easel.{EaselNumber}") && _rng.Next(2) == 0
+            string during = EventChatter() ?? (scene.Easel && R.Has($"easel.{EaselNumber}") && _rng.Next(2) == 0
                 ? R.Pick($"easel.{EaselNumber}", _save.OwnerName)
-                : Lines.Pick(games && _rng.Next(2) == 0 ? Lines.Chatter : scene.During, _save.OwnerName);
+                : Lines.Pick(games && _rng.Next(2) == 0 ? Lines.Chatter : scene.During, _save.OwnerName));
             Mutter(during, 5);
         }
     }

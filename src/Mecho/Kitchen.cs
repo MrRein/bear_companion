@@ -13,6 +13,12 @@ public sealed record Food(
 {
     /// <summary>Първата стъпка в друг уред (миксер за тестото, кафемашина за кафето…), или null.</summary>
     public string? Prep { get; init; }
+
+    /// <summary>Чия рисунка ползва (food_{Art}.png), ако няма своя; null – своята (food_{Id}).</summary>
+    public string? Art { get; init; }
+
+    /// <summary>Името на рисунката: food_{ArtId}.</summary>
+    public string ArtId => Art ?? Id;
 }
 
 /// <summary>Нещо за купуване с лешници: уред за кухнята или подобрение.</summary>
@@ -76,6 +82,10 @@ public static class Kitchen
         new("corn", "Царевица на кочан", "🌽", 20, 0, 2, 2, Pot, Array.Empty<string>()),
         new("cocoa", "Какао", "🍫", 8, 8, 2, 1, Kettle, Array.Empty<string>()),
         new("linden_tea", "Липов чай", "🌼", 5, 5, 1, 1, Kettle, Array.Empty<string>()),
+
+        // ── Само докато трае събитие (Mods.ShopExtras; виж EventTag) ──
+        new(Medicine, "Лекарство: липов чай с мед", "🌼", 4, 10, 2, 1, Jug,
+            new[] { "*сърба* Горчичко… но ми става по-добре.", "Благодаря, че се грижиш за мен.", "Мм. Вече не ми е толкова студено." }) { Art = "linden_tea" },
         new("eggs", "Яйца на очи", "🥚", 25, 5, 2, 2, Pan, Array.Empty<string>()),
         new("pancakes", "Палачинки с мед", "🥞", 40, 0, 4, 3, Pan, Array.Empty<string>()) { Prep = Mixer },
         new("espresso", "Еспресо", "🫘", 2, 40, 3, 1, CoffeeMachine, Array.Empty<string>()),
@@ -112,7 +122,7 @@ public static class Kitchen
     /// </summary>
     public static Food[] Cravings(SaveData save)
     {
-        var can = Foods.Where(f => f.Cost > 0 && CanCook(f, save)).OrderBy(f => f.Id).ToList();
+        var can = Foods.Where(f => f.Cost > 0 && Regular(f) && CanCook(f, save)).OrderBy(f => f.Id).ToList();
         if (can.Count == 0) return Array.Empty<Food>();
         var day = new Random(DateTime.Today.Year * 1000 + DateTime.Today.DayOfYear + 31);
         // Едно желание на ден; с повече от 8 рецепти понякога 2 или 3 (не всеки ден).
@@ -128,21 +138,33 @@ public static class Kitchen
     public static bool IsCraving(Food f, SaveData save) => Cravings(save).Contains(f);
 
     /// <summary>Пие се (седнал, с чаша), а не се яде.</summary>
+    /// <summary>Лекарството (болен ден): продава се само докато е болен.</summary>
+    public const string Medicine = "medicine";
+
+    /// <summary>Таг в Mods.ShopExtras, без който храната я няма (или null – винаги я има).</summary>
+    public static string? EventTag(Food f) => f.Id == Medicine ? Mecho.Core.GameEvents.Medicine : null;
+
+    /// <summary>Обикновена храна (не само за събитие) – за желания, любими, рецепти.</summary>
+    public static bool Regular(Food f) => EventTag(f) == null;
+
+    /// <summary>Таговете на днешните събития (PetWindow го свързва с ядрото).</summary>
+    public static Func<System.Collections.Generic.IReadOnlySet<string>> ExtrasNow { get; set; } = () => new System.Collections.Generic.HashSet<string>();
+
     public static bool IsDrink(Food f) => f.Id is "tea" or "coffee" or "lemonade" or "cocoa" or "linden_tea" or "espresso" or "latte"
-        or "mocha" or "cappuccino" or "iced_coffee" or "smoothie" || f.Id.StartsWith("juice");
+        or "mocha" or "cappuccino" or "iced_coffee" or "smoothie" or Medicine || f.Id.StartsWith("juice");
 
     /// <summary>Коя чаша държи (рисунките в assets/clothes: tea, coffee, juice_orange, juice_berry).</summary>
     public static string CupFor(Food f) => f.Id switch
     {
         "espresso" or "latte" or "mocha" or "cappuccino" or "iced_coffee" => "coffee",
-        "cocoa" or "linden_tea" => "tea",
+        "cocoa" or "linden_tea" or Medicine => "tea",
         "lemonade" => "juice_orange",
         "smoothie" => "juice_berry",
         _ => f.Id,
     };
 
     /// <summary>Горещо е (понякога духа).</summary>
-    public static bool IsHot(Food f) => f.Id is "tea" or "coffee" or "cocoa" or "linden_tea" or "espresso" or "latte" or "mocha" or "cappuccino";
+    public static bool IsHot(Food f) => f.Id is "tea" or "coffee" or "cocoa" or "linden_tea" or Medicine or "espresso" or "latte" or "mocha" or "cappuccino";
 
     public static readonly Upgrade[] Upgrades =
     {
@@ -209,7 +231,9 @@ public static class Kitchen
 
     public static bool IsDefaultRecipe(Food food) => food.Tool != null && DefaultRecipe(food.Tool) == food.Id;
 
-    public static bool HasRecipe(Food food, SaveData save) => food.Cost == 0 || food.Tool == Table || Owns(save, RecipeId(food));
+    public static bool HasRecipe(Food food, SaveData save) =>
+        EventTag(food) is { } tag ? ExtrasNow().Contains(tag)
+        : food.Cost == 0 || food.Tool == Table || Owns(save, RecipeId(food));
 
     /// <summary>Разделите в „Храна“.</summary>
     public static readonly string[] Categories = { "Манджи", "Закуски", "Сладко", "Напитки" };

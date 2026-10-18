@@ -2335,7 +2335,7 @@ public sealed class MenuWindow : Window
             >= 25 => "огладнял",
             _ => "гладен!",
         });
-        SetBar(_energyBar, _energyText, s.Energy, _pet.IsAsleep ? "спи…" : s.Energy switch
+        SetBar(_energyBar, _energyText, s.Energy, _pet.IsAsleep ? "спи…" : _pet.IsSick ? "болничък" : s.Energy switch
         {
             >= 70 => "бодър",
             >= PetWindow.TiredBelow => "добре",
@@ -2352,9 +2352,12 @@ public sealed class MenuWindow : Window
                 _weatherIcon.Child = Icon(badge.Icon, 2);
             }
             _weather.Text = badge.Temp;
+            // Днешните събития (пижамен ден, Коледа…) – в подсказката до времето.
+            var events = _pet.ActiveEventNames();
+            if (events.Length > 0) weather = (weather ?? "") + "\nДнес: " + string.Join(", ", events);
             if (weather != null && !Equals((_weatherRow.ToolTip as ToolTip)?.Tag, weather))
             {
-                var tip = Tip(weather.Replace("🌡 ", ""));
+                var tip = Tip(weather.Replace("🌡 ", "").Trim());
                 tip.Tag = weather;
                 _weatherRow.ToolTip = tip;
             }

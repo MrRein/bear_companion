@@ -30,22 +30,7 @@ public sealed class SaveData
 
 
     // Прогрес
-    public string GiftDay { get; set; } = "";                  // за кой ден е решено дали има подарък
-    public DateTime GiftAt { get; set; } = DateTime.MinValue;  // кога тръгва за подаръка (MinValue = днес няма)
-    public bool GiftPending { get; set; }
-    public string GiftColor { get; set; } = "";                // цветът на днешния подарък ("" – синият)                      // подаръкът чака в средата на екрана
     public List<string> MealsDone { get; set; } = new();      // "lunch:2026-10-11", "lunch-thanks:…" (виж Meals)
-    public string CouchSkin { get; set; } = "classic";
-    public string BedSkin { get; set; } = "classic";
-    public Dictionary<string, string> Skins { get; set; } = new(); // предмет → сложеният скин (виж Furniture)
-    public bool PajamasAtNight { get; set; } = true;            // пижама вечер (виж PetWindow.Furniture.cs)
-    public string Pajama { get; set; } = "classic";
-    public string UiTheme { get; set; } = "classic";
-    public int PlantStage { get; set; }                          // растението: фаза 0–9
-    public double PlantCareMinutes { get; set; }                 // грижа от последната фаза (на 8 мин – фаза)
-    public DateTime PlantLastGrow { get; set; } = DateTime.MinValue;
-    public string PlantGrowDay { get; set; } = "";
-    public int PlantGrowToday { get; set; }
     public List<int> Garden { get; set; } = new();               // стадиите на цветята в градинката (0–4)
     public List<string> GardenColors { get; set; } = new();
     public List<string> GardenGrown { get; set; } = new();       // в кой ден е расло всяко (веднъж на ден)
@@ -58,7 +43,6 @@ public sealed class SaveData
     public bool DrawingsHidden { get; set; }                     // „Скрий всичко“ от иконката: рисунките са скрити
     public bool LampOff { get; set; }                           // Тут изгаси лампата тази вечер (до сутринта)
     public int BearScale { get; set; }                          // размер на мечока (0 = по подразбиране)
-    public string Background { get; set; } = "meadow";         // фонът на портрета (виж Backdrops)
 
     /// <summary>Офертата на деня в магазина: за кой ден е и какво има (виж DailyOffer).</summary>
     public string OfferDay { get; set; } = "";
@@ -67,7 +51,6 @@ public sealed class SaveData
     public string? NextRecipe { get; set; }
     public int RecipePages { get; set; }
     public List<string> OfferItems { get; set; } = new();
-    public Dictionary<string, string> Outfit { get; set; } = new(); // слот → облечената дреха
     public DateTime BerriesReadyAt { get; set; }
     public List<DateTime> CoffeeTimes { get; set; } = new();
 
@@ -176,6 +159,20 @@ public sealed class SaveData
                 System.Collections.Immutable.ImmutableList.CreateRange((LegacyTasks ?? new()).Select(t => t.ToCore())),
                 System.Collections.Immutable.ImmutableList.CreateRange((LegacyTaskHistory ?? new()).Select(t => t.ToCore())),
                 LegacyTasksDoneTotal, LegacyFocusTask)));
+        if (!st.WasLoaded(Mecho.Core.WardrobeModule.Key))
+        {
+            var skins = new Dictionary<string, string>(LegacySkins ?? new());
+            // Най-старите записи пазеха диван и легло отделно.
+            if (!string.IsNullOrEmpty(LegacyCouchSkin) && LegacyCouchSkin != "classic") skins.TryAdd(Kitchen.Couch, LegacyCouchSkin);
+            if (!string.IsNullOrEmpty(LegacyBedSkin) && LegacyBedSkin != "classic") skins.TryAdd(Kitchen.Bed, LegacyBedSkin);
+            _bus.Send(new Mecho.Core.SetOutfit(LegacyOutfit ?? new()));
+            _bus.Send(new Mecho.Core.SetSkins(skins));
+            _bus.Send(new Mecho.Core.SetLook(LegacyPajama ?? "classic", LegacyPajamasAtNight ?? true, LegacyUiTheme ?? "classic", LegacyBackground ?? "meadow"));
+        }
+        if (!st.WasLoaded(Mecho.Core.GiftsModule.Key) && LegacyGiftDay != null)
+            _bus.Send(new Mecho.Core.SetGift(new Mecho.Core.GiftState(LegacyGiftDay, LegacyGiftAt, LegacyGiftPending, LegacyGiftColor ?? "")));
+        if (!st.WasLoaded(Mecho.Core.GardenModule.Key))
+            _bus.Send(new Mecho.Core.SetPlant(new Mecho.Core.PlantState(LegacyPlantStage, LegacyPlantCareMinutes, LegacyPlantLastGrow, LegacyPlantGrowDay ?? "", LegacyPlantGrowToday)));
         if (!st.WasLoaded(Mecho.Core.PlacementModule.Key))
         {
             void Put(string kind, bool placed, bool bear, bool on, bool onByBear, double x, int supply = 0, string offDay = "") =>
@@ -199,6 +196,14 @@ public sealed class SaveData
         LegacyCookStage = 0;
         LegacyCookX = double.NaN;
         LegacyWishList = null;
+        LegacyGiftDay = LegacyGiftColor = LegacyPlantGrowDay = null;
+        LegacyGiftAt = LegacyPlantLastGrow = DateTime.MinValue;
+        LegacyGiftPending = false;
+        LegacyPlantStage = LegacyPlantGrowToday = 0;
+        LegacyPlantCareMinutes = 0;
+        LegacyOutfit = LegacySkins = null;
+        LegacyCouchSkin = LegacyBedSkin = LegacyPajama = LegacyUiTheme = LegacyBackground = null;
+        LegacyPajamasAtNight = null;
         LegacyTasks = LegacyTaskHistory = null;
         LegacyTasksDoneTotal = 0;
         LegacyFocusTask = null;
@@ -360,6 +365,108 @@ public sealed class SaveData
         get => TasksNow.Focus;
         set => _bus?.Send(new Mecho.Core.SetFocusTask(value));
     }
+
+    // ── Видът (вълна 5: WardrobeModule) ──
+    private LooksMap? _outfit, _skins;
+
+    internal Mecho.Core.LooksState? LooksNow => _store?.Get<Mecho.Core.LooksState>();
+
+    internal Dictionary<string, string> LegacyMap(bool skins) => skins ? (LegacySkins ??= new()) : (LegacyOutfit ??= new());
+
+    private Mecho.Core.LooksState Looks => LooksNow ?? Mecho.Core.LooksState.Default;
+
+    /// <summary>Слот → облечената дреха (изглед към LooksState.Outfit).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public LooksMap Outfit => _outfit ??= new LooksMap(this, skins: false);
+
+    /// <summary>Предмет → сложеният скин (изглед към LooksState.Skins; виж Furniture).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public LooksMap Skins => _skins ??= new LooksMap(this, skins: true);
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string CouchSkin
+    {
+        get => Skins.TryGetValue(Kitchen.Couch, out var v) ? v : _store == null ? LegacyCouchSkin ?? "classic" : "classic";
+        set { if (_store == null) LegacyCouchSkin = value; else Skins[Kitchen.Couch] = value; }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string BedSkin
+    {
+        get => Skins.TryGetValue(Kitchen.Bed, out var v) ? v : _store == null ? LegacyBedSkin ?? "classic" : "classic";
+        set { if (_store == null) LegacyBedSkin = value; else Skins[Kitchen.Bed] = value; }
+    }
+
+    /// <summary>Коя пижама облича вечер (виж Clothes.PajamaSets).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Pajama
+    {
+        get => _store == null ? LegacyPajama ?? "classic" : Looks.Pajama;
+        set { if (_bus == null) LegacyPajama = value; else _bus.Send(new Mecho.Core.SetLook(Pajama: value)); }
+    }
+
+    /// <summary>Пижама вечер (виж PetWindow.Furniture.cs).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool PajamasAtNight
+    {
+        get => _store == null ? LegacyPajamasAtNight ?? true : Looks.PajamasAtNight;
+        set { if (_bus == null) LegacyPajamasAtNight = value; else _bus.Send(new Mecho.Core.SetLook(PajamasAtNight: value)); }
+    }
+
+    /// <summary>Скинът на менюто (виж UiThemes).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string UiTheme
+    {
+        get => _store == null ? LegacyUiTheme ?? "classic" : Looks.UiTheme;
+        set { if (_bus == null) LegacyUiTheme = value; else _bus.Send(new Mecho.Core.SetLook(UiTheme: value)); }
+    }
+
+    /// <summary>Фонът на портрета (виж Backdrops).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Background
+    {
+        get => _store == null ? LegacyBackground ?? "meadow" : Looks.Background;
+        set { if (_bus == null) LegacyBackground = value; else _bus.Send(new Mecho.Core.SetLook(Background: value)); }
+    }
+
+    // ── Подаръкът на деня и растението (вълна 6: GiftsModule, GardenModule) ──
+    private Mecho.Core.GiftState Gift => _store?.Get<Mecho.Core.GiftState>() ?? Mecho.Core.GiftState.None;
+    private Mecho.Core.PlantState Plant => _store?.Get<Mecho.Core.PlantState>() ?? Mecho.Core.PlantState.Seed;
+    private void SetGiftState(Func<Mecho.Core.GiftState, Mecho.Core.GiftState> f) => _bus?.Send(new Mecho.Core.SetGift(f(Gift)));
+    private void SetPlantState(Func<Mecho.Core.PlantState, Mecho.Core.PlantState> f) => _bus?.Send(new Mecho.Core.SetPlant(f(Plant)));
+
+    /// <summary>За кой ден е решено дали има подарък.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string GiftDay { get => _store == null ? LegacyGiftDay ?? "" : Gift.Day; set { if (_store == null) LegacyGiftDay = value; else SetGiftState(g => g with { Day = value ?? "" }); } }
+
+    /// <summary>Кога тръгва за подаръка (MinValue = днес няма).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public DateTime GiftAt { get => _store == null ? LegacyGiftAt : Gift.At; set { if (_store == null) LegacyGiftAt = value; else SetGiftState(g => g with { At = value }); } }
+
+    /// <summary>Подаръкът чака да се отвори.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool GiftPending { get => _store == null ? LegacyGiftPending : Gift.Pending; set { if (_store == null) LegacyGiftPending = value; else SetGiftState(g => g with { Pending = value }); } }
+
+    /// <summary>Цветът на днешния подарък ("" – синият).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string GiftColor { get => _store == null ? LegacyGiftColor ?? "" : Gift.Color; set { if (_store == null) LegacyGiftColor = value; else SetGiftState(g => g with { Color = value ?? "" }); } }
+
+    /// <summary>Растението: фаза 0–9.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int PlantStage { get => _store == null ? LegacyPlantStage : Plant.Stage; set { if (_store == null) LegacyPlantStage = value; else SetPlantState(p => p with { Stage = value }); } }
+
+    /// <summary>Грижа от последната фаза (на 8 мин – фаза).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double PlantCareMinutes { get => _store == null ? LegacyPlantCareMinutes : Plant.CareMinutes; set { if (_store == null) LegacyPlantCareMinutes = value; else SetPlantState(p => p with { CareMinutes = value }); } }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public DateTime PlantLastGrow { get => _store == null ? LegacyPlantLastGrow : Plant.LastGrow; set { if (_store == null) LegacyPlantLastGrow = value; else SetPlantState(p => p with { LastGrow = value }); } }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string PlantGrowDay { get => _store == null ? LegacyPlantGrowDay ?? "" : Plant.GrowDay; set { if (_store == null) LegacyPlantGrowDay = value; else SetPlantState(p => p with { GrowDay = value ?? "" }); } }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int PlantGrowToday { get => _store == null ? LegacyPlantGrowToday : Plant.GrowToday; set { if (_store == null) LegacyPlantGrowToday = value; else SetPlantState(p => p with { GrowToday = value }); } }
 
     // ── Притежаваното ──
     /// <summary>Купени уреди, мебели, скинове, тапети… (изглед към InventoryState.Items).</summary>
@@ -559,6 +666,23 @@ public sealed class SaveData
     [System.Text.Json.Serialization.JsonPropertyName("TaskHistory"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public List<LegacyTaskItem>? LegacyTaskHistory { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("TasksDoneTotal"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyTasksDoneTotal { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("FocusTask"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public Guid? LegacyFocusTask { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("Outfit"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public Dictionary<string, string>? LegacyOutfit { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("Skins"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public Dictionary<string, string>? LegacySkins { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("CouchSkin"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyCouchSkin { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("BedSkin"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyBedSkin { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("Pajama"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyPajama { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PajamasAtNight"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public bool? LegacyPajamasAtNight { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("UiTheme"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyUiTheme { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("Background"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyBackground { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("GiftDay"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyGiftDay { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("GiftAt"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public DateTime LegacyGiftAt { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("GiftPending"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public bool LegacyGiftPending { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("GiftColor"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyGiftColor { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PlantStage"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyPlantStage { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PlantCareMinutes"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public double LegacyPlantCareMinutes { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PlantLastGrow"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public DateTime LegacyPlantLastGrow { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PlantGrowDay"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyPlantGrowDay { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("PlantGrowToday"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyPlantGrowToday { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("WishDay"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public string? LegacyWishDay { get; set; }
 
     /// <summary>Състоянието на ядрото (слоевете на модулите, виж Mecho.Core.GameStore) – пази се тук.</summary>

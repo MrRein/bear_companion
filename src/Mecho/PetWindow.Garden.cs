@@ -18,6 +18,8 @@ namespace Mecho;
 public sealed partial class PetWindow
 {
     public const int PlantStages = 10;
+
+    private double _careMinutes;   // грижа, още неизпратена към ядрото (GardenModule)
     private const double PlantW = 24, PlantH = 40;      // рисунката plant_<вид>_<фаза>.png
     private OverlayWindow? _gardenWindow;
     private readonly Image _plant = new() { IsHitTestVisible = false };
@@ -234,8 +236,13 @@ public sealed partial class PetWindow
         }
         // Грижи се: всяка грижа трае 6–12 с, после следващата.
         _facingLeft = _plantSide < 0;
-        _save.PlantCareMinutes += dt / 60;
-        if (_save.PlantCareMinutes >= 8) GrowPlant(fromCare: true);
+        // Минутите грижа – в ядрото, на порции от секунда (не всеки кадър).
+        _careMinutes += dt / 60;
+        if (_careMinutes >= 1.0 / 60)
+        {
+            CoreEngine.Bus.Send(new Mecho.Core.CareForPlant(_careMinutes));
+            _careMinutes = 0;
+        }
         if (now >= _gardenWaterUntil) NextCare(now);
     }
 
@@ -345,42 +352,21 @@ public sealed partial class PetWindow
         DrawGarden();
     }
 
-    /// <summary>Една фаза нагоре (от грижа – най-много 2 на ден).</summary>
-    private void GrowPlant(bool fromCare)
+    /// <summary>Една фаза нагоре (от грижа – най-много 2 на ден). Правилата са в ядрото (GardenModule).</summary>
+    private void GrowPlant(bool fromCare) => CoreEngine.Bus.Send(new Mecho.Core.GrowPlant(fromCare));
+
+    /// <summary>Без грижи расте много бавно: една фаза на 5 дни (ядрото проверява и само).</summary>
+    private void GrowPlantByTime() => CoreEngine.Bus.Send(new Mecho.Core.CheckPlantGrowth());
+
+    /// <summary>Растението порасна (от грижа или с времето): радва се, ако е до него.</summary>
+    private void PlantGrew(Mecho.Core.PlantGrew s)
     {
-        string today = DayKey(DateTime.Today);
-        if (_save.PlantGrowDay != today)
-        {
-            _save.PlantGrowDay = today;
-            _save.PlantGrowToday = 0;
-        }
-        if (fromCare)
-        {
-            _save.PlantCareMinutes = 0;
-            if (_save.PlantGrowToday >= 2) return;
-            _save.PlantGrowToday++;
-        }
-        _save.PlantLastGrow = DateTime.Now;
-        if (_save.PlantStage >= PlantStages - 1) { Persist(); return; }
-        _save.PlantStage++;
         if (InGarden)
         {
-            Emote(_save.PlantStage == PlantStages - 1 ? "sparkle" : "heart", 2.5);
-            Say(R.Pick(_save.PlantStage == PlantStages - 1 ? "garden.bloom" : "plant.grow", _save.OwnerName), 4);
+            Emote(s.Bloomed ? "sparkle" : "heart", 2.5);
+            Say(R.Pick(s.Bloomed ? "garden.bloom" : "plant.grow", _save.OwnerName), 4);
         }
         DrawGarden();
         Persist();
-    }
-
-    /// <summary>Без грижи расте много бавно: една фаза на 5 дни.</summary>
-    private void GrowPlantByTime()
-    {
-        if (!Kitchen.Owns(_save, Kitchen.PlantPot)) return;
-        if (_save.PlantLastGrow == DateTime.MinValue) _save.PlantLastGrow = DateTime.Now;
-        while (DateTime.Now - _save.PlantLastGrow > TimeSpan.FromDays(5) && _save.PlantStage < PlantStages - 1)
-        {
-            _save.PlantStage++;
-            _save.PlantLastGrow = _save.PlantLastGrow.AddDays(5);
-        }
     }
 }

@@ -103,7 +103,7 @@ public sealed partial class PetWindow
                 _save.FavFoodDay = "";
             if (_save.FavFoodDay != today)
             {
-                var can = Kitchen.Foods.Where(f => f.Fullness >= 5 && Kitchen.CanCook(f, _save)).ToList();
+                var can = Kitchen.Foods.Where(f => f.Fullness >= 5 && Kitchen.Regular(f) && Kitchen.CanCook(f, _save)).ToList();
                 if (can.Count == 0) return null;
                 // Не същото като вчера, ако има избор.
                 var pick = can.Where(f => f.Id != _save.FavFood).ToList();

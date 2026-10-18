@@ -31,6 +31,10 @@ public static class CoreSetup
         engine.Modules.Add(new KitchenModule());          // какво се готви + желания
         engine.Modules.Add(new WorkModule());             // мечо-доро, таймер, плащане за работа (зависи от economy)
         engine.Modules.Add(new TasksModule());            // задачи, награди, история (зависи от economy)
+        engine.Modules.Add(new WardrobeModule());         // облекло, скинове, пижама, меню, фон
+        engine.Modules.Add(new GiftsModule());            // подаръкът на деня (шанс × Mods.GiftChance)
+        engine.Modules.Add(new GardenModule(Kitchen.PlantPot)); // растението в саксията (зависи от economy)
+        engine.Modules.Add(new EventDirector(automatic: !SelfTest.Running));          // събития: пижамен ден, болен ден, Коледа, пеперуда… (GameEvents.All)
         engine.Modules.Add(new LegacyBridgeModule(pet, save));
 
         // Пуска се веднага (не чак при показване на прозореца): старият код чете

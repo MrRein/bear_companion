@@ -68,10 +68,10 @@ public sealed class PajamaDayModule : GameModule                            // 3
 | 3 | Храна и готвене, желания | `KitchenModule` | `CookingState`, `WishesState` | `StartCook`, `NextCookStage`, `MoveCooker`, `EndCook`, `SetWishes`, `AddWish`, `FulfillWish` → `CookingStarted`, `CookingEnded`, `WishAdded`, `WishFulfilled`; приложението пуска `FoodEaten` | ✅ (каталогът с ястия и анимациите остават в приложението) |
 | 4а | Работа: мечо-доро, таймер, плащане | `WorkModule` (зависи от economy; САМ засича края всяка секунда) | `PomodoroState`, `WorkTimerState`, `WorkBankState` | `StartPomodoro`, `StopPomodoro`, `SetPomodoroMode`, `SetPomodoroSeries`, `StartWorkTimer`, `StopWorkTimer`, `CheckWork`, `PayWork` → `PomodoroStarted`, `PomodoroFocusDone`, `PomodoroBreakDone`, `PomodoroStopped`, `WorkTimerFinished`, `WorkTimerStopped`, `WorkPaid` | ✅ (мечокът само слуша сигналите: `PetWindow.WireWork`) |
 | 4б | Задачи | `TasksModule` (зависи от economy) | `TasksState` (`TaskEntry` = `TaskItem` в приложението) | `AddTask`, `SetTaskDone`, `DeleteTask`, `SetFocusTask`, `ArchiveDoneTasks` → `TaskAdded`, `TaskCompleted`, `TaskReopened`, `TaskDeleted` | ✅ (планът за деня „Ще се работи ли днес?“ остава в приложението) |
-| 5 | Магазин, гардероб, скинове, оферта, цел | `ShopModule`, `WardrobeModule` | `OutfitState`, `ShopState` | `Purchase` (вече), `Wear` → `OutfitChanged` | |
-| 6 | Подаръци, растение, хранилка, гости | `GiftsModule`, `GardenModule`… | по един | … | |
-| 7 | Разговори, въпросник, спомени, реплики | `DialogueModule`, `MemoryModule` | `SurveyState`, `MemoryState` | `Ask`, `Answer` → `SpeechRequested` | |
-| 8 | Събития (пижамен ден, болен ден, Коледа) | `EventDirector` + модули за събития | `EventsState` | → `GameEventStarted/Ended` | |
+| 5 | Гардероб, скинове, пижама, меню, фон | `WardrobeModule` | `LooksState` | `Wear`, `TakeOff`, `TakeOffAll`, `UseSkin`, `SetLook` → `OutfitChanged`, `SkinChanged` | ✅ (магазинът/офертата остават в `Shop.cs`; купуването вече е `Purchase` в economy) |
+| 6 | Подаръкът на деня, растението | `GiftsModule` (шанс × `Mods.GiftChance`), `GardenModule` (грижа: 8 мин = фаза, до 2 на ден; само – на 5 дни) | `GiftState`, `PlantState` | `PlanGiftToday`, `GiftPresented`, `GiftOpened`, `CareForPlant`, `GrowPlant`, `CheckPlantGrowth` → `GiftPlanned`, `PlantGrew` | ✅ (хранилката е в `PlacementModule` от вълна 1) |
+| 7 | Разговори, въпросник, спомени | – | – | – | ⏸ остават в приложението (паметта на деня `DayRecord` е вързана с почти всичко; следва, когато се пипа) |
+| 8 | Събития: Коледа, пижамен ден, болен ден, пеперуда, дъга | `EventDirector` (събитията са ДАННИ: `GameEvents.All`) | `EventsState` | `StartGameEvent`, `EndGameEvent` → `GameEventStarted`, `GameEventEnded`; докато трае – модификатори под `event.<id>` | ✅ (мечокът: `PetWindow.Events.cs`) |
 | 9 | Изгледи: менюто по табове, мечокът, уредите | – (изглед) | – | само четат и слушат | |
 
 **Свързано досега (вълна 1):**
@@ -84,6 +84,20 @@ public sealed class PajamaDayModule : GameModule                            // 3
 * Вълна 3: готвенето (какво, докога, кой уред, къде) и желанията за деня са само в ядрото; `SaveData.CookFood`/`WishList` са само за четене, пише се с команди. Желано ястие се маха с `FulfillWish` и пуска `WishFulfilled`; всяко изядено пуска `FoodEaten`.
 * Вълна 4а: мечо-дорото и таймерът са в ядрото. `WorkModule` сам засича края (и поредицата работа → почивка → работа), брои мечо-дората за деня и плаща по 1 лешник на 10 минути. Мечокът (`PetWindow.WireWork`) само слуша `PomodoroFocusDone`, `PomodoroBreakDone` и `WorkTimerFinished` и реагира.
 * Вълна 4б: задачите са неизменими записи в ядрото. Наградата (1/3/5 лешника), броячът и връщането при отмяна са в `TasksModule`. Свършените от минали дни отиват в историята сами в полунощ.
+
+## 0.2 Събития и разширяване – 4 стъпки
+
+**Ново събитие** (пр. „Ден на палачинките“):
+1. Запис в `Mecho.Core.GameEvents.All`: `Id`, `Name`, кога (`On = d => …`, `Fixed` или `DailyChance`/`HourlyChance`), `CooldownDays` и какво сменя (`Apply = (m, s) => { m.Set(s, Mods.HungerRate, 1.3); m.Add(s, Mods.ShopExtras, "pancake_mix"); }`).
+2. Реплики в `assets/repliki.txt`: `=== event.<id>.start`, `.end`, `.chatter` (по желание).
+3. Само ако има нещо ново за показване: `case` в `PetWindow.Events.cs` (`EventStarted`). Модулите не се пипат – те четат модификаторите.
+4. Тест в `tests/Mecho.Core.Tests/EventsTests.cs` и при нужда стъпка в `SelfTest.cs`. Developer → „Събития“ пуска всяко на ръка.
+
+**Нов модул** (нова механика): клас `XModule : GameModule` в `Mecho.Core/Systems` (слой с `Store.Register`, команди с `Handle`, сигнали с `Emit`) → ред в `Engine/CoreSetup.cs` → тест в `tests/Mecho.Core.Tests` → мечокът слуша сигналите му (`bus.Subscribe<…>(this, …)`), менюто – `StateChanged<XState>`.
+
+**Болен ден** е пример за всичко: `Mods.EnergyDrain` (енергията пада по-бързо), `Mods.HungerRate`, `Mods.BlockedHobbies` (без батут), `Mods.ShopExtras` („medicine“ – лекарството се показва в „Храна“ само докато трае, `Kitchen.EventTag`), а изпитото лекарство праща `EndGameEvent(sick_day, "лекарство")`.
+
+Самопроверката пуска режисьора с `automatic: false` – нищо не почва само насред проверка.
 
 ## 1. Сегашният строеж накратко
 

@@ -149,8 +149,8 @@ public sealed partial class PetWindow
     {
         // Парчетата са в няколко вида (food_popcorn_1, _2…), ако има такива рисунки.
         int kinds = 0;
-        while (_lib.HasProp($"food_{food.Id}_{kinds + 1}")) kinds++;
-        var prop = _lib.GetProp(kinds > 0 ? $"food_{food.Id}_{1 + _rng.Next(kinds)}" : "food_" + food.Id, 16, 16, 0);
+        while (_lib.HasProp($"food_{food.ArtId}_{kinds + 1}")) kinds++;
+        var prop = _lib.GetProp(kinds > 0 ? $"food_{food.ArtId}_{1 + _rng.Next(kinds)}" : "food_" + food.ArtId, 16, 16, 0);
         var w = new FoodWindow(this, food, fullness, energy, prop, PixelSize);
         w.Left = from.X - w.Width / 2;
         w.Top = from.Y - w.Height / 2;

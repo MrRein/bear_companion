@@ -538,6 +538,7 @@ public sealed partial class PetWindow
         bus.Subscribe<Mecho.Core.PomodoroFocusDone>(this, _ => FocusDone());
         bus.Subscribe<Mecho.Core.PomodoroBreakDone>(this, s => BreakDone(s.NextFocus));
         bus.Subscribe<Mecho.Core.WorkTimerFinished>(this, s => TimerDone(s.Minutes, s.Label, s.Kind));
+        bus.Subscribe<Mecho.Core.PlantGrew>(this, PlantGrew);
     }
 
     /// <summary>Работата почна (Тут я пусна или е следващата от поредицата).</summary>
