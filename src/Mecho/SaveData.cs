@@ -69,6 +69,10 @@ public sealed class SaveData
     public bool RadioPlaced { get; set; }                        // радиото е сложено (от „Сложи“)
     public bool RadioOn { get; set; }
     public double RadioX { get; set; } = double.NaN;
+    public bool RadioAuto { get; set; }                         // мечокът го сложи сам (за танц) – маха го, като свърши
+    public bool RadioAutoOn { get; set; }                       // мечокът го включи сам (за танц) – изключва го, като свърши
+    public bool PlantPlaced { get; set; }                       // Тут сложи растението на земята (от „Сложи“)
+    public double PlantX { get; set; } = double.NaN;
     public bool LampPlaced { get; set; }                        // Тут сложи лампата (свети, докато не я прибере)
     public bool LampOff { get; set; }                           // Тут изгаси лампата тази вечер (до сутринта)
     public string LampOffDay { get; set; } = "";

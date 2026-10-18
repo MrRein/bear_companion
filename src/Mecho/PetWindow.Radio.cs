@@ -112,15 +112,8 @@ public sealed partial class PetWindow
     /// <summary>Свири радиото: отива до него и танцува (Слушай музика), докато не му омръзне.</summary>
     private void DanceByRadio()
     {
-        if (_radioWindow == null) return;
-        double cx = _radioWindow.CenterX;
-        int side = _x < cx ? -1 : 1;
-        double spot = cx + side * (SpriteWidth * 0.6 + 8 * PixelSize);
-        WalkTo(spot, () =>
-        {
-            if (!RadioPlaying) return;
-            StartScene(Scenes.Music, 45 + _rng.Next(75));
-            _facingLeft = side > 0;
-        });
+        if (_radioWindow == null || !RadioPlaying) return;
+        // Сам отива до радиото (StartScene → WalkToRadioFirst).
+        StartScene(Scenes.Music, 45 + _rng.Next(75));
     }
 }

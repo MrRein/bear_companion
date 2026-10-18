@@ -154,6 +154,7 @@ public sealed partial class PetWindow : Window
         _bubbleWindow = new OverlayWindow(_bubble);
         Content = _root;
         InitCare();
+        InitPlaceables();
         Loaded += (_, _) =>
         {
             RestorePins();
@@ -323,6 +324,7 @@ public sealed partial class PetWindow : Window
             P("спомени");
         }
         UpdateWeather(now);
+        UpdatePlacedPlant();
         P("времето, печица, лампа, радио");
         UpdatePajamas();
         P("пижами");
@@ -370,6 +372,7 @@ public sealed partial class PetWindow : Window
         if (now - _lastSave > 60)
         {
             _lastSave = now;
+            CloseDuplicatePlaceables();
             StartNewDay();
             Persist();
             P("нов ден/запис");

@@ -829,6 +829,48 @@ public sealed partial class PetWindow
             UpdateFeeder(Now, 0.03);
             if (_radioWindow != null || _feederWindow != null) throw new Exception("не се прибраха");
         }, 300);
+        await step("уреди: сам сложеното радио се маха, сложеното от Тут остава", () =>
+        {
+            bool instant = InstantModes;
+            InstantModes = true;
+            if (_inScene) LeaveScene();
+            SetRadio(false);
+            UpdateRadio(Now);
+            StartScene(Scenes.Music, quiet: true);
+            UpdateRadio(Now);
+            if (!RadioPlaying || !_save.RadioAuto || _radioWindow == null) throw new Exception("за танца не сложи радиото");
+            if (_sideProp != null) throw new Exception("второ радио до мечока");
+            LeaveScene();
+            UpdateRadio(Now);
+            if (RadioPlaced || _radioWindow != null) throw new Exception("сам сложеното радио остана");
+            SetRadio(true);
+            SetRadioOn(false);
+            UpdateRadio(Now);
+            StartScene(Scenes.Music, quiet: true);
+            if (!RadioPlaying || _save.RadioAuto) throw new Exception("радиото на Тут не се пусна за танца");
+            LeaveScene();
+            UpdateRadio(Now);
+            if (!RadioPlacedByOwner || _save.RadioOn) throw new Exception("радиото на Тут трябва да остане (и пак изключено)");
+            // Само по едно: излишно радио се затваря.
+            var extra = new CookerWindow("Радио");
+            extra.Show();
+            CloseDuplicatePlaceables();
+            if (extra.IsVisible) throw new Exception("две радиа");
+            SetRadio(false);
+            UpdateRadio(Now);
+            // Растението: сложено от Тут – остава след грижата.
+            if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot);
+            SetPlant(true);
+            UpdatePlacedPlant();
+            if (_gardenWindow is not { Showing: true }) throw new Exception("сложеното растение не се вижда");
+            StartScene(Scenes.Plant, quiet: true);
+            LeaveScene();
+            UpdatePlacedPlant();
+            if (!_save.PlantPlaced || _gardenWindow is not { Showing: true }) throw new Exception("сложеното растение изчезна след грижата");
+            SetPlant(false);
+            if (_gardenWindow is { Showing: true }) throw new Exception("растението не се прибра");
+            InstantModes = instant;
+        }, 300);
         await step("плавен преход: „Почивай си“ мисли, после почва", () =>
         {
             InstantModes = false;

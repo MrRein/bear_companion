@@ -371,6 +371,8 @@ public sealed partial class PetWindow
             StartTrampoline(seconds);
             return;
         }
+        // Танци при радиото на Тут: първо отива до него.
+        if (scene == Scenes.Music && WalkToRadioFirst(() => StartScene(scene, seconds))) return;
         StartScene(scene, quiet: false);
         _sceneUntil = Now + seconds;
     }
@@ -384,6 +386,9 @@ public sealed partial class PetWindow
             return;
         }
         if (_onTrampoline) EndBounce(null);
+        if (scene == Scenes.Music && WalkToRadioFirst(() => StartScene(scene, quiet))) return;
+        if (_inScene && _scene == Scenes.Music && scene != Scenes.Music) EndMusic();
+        if (scene == Scenes.Music) BeginMusic();
         // Статив: всеки път с друга четка (червена или синя).
         if (scene.Easel) _brush = _rng.Next(2) == 0 ? "paintbrush_red" : "paintbrush_blue";
         _scene = scene;
@@ -421,6 +426,7 @@ public sealed partial class PetWindow
     private void LeaveScene()
     {
         if (_scene != null && Scenes.All.Contains(_scene)) _lastFun = _scene;
+        if (_scene == Scenes.Music) EndMusic();
         PutPlantAway();
         bool wasAuto = _autoBlock;
         _cup = null;

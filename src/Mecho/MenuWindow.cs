@@ -602,8 +602,9 @@ public sealed class MenuWindow : Window
         }
         Add(Kitchen.Heater, "Печица", s.HeaterOn, () => _pet.SetHeater(!s.HeaterOn));
         Add(Kitchen.Lamp, "Лампа", _pet.LampOn, () => _pet.SetLamp(!_pet.LampOn));
-        Add(Kitchen.Radio, "Радио", _pet.RadioPlaced, () => _pet.SetRadio(!_pet.RadioPlaced));
+        Add(Kitchen.Radio, "Радио", _pet.RadioPlacedByOwner, _pet.ToggleRadioPlaced);
         Add(Kitchen.Feeder, "Хранилка", _pet.FeederPlaced, () => _pet.SetFeeder(!_pet.FeederPlaced));
+        Add(Kitchen.PlantPot, "Растение", s.PlantPlaced, () => _pet.SetPlant(!s.PlantPlaced));
     }
     private Button _walkButton = null!;
 

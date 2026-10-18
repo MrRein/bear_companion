@@ -127,6 +127,13 @@ public sealed partial class PetWindow
         _plantSide = _x - area.Left < area.Right - _x ? -1 : 1;
         _gardenPhase = 0;
         _plantOut = 0;
+        if (_save.PlantPlaced)
+        {
+            // Саксията е сложена на земята: отива направо до нея (от страната, откъдето идва).
+            _plantSide = _x < _save.PlantX ? 1 : -1;
+            _gardenPhase = 1;
+            _plantOut = 1;
+        }
         _plantPushing = false;
         _gardenWaterUntil = 0;
         _gardenLast = Now;
@@ -135,7 +142,8 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Мястото на саксията, когато е издърпана (до ръба, вътре в екрана).</summary>
-    private double PlantSpot => _plantSide < 0 ? Area.Left + PlantW * PixelSize * 0.7 : Area.Right - PlantW * PixelSize * 0.7;
+    private double PlantSpot => _save.PlantPlaced ? _save.PlantX
+        : _plantSide < 0 ? Area.Left + PlantW * PixelSize * 0.7 : Area.Right - PlantW * PixelSize * 0.7;
 
     /// <summary>Колко встрани от мечока е саксията, докато я дърпа/бута (откъм ръба).</summary>
     private double PlantGap => PlantW * PixelSize * 0.5 + SpriteWidth * 0.32;
@@ -144,7 +152,7 @@ public sealed partial class PetWindow
     private double CareSpot => PlantSpot - _plantSide * PlantGap;
 
     /// <summary>Има ли рисунки „носи нещо пред себе си“ (hold, hold_walk) – тогава носи саксията, а не я дърпа.</summary>
-    private bool CarriesPlant => _lib.Has("hold_walk");
+    private bool CarriesPlant => _lib.Has("hold_walk") && !_save.PlantPlaced;
 
     private string HoldWalk => "hold_walk";
 
@@ -177,8 +185,8 @@ public sealed partial class PetWindow
         _plant.Source = _lib.GetProp(PlantArt, (int)PlantW, (int)PlantH, 0).Image;
         _plant.Width = PlantW * PixelSize;
         _plant.Height = PlantH * PixelSize;
-        double center = _gardenPhase >= 2 && !_plantPushing ? PlantSpot : _x + _plantSide * PlantGap;
-        double bottom = Ground(_y) + PixelSize;
+        double center = (_gardenPhase >= 2 || _save.PlantPlaced) && !_plantPushing ? PlantSpot : _x + _plantSide * PlantGap;
+        double bottom = _save.PlantPlaced && !_plantPushing ? AreaAt(PlantSpot, _y - 1).Bottom + PixelSize : Ground(_y) + PixelSize;
         if (PlantInPaws)
         {
             // В лапите, пред него (накъдето гледа), малко над земята.
@@ -212,13 +220,13 @@ public sealed partial class PetWindow
                 if (StepGarden(CarrySpot, CarriesPlant ? 0.8 : 0.6, dt))
                 {
                     if (CarriesPlant) _anim = HoldWalk;   // гледа накъдето върви, саксията е в лапите
-                    else _facingLeft = _plantSide > 0;   // гледа навътре, дърпа назад
+                    else if (!_save.PlantPlaced) _facingLeft = _plantSide > 0;   // гледа навътре, дърпа назад
                     DrawGarden();
                     return;
                 }
                 _gardenPhase = 2;
                 _facingLeft = _plantSide < 0;
-                Mutter(R.Pick("plant.pull", _save.OwnerName), 3);
+                Mutter(R.Pick(_save.PlantPlaced && R.Has("plant.visit") ? "plant.visit" : "plant.pull", _save.OwnerName), 3);
                 DrawGarden();
                 NextCare(now);
                 return;
@@ -269,6 +277,12 @@ public sealed partial class PetWindow
     /// <summary>Като свърши: бута саксията обратно зад ръба и се връща (вика се от LeaveScene).</summary>
     private void PutPlantAway()
     {
+        // Сложена от Тут: остава на мястото си.
+        if (_save.PlantPlaced)
+        {
+            _plantShownAsVisible = !IsVisible;   // ще се нарисува наново на мястото си
+            return;
+        }
         if (_gardenWindow == null || _plantOut <= 0 || _gardenPhase < 1)
         {
             HideGarden();
