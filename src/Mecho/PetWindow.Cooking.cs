@@ -66,7 +66,10 @@ public sealed partial class PetWindow
         int dir = _rng.Next(2) == 0 ? -1 : 1;
         double step = SpriteWidth * (0.5 + _rng.NextDouble() * 0.4);
         if (_x + dir * (step + SpriteWidth * 1.5) > area.Right || _x + dir * (step + SpriteWidth * 1.5) < area.Left) dir = -dir;
-        Say(Lines.Pick(FoodTalk.For(food, food.Prep ?? food.Tool).Start, _save.OwnerName), 5);
+        // Още не е пуснал уреда: казва какво е избрал („Ще направя супа! Да си взема
+        // тенджерата…“); репликите за пуснат уред са, като се появи уредът.
+        string first = food.Prep ?? food.Tool ?? "";
+        Say(R.Pick("cook.choose", _save.OwnerName).Replace("{ястие}", food.Name.ToLowerInvariant()).Replace("{уред}", ToolName(first)), 5);
         WalkTo(_x + dir * step, () =>
         {
             _facingLeft = dir < 0;
@@ -78,8 +81,14 @@ public sealed partial class PetWindow
     {
         if (_pendingCook is not { } p) return;
         _pendingCook = null;
-        StartCooking(p.Food, p.Fullness, p.Energy, p.Cost, quiet: true);
+        StartCooking(p.Food, p.Fullness, p.Energy, p.Cost);
     }
+
+    /// <summary>Уредите на рецептата поред (първо Prep, ако има) и колко секунди е всеки.</summary>
+    public static (string Tool, double Seconds)[] CookSteps(Food f) =>
+        f.Tool == null ? Array.Empty<(string, double)>()
+        : f.Prep != null ? new[] { (f.Prep, CookSeconds(f.Prep)), (f.Tool, CookSeconds(f.Tool)) }
+        : new[] { (f.Tool, CookSeconds(f.Tool)) };
 
     public static double CookSeconds(string tool) => tool switch
     {
@@ -382,6 +391,7 @@ public sealed partial class PetWindow
         Kitchen.Pot => "тенджерата", Kitchen.Pan => "тигана", Kitchen.Oven => "фурната",
         Kitchen.CoffeeMachine => "кафемашината", Kitchen.Kettle => "чайника", Kitchen.Mixer => "миксера",
         Kitchen.SandwichMaker => "сандвичарника", Kitchen.IceCream => "машинката за сладолед", Kitchen.Grill => "скарата",
+        Kitchen.Table => "масичката",
         _ => "каничката",
     };
 

@@ -301,6 +301,7 @@ public sealed partial class PetWindow
             });
         }
         yield return (food, "Готово веднага", DevFinishCooking);
+        yield return (food, "Покажи зоната за даване на храна (5 с)", DevShowFeedZone);
         yield return (food, "Изчисти храната", DevClearFood);
 
         yield return (clothes, "Гардероб", () => OpenMenu(MenuWindow.WardrobeTab));

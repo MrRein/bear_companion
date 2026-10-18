@@ -832,11 +832,12 @@ public sealed class MenuWindow : Window
                 fav.Margin = new Thickness(0, 2, 0, 0);
                 effects.Children.Add(fav);
             }
-            if (f.Tool != null)
+            // Колко се готви във всеки уред (рецепта в два уреда – два реда): иконката на
+            // уреда и минутите; ако уредът няма иконка – часовниче.
+            foreach (var (tool, secs) in PetWindow.CookSteps(f))
             {
-                double secs = PetWindow.CookSeconds(f.Tool);
-                // Часовниче и колко време се готви.
-                var time = IconText("clock", secs % 60 == 0 ? $"{secs / 60:0} мин" : $"{secs:0} с");
+                string icon = LoadIcon("shop_" + tool) != null ? "shop_" + tool : "clock";
+                var time = IconText(icon, secs % 60 == 0 ? $"{secs / 60:0} мин" : $"{secs:0} с");
                 time.HorizontalAlignment = HorizontalAlignment.Center;
                 time.Margin = new Thickness(0, 2, 0, 0);
                 time.Opacity = 0.75;

@@ -52,6 +52,17 @@ public static class R
     /// <summary>Следващата реплика от тестето за ключа ({име} = Тут).</summary>
     public static string Any(string key) => Lines.Fill(Lines.PickAny(Get(key)), Owner());
 
+    /// <summary>
+    /// Слага стойност на мястото на {име на поле}. {име}, {брой} и {храна} се превръщат
+    /// при зареждане в {0}, {1} и {2}, затова за тях се сменя и номерът.
+    /// </summary>
+    public static string Put(string line, string name, string value)
+    {
+        line = line.Replace("{" + name + "}", value);
+        string? index = name switch { "име" => "{0}", "брой" => "{1}", "храна" => "{2}", _ => null };
+        return index == null ? line : line.Replace(index, value);
+    }
+
     public static Dictionary<string, string[]> Load(string path)
     {
         var result = new Dictionary<string, string[]>();

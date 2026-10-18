@@ -848,6 +848,15 @@ public sealed partial class PetWindow
             GetUp();
         }, 300);
         await step("скорост", () => SelfTest.Log("   " + PerfSummary()), 100);
+        await step("реплики с {храна}: всички полета се попълват", () =>
+        {
+            foreach (var key in new[] { "fav.wish", "fav.eaten", "memory.onefood", "memory.feast" })
+                foreach (var l in R.Get(key))
+                {
+                    string line = R.Put(R.Put(R.Put(l, "храна", "мед"), "храна2", "чай"), "име", "Тут");
+                    if (line.Contains('{')) throw new Exception($"{key}: остана празно поле в „{line}“");
+                }
+        }, 100);
         await step("поздрав за всяка част от деня", () =>
         {
             for (int h = 0; h < 24; h++)

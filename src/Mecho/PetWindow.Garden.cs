@@ -54,7 +54,7 @@ public sealed partial class PetWindow
     private sealed class Drop
     {
         public readonly System.Windows.Shapes.Rectangle Shape = new() { IsHitTestVisible = false };
-        public double X, Y, Vy, Ground;
+        public double X, Y, Vx, Vy, Ground;
     }
 
     private readonly List<Drop> _drops = new();
@@ -83,7 +83,9 @@ public sealed partial class PetWindow
             {
                 X = _bearRect.Left + (px + _rng.NextDouble()) * PixelSize,
                 Y = _bearRect.Top + (py + 1) * PixelSize,
-                Vy = 20 + _rng.NextDouble() * 30,
+                // Хвърчат напред (накъдето гледа – към саксията), после падат.
+                Vx = (_facingLeft ? -1 : 1) * PixelSize * (16 + _rng.NextDouble() * 18),
+                Vy = -PixelSize * (4 + _rng.NextDouble() * 10),
                 Ground = _y,
             };
             d.Shape.Width = d.Shape.Height = PixelSize;
@@ -94,7 +96,8 @@ public sealed partial class PetWindow
         for (int i = _drops.Count - 1; i >= 0; i--)
         {
             var d = _drops[i];
-            d.Vy += 600 * dt;
+            d.Vy += PixelSize * 160 * dt;
+            d.X += d.Vx * dt;
             d.Y += d.Vy * dt;
             if (d.Y >= d.Ground - PixelSize || !InGarden)
             {
@@ -140,6 +143,20 @@ public sealed partial class PetWindow
     /// <summary>Къде застава мечокът до саксията (откъм екрана).</summary>
     private double CareSpot => PlantSpot - _plantSide * PlantGap;
 
+    /// <summary>Има ли рисунки „носи нещо пред себе си“ (hold, hold_walk) – тогава носи саксията, а не я дърпа.</summary>
+    private bool CarriesPlant => _lib.Has("hold_walk");
+
+    private string HoldWalk => "hold_walk";
+
+    /// <summary>Докъде я носи: с нея в лапите застава така, че като я остави, тя е на мястото си.</summary>
+    private double CarrySpot => CarriesPlant ? PlantSpot - _plantSide * CarryGap : CareSpot;
+
+    /// <summary>Колко пред мечока е саксията, докато я носи.</summary>
+    private double CarryGap => SpriteWidth * 0.3;
+
+    /// <summary>Носи ли я сега в лапите (на път навън или обратно).</summary>
+    private bool PlantInPaws => CarriesPlant && ((InGarden && _gardenPhase == 1) || _plantPushing);
+
     /// <summary>Зад ръба: там мечокът „взима“ саксията (извън екрана).</summary>
     private double BehindEdge => _plantSide < 0 ? Area.Left - SpriteWidth * 0.6 : Area.Right + SpriteWidth * 0.6;
 
@@ -161,8 +178,15 @@ public sealed partial class PetWindow
         _plant.Width = PlantW * PixelSize;
         _plant.Height = PlantH * PixelSize;
         double center = _gardenPhase >= 2 && !_plantPushing ? PlantSpot : _x + _plantSide * PlantGap;
+        double bottom = Ground(_y) + PixelSize;
+        if (PlantInPaws)
+        {
+            // В лапите, пред него (накъдето гледа), малко над земята.
+            center = _x + (_facingLeft ? -1 : 1) * CarryGap;
+            bottom -= SpriteHeight * 0.12;
+        }
         bool shown = _plantOut > 0 && IsVisible;
-        if (shown) _gardenWindow.Place(center - _plant.Width / 2, Ground(_y) - _plant.Height + PixelSize);
+        if (shown) _gardenWindow.Place(center - _plant.Width / 2, bottom - _plant.Height);
         else _gardenWindow.Conceal();
     }
 
@@ -184,10 +208,11 @@ public sealed partial class PetWindow
                 _gardenPhase = 1;
                 _plantOut = 1;
                 return;
-            case 1:   // връща се, като дърпа саксията след себе си (по-бавно)
-                if (StepGarden(CareSpot, 0.6, dt))
+            case 1:   // връща се със саксията: носи я пред себе си (hold_walk) или я дърпа след себе си
+                if (StepGarden(CarrySpot, CarriesPlant ? 0.8 : 0.6, dt))
                 {
-                    _facingLeft = _plantSide > 0;   // гледа навътре, дърпа назад
+                    if (CarriesPlant) _anim = HoldWalk;   // гледа накъдето върви, саксията е в лапите
+                    else _facingLeft = _plantSide > 0;   // гледа навътре, дърпа назад
                     DrawGarden();
                     return;
                 }
@@ -212,7 +237,7 @@ public sealed partial class PetWindow
         double dir = Math.Sign(target - _x);
         _facingLeft = dir < 0;
         _x += dir * Math.Min(Math.Abs(target - _x), WalkSpeed * 0.8 * speed * dt);
-        string walk = IsExhausted ? "walk_tired" : "walk";
+        string walk = PlantInPaws ? HoldWalk : IsExhausted ? "walk_tired" : "walk";
         if (_anim != walk) { _anim = walk; _animTime = 0; }
         return true;
     }
@@ -252,7 +277,7 @@ public sealed partial class PetWindow
         }
         _plantPushing = true;
         double inside = _plantSide < 0 ? Area.Left + SpriteWidth * 1.6 : Area.Right - SpriteWidth * 1.6;
-        // Бута я до зад ръба (саксията пред него), после се връща в екрана.
+        // Бута я (или я носи в лапите) до зад ръба, после се връща в екрана.
         Later(0.05, () => WalkTo(BehindEdge - _plantSide * PlantGap * 0.2, () =>
         {
             _plantPushing = false;
@@ -274,6 +299,11 @@ public sealed partial class PetWindow
             _plantOut = 0;
             HideGarden();
             return;
+        }
+        if (CarriesPlant && _state == BearState.Walk && _anim != HoldWalk)
+        {
+            _anim = HoldWalk;
+            _animTime = 0;
         }
         DrawGarden();
     }

@@ -90,7 +90,8 @@ public sealed partial class PetWindow
         }
         if (Cooks || _pendingCook != null)
         {
-            Say(R.Any("food.cooking"), 3);
+            // Избрал е ястие, но още не е пуснал уреда – друга реплика.
+            Say(R.Any(_pendingCook != null && !Cooks ? "food.cooking.pending" : "food.cooking"), 3);
             return;
         }
         if (_food.Count + food.Count > MaxFoodOnScreen)
@@ -284,10 +285,39 @@ public sealed partial class PetWindow
     /// <summary>Тут пусна храна. Ако е върху мечока, той я изяжда; иначе пада на земята.</summary>
     internal void FoodDropped(FoodWindow food)
     {
-        var near = _bearRect;
-        near.Inflate(24, 24);
-        if (!near.IntersectsWith(food.Bounds)) return;
+        if (!FeedZone.IntersectsWith(food.Bounds)) return;
         EatFood(food);
+    }
+
+    /// <summary>
+    /// Докъде храната се брои „при мечока“: доста по-широко от самия мечок (половин
+    /// мечок встрани, малко над главата), за да не се цели точно.
+    /// </summary>
+    internal Rect FeedZone
+    {
+        get
+        {
+            var near = _bearRect;
+            near.Inflate(Math.Max(24, SpriteWidth * 0.5), Math.Max(24, SpriteHeight * 0.3));
+            return near;
+        }
+    }
+
+    /// <summary>Developer: показва зоната за хранене за няколко секунди.</summary>
+    internal void DevShowFeedZone()
+    {
+        var z = FeedZone;
+        var box = new System.Windows.Controls.Border
+        {
+            Width = z.Width,
+            Height = z.Height,
+            BorderBrush = System.Windows.Media.Brushes.Red,
+            BorderThickness = new Thickness(2),
+            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 255, 0, 0)),
+        };
+        var w = new OverlayWindow(box);
+        w.Place(z.Left, z.Top);
+        Later(5, w.Close);
     }
 
     /// <summary>Изяжда парче храна (дори да е сит). Връща false, ако спи.</summary>

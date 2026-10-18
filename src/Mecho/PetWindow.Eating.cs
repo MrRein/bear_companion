@@ -121,8 +121,20 @@ public sealed partial class PetWindow
         return false;
     }
 
-    /// <summary>Изяде/изпи: понякога за точно това ядене, понякога общо („Беше вкусно!“).</summary>
-    private string DoneLine(Food food) => Wishes().Contains(food)
+    /// <summary>
+    /// Изяде/изпи: понякога за точно това ядене, понякога общо („Беше вкусно!“).
+    /// Ако и след това е под половината сит (и няма още храна на екрана) – казва, че
+    /// още е гладен: след напитка „Сега бих хапнал нещо“, след ядене „Мм… още едно?“.
+    /// </summary>
+    private string DoneLine(Food food) =>
+        _save.Fullness < StillHungryBelow && _food.Count == 0 && _cook == null && _pendingCook == null
+            ? R.Pick(IsDrink(food) ? "drank.hungry" : "ate.stillhungry", _save.OwnerName)
+            : DoneLineAny(food);
+
+    /// <summary>Под толкова ситост след яденето още му се яде.</summary>
+    internal const double StillHungryBelow = 50;
+
+    private string DoneLineAny(Food food) => Wishes().Contains(food)
         ? R.Pick("craving.done", _save.OwnerName).Replace("{ястие}", food.Name.ToLowerInvariant())
         : _rng.Next(5) > 0 && FoodTalk.For(food).Done.Length > 0
         ? Lines.Pick(FoodTalk.For(food).Done, _save.OwnerName)

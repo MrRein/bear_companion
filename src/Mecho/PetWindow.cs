@@ -418,7 +418,7 @@ public sealed partial class PetWindow : Window
     {
         bool moving = IsVisible && !_calm && (_state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
             || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || _drops.Count > 0 || _birdPhase is 1 or 3 || Dressing || CookShaking || EmotePopping || _cook is { Window.IsFalling: true }
-            || FoodMoving());
+            || FoodMoving() || (InGarden && _gardenPhase < 2) || _plantPushing);
         // Тут пише, а мечокът върви: 15 кадъра в секунда стигат (не с всеки кадър на
         // екрана) – прозрачният прозорец „винаги отгоре“ не бива да товари писането.
         bool smooth = moving && !_typing;

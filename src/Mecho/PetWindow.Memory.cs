@@ -123,7 +123,7 @@ public sealed partial class PetWindow
         TodayRec.FavFed = true;
         Emote("heart", 4);
         Joy(JoyPetted);
-        Later(1.2, () => Say(R.Pick("fav.eaten", _save.OwnerName).Replace("{храна}", f.Name.ToLowerInvariant()), 4));
+        Later(1.2, () => Say(R.Put(R.Pick("fav.eaten", _save.OwnerName), "храна", f.Name.ToLowerInvariant()), 4));
     }
 
     // ── Спомените ──
@@ -166,14 +166,14 @@ public sealed partial class PetWindow
     {
         if (FavoriteFood is not { } f || _save.FavFoodSaid || TodayRec.FavFed) return;
         _save.FavFoodSaid = true;
-        Say(R.Pick("fav.wish", _save.OwnerName).Replace("{храна}", f.Name.ToLowerInvariant()), 5);
+        Say(R.Put(R.Pick("fav.wish", _save.OwnerName), "храна", f.Name.ToLowerInvariant()), 5);
         Emote("hungry", 3);
     }
 
     private string Fill(string key, params (string Name, string Value)[] values)
     {
         string line = R.Pick(key, _save.OwnerName);
-        foreach (var (name, value) in values) line = line.Replace("{" + name + "}", value);
+        foreach (var (name, value) in values) line = R.Put(line, name, value);
         return line;
     }
 
