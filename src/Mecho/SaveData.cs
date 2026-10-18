@@ -74,7 +74,8 @@ public sealed class SaveData
     public DateTime NapUntil { get; set; } = DateTime.MinValue;   // дрямка до (MinValue = не дреме)
     public double NapCap { get; set; } = 100;           // дрямката го вдига дотук
     public bool SleepForDay { get; set; }
-    public bool CalmWhileTyping { get; set; } = true;   // докато Тут пише – почти не се прерисува (курсорът премигваше)               // „Лягай за деня“: спи до сутринта
+    public bool CalmWhileTyping { get; set; }           // докато Тут пише – прерисува се по-рядко (само ако курсорът премигва; иначе накъсва)
+    public bool TypingCalmReset { get; set; }           // веднъж: старото „включено“ по подразбиране се изключва (то беше причината за накъсването)
 
     /// <summary>Вечерта, в която в 22:00 енергията вече е паднала.</summary>
     public string NightDropDay { get; set; } = "";
@@ -132,6 +133,13 @@ public sealed class SaveData
     /// <summary>Свързва записа с ядрото и мести старите данни в него (веднъж).</summary>
     public void Bind(Mecho.Core.GameEngine engine)
     {
+        // Стари записи: „спокойно докато пиша“ беше включено по подразбиране и правеше
+        // анимацията накъсана, докато Тут пише. Изключва се веднъж (Developer може пак да го пусне).
+        if (!TypingCalmReset)
+        {
+            CalmWhileTyping = false;
+            TypingCalmReset = true;
+        }
         _store = engine.Store;
         _bus = engine.Bus;
         var st = engine.Store;
