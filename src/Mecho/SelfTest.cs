@@ -890,6 +890,39 @@ public sealed partial class PetWindow
             GetUp();
         }, 300);
         await step("скорост", () => SelfTest.Log("   " + PerfSummary()), 100);
+        await step("въпросник: бутон, свободен отговор, файл и спомен", () =>
+        {
+            if (Survey.All.Count < 10) throw new Exception("въпросникът е празен");
+            if (Survey.Plain("✏️ С молив") != "С молив") throw new Exception("етикетът не се чисти: " + Survey.Plain("✏️ С молив"));
+            var q = Survey.All["draw_tool"];
+            var chat = Survey.Ask(this, q);
+            if (chat.FreeText == null || chat.Options.Length < 3) throw new Exception("няма поле или бутони");
+            chat.Options[0].Do(this);
+            if (_save.Answers["draw_tool"].Text != "С молив") throw new Exception("бутонът не се запомни");
+            chat.FreeText(this, "с туш и перо");
+            if (_save.Answers["draw_tool"] is not { Free: true, Text: "с туш и перо" }) throw new Exception("написаното не се запомни");
+            if (!System.IO.File.ReadAllText(Survey.AnswersPath).Contains("с туш и перо")) throw new Exception("няма го в otgovori.txt");
+            string? remark = Survey.RemarkFor(_save, new Random(1));
+            if (remark == null || remark.Contains('{')) throw new Exception("спомен: " + remark);
+            foreach (var x in Survey.All.Values)
+                if (x.Text.Length == 0 || (x.Options.Length == 0 && x.FreeReplies.Length == 0)) throw new Exception("празен въпрос " + x.Id);
+            _save.Answers.Clear();
+            HideBubble();
+        }, 200);
+        await step("„Ще се работи ли днес?“ сменя колко пита за работа", () =>
+        {
+            SetWorkPlan(PlanNo);
+            double no = WorkPlanFactor;
+            SetWorkPlan(PlanYes);
+            if (no >= 0.5 || WorkPlanFactor <= 1) throw new Exception("планът не влияе");
+            SetWorkPlan(PlanNo);
+            NoteWorkStarted();
+            if (WorkPlan != PlanYes) throw new Exception("пуснатата работа не направи деня работен");
+            var chat = Conversations.WorkPlan(this, again: false);
+            if (chat.Options.Length != 4 || chat.Text.Contains('{')) throw new Exception("въпросът за деня");
+            _save.WorkPlan = "";
+            _save.WorkPlanDay = "";
+        }, 200);
         await step("реплики с {храна}: всички полета се попълват", () =>
         {
             foreach (var key in new[] { "fav.wish", "fav.eaten", "memory.onefood", "memory.feast" })

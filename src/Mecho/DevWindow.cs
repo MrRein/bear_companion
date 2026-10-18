@@ -407,6 +407,20 @@ public sealed partial class PetWindow
         yield return (talk, "Гладен (въпрос)", () => { double f = _save.Fullness; _save.Fullness = 10; Ask(Conversations.Next(this)); _save.Fullness = f; });
         yield return (talk, "Уморен (въпрос)", () => { double e = _save.Energy; _save.Energy = 10; Ask(Conversations.Next(this)); _save.Energy = e; });
         yield return (talk, "SOS", Sos);
+        yield return (talk, "Въпросник: питай сега (неотговорен)", () =>
+        {
+            var q = Survey.NextUnanswered(_save, _rng) ?? Survey.All.Values.ElementAtOrDefault(_rng.Next(Math.Max(1, Survey.All.Count)));
+            if (q != null) Ask(Survey.Ask(this, q));
+        });
+        yield return (talk, "Въпросник: спомен от отговорите", () => Say(Survey.RemarkFor(_save, _rng) ?? "Още нищо не си ми казала.", 5));
+        yield return (talk, "Въпросник: отвори otgovori.txt", () =>
+        {
+            Survey.Export(_save);
+            if (!SelfTest.Running) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Survey.AnswersPath) { UseShellExecute = true });
+        });
+        yield return (talk, "Въпросник: забрави отговорите", () => { _save.Answers.Clear(); Survey.Export(_save); Persist(); });
+        yield return (talk, "„Ще се работи ли днес?“ – питай", () => Ask(Conversations.WorkPlan(this, again: false)));
+        yield return (talk, "Ден: забрави плана", () => { _save.WorkPlan = ""; _save.WorkPlanDay = ""; Say("Не знам какъв ден е днес.", 3); });
 
         yield return (modes, "Сам решава сега", () => { _freeUntil = 0; SetIdle(); });
         yield return (modes, "Работи си", WorkRandom);

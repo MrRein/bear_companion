@@ -90,6 +90,7 @@ public sealed partial class PetWindow
             _ => 1,
         };
         if (now.DayOfWeek == DayOfWeek.Friday && now.Hour >= 15) w *= 0.6;
+        w *= WorkPlanFactor;   // „Ще се работи ли днес?“
         if (_save.Energy < 15) w = 0;
         else if (_save.Energy < TiredBelow) w *= 0.5;
         return Math.Clamp(w, 0, 0.95);
@@ -123,9 +124,12 @@ public sealed partial class PetWindow
     private void MaybeOfferWork(double now)
     {
         if (now < _nextOffer) return;
-        _nextOffer = now + (Today == DayKind.Energetic ? Minutes(45, 90) : Today == DayKind.Lazy ? Minutes(150, 240) : Minutes(90, 150));
+        double gap = Today == DayKind.Energetic ? Minutes(45, 90) : Today == DayKind.Lazy ? Minutes(150, 240) : Minutes(90, 150);
+        // Каза, че днес се работи – по-често; че е по-леко – по-рядко; почивен ден – никак.
+        _nextOffer = now + gap / WorkPlanFactor;
+        if (WorkPlan == PlanNo) return;
         if (IsQuiet || InFocus || TimerRunning || IsAsleep || LateNight || NativeMethods.IdleSeconds() > 120) return;
-        Say(Lines.Pick(Lines.WorkOffer, _save.OwnerName), 8);
+        Say(WorkPlan == PlanYes && R.Has("plan.offer") && _rng.Next(2) == 0 ? R.Pick("plan.offer", _save.OwnerName) : Lines.Pick(Lines.WorkOffer, _save.OwnerName), 8);
         _offerUntil = now + 180;
     }
 

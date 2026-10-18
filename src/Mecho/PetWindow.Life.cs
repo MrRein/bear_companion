@@ -39,6 +39,8 @@ public sealed partial class PetWindow
         UpdateDelivery(now);
         UpdateSkyTalk(now);
         UpdateWishes(now);
+        UpdateRemarks(now);
+        UpdateWorkPlan(now);
     }
 
     // ── 1. Сутрешен ритуал ──

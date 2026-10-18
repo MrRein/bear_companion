@@ -11,7 +11,11 @@ namespace Mecho;
 public sealed record ChatOption(string Label, Action<PetWindow> Do);
 
 /// <summary>Въпрос (или реплика) на мечока с бутони за отговор.</summary>
-public sealed record ChatQuestion(string Text, params ChatOption[] Options);
+public sealed record ChatQuestion(string Text, params ChatOption[] Options)
+{
+    /// <summary>Свободен отговор: поле, в което Тут пише своето (null = само бутони).</summary>
+    public Action<PetWindow, string>? FreeText { get; init; }
+}
 
 /// <summary>
 /// Голямо балонче над мечока с въпрос и бутони. Затваря се с избор, Esc или
@@ -22,6 +26,14 @@ public sealed class ChatWindow : Window
     private readonly PetWindow _pet;
     private readonly TextBlock _text;
     private readonly StackPanel _options = new();
+    private readonly TextBox _free = new()
+    {
+        MaxWidth = 340,
+        MaxLength = 200,
+        TextWrapping = TextWrapping.Wrap,
+        Padding = new Thickness(4, 2, 4, 2),
+        Margin = new Thickness(0, 4, 0, 6),
+    };
 
     public ChatWindow(PetWindow pet)
     {
@@ -84,6 +96,31 @@ public sealed class ChatWindow : Window
             b.MaxWidth = 340;
             _options.Children.Add(b);
         }
+        // Свободен отговор: поле и „Отговори“ (Enter също).
+        if (question.FreeText is { } free)
+        {
+            _free.Text = "";
+            _options.Children.Add(new TextBlock { Text = "Или напиши своето:", Foreground = Muted, Margin = new Thickness(0, 6, 0, 0) });
+            _options.Children.Add(_free);
+            void Submit()
+            {
+                string text = _free.Text.Trim();
+                if (text.Length == 0) return;
+                Hide();
+                free(_pet, text);
+            }
+            _free.KeyDown -= _freeKey;
+            _freeKey = (_, e) =>
+            {
+                if (e.Key != Key.Enter) return;
+                e.Handled = true;
+                Submit();
+            };
+            _free.KeyDown += _freeKey;
+            var send = Button("Отговори", Submit, primary: true);
+            send.HorizontalAlignment = HorizontalAlignment.Right;
+            _options.Children.Add(send);
+        }
 
         // Първо се подрежда далеч от екрана и чак после застава над мечока –
         // иначе за миг се показваше на старото място (където мечокът беше преди).
@@ -101,5 +138,8 @@ public sealed class ChatWindow : Window
         Left = Math.Clamp(left, area.Left + 4, Math.Max(area.Left + 4, area.Right - ActualWidth - 4));
         Top = Math.Max(area.Top + 4, top);
         Activate();
+        if (question.FreeText != null) Dispatcher.BeginInvoke(() => _free.Focus(), System.Windows.Threading.DispatcherPriority.Input);
     }
+
+    private KeyEventHandler _freeKey = (_, _) => { };
 }

@@ -171,6 +171,14 @@ public sealed class SaveData
     public Guid? FocusTask { get; set; }                         // задачата, по която работим (мечо-доро/таймер)
     public PinState PinTasks { get; set; } = new();              // закаченото прозорче със задачите
     public PinState PinNotes { get; set; } = new();
+    public Dictionary<string, SurveyAnswer> Answers { get; set; } = new();   // въпросникът: id → какво отговори Тут
+    public string SurveyDay { get; set; } = "";                 // в кой ден е питал от въпросника
+    public int SurveysToday { get; set; }
+    public string RemarkDay { get; set; } = "";                 // спомня си отговорите: в кой ден и колко пъти
+    public int RemarksToday { get; set; }
+    public string WorkPlanDay { get; set; } = "";               // „Ще се работи ли днес?“ – за кой ден
+    public string WorkPlan { get; set; } = "";                  // yes / light / no / later („още не знам“)
+    public int WorkPlanAsks { get; set; }                       // колко пъти е питал днес
 
     public static string Folder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mecho");
@@ -238,6 +246,14 @@ public sealed class SaveData
 }
 
 public enum PomodoroPhase { Off, Focus, Break }
+
+/// <summary>Отговор от въпросника: избран бутон или написан текст.</summary>
+public sealed class SurveyAnswer
+{
+    public string Text { get; set; } = "";
+    public bool Free { get; set; }          // написан на ръка (не бутон)
+    public DateTime At { get; set; }
+}
 
 /// <summary>Задача от списъка на Тут.</summary>
 public sealed class TaskItem

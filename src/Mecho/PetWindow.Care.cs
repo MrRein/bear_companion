@@ -523,6 +523,7 @@ public sealed partial class PetWindow
     /// <summary>Тут пуска мечо-доро (поредицата почва отначало).</summary>
     public void StartFocus()
     {
+        NoteWorkStarted();
         _save.PomodoroSeriesLeft = Math.Max(0, _save.PomodoroSeries - 1);
         BeginFocus();
     }
@@ -648,6 +649,7 @@ public sealed partial class PetWindow
         if (minutes <= 0) return;
         if (TimerRunning && _save.TimerIsWork) PayForMinutes(_save.TimerMinutes - TimerLeft.TotalMinutes);
         bool work = kind == "work";
+        if (work) NoteWorkStarted();
         _save.TimerEndsAt = DateTime.Now.AddMinutes(minutes);
         _save.TimerMinutes = minutes;
         _save.TimerLabel = label.Trim().Length == 0 && work && FocusTask is { } ft ? ft.Title : label.Trim();

@@ -24,7 +24,15 @@ public static class Conversations
         new ChatOption("Таймер", p => p.OpenMenu(MenuWindow.PomodoroTab)),
         new ChatOption("Ще запиша задача", p => p.OpenMenu(MenuWindow.TasksTab)),
         new ChatOption("Ще запиша бележка", p => p.OpenMenu(MenuWindow.NotesTab)),
-        new ChatOption("Не сега", p => p.Cheer("Добре! Тук съм, ако потрябвам.")));
+        new ChatOption("Не сега", p => p.Cheer("Добре! Тук съм, ако потрябвам.")),
+        new ChatOption("🌴 Днес не се работи", p => { p.SetWorkPlan(PetWindow.PlanNo); p.Say(R.Pick("plan.no", p.Save.OwnerName), 5); }));
+
+    /// <summary>„Ще се работи ли днес?“ (веднъж на ден; „още не знам“ – пак по-късно).</summary>
+    public static ChatQuestion WorkPlan(PetWindow pet, bool again) => new(R.Pick(again ? "plan.ask.again" : "plan.ask", pet.Save.OwnerName),
+        new ChatOption("💪 Да, ще работим", p => { p.SetWorkPlan(PetWindow.PlanYes); p.Say(R.Pick("plan.yes", p.Save.OwnerName), 5); }),
+        new ChatOption("🙂 Малко, по-леко", p => { p.SetWorkPlan(PetWindow.PlanLight); p.Say(R.Pick("plan.light", p.Save.OwnerName), 5); }),
+        new ChatOption("🌴 Не, днес почивам", p => { p.SetWorkPlan(PetWindow.PlanNo); p.Say(R.Pick("plan.no", p.Save.OwnerName), 5); }),
+        new ChatOption("🤔 Още не знам", p => { p.SetWorkPlan(PetWindow.PlanLater); p.Say(R.Pick("plan.later", p.Save.OwnerName), 4); }));
 
     /// <summary>Колко често при цъкане пита за храна по нивото на глада (1 – страшно … 6 – леко).</summary>
     internal static double HungerAskChance(int level) => level switch
@@ -83,6 +91,9 @@ public static class Conversations
                 new ChatOption("🚶 Да, стани", p => p.GetUp()),
                 Reply("📖 Чети си", R.Any("conv.reading.keep")));
         }
+
+        // Понякога – въпрос от въпросника (за Тут: как рисува, какво обича…).
+        if (pet.MaybeSurvey() is { } survey) return survey;
 
         // Вградените теми и обикновените разговори от razgovori.txt (без скорошните).
         var topics = Topics.Select(t => t.Ask)

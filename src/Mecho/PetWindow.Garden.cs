@@ -159,8 +159,8 @@ public sealed partial class PetWindow
     /// <summary>Докъде я носи: с нея в лапите застава така, че като я остави, тя е на мястото си.</summary>
     private double CarrySpot => CarriesPlant ? PlantSpot - _plantSide * CarryGap : CareSpot;
 
-    /// <summary>Колко пред мечока е саксията, докато я носи.</summary>
-    private double CarryGap => SpriteWidth * 0.3;
+    /// <summary>Колко встрани от саксията застава, като я остави (носи я пред себе си).</summary>
+    private double CarryGap => PlantGap;
 
     /// <summary>Носи ли я сега в лапите (на път навън или обратно).</summary>
     private bool PlantInPaws => CarriesPlant && ((InGarden && _gardenPhase == 1) || _plantPushing);
@@ -189,9 +189,9 @@ public sealed partial class PetWindow
         double bottom = _save.PlantPlaced && !_plantPushing ? AreaAt(PlantSpot, _y - 1).Bottom + PixelSize : Ground(_y) + PixelSize;
         if (PlantInPaws)
         {
-            // В лапите, пред него (накъдето гледа), малко над земята.
-            center = _x + (_facingLeft ? -1 : 1) * CarryGap;
-            bottom -= SpriteHeight * 0.12;
+            // В лапите, точно пред него (hold/hold_walk са с лице напред), на височината на лапите.
+            center = _x;
+            bottom = _y - 9 * PixelSize;
         }
         bool shown = _plantOut > 0 && IsVisible;
         if (shown) _gardenWindow.Place(center - _plant.Width / 2, bottom - _plant.Height);
