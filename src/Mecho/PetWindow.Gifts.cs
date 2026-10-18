@@ -177,6 +177,7 @@ public sealed partial class PetWindow
         }
         double scale = PixelSize * 1.5;
         _giftWindow = new GiftWindow(this, _lib.GetProp(GiftArt(), 16, 16, 0).Image, _lib.GetProp(GiftArt(open: true), 16, 16, 0).Image, scale);
+        Companion(_giftWindow);
         _giftWindow.Closed += (_, _) => _giftWindow = null;
         var center = GiftCenter;
         var paws = new Point(_x, _bearRect.Top + _bearRect.Height * 0.66);

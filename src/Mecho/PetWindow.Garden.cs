@@ -177,6 +177,7 @@ public sealed partial class PetWindow
         {
             RenderOptions.SetBitmapScalingMode(_plant, BitmapScalingMode.NearestNeighbor);
             _gardenWindow = new OverlayWindow(_plant);
+            Companion(_gardenWindow);
         }
         DrawGarden();
     }
@@ -185,6 +186,12 @@ public sealed partial class PetWindow
     private void DrawGarden()
     {
         if (_gardenWindow == null) return;
+        // Сложеното растение стои в своя прозорец (UpdatePotWindow) – този на градинката не се показва.
+        if (PotShown)
+        {
+            _gardenWindow.Conceal();
+            return;
+        }
         _plant.Source = _lib.GetProp(PlantArt, (int)PlantW, (int)PlantH, 0).Image;
         _plant.Width = PlantW * PixelSize;
         _plant.Height = PlantH * PixelSize;

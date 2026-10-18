@@ -872,13 +872,18 @@ public sealed partial class PetWindow
             if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot);
             SetPlant(true);
             UpdatePlacedPlant();
-            if (_gardenWindow is not { Showing: true }) throw new Exception("сложеното растение не се вижда");
+            // Сложеното стои в свой прозорец – мести се с мишката като другите предмети.
+            if (_potWindow is not { IsVisible: true }) throw new Exception("сложеното растение не се вижда");
+            if (_gardenWindow is { Showing: true }) throw new Exception("растението се вижда два пъти");
             StartScene(Scenes.Plant, quiet: true);
+            UpdatePlacedPlant();
+            if (_potWindow != null) throw new Exception("в градинката саксията остана и в своя прозорец");
             LeaveScene();
             UpdatePlacedPlant();
-            if (!_save.PlantPlaced || _gardenWindow is not { Showing: true }) throw new Exception("сложеното растение изчезна след грижата");
+            if (!_save.PlantPlaced || _potWindow is not { IsVisible: true }) throw new Exception("сложеното растение изчезна след грижата");
             SetPlant(false);
-            if (_gardenWindow is { Showing: true }) throw new Exception("растението не се прибра");
+            UpdatePlacedPlant();
+            if (_potWindow != null || _gardenWindow is { Showing: true }) throw new Exception("растението не се прибра");
             InstantModes = instant;
         }, 300);
         await step("предмети: прави нещото само до предмета, иначе се връща", () =>

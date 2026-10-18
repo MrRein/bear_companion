@@ -210,7 +210,7 @@ public sealed partial class PetWindow
         if (Now > _heaterAskUntil) return false;
         _heaterAskUntil = 0;
         Ask(new ChatQuestion("Ще ми включиш ли печицата?",
-            new ChatOption("🔥 Включи я", p => { p.SetHeater(true); p.Say(Lines.Fill(R.Any("heater.on"), p.Save.OwnerName), 4); }),
+            new ChatOption("🌡 Включи я", p => { p.SetHeater(true); p.Say(Lines.Fill(R.Any("heater.on"), p.Save.OwnerName), 4); }),
             new ChatOption("Не сега", p => p.Say(R.Any("heater.notnow"), 3))));
         return true;
     }
@@ -228,6 +228,7 @@ public sealed partial class PetWindow
     public void SetHeaterPlaced(bool placed)
     {
         if (placed && !Kitchen.Owns(_save, Kitchen.Heater)) return;
+        if (placed && !_save.HeaterPlaced) _save.HeaterX = double.NaN;   // до мечока, не там, където е била
         if (placed) _save.HeaterOn = true;
         else _save.HeaterPlaced = false;
         Persist();
@@ -255,6 +256,7 @@ public sealed partial class PetWindow
             double x = double.IsNaN(_save.HeaterX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.5 : _save.HeaterX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _heaterWindow = new CookerWindow("Печица");
+            Companion(_heaterWindow);
             _heaterWindow.SetTime(null);
             _heaterWindow.Hint = "Печицата.";
             _heaterWindow.Clicked += () => Ask(_save.HeaterOn
@@ -263,7 +265,7 @@ public sealed partial class PetWindow
                     new ChatOption("Прибери я", p => p.SetHeaterPlaced(false)),
                     new ChatOption("Не, нека грее", p => p.Say(R.Any("heater.keep"), 3)))
                 : new ChatQuestion("Печицата е изключена. Да я включа ли?",
-                    new ChatOption("🔥 Включи я", p => { p.SetHeater(true); p.Say(Lines.Fill(R.Any("heater.on"), p.Save.OwnerName), 4); }),
+                    new ChatOption("🌡 Включи я", p => { p.SetHeater(true); p.Say(Lines.Fill(R.Any("heater.on"), p.Save.OwnerName), 4); }),
                     new ChatOption("Прибери я", p => p.SetHeaterPlaced(false)),
                     new ChatOption("Остави", _ => { })));
             _heaterWindow.Dropped += (cx, _) =>

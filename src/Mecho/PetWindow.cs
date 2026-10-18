@@ -292,14 +292,16 @@ public sealed partial class PetWindow : Window
         // анимациите вървят по истинското време, иначе спокойният мечок се
         // анимира по-бавно, а вдигнат (по-чест цикъл) – изведнъж „по-бързо“.
         double real = Math.Clamp(now - _lastTime, 0, 0.5);
-        double dt = Math.Min(real, 0.1);
+        // Докато Тут пише, цикълът е по-рядък: движението пак върви по истинското време (иначе се „забавя“).
+        double dt = Math.Min(real, _calm ? 0.35 : 0.1);
         _lastTime = now;
         _stateTime += real;
         UpdateTempo(now, real);
-        // Тут пише: мечокът замръзва на място (без анимация и без ходене), за да не
-        // „засича“ с прерисуване веднъж на 2 секунди; щом спре да пише, продължава.
-        bool typingPause = _calm;
-        if (!typingPause) _animTime += real * AnimSpeed;
+        // Тут пише: мечокът НЕ замръзва (така изглеждаше „забавен“) – продължава каквото
+        // прави, само прозорецът се прерисува по-рядко (виж Calm/CalmRedraw), за да не
+        // премигва курсорът в програмата, в която пише.
+        bool typingPause = false;
+        _animTime += real * AnimSpeed;
 
         switch (_state)
         {
@@ -380,7 +382,7 @@ public sealed partial class PetWindow : Window
         _calm = Calm(now);
         if (_freezeUntil > now) _calm = true;
         if (!IsVisible) UpdateTimerTag();   // скрит: само табелката до часовника
-        else if (!_calm || now - _lastDraw > 2)
+        else if (!_calm || now - _lastDraw > CalmRedraw)
         {
             _lastDraw = now;
             UpdateTimerTag();
@@ -415,6 +417,9 @@ public sealed partial class PetWindow : Window
     /// почти не товари процесора.
     /// </summary>
     private bool _calm, _typing;
+
+    /// <summary>Докато Тут пише: прерисува се най-много толкова често (с). По-рядко – курсорът не премигва; по-често – по-плавно.</summary>
+    private const double CalmRedraw = 0.3;
     private double _lastDraw, _cursorMovedAt, _freezeUntil;
     private System.Drawing.Point _typingCursor;
 
@@ -457,7 +462,7 @@ public sealed partial class PetWindow : Window
         int ms = smooth ? 100   // резервен (ако екранът не рисува кадри)
             : moving ? 66
             : !IsVisible ? 500
-            : _calm ? 200
+            : _calm ? 150
             : IsAsleep && _bubble.Visibility != Visibility.Visible && _food.Count == 0 ? 200
             : 66;
         if ((int)_timer.Interval.TotalMilliseconds != ms) _timer.Interval = TimeSpan.FromMilliseconds(ms);

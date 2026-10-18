@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Windows;
 using Mecho.Core;
 
 namespace Mecho;
@@ -16,6 +17,22 @@ public partial class PetWindow
     /// събитие днес не го забранява (болен – без батут). ВСИЧКИ, които избират занимание, питат тук.
     /// </summary>
     public bool CanDo(Scene scene) => Scenes.IsUnlocked(scene, _save) && !HobbyBlocked(scene);
+
+    /// <summary>
+    /// Прозорецът на предмет, храна, подарък… е „собственост“ на мечока: Windows го държи
+    /// винаги НАД мечока (мечокът се рисува зад всичко, което е до него).
+    /// </summary>
+    private void Companion(Window w)
+    {
+        try
+        {
+            if (IsLoaded && !ReferenceEquals(w, this)) w.Owner = this;
+        }
+        catch (InvalidOperationException)
+        {
+            // Мечокът още не е показан (рядко) – тогава без собственик.
+        }
+    }
 
     /// <summary>Абонира се за промените на предметите (вика се веднъж от конструктора).</summary>
     private void WireBehaviour()

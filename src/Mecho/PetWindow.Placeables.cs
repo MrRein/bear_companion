@@ -168,10 +168,65 @@ public sealed partial class PetWindow
 
     private bool _plantShownAsVisible;
 
+    private CookerWindow? _potWindow;
+    private string _potArtShown = "";
+
+    /// <summary>Сложеното от Тут растение стои в свой прозорец: мести се с мишката като другите предмети.</summary>
+    private bool PotShown => _save.PlantPlaced && Kitchen.Owns(_save, Kitchen.PlantPot) && !InGarden && !_plantPushing;
+
+    private void UpdatePotWindow()
+    {
+        if (!PotShown)
+        {
+            if (_potWindow != null)
+            {
+                _potWindow.Close();
+                _potWindow = null;
+                _potArtShown = "";
+            }
+            return;
+        }
+        _gardenWindow?.Conceal();   // докато стои само – в своя прозорец (не в този на градинката)
+        _plantOut = 1;
+        string artName = PlantArt;
+        var art = _lib.GetProp(artName, (int)PlantW, (int)PlantH, 0).Image;
+        if (_potWindow == null)
+        {
+            var area = AreaAt(_save.PlantX, _y - 1);
+            _potWindow = new CookerWindow("Растение");
+            Companion(_potWindow);
+            _potWindow.SetTime(null);
+            _potWindow.Hint = "Растението.";
+            _potWindow.Clicked += () => Ask(new ChatQuestion("Растението. Какво да правим?",
+                new ChatOption("🌱 Погрижи се за него", p => { if (p.CanDo(Scenes.Plant)) p.StartScene(Scenes.Plant, 120 + p._rng.Next(120)); }),
+                new ChatOption("Прибери го", p => p.SetPlant(false)),
+                new ChatOption("Остави", _ => { })));
+            _potWindow.Dropped += (cx, _) =>
+            {
+                var a = AreaAt(cx, _potWindow!.Top + _potWindow.ActualHeight / 2);
+                double half = PlantW * PixelSize * 0.7;
+                double nx = Math.Clamp(cx, a.Left + half, a.Right - half);
+                _potWindow.FallTo(nx, a.Bottom);
+                _save.PlantX = nx;
+                Persist();
+            };
+            _potWindow.SetAway(!IsVisible);
+            _potWindow.Place(art, PixelSize, _save.PlantX, area.Bottom);
+            _potArtShown = artName;
+        }
+        else if (artName != _potArtShown)
+        {
+            _potArtShown = artName;
+            _potWindow.SetArt(art, PixelSize);   // порасна
+        }
+        _potWindow.Step(0.033);
+    }
+
     /// <summary>Сложеното растение стои на мястото си (и се скрива/показва с мечока).</summary>
     private void UpdatePlacedPlant()
     {
-        if (!_save.PlantPlaced || InGarden || _plantPushing) return;
+        UpdatePotWindow();
+        if (!_save.PlantPlaced || InGarden || _plantPushing || PotShown) return;
         if (_gardenWindow == null || IsVisible != _plantShownAsVisible)
         {
             _plantShownAsVisible = IsVisible;
@@ -188,8 +243,8 @@ public sealed partial class PetWindow
     /// </summary>
     private void CloseDuplicatePlaceables()
     {
-        var keep = new Window?[] { _heaterWindow, _lampWindow, _radioWindow, _feederWindow };
-        foreach (string title in new[] { "Печица", "Лампа", "Радио", "Хранилка" })
+        var keep = new Window?[] { _heaterWindow, _lampWindow, _radioWindow, _feederWindow, _potWindow };
+        foreach (string title in new[] { "Печица", "Лампа", "Радио", "Хранилка", "Растение" })
         {
             var mine = keep.FirstOrDefault(w => w?.Title == title);
             foreach (var w in Application.Current.Windows.OfType<CookerWindow>().Where(w => w.Title == title && !ReferenceEquals(w, mine)).ToList())

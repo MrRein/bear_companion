@@ -47,6 +47,15 @@ public sealed partial class PetWindow
         /// <summary>Бонусите, докато е сложен (модификатори под „item.&lt;вид&gt;“). Вика се на 5 секунди.</summary>
         public virtual void Bonus() { }
 
+        /// <summary>Тут току-що го сложи: обикновено казва нещо (item.&lt;вид&gt;.placed), понякога не.</summary>
+        public virtual void Placed()
+        {
+            if (P._rng.NextDouble() < PlacedCommentChance) Line("placed", 4);
+        }
+
+        /// <summary>Колко често коментира сложеното (не всеки път, за да не е досаден).</summary>
+        protected virtual double PlacedCommentChance => 0.75;
+
         protected string Source => "item." + Kind;
 
         protected ModifierStack Mods => P.CoreEngine.Modifiers;
@@ -66,6 +75,16 @@ public sealed partial class PetWindow
 
     private void InitItems()
     {
+        // Тут сложи нещо: мечокът го забелязва и (обикновено) казва нещо – след миг, като се появи.
+        CoreEngine.Bus.Subscribe<ItemPlaced>(this, s =>
+        {
+            if (s.By != PlacedBy.Player) return;
+            Later(1.2, () =>
+            {
+                if (IsAsleep || IsQuiet || InFocus) return;
+                _items.FirstOrDefault(i => i.Kind == s.Kind && i.Present)?.Placed();
+            });
+        });
         _items = new PlacedItem[]
         {
             new HeaterItem(this),

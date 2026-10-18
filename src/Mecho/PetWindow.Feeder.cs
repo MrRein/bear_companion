@@ -30,6 +30,7 @@ public sealed partial class PetWindow
     public void SetFeeder(bool placed)
     {
         if (!Kitchen.Owns(_save, Kitchen.Feeder)) return;
+        if (placed && !_save.FeederPlaced) _save.FeederX = double.NaN;   // до мечока, не там, където е била
         _save.FeederPlaced = placed;
         Persist();
         NotifyCare();
@@ -50,9 +51,10 @@ public sealed partial class PetWindow
         if (_feederWindow == null)
         {
             var area = Area;
-            double x = double.IsNaN(_save.FeederX) ? (_x > area.Left + area.Width / 2 ? area.Left + area.Width * 0.2 : area.Right - area.Width * 0.2) : _save.FeederX;
+            double x = double.IsNaN(_save.FeederX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.6 : _save.FeederX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _feederWindow = new CookerWindow("Хранилка");
+            Companion(_feederWindow);
             _feederWindow.SetTime(null);
             _feederWindow.Hint = "Хранилката за птички.";
             _feederWindow.Clicked += () => Ask(new ChatQuestion(_save.FeederFood > 0 ? "Хранилката има семенца. Какво да правим?" : "Хранилката е празна. Да сложа ли семенца?",
@@ -170,6 +172,7 @@ public sealed partial class PetWindow
             _bird.RenderTransform = _birdFlip;
             _bird.RenderTransformOrigin = new Point(0.5, 0.5);
             _birdWindow = new OverlayWindow(_bird);
+            Companion(_birdWindow);
         }
         _bird.Width = _bird.Height = BirdArt * PixelSize;
         var area = Area;

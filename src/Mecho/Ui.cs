@@ -263,6 +263,28 @@ public static class Ui
         ["🥤"] = "food_smoothie", ["🍞"] = "food_toast", ["🥪"] = "food_sandwich_ham", ["🍌"] = "food_sandwich_honey",
         ["🟨"] = "food_waffle_honey", ["🟫"] = "food_waffle_choco", ["🍧"] = "food_waffle_icecream", ["🍦"] = "food_icecream_honey",
         ["🟣"] = "food_icecream_berry", ["🍢"] = "food_skewers", ["🫑"] = "food_veggies", ["🥖"] = "food_grilled_bread",
+        // Диалозите и разговорите (razgovori.txt): всяко емоджи – с най-близката пикселна иконка.
+        ["⏳"] = "hourglass", ["⏱"] = "clock", ["📅"] = "clock", ["😴"] = "emote_zzz", ["🥱"] = "emote_zzz", ["🛌"] = "bed",
+        ["🦉"] = "moon", ["🌑"] = "moon", ["🌕"] = "moon", ["🌌"] = "moon", ["🌠"] = "star", ["🤔"] = "emote_question",
+        ["❓"] = "emote_question", ["🤷"] = "emote_question", ["🤫"] = "quiet", ["🙊"] = "quiet", ["🤐"] = "quiet", ["🙉"] = "quiet",
+        ["😊"] = "emote_happy", ["😄"] = "emote_happy", ["🙂"] = "emote_happy", ["😂"] = "emote_happy", ["😅"] = "emote_sweat", ["😉"] = "emote_happy",
+        ["🥰"] = "heart", ["😌"] = "emote_happy", ["🤗"] = "heart", ["😋"] = "food", ["😐"] = "emote_sweat", ["😶"] = "emote_sweat",
+        ["😒"] = "emote_sweat", ["😳"] = "emote_sweat", ["🧱"] = "emote_sweat", ["👀"] = "emote_sweat", ["🤯"] = "emote_exclaim", ["😮"] = "emote_exclaim",
+        ["😲"] = "emote_exclaim", ["😱"] = "emote_exclaim", ["😤"] = "emote_sad", ["😣"] = "emote_sad", ["😔"] = "emote_sad", ["😩"] = "emote_sad",
+        ["😟"] = "emote_sad", ["🥀"] = "emote_sad", ["🤧"] = "emote_cold", ["❄"] = "w_snow", ["💛"] = "heart", ["💖"] = "heart",
+        ["💙"] = "heart", ["💚"] = "heart", ["🩶"] = "heart", ["✅"] = "check", ["👍"] = "check", ["🙆"] = "check",
+        ["🙋"] = "check", ["👏"] = "star", ["🙅"] = "close", ["🙈"] = "hide", ["🙏"] = "check", ["✏"] = "pencil",
+        ["🖊"] = "pencil", ["🖍"] = "pencil", ["🖌"] = "shop_easel", ["📄"] = "notes", ["📒"] = "notes", ["📧"] = "notes",
+        ["💪"] = "tasks", ["🚀"] = "star", ["✨"] = "emote_sparkle", ["🌟"] = "star", ["🎞"] = "picture", ["🎬"] = "picture",
+        ["🖼"] = "picture", ["🌄"] = "picture", ["📚"] = "book", ["📱"] = "game", ["💻"] = "shop_computer", ["📺"] = "game",
+        ["🃏"] = "board", ["🧩"] = "board", ["🎵"] = "music", ["🎤"] = "music", ["🎹"] = "music", ["🎙"] = "music",
+        ["🌲"] = "plant", ["🌳"] = "plant", ["🌿"] = "plant", ["🪴"] = "plant", ["🌵"] = "plant", ["🌸"] = "plant",
+        ["🌻"] = "shop_feeder", ["💧"] = "plant", ["☁"] = "w_cloud", ["🌧"] = "w_rain", ["☔"] = "w_rain", ["⛈"] = "w_storm",
+        ["🌤"] = "w_partly", ["🌪"] = "w_wind", ["🌞"] = "sun", ["🌅"] = "sun", ["🌇"] = "sun", ["🌴"] = "sun",
+        ["🏖"] = "sun", ["🏡"] = "couch", ["🏠"] = "couch", ["🍽"] = "food", ["🍜"] = "food", ["🍝"] = "food",
+        ["🥗"] = "food", ["🍰"] = "food", ["🥐"] = "food", ["🍎"] = "food", ["🥜"] = "nut", ["🧀"] = "food",
+        ["🍓"] = "food_berries", ["🍭"] = "food", ["🧣"] = "scarf", ["👕"] = "shirt", ["👖"] = "pajama", ["🧸"] = "bear",
+        ["🎈"] = "gift", ["🎄"] = "gift", ["🎂"] = "gift", ["🎆"] = "star", ["🏃"] = "walk",
     };
 
     /// <summary>

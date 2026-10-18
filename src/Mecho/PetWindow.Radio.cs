@@ -25,6 +25,7 @@ public sealed partial class PetWindow
     public void SetRadio(bool placed)
     {
         if (!Kitchen.Owns(_save, Kitchen.Radio)) return;
+        if (placed && !_save.RadioPlaced) _save.RadioX = double.NaN;   // до мечока, не там, където е било
         _save.RadioPlaced = placed;
         if (placed) _save.RadioOn = true;
         Persist();
@@ -53,6 +54,7 @@ public sealed partial class PetWindow
             double x = double.IsNaN(_save.RadioX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.8 : _save.RadioX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _radioWindow = new CookerWindow("Радио");
+            Companion(_radioWindow);
             _radioWindow.SetTime(null);
             _radioWindow.Hint = "Радиото.";
             _radioWindow.Clicked += () => Ask(new ChatQuestion(RadioPlaying ? "Да спра ли музиката?" : "Да пусна ли музика?",
@@ -98,6 +100,7 @@ public sealed partial class PetWindow
                 _notesCanvas.Children.Add(_notes[i]);
             }
             _notesWindow = new OverlayWindow(_notesCanvas);
+            Companion(_notesWindow);
         }
         for (int i = 0; i < _notes.Length; i++)
         {

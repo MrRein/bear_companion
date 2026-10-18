@@ -196,6 +196,7 @@ public sealed partial class PetWindow
         var (w, h) = BoxSize(d.Size);
         double x = Math.Clamp(_x + (_rng.Next(2) == 0 ? -1 : 1) * (SpriteWidth * 1.2 + _rng.Next(60)), area.Left + 40, area.Right - 40);
         _parcel = new CookerWindow("Доставка") { Hint = "Доставка! Цъкни, за да я отвориш." };
+        Companion(_parcel);
         _parcel.SetTime(null);
         _parcel.Clicked += OpenParcel;
         _parcel.SetAway(!IsVisible);

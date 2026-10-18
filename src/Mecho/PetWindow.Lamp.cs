@@ -33,6 +33,7 @@ public sealed partial class PetWindow
     public void SetLamp(bool on)
     {
         if (!Kitchen.Owns(_save, Kitchen.Lamp)) return;
+        if (on && !_save.LampPlaced) _save.LampX = double.NaN;   // до мечока, не там, където е била
         _save.LampPlaced = on;
         Persist();
         NotifyCare();
@@ -85,6 +86,7 @@ public sealed partial class PetWindow
             double x = double.IsNaN(_save.LampX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.2 : _save.LampX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _lampWindow = new CookerWindow("Лампа");
+            Companion(_lampWindow);
             _lampWindow.SetTime(null);
             _lampWindow.Hint = "Лампата свети.";
             _lampWindow.Clicked += () => Ask(new ChatQuestion("Да прибера ли лампата?",

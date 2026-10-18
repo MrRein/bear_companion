@@ -52,6 +52,7 @@ public sealed partial class PetWindow
         _lampWindow?.SetAway(!show);
         _radioWindow?.SetAway(!show);
         _feederWindow?.SetAway(!show);
+        _potWindow?.SetAway(!show);
         if (!show) _birdWindow?.Conceal();
         if (!show) _notesWindow?.Conceal();
         if (!show) HideGarden();
@@ -152,6 +153,7 @@ public sealed partial class PetWindow
         while (_lib.HasProp($"food_{food.ArtId}_{kinds + 1}")) kinds++;
         var prop = _lib.GetProp(kinds > 0 ? $"food_{food.ArtId}_{1 + _rng.Next(kinds)}" : "food_" + food.ArtId, 16, 16, 0);
         var w = new FoodWindow(this, food, fullness, energy, prop, PixelSize);
+        Companion(w);
         w.Left = from.X - w.Width / 2;
         w.Top = from.Y - w.Height / 2;
         double angle = fromCooker

@@ -124,6 +124,7 @@ public sealed partial class PetWindow
         if (_state is BearState.Idle or BearState.Walk) _facingLeft = x < _x;
 
         var window = new CookerWindow();
+        Companion(window);
         _cook = new Cooking
         {
             Food = food,

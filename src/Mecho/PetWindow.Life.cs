@@ -277,6 +277,7 @@ public sealed partial class PetWindow
         _visitorLast = Now;
         _visitorGreeted = false;
         _visitor = new CookerWindow("Пчеличка") { Hint = "Пчеличка! Цъкни я." };
+        Companion(_visitor);
         _visitor.SetTime(null);
         _visitor.Clicked += () => Say(R.Pick("visit.bee.click", _save.OwnerName), 3);
     }
