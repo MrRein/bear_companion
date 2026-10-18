@@ -95,6 +95,9 @@ public sealed partial class PetWindow : Window
     public PetWindow(SaveData save)
     {
         _save = save;
+        // Ядрото (шина, състояние, модули) – първо, защото всичко след това чете и пише
+        // данните през него (виж Engine/CoreSetup.cs и ARCHITECTURE.md).
+        CoreEngine = Engine.CoreSetup.Build(this, save, a => Dispatcher.BeginInvoke(a));
         R.Owner = () => _save.OwnerName;
         // Размерите на шрифта и иконките зависят от мащаба на екрана.
         Ui.Init(VisualTreeHelper.GetDpi(this).DpiScaleX);
@@ -155,8 +158,6 @@ public sealed partial class PetWindow : Window
         Content = _root;
         InitCare();
         InitPlaceables();
-        // Ядрото (шина, състояние, модули) – виж Engine/CoreSetup.cs и ARCHITECTURE.md.
-        CoreEngine = Engine.CoreSetup.Build(this, save, a => Dispatcher.BeginInvoke(a));
         Loaded += (_, _) =>
         {
             RestorePins();
@@ -209,6 +210,12 @@ public sealed partial class PetWindow : Window
             CoreEngine.Shutdown();
         };
     }
+
+    /// <summary>Какво прави мечокът – за ядрото (BearStatusState).</summary>
+    internal (bool Asleep, bool Working, bool Outside, string Activity) StatusForCore =>
+        (IsAsleep, InFocus || SelfWorking, OnWalk,
+         IsAsleep ? "sleep" : OnWalk ? "walk" : _onTrampoline ? "trampoline" : _inScene && _scene != null ? _scene.Id
+         : _eating != null ? "eating" : Cooks ? "cooking" : _state.ToString().ToLowerInvariant());
 
     /// <summary>Ядрото на играта (модулите, шината, състоянието).</summary>
     internal Mecho.Core.GameEngine CoreEngine { get; }

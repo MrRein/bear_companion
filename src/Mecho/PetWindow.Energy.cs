@@ -231,6 +231,8 @@ public sealed partial class PetWindow
     private void UpdateEnergy(double dt, double now)
     {
         double rate = EnergyRate();
+        // Събитията (болен ден…) може да ускорят умората: Mods.EnergyDrain в ядрото.
+        if (rate < 0) rate *= CoreEngine.Modifiers.Get(Mecho.Core.Mods.EnergyDrain);
         double e = _save.Energy;
         if (rate > 0) e = Math.Max(e, Math.Min(EnergyCap, e + rate * dt / 3600));
         else e += rate * dt / 3600;

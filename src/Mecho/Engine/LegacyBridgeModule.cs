@@ -4,50 +4,31 @@ using Mecho.Core;
 namespace Mecho.Engine;
 
 /// <summary>
-/// ВРЕМЕНЕН мост между стария код (PetWindow + SaveData) и шината. Докато механиките
-/// не са преместени в модули (фаза 3), той гледа старите данни веднъж в секунда и
-/// пуска сигналите, които новите модули ще слушат: NeedsChanged и SleepChanged.
-/// (HazelnutsChanged вече се пуска от EconomyModule – лешниците са в ядрото.) Така новите модули могат да се пишат още сега, а когато една механика
-/// мине в модул, тя сама пуска сигнала си и съответният ред тук се трие.
+/// ВРЕМЕНЕН мост между стария код (PetWindow) и ядрото, докато поведението на мечока
+/// не мине в модули. Веднъж в секунда съобщава какво прави мечокът (ReportBearStatus –
+/// спи ли, работи ли, навън ли е, кое занимание), за да могат модулите (нуждите,
+/// бъдещите събития) да го четат от BearStatusState, без да познават прозореца.
+/// Данните (лешници, притежавано, предмети, нужди) вече са в ядрото – мостът не ги пипа.
 /// </summary>
 public sealed class LegacyBridgeModule : GameModule
 {
     private readonly PetWindow _pet;
-    private readonly SaveData _save;
-    private double _fullness, _energy;
-    private bool _asleep;
 
     public LegacyBridgeModule(PetWindow pet, SaveData save)
     {
         _pet = pet ?? throw new ArgumentNullException(nameof(pet));
-        _save = save ?? throw new ArgumentNullException(nameof(save));
+        ArgumentNullException.ThrowIfNull(save);
     }
 
     public override string Id => "legacy.bridge";
 
-    protected override void OnRegister()
-    {
-        _fullness = _save.Fullness;
-        _energy = _save.Energy;
-        _asleep = _pet.IsAsleep;
-        Every("watch", 1, 1, Watch);
-    }
+    public override System.Collections.Generic.IReadOnlyCollection<string> DependsOn { get; } = new[] { BearStatusModule.ModuleId };
 
-    /// <summary>Сравнява със запомненото и пуска сигнал за всяка промяна.</summary>
-    internal void Watch()
+    protected override void OnRegister() => Every("status", 1, 1, Report);
+
+    internal void Report()
     {
-        // Нуждите: сигнал при промяна с поне 1 точка (не всеки кадър).
-        if (Math.Abs(_save.Fullness - _fullness) >= 1 || Math.Abs(_save.Energy - _energy) >= 1)
-        {
-            var signal = new NeedsChanged(_fullness, _save.Fullness, _energy, _save.Energy);
-            _fullness = _save.Fullness;
-            _energy = _save.Energy;
-            Emit(signal);
-        }
-        if (_pet.IsAsleep != _asleep)
-        {
-            _asleep = _pet.IsAsleep;
-            Emit(new SleepChanged(_asleep));
-        }
+        var (asleep, working, outside, activity) = _pet.StatusForCore;
+        Send(new ReportBearStatus(asleep, working, outside, activity));
     }
 }

@@ -64,7 +64,7 @@ public sealed class PajamaDayModule : GameModule                            // 3
 |---|---|---|---|---|---|
 | 1 | Лешници + притежавано | `EconomyModule` | `WalletState`, `InventoryState` | `EarnNuts`, `SpendNuts`, `Purchase`, `GrantItem`, `RevokeItem`, `SetInventory` → `HazelnutsChanged`, `ItemAcquired`, `ItemRevoked` | ✅ |
 | 1 | Предмети на земята | `PlacementModule` (зависи от economy) | `PlacementState` | `PlaceItem`, `RemoveItem`, `ReleaseByBear`, `SwitchItem`, `MoveItem`, `SetSupply` → `ItemPlaced`, `ItemRemoved`, `ItemSwitched`, `ItemMoved` | ✅ |
-| 2 | Нужди (глад, енергия, сън) | `NeedsModule` (поема спадането) | `NeedsState` | `Feed`, `Rest`, `Wake` → `NeedsChanged`, `SleepChanged` | следва |
+| 2 | Нужди (глад, енергия) + какво прави мечокът | `NeedsModule` (гладът спада тук, × `Mods.HungerRate`), `BearStatusModule` | `NeedsState`, `BearStatusState` | `AdjustNeeds`, `SetNeeds`, `ReportBearStatus` → `NeedsChanged`, `SleepChanged`, `ActivityChanged` | ✅ (енергията още се смята в `PetWindow.Energy`, но пише в ядрото и ползва `Mods.EnergyDrain`) |
 | 3 | Храна и готвене, желания | `KitchenModule` | `CookingState`, `WishesState` | `Cook`, `FinishCooking` → `FoodCooked`, `FoodEaten`, `WishFulfilled` | |
 | 4 | Работа: мечо-доро, таймери, задачи, план | `WorkModule` | `WorkState`, `TasksState` | `StartPomodoro`, `CompleteTask`… → `PomodoroFinished`, `TaskCompleted` | |
 | 5 | Магазин, гардероб, скинове, оферта, цел | `ShopModule`, `WardrobeModule` | `OutfitState`, `ShopState` | `Purchase` (вече), `Wear` → `OutfitChanged` | |

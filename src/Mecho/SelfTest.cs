@@ -1117,10 +1117,12 @@ public sealed partial class PetWindow
             if (CoreEngine.Modules.Modules.FirstOrDefault(m => m.Id == "legacy.bridge") is not { Status: Mecho.Core.ModuleStatus.Running })
                 throw new Exception("мостът към стария код не работи");
             // Вълна 1: лешниците, притежаваното и предметите на земята са само в ядрото.
-            foreach (var id in new[] { "economy", "placement" })
+            foreach (var id in new[] { "economy", "placement", "bear", "needs" })
                 if (!CoreEngine.Modules.IsRunning(id)) throw new Exception($"модулът {id} не работи");
             int nuts = CoreEngine.Store.Get<Mecho.Core.WalletState>().Nuts;
             if (_save.Hazelnuts != nuts || _save.LegacyHazelnuts != 0) throw new Exception("лешниците не са в ядрото");
+            var needs = CoreEngine.Store.Get<Mecho.Core.NeedsState>();
+            if (Math.Abs(needs.Energy - _save.Energy) > 0.001 || _save.LegacyEnergy != 0) throw new Exception("нуждите не са в ядрото");
             int before = nuts;
             _save.Hazelnuts += 3;   // стар код → команда → ядро
             if (CoreEngine.Store.Get<Mecho.Core.WalletState>().Nuts != before + 3) throw new Exception("старият код не пише в ядрото");
@@ -1251,8 +1253,14 @@ public sealed partial class PetWindow
             if (OnWalk) ReturnFromWalk(called: true);
             DevClearFood();
             HideBubble();
+            // Без плавния преход и без недовършена разходка/връщане от предишните стъпки
+            // (иначе понякога още върви, когато се проверява – нестабилен тест).
+            bool instant = InstantModes;
+            InstantModes = true;
+            _walkingOut = _walkingBack = _peeking = false;
             SetIdle();
             Relax(Scenes.Reading);
+            InstantModes = instant;
             if (!InAction)
                 throw new Exception($"не седна да чете: фокус={InFocus}, кътче={_inScene}/{_scene?.Id}, състояние={_state}/{_anim}, яде={_eating != null}, храна={WaitingForFood}, разходка={OnWalk}, спи={IsAsleep}");
             OnLeftClick();

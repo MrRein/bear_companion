@@ -196,7 +196,7 @@ public sealed partial class PetWindow
     private void UpdateCare(double dt, double now)
     {
         double h = dt / 3600;
-        _save.Fullness = Math.Clamp(_save.Fullness - (IsAsleep ? HungerAsleep : HungerAwake) * h, 0, 100);
+        // Гладът спада в ядрото (NeedsModule – по-бавно в съня, × модификатора на събитията).
         // Умора и почивка (виж PetWindow.Energy.cs).
         EnsureDayKind();
         double energyBefore = _save.Energy;

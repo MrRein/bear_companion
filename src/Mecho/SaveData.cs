@@ -26,8 +26,7 @@ public sealed class SaveData
     public DateTime LastSeen { get; set; }
 
     // Грижа (0–100)
-    public double Fullness { get; set; } = 80;
-    public double Energy { get; set; } = 90;
+
 
     // Прогрес
     public string GiftDay { get; set; } = "";                  // за кой ден е решено дали има подарък
@@ -185,6 +184,8 @@ public sealed class SaveData
             _bus.Send(new Mecho.Core.SetNuts(LegacyHazelnuts, "стар запис"));
         if (!st.WasLoaded(Mecho.Core.EconomyModule.InventoryKey))
             _bus.Send(new Mecho.Core.SetInventory(LegacyOwned ?? new List<string>(), LegacyOwnedClothes ?? new List<string>(), "стар запис"));
+        if (!st.WasLoaded(Mecho.Core.NeedsModule.Key))
+            _bus.Send(new Mecho.Core.SetNeeds(LegacyFullness, LegacyEnergy, "стар запис"));
         if (!st.WasLoaded(Mecho.Core.PlacementModule.Key))
         {
             void Put(string kind, bool placed, bool bear, bool on, bool onByBear, double x, int supply = 0, string offDay = "") =>
@@ -197,6 +198,7 @@ public sealed class SaveData
         }
         // Старите полета вече не се записват.
         LegacyHazelnuts = 0;
+        LegacyFullness = LegacyEnergy = 0;
         LegacyOwned = LegacyOwnedClothes = null;
         LegacyRadioPlaced = LegacyRadioOn = LegacyRadioAuto = LegacyRadioAutoOn = LegacyHeaterOn = LegacyLampPlaced = LegacyFeederPlaced = LegacyPlantPlaced = false;
         LegacyFeederFood = 0;
@@ -213,6 +215,29 @@ public sealed class SaveData
         {
             if (_bus == null) LegacyHazelnuts = value;
             else _bus.Send(new Mecho.Core.SetNuts(value, "стар код"));
+        }
+    }
+
+    // ── Нужди (вълна 2: NeedsModule; гладът спада в модула, енергията – още в PetWindow.Energy) ──
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double Fullness
+    {
+        get => _store?.Get<Mecho.Core.NeedsState>().Fullness ?? LegacyFullness;
+        set
+        {
+            if (_bus == null) LegacyFullness = value;
+            else _bus.Send(new Mecho.Core.SetNeeds(value, null, "стар код"));
+        }
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double Energy
+    {
+        get => _store?.Get<Mecho.Core.NeedsState>().Energy ?? LegacyEnergy;
+        set
+        {
+            if (_bus == null) LegacyEnergy = value;
+            else _bus.Send(new Mecho.Core.SetNeeds(null, value, "стар код"));
         }
     }
 
@@ -371,6 +396,8 @@ public sealed class SaveData
     // ── Само за четене на стари записи (преди ядрото); след Bind са празни и не се записват ──
     private const System.Text.Json.Serialization.JsonIgnoreCondition IfDefault = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault;
     [System.Text.Json.Serialization.JsonPropertyName("Hazelnuts"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public int LegacyHazelnuts { get; set; }
+    [System.Text.Json.Serialization.JsonPropertyName("Fullness"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public double LegacyFullness { get; set; } = 80;
+    [System.Text.Json.Serialization.JsonPropertyName("Energy"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public double LegacyEnergy { get; set; } = 90;
     [System.Text.Json.Serialization.JsonPropertyName("Owned"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public List<string>? LegacyOwned { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("OwnedClothes"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public List<string>? LegacyOwnedClothes { get; set; }
     [System.Text.Json.Serialization.JsonPropertyName("RadioPlaced"), System.Text.Json.Serialization.JsonIgnore(Condition = IfDefault)] public bool LegacyRadioPlaced { get; set; }
