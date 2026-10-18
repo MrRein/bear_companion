@@ -2338,7 +2338,8 @@ public sealed class MenuWindow : Window
         SetBar(_energyBar, _energyText, s.Energy, _pet.IsAsleep ? "спи…" : _pet.IsSick ? "болничък" : s.Energy switch
         {
             >= 70 => "бодър",
-            >= PetWindow.TiredBelow => "добре",
+            >= 50 => "добре",
+            >= PetWindow.TiredBelow => "поуморен",
             >= 15 => "уморен",
             _ => "капнал!",
         });
