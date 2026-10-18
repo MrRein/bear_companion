@@ -375,11 +375,28 @@ public sealed partial class PetWindow
         TodayRec.Petted++;
         Joy(JoyPetted);
         PetEnergy();
-        if (CanAnimateFreely) Play("happy");
+        React("happy");
     }
 
     /// <summary>Може ли да пусне анимация, без да прекъсне дивана, влаченето или съня.</summary>
     private bool CanAnimateFreely => !OnCouchMission && !_onTrampoline && !IsAsleep && _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce);
+
+    /// <summary>
+    /// Тръгнал е по задача (отива някъде с цел, носи нещо, изнася саксията…): кратка
+    /// реакция с Play би изтрила следващата стъпка (_afterAction) и би го оставила
+    /// „заседнал“ – затова тогава реагира само с емоция над главата.
+    /// </summary>
+    private bool OnErrand => _afterAction != null || _walkingOut || _walkingBack || _peeking || _plantPushing
+        || _giftRun != GiftRun.None || _pendingCook != null || _closet != null || _trip != null || _anchorWalk;
+
+    /// <summary>Кратка реакция (радост, танц) – само ако е свободен; иначе емоция, без да го прекъсва.</summary>
+    private void React(string anim, double length = 0)
+    {
+        if (CanAnimateFreely && !OnErrand && !_inScene && _state is BearState.Idle or BearState.Walk)
+            Play(anim, length: length);
+        else if (!IsAsleep)
+            Emote(anim == "dance" ? "sparkle" : "happy", 2);
+    }
 
     // ───────────────────────── Задачи ─────────────────────────
 
@@ -425,7 +442,7 @@ public sealed partial class PetWindow
         Say(Lines.Pick(task.Size switch { 3 => Lines.BigTaskDone, 2 => Lines.TaskDone, _ => Lines.SmallTaskDone }, _save.OwnerName) +
             $" +{task.Reward} 🌰" + page, 4);
 
-        if (CanAnimateFreely) Play(task.Size >= 3 ? "dance" : "happy", length: task.Size >= 3 ? 3 : 0);
+        React(task.Size >= 3 ? "dance" : "happy", task.Size >= 3 ? 3 : 0);
         Emote("sparkle");
         NotifyCare();
         Persist();
@@ -626,7 +643,7 @@ public sealed partial class PetWindow
             {
                 Say(Lines.Pick(Lines.BreakDone, _save.OwnerName), 6);
                 Sounds.Play(_save);
-                if (CanAnimateFreely) Play("happy");
+                React("happy");
             }
         }
         NotifyCare();
@@ -700,7 +717,7 @@ public sealed partial class PetWindow
         }
         else if (!work) { }
         else if (!InFocus) RelaxAfterWork();
-        else if (CanAnimateFreely) Play("dance", length: 3);
+        else React("dance", 3);
         NotifyCare();
         Persist();
     }

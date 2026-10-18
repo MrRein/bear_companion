@@ -43,7 +43,7 @@ public sealed class Updater
     public bool IsAvailable => LatestVersion > CurrentVersion && _zipUrl != null;
     public bool IsBusy { get; private set; }
 
-    private string? _zipUrl;
+    private string? _zipUrl, _hashUrl;
 
     private static HttpClient CreateClient()
     {
@@ -62,10 +62,12 @@ public sealed class Updater
             string tag = root.GetProperty("tag_name").GetString() ?? "";
             if (!int.TryParse(tag.TrimStart('v', 'V'), out int latest)) return Result.Failed;
 
-            _zipUrl = root.GetProperty("assets").EnumerateArray()
-                .Where(a => a.GetProperty("name").GetString() == "Mecho.zip")
+            string? Asset(string name) => root.GetProperty("assets").EnumerateArray()
+                .Where(a => a.GetProperty("name").GetString() == name)
                 .Select(a => a.GetProperty("browser_download_url").GetString())
                 .FirstOrDefault();
+            _zipUrl = Asset("Mecho.zip");
+            _hashUrl = Asset("Mecho.zip.sha256");
             LatestVersion = latest;
             string title = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
             LatestName = title.StartsWith("Версия ") ? title["Версия ".Length..].Trim() : latest.ToString();
@@ -88,7 +90,8 @@ public sealed class Updater
         IsBusy = true;
         try
         {
-            string work = Path.Combine(Path.GetTempPath(), "MechoUpdate");
+            // Отделна папка за всяка версия (стара, недовършена папка не пречи).
+            string work = Path.Combine(Path.GetTempPath(), $"MechoUpdate_v{LatestVersion}");
             if (Directory.Exists(work)) Directory.Delete(work, true);
             Directory.CreateDirectory(work);
 
@@ -96,6 +99,21 @@ public sealed class Updater
             await using (var stream = await Http.GetStreamAsync(_zipUrl))
             await using (var file = File.Create(zip))
                 await stream.CopyToAsync(file);
+
+            // Отпечатъкът (SHA-256) от версията трябва да съвпада – иначе архивът е
+            // повреден или подменен и не се инсталира. (Старите версии нямат отпечатък.)
+            if (_hashUrl != null)
+            {
+                string expected = (await Http.GetStringAsync(_hashUrl)).Trim().ToLowerInvariant();
+                string actual;
+                await using (var file = File.OpenRead(zip))
+                    actual = Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(file)).ToLowerInvariant();
+                if (expected.Length == 0 || actual != expected)
+                {
+                    CrashLog.Note($"Обновяването е спряно: отпечатъкът на Mecho.zip не съвпада ({actual} ≠ {expected}).");
+                    return false;
+                }
+            }
 
             string extracted = Path.Combine(work, "new");
             ZipFile.ExtractToDirectory(zip, extracted);

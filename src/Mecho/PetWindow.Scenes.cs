@@ -39,12 +39,16 @@ public sealed record Scene(
 public static class Scenes
 {
     /// <summary>Забавленията: кътчета, в които сяда сам, когато скучае, или когато Тут му каже „Почивай си“.</summary>
-    public static Scene[] Fun => new[] { Reading, Gaming, Tea, Yoga, Plant, Music, Knit, Guitar, Trampoline, BoardPlay, PaintFun };
+    // Пазят се (не се правят наново при всяко питане – питат се всеки кадър). Мързеливо,
+    // защото полетата със самите кътчета са по-надолу във файла.
+    public static Scene[] Fun => _fun ??= new[] { Reading, Gaming, Tea, Yoga, Plant, Music, Knit, Guitar, Trampoline, BoardPlay, PaintFun };
+
+    private static Scene[]? _fun, _work, _all;
 
     /// <summary>Работа (без мечо-доро): „Работи си“ – бюро, тефтер, настолна игра, статив.</summary>
-    public static Scene[] Work => new[] { Desk, Write, Board, Painting };
+    public static Scene[] Work => _work ??= new[] { Desk, Write, Board, Painting };
 
-    public static Scene[] All => Fun.Concat(Work).ToArray();
+    public static Scene[] All => _all ??= Fun.Concat(Work).ToArray();
 
     /// <summary>Работи на бюрото сам (без мечо-доро): мисли, скицира, пише.</summary>
     public static readonly Scene Desk = new("desk", "stool", "desk", 1, "focus",

@@ -293,14 +293,35 @@ public sealed partial class PetWindow
         _plantPushing = true;
         double inside = _plantSide < 0 ? Area.Left + SpriteWidth * 1.6 : Area.Right - SpriteWidth * 1.6;
         // Бута я (или я носи в лапите) до зад ръба, после се връща в екрана.
-        Later(0.05, () => WalkTo(BehindEdge - _plantSide * PlantGap * 0.2, () =>
+        Later(0.05, () =>
+        {
+            // Междувременно е тръгнал за друго (разходка, подарък, готвене, вдигнат):
+            // не го отклонява – саксията просто се прибира.
+            if (!_plantPushing || OnOtherErrand || _state is not (BearState.Idle or BearState.Walk))
+            {
+                _plantPushing = false;
+                _plantOut = 0;
+                HideGarden();
+                NotifyCare();
+                return;
+            }
+            PushPlantBack(inside);
+        });
+    }
+
+    /// <summary>Друга задача го е повикала (тогава не бута саксията обратно).</summary>
+    private bool OnOtherErrand => _walkingOut || _walkingBack || _giftRun != GiftRun.None || _pendingCook != null || _closet != null || _trip != null;
+
+    private void PushPlantBack(double inside)
+    {
+        WalkTo(BehindEdge - _plantSide * PlantGap * 0.2, () =>
         {
             _plantPushing = false;
             _plantOut = 0;
             HideGarden();
             NotifyCare();
             WalkTo(inside);
-        }));
+        });
     }
 
     private bool _plantPushing;

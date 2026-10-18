@@ -83,6 +83,15 @@ public sealed partial class PetWindow
         if (_onTrampoline) EndBounce(null);
         if (_inScene)
         {
+            // Нещата, сложени за заниманието, се прибират (при продължаване се слагат пак).
+            if (_scene == Scenes.Music) EndMusic();
+            if (_scene == Scenes.Plant && !_save.PlantPlaced)
+            {
+                _plantOut = 0;
+                HideGarden();
+            }
+            _sceneNear = null;
+            _anchorWalk = false;
             _cup = null;
             _inScene = false;
             _scene = null;

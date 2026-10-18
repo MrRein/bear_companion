@@ -40,10 +40,15 @@ jobs:
         shell: pwsh
         run: |
           $p = Start-Process -FilePath publish/Mecho/Mecho.exe -ArgumentList '--selftest' -Wait -PassThru
-          Get-Content "$env:APPDATA/Mecho/selftest.log"
+          # Самопроверката пише в отделна папка (не пипа истинския запис) – виж App.cs.
+          Get-Content "$env:TEMP/MechoSelfTest/selftest.log"
           if ($p.ExitCode -ne 0) { Write-Error "Самопроверката не мина (код $($p.ExitCode))"; exit 1 }
       - name: Zip
-        run: Compress-Archive -Path publish/Mecho -DestinationPath publish/Mecho.zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path publish/Mecho -DestinationPath publish/Mecho.zip
+          # Отпечатък на архива: мечокът го проверява, преди да се обнови.
+          (Get-FileHash publish/Mecho.zip -Algorithm SHA256).Hash.ToLower() | Set-Content -NoNewline publish/Mecho.zip.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: Mecho
@@ -55,5 +60,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NOTES: ${{ github.event.head_commit.message }}
         run: |
-          gh release create "v${{ github.run_number }}" publish/Mecho.zip \
+          gh release create "v${{ github.run_number }}" publish/Mecho.zip publish/Mecho.zip.sha256 \
             --title "Версия ${{ env.SEMVER }}" --notes "${NOTES:-Нова версия}"

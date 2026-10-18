@@ -63,6 +63,23 @@ public static class R
         return index == null ? line : line.Replace(index, value);
     }
 
+    /// <summary>
+    /// Реплика от раздела с попълнени полета: R.Text("cook.choose", owner, ("ястие", "супа"), ("уред", "тенджерата")).
+    /// {Поле} с главна буква получава стойността с главна буква. Това е начинът за
+    /// нов код (вместо .Replace("{…}") на място).
+    /// </summary>
+    public static string Text(string key, string owner, params (string Name, string Value)[] values)
+    {
+        string line = Pick(key, owner);
+        foreach (var (name, value) in values)
+        {
+            line = Put(line, name, value);
+            if (name.Length > 0 && value.Length > 0)
+                line = line.Replace("{" + char.ToUpper(name[0]) + name[1..] + "}", char.ToUpper(value[0]) + value[1..]);
+        }
+        return line;
+    }
+
     public static Dictionary<string, string[]> Load(string path)
     {
         var result = new Dictionary<string, string[]>();

@@ -129,7 +129,9 @@ public sealed partial class PetWindow
     /// <summary>Оставя подаръка в средата на екрана (дълго чака, вдигнаха го, заспа…) – чака да го цъкнеш.</summary>
     private void PutGiftDown()
     {
+        bool holding = _giftRun == GiftRun.Holding && _state == BearState.Busy && _anim == GiftHoldAnim;
         _giftRun = GiftRun.None;
+        if (holding) SetIdle();
         _peeking = false;
         if (_save.GiftPending) ShowGift(fromBear: true);
     }
@@ -139,9 +141,10 @@ public sealed partial class PetWindow
     {
         if (_giftRun != GiftRun.Holding || !_save.GiftPending) return false;
         _giftRun = GiftRun.None;
+        SetIdle();   // лапите са свободни
         Say(R.Pick("gift.giving", _save.OwnerName), 3);
         ShowGift(fromBear: true, open: true);
-        if (CanAnimateFreely) Play("happy");
+        React("happy");
         return true;
     }
 
@@ -155,7 +158,7 @@ public sealed partial class PetWindow
         Persist();
         ShowGift(fromBear: true);
         Say(Lines.Pick(Lines.GiftBrought, _save.OwnerName), 5);
-        if (CanAnimateFreely) Play("happy");
+        React("happy");
         _nextGiftReminder = Now + GiftReminder;
     }
 
@@ -210,14 +213,14 @@ public sealed partial class PetWindow
             bool learned = Kitchen.HasRecipe(before, _save);
             window.Reveal(_lib.GetProp("shop_cookbook", 16, 16, 0).Image, 5, "Страница от готварска книга!",
                 learned ? $"Научи {before.Name}!" : $"Следваща рецепта: {_save.RecipePages}/{need} страници.");
-            Later(1.2, () => Say(R.Put(R.Pick(learned ? "gift.got.recipe" : "gift.got.page", _save.OwnerName), "храна", before.Name.ToLowerInvariant()), 5));
+            Later(1.2, () => Say(R.Text(learned ? "gift.got.recipe" : "gift.got.page", _save.OwnerName, ("храна", before.Name.ToLowerInvariant())), 5));
         }
         else if (prizes.Count == 0)
         {
             int nuts = 5 + _rng.Next(11);
             _save.Hazelnuts += nuts;
             window.Reveal(_lib.GetProp("nut", 5, 6, 0).Image, 8, $"{nuts} лешника!", wardrobe ? "Имаш вече всичко, затова лешници." : "С гардероб тук може да има и дрехи.");
-            Later(1.2, () => Say(R.Pick("gift.got.nuts", _save.OwnerName).Replace("{число}", nuts.ToString()), 4));
+            Later(1.2, () => Say(R.Text("gift.got.nuts", _save.OwnerName, ("число", nuts.ToString())), 4));
         }
         else
         {
@@ -241,7 +244,7 @@ public sealed partial class PetWindow
                     break;
             }
         }
-        if (CanAnimateFreely) Play("dance", length: 2.5);
+        React("dance", 2.5);
         Persist();
         NotifyCare();
     }
@@ -306,7 +309,7 @@ public sealed partial class PetWindow
     {
         Later(1.2, () =>
         {
-            string line = R.Pick(key, _save.OwnerName).Replace("{нещо}", name.ToLowerInvariant());
+            string line = R.Text(key, _save.OwnerName, ("нещо", name.ToLowerInvariant()));
             if (InFocus || IsQuiet)
             {
                 Mutter(line, 4);
@@ -377,7 +380,7 @@ public sealed partial class PetWindow
         {
             Ask(new ChatQuestion($"{intro}\n\n„{m.Name}“", more, thanks));
         }
-        if (CanAnimateFreely && _state != BearState.Busy) Play("happy");
+        if (_state != BearState.Busy) React("happy");
     }
 
     private async System.Threading.Tasks.Task RefreshMotivations()

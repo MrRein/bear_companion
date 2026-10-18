@@ -204,7 +204,7 @@ public sealed partial class PetWindow
     {
         Say($"Научих нова рецепта… {food.Icon} {food.Name}! Виж в „Храна“.", 6);
         Emote("idea", 3);
-        if (CanAnimateFreely) Play("happy");
+        React("happy");
     }
 
     /// <summary>Рецепта, научена по време на работа: казва я, щом работата свърши.</summary>
@@ -278,7 +278,7 @@ public sealed partial class PetWindow
             var scene = Scenes.All.FirstOrDefault(f => f.Unlock == upgrade.Id);
             if (scene != null && !InFocus && !_save.StayPut && !IsAsleep && _state is not (BearState.Drag or BearState.Falling))
                 StartScene(scene, 180 + _rng.Next(120));
-            else if (CanAnimateFreely) Play("dance", length: 3);
+            else React("dance", 3);
         }
     }
 

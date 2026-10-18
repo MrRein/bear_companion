@@ -204,16 +204,10 @@ public sealed partial class PetWindow
     /// </summary>
     internal ChatQuestion? MaybeSurvey()
     {
-        string today = DayKey(DateTime.Today);
-        if (_save.SurveyDay != today)
-        {
-            _save.SurveyDay = today;
-            _save.SurveysToday = 0;
-        }
-        if (_save.SurveysToday >= 2 || _rng.Next(100) >= 30) return null;
+        if (_save.TodayCount("survey") >= 2 || _rng.Next(100) >= 30) return null;
         var q = Survey.NextUnanswered(_save, _rng);
         if (q == null) return null;
-        _save.SurveysToday++;
+        _save.CountToday("survey");
         return Survey.Ask(this, q);
     }
 
@@ -225,15 +219,9 @@ public sealed partial class PetWindow
         if (now < _nextRemark) return;
         _nextRemark = now + Minutes(45, 120);
         if (_save.Answers.Count == 0 || IsQuiet || InFocus || IsAsleep || IsResting || ChatIsOpen) return;
-        string today = DayKey(DateTime.Today);
-        if (_save.RemarkDay != today)
-        {
-            _save.RemarkDay = today;
-            _save.RemarksToday = 0;
-        }
-        if (_save.RemarksToday >= 3 || _rng.Next(3) > 0) return;
+        if (_save.TodayCount("survey.remark") >= 3 || _rng.Next(3) > 0) return;
         if (Survey.RemarkFor(_save, _rng) is not { } line) return;
-        _save.RemarksToday++;
+        _save.CountToday("survey.remark");
         Mutter(line, 5);
     }
 }

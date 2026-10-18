@@ -10,7 +10,12 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args.Contains("--selftest")) return SelfTest.Run();
+        if (args.Contains("--selftest"))
+        {
+            // Самопроверката не бива да пипа истинския запис (save.json, отговорите, perf.log…).
+            SaveData.UseFolder(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "MechoSelfTest"));
+            return SelfTest.Run();
+        }
 
         // Само един мечок наведнъж.
         using var mutex = new Mutex(true, "Mecho.SingleInstance", out bool first);
@@ -36,18 +41,39 @@ public static class Program
     }
 }
 
-/// <summary>Записва грешките в %AppData%\Mecho\crash.log (за да ги прати Тут при проблем).</summary>
+/// <summary>
+/// Записва грешките в %AppData%\Mecho\crash.log (за да ги прати Тут при проблем).
+/// Една и съща грешка се записва веднъж на 10 мин (иначе грешка в цикъла би писала
+/// по 30 пъти в секунда), а файлът се отрязва над 1 MB.
+/// </summary>
 public static class CrashLog
 {
     public static string Path => System.IO.Path.Combine(SaveData.Folder, "crash.log");
 
+    private static readonly System.Collections.Generic.Dictionary<string, DateTime> Seen = new();
+
     public static void Write(Exception? ex)
+    {
+        string key = ex == null ? "null" : ex.GetType().Name + ex.Message + ex.StackTrace?.Split('\n').FirstOrDefault();
+        lock (Seen)
+        {
+            if (Seen.TryGetValue(key, out var last) && DateTime.Now - last < TimeSpan.FromMinutes(10)) return;
+            Seen[key] = DateTime.Now;
+        }
+        Append($"── {DateTime.Now:yyyy-MM-dd HH:mm:ss}  версия {Updater.CurrentName}\n{ex}\n\n");
+    }
+
+    /// <summary>Бележка (не грешка) – например „заредено е резервното копие“.</summary>
+    public static void Note(string text) => Append($"── {DateTime.Now:yyyy-MM-dd HH:mm:ss}  {text}\n\n");
+
+    private static void Append(string text)
     {
         try
         {
             System.IO.Directory.CreateDirectory(SaveData.Folder);
-            System.IO.File.AppendAllText(Path,
-                $"── {DateTime.Now:yyyy-MM-dd HH:mm:ss}  версия {Updater.CurrentName}\n{ex}\n\n");
+            var file = new System.IO.FileInfo(Path);
+            if (file.Exists && file.Length > 1_000_000) System.IO.File.Move(Path, Path + ".old", true);
+            System.IO.File.AppendAllText(Path, text);
         }
         catch (Exception)
         {

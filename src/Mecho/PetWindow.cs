@@ -306,6 +306,7 @@ public sealed partial class PetWindow : Window
         RunLater(now);
         P("отложени неща");
         UpdateWalkAway();
+        CheckIntegrity(now);
         P("разходка");
         // На разходка (няма го): нищо не се случва – без подаръци, гости, пеперуди.
         if (!OnWalk)
@@ -1093,7 +1094,7 @@ public sealed partial class PetWindow : Window
     public void Cheer(string text)
     {
         Say(text, 4);
-        if (CanAnimateFreely && !IsReading) Play("happy");
+        if (!IsReading) React("happy");
     }
 
     public bool IsReading => _state == BearState.Couch && _scene == Scenes.Reading;

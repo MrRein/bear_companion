@@ -69,7 +69,7 @@ public sealed partial class PetWindow
         // Още не е пуснал уреда: казва какво е избрал („Ще направя супа! Да си взема
         // тенджерата…“); репликите за пуснат уред са, като се появи уредът.
         string first = food.Prep ?? food.Tool ?? "";
-        Say(R.Pick("cook.choose", _save.OwnerName).Replace("{ястие}", food.Name.ToLowerInvariant()).Replace("{уред}", ToolName(first)), 5);
+        Say(R.Text("cook.choose", _save.OwnerName, ("ястие", food.Name.ToLowerInvariant()), ("уред", ToolName(first))), 5);
         WalkTo(_x + dir * step, () =>
         {
             _facingLeft = dir < 0;
@@ -327,7 +327,7 @@ public sealed partial class PetWindow
                     c.NextCall = now + 35 + _rng.Next(25);
                     _facingLeft = c.Window.CenterX < _x;
                     Say(Lines.Pick(ReadyLines(c), _save.OwnerName), 5);
-                    if (CanAnimateFreely && _state == BearState.Idle) Play("happy");
+                    React("happy");
                 }
                 c.Window.SetArt(CookerArt((int)(now / 0.3) % 2 == 0 ? "" : "_b"), PixelSize);
                 return;
@@ -382,7 +382,7 @@ public sealed partial class PetWindow
         StartCooking(c.Food, c.Fullness, c.Energy, c.Cost, quiet: true, stage: 1);
         string next = ToolName(c.Food.Tool!);
         if (!InFocus) Say(R.Pick("cook.nextstep", _save.OwnerName).Replace("{уред}", next).Replace("{ястие}", c.Food.Name.ToLowerInvariant()), 4);
-        if (CanAnimateFreely && _state == BearState.Idle) Play("happy");
+        React("happy");
     }
 
     /// <summary>Уредът с член, за репликите („тенджерата“, „миксера“…).</summary>

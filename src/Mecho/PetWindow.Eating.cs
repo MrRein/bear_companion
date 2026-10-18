@@ -97,7 +97,6 @@ public sealed partial class PetWindow
         string today = DayKey(DateTime.Today);
         if (_save.WishDay == today) return;
         _save.WishDay = today;
-        _save.WishesAddedToday = 0;
         _save.WishList.Clear();
         var cravings = Kitchen.Cravings(_save);
         if (FavoriteFood is { } fav) _save.WishList.Add(fav.Id);
@@ -112,16 +111,16 @@ public sealed partial class PetWindow
         if (!_save.WishList.Remove(food.Id)) return;
         Persist();
         NotifyCare();
-        if (_save.WishesAddedToday >= 2 || _rng.NextDouble() > 0.15) return;
+        if (_save.TodayCount("wish.added") >= 2 || _rng.NextDouble() > 0.15) return;
         var options = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 5 && Kitchen.CanCook(f, _save)
             && f.Id != food.Id && !_save.WishList.Contains(f.Id) && !TodayRec.Foods.Contains(f.Id)).ToList();
         if (options.Count == 0) return;
         var next = options[_rng.Next(options.Count)];
         _save.WishList.Add(next.Id);
-        _save.WishesAddedToday++;
+        _save.CountToday("wish.added");
         Persist();
         NotifyCare();
-        Later(8, () => Mutter(R.Pick("wish.new", _save.OwnerName).Replace("{ястие}", next.Name.ToLowerInvariant()), 5));
+        Later(8, () => Mutter(R.Text("wish.new", _save.OwnerName, ("ястие", next.Name.ToLowerInvariant())), 5));
     }
 
     /// <summary>

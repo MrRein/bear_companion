@@ -30,7 +30,7 @@ public sealed partial class PetWindow
         if (step >= TutorialSteps.Length)
         {
             FinishTutorial();
-            if (CanAnimateFreely) Play("happy");
+            React("happy");
             return;
         }
         if (step == 0) _save.TutorialDone = false;

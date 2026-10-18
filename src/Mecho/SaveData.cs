@@ -172,19 +172,35 @@ public sealed class SaveData
     public PinState PinTasks { get; set; } = new();              // закаченото прозорче със задачите
     public PinState PinNotes { get; set; } = new();
     public Dictionary<string, SurveyAnswer> Answers { get; set; } = new();   // въпросникът: id → какво отговори Тут
-    public string SurveyDay { get; set; } = "";                 // в кой ден е питал от въпросника
-    public int SurveysToday { get; set; }
-    public string RemarkDay { get; set; } = "";                 // спомня си отговорите: в кой ден и колко пъти
-    public int RemarksToday { get; set; }
+    /// <summary>
+    /// Броячи „колко пъти днес“ (въпросник, спомени, нови желания…) – сами се нулират на
+    /// нов ден. Новите броячи да са тук (CountToday/TodayCount), а не като нова двойка
+    /// полета „XxxDay“ + „XxxToday“.
+    /// </summary>
+    public Dictionary<string, DayCounter> Daily { get; set; } = new();
     public List<string> WishList { get; set; } = new();        // какво му се иска (id-та на ястия) – изпълненото се маха
     public string WishDay { get; set; } = "";                   // за кой ден е списъкът
-    public int WishesAddedToday { get; set; }                   // нови желания през деня (след ядене)
     public string WorkPlanDay { get; set; } = "";               // „Ще се работи ли днес?“ – за кой ден
     public string WorkPlan { get; set; } = "";                  // yes / light / no / later („още не знам“)
     public int WorkPlanAsks { get; set; }                       // колко пъти е питал днес
 
-    public static string Folder =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mecho");
+    /// <summary>
+    /// Папката със записа (%AppData%\Mecho). Самопроверката и тестовете я сменят с
+    /// временна (UseFolder), за да не пипат истинския прогрес; може да се смени и с
+    /// променливата MECHO_DATA_DIR.
+    /// </summary>
+    public static string Folder => _folder ??=
+        Environment.GetEnvironmentVariable("MECHO_DATA_DIR") is { Length: > 0 } dir ? dir
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Mecho");
+
+    private static string? _folder;
+
+    /// <summary>Записът е в друга папка (самопроверка, тестове).</summary>
+    public static void UseFolder(string folder)
+    {
+        _folder = folder;
+        Directory.CreateDirectory(folder);
+    }
 
     public static string FilePath => Path.Combine(Folder, "save.json");
 
@@ -196,19 +212,73 @@ public sealed class SaveData
         Converters = { new JsonStringEnumConverter() },
     };
 
+    /// <summary>
+    /// Версията на формата на записа. Вдига се при всяка промяна, за която старите
+    /// записи трябва да се преправят (виж Migrate) – преименуване, смяна на тип,
+    /// преместване в раздел. Нови полета с подразбиране НЕ искат нова версия.
+    /// </summary>
+    public const int CurrentSchema = 1;
+
+    /// <summary>С каква версия е записан файлът (0 – от преди версиите).</summary>
+    public int SchemaVersion { get; set; }
+
+    /// <summary>Денят като ключ („2026-10-18“) – един и същ навсякъде.</summary>
+    public static string DayKey(DateTime day) => day.ToString("yyyy-MM-dd");
+
+    /// <summary>Колко пъти днес се е случило (0, ако е от друг ден).</summary>
+    public int TodayCount(string name) =>
+        Daily.TryGetValue(name, out var c) && c.Day == DayKey(DateTime.Today) ? c.Count : 0;
+
+    /// <summary>Още веднъж днес (на нов ден броенето почва от 1).</summary>
+    public int CountToday(string name)
+    {
+        string today = DayKey(DateTime.Today);
+        if (!Daily.TryGetValue(name, out var c)) Daily[name] = c = new DayCounter();
+        if (c.Day != today)
+        {
+            c.Day = today;
+            c.Count = 0;
+        }
+        return ++c.Count;
+    }
+
+    private static string Backup(int n) => Path.Combine(Folder, $"save.bak{n}.json");
+
+    /// <summary>
+    /// Чете записа. Повреден ли е – пази го като .bad и опитва резервните копия
+    /// (save.bak1, save.bak2); чак тогава почва отначало.
+    /// </summary>
     public static SaveData Load()
     {
-        try
+        if (!File.Exists(FilePath)) return new SaveData { SchemaVersion = CurrentSchema };
+        foreach (string path in new[] { FilePath, Backup(1), Backup(2) })
         {
-            if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<SaveData>(File.ReadAllText(FilePath), Options) ?? new SaveData();
+            try
+            {
+                if (!File.Exists(path)) continue;
+                var data = JsonSerializer.Deserialize<SaveData>(File.ReadAllText(path), Options);
+                if (data == null) continue;
+                if (path != FilePath) CrashLog.Note($"save.json беше повреден – зареден е {Path.GetFileName(path)}");
+                return Migrate(data);
+            }
+            catch (Exception ex)
+            {
+                if (path == FilePath)
+                {
+                    try { File.Copy(FilePath, FilePath + ".bad", true); } catch (Exception) { }
+                    CrashLog.Write(ex);
+                }
+            }
         }
-        catch (Exception)
-        {
-            // Повреден файл: започваме наново, но пазим стария за всеки случай.
-            try { File.Copy(FilePath, FilePath + ".bad", true); } catch (Exception) { }
-        }
-        return new SaveData();
+        return new SaveData { SchemaVersion = CurrentSchema };
+    }
+
+    /// <summary>Преправя стар запис до сегашната версия (стъпка по стъпка).</summary>
+    private static SaveData Migrate(SaveData s)
+    {
+        // if (s.SchemaVersion < 2) { … преместване/преименуване … }
+        s.SchemaVersion = CurrentSchema;
+        return s;
     }
 
     /// <summary>Запис от друг файл (резервното копие на Dev Mode); null, ако не става.</summary>
@@ -231,24 +301,47 @@ public sealed class SaveData
         File.WriteAllText(path, JsonSerializer.Serialize(this, Options));
     }
 
+    private static DateTime _lastBackup = DateTime.MinValue;
+    private static bool _saveErrorLogged;
+
     public void Save()
     {
         try
         {
             LastSeen = DateTime.Now;
+            SchemaVersion = CurrentSchema;
             Directory.CreateDirectory(Folder);
+            // Веднъж на час: резервно копие (последните две), за да има към какво да се върне.
+            if (File.Exists(FilePath) && DateTime.Now - _lastBackup > TimeSpan.FromHours(1))
+            {
+                _lastBackup = DateTime.Now;
+                if (File.Exists(Backup(1))) File.Copy(Backup(1), Backup(2), true);
+                File.Copy(FilePath, Backup(1), true);
+            }
             string tmp = FilePath + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(this, Options));
             File.Move(tmp, FilePath, true);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Записът не е толкова важен, че да спре мечока.
+            // Записът не е толкова важен, че да спре мечока – но се отбелязва (веднъж).
+            if (!_saveErrorLogged)
+            {
+                _saveErrorLogged = true;
+                CrashLog.Write(ex);
+            }
         }
     }
 }
 
 public enum PomodoroPhase { Off, Focus, Break }
+
+/// <summary>Брояч за един ден: в кой ден и колко пъти (виж SaveData.Daily).</summary>
+public sealed class DayCounter
+{
+    public string Day { get; set; } = "";
+    public int Count { get; set; }
+}
 
 /// <summary>Отговор от въпросника: избран бутон или написан текст.</summary>
 public sealed class SurveyAnswer

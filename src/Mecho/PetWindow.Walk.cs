@@ -46,12 +46,21 @@ public sealed partial class PetWindow
         // Работим (мечо-доро или работен таймер): „Добре, ти работи, аз ще се разходя.“
         string leave = _save.WalkNap ? "walk.leave.nap" : solo ? "walk.leave.solo" : InFocus ? "walk.leave.work" : "walk.leave";
         Say(R.Pick(leave, _save.OwnerName), 3);
-        // Към по-близкия ръб: средата му остава в екрана (иначе при два монитора ще
-        // излезе на другия), а стигне ли ръба, се скрива.
+        if (_state is BearState.Busy or BearState.Couch) SetIdle();
+        WalkOutToEdge();
+        NotifyCare();
+    }
+
+    /// <summary>
+    /// Към по-близкия ръб: средата му остава в екрана (иначе при два монитора ще
+    /// излезе на другия), а стигне ли ръба, се скрива. Вика се и наново, ако нещо го
+    /// е отклонило по пътя (виж CheckIntegrity).
+    /// </summary>
+    private void WalkOutToEdge()
+    {
         var area = Area;
         bool left = _x - area.Left < area.Right - _x;
         double edge = left ? area.Left + 1 : area.Right - 1;
-        if (_state is BearState.Busy or BearState.Couch) SetIdle();
         WalkTo(edge, () =>
         {
             if (!_walkingOut) return;
@@ -60,7 +69,6 @@ public sealed partial class PetWindow
             Hide();
             NotifyCare();
         });
-        NotifyCare();
     }
 
     private double _nextSoloWalk = 90 * 60;   // най-рано кога пак може да тръгне сам
@@ -114,7 +122,7 @@ public sealed partial class PetWindow
             _facingLeft = !left;
             Say(R.Pick(called ? "walk.called" : napped ? "walk.back.nap" : solo ? "walk.back.solo" : "walk.back", _save.OwnerName), 5);
             Emote(called ? "question" : "happy");
-            if (CanAnimateFreely) Play("happy");
+            React("happy");
         });
         NotifyCare();
     }
