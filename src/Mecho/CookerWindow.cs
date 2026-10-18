@@ -200,6 +200,17 @@ public sealed class CookerWindow : Window
 
     public double CenterX => _centerX;
 
+    /// <summary>Къде е предметът (в DIP), дори да е скрит: средата, дъното и размерът на рисунката.</summary>
+    public Rect Bounds
+    {
+        get
+        {
+            double w = _image.Width > 0 ? _image.Width : ActualWidth, h = _image.Height > 0 ? _image.Height : ActualHeight;
+            double bottom = Bottom;
+            return new Rect(_centerX - w / 2, bottom - h, w, h);
+        }
+    }
+
     /// <summary>Дъното на уреда на земята (ако пада – там, където ще кацне).</summary>
     public double Bottom => _falling ? _ground : _bottom;
 

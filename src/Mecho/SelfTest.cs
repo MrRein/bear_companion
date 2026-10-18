@@ -871,6 +871,45 @@ public sealed partial class PetWindow
             if (_gardenWindow is { Showing: true }) throw new Exception("растението не се прибра");
             InstantModes = instant;
         }, 300);
+        await step("предмети: прави нещото само до предмета, иначе се връща", () =>
+        {
+            bool instant = InstantModes;
+            InstantModes = true;
+            if (_inScene) LeaveScene();
+            SetIdle();
+            if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot);
+            var area = Area;
+            _x = area.Left + area.Width * 0.3;
+            SetPlant(true);
+            _save.PlantX = area.Left + area.Width * 0.7;
+            StartScene(Scenes.Plant, quiet: true);
+            _gardenPhase = 2;
+            _x = area.Left + area.Width * 0.2;   // „вдигнат и пуснат“ далече от растението
+            _tickDt = 0.1;
+            UpdateScene(Now);
+            if (!_anchorWalk || !_anim.StartsWith("walk")) throw new Exception("далече от растението, а не тръгна към него: " + _anim);
+            for (int i = 0; i < 400 && _anchorWalk; i++) UpdateScene(Now);
+            if (_anchorWalk || !NearAnchor(PlantAnchor)) throw new Exception("не стигна до растението");
+            if (_anim.StartsWith("walk")) throw new Exception("стигна, но не продължи с растението");
+            // Вдигнат: виси с „drag“, не полива във въздуха.
+            LiftUp();
+            if (_anim != "drag") throw new Exception("вдигнат, но анимацията е " + _anim);
+            SetState(BearState.Couch, "idle");
+            LeaveScene();
+            SetPlant(false);
+            SetIdle();
+            InstantModes = instant;
+        }, 300);
+        await step("желания: изпълненото се маха", () =>
+        {
+            _save.WishDay = "";
+            var w = Wishes();
+            if (w.Length == 0) throw new Exception("няма желания");
+            FulfillWish(w[0]);
+            if (Wishes().Contains(w[0])) throw new Exception("изпълненото желание остана");
+            _save.WishDay = "";
+            HideBubble();
+        }, 300);
         await step("плавен преход: „Почивай си“ мисли, после почва", () =>
         {
             InstantModes = false;
@@ -960,13 +999,32 @@ public sealed partial class PetWindow
             _giftWindow?.Close();
             _save.GiftPending = false;
             PresentGift();
-            if (_giftHold != GiftHold.Overhead || !_save.GiftPending) throw new Exception("не го подаде");
-        }, 5500);
-        await step("подарък в лапите: седи с него", () =>
+            if (_giftRun != GiftRun.Holding || !_save.GiftPending) throw new Exception("не го подаде");
+            if (_anim != GiftHoldAnim) throw new Exception("не държи подаръка с hold: " + _anim);
+            UpdateLayoutAndWindow();
+            if (_carry.Visibility != Visibility.Visible) throw new Exception("подаръкът не се вижда в лапите");
+        }, 1500);
+        await step("подарък: цъкаш – пуска го, долита в средата и се отваря", () =>
         {
-            if (_giftHold != GiftHold.Lap) throw new Exception("не седна с подаръка");
-            if (!OpenHeldGift()) throw new Exception("цъкането не отвори подаръка");
-            if (_save.GiftPending) throw new Exception("подаръкът остана неотворен");
+            if (!OpenHeldGift()) throw new Exception("цъкането не го подаде");
+            if (_giftWindow == null) throw new Exception("подаръкът не долетя");
+        }, 2500);
+        await step("подарък: отворен", () =>
+        {
+            if (_save.GiftPending) throw new Exception("подаръкът не се отвори сам");
+            _chat?.Hide();
+        }, 500);
+        await step("подарък: прекъснат – оставя го в средата", () =>
+        {
+            _giftWindow?.Close();
+            _save.GiftPending = false;
+            PresentGift();
+            SetIdle();          // прекъсна го (вдигнат, заспа…)
+            UpdateGifts(Now);
+            if (_giftRun != GiftRun.None || _giftWindow == null || !_save.GiftPending) throw new Exception("не го остави в средата");
+            _giftWindow.Close();
+            _save.GiftPending = false;
+            _chat?.Hide();
         }, 1500);
         await step("подарък: затвори", () => { _giftWindow?.Close(); SetIdle(); }, 300);
         await step("разходка", () =>

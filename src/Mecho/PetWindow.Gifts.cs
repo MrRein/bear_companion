@@ -8,16 +8,23 @@ using System.Windows.Media;
 namespace Mecho;
 
 // Подаръци: веднъж на ден (а някой ден нищо) мечокът излиза от екрана и се
-// връща с подарък в лапите (walk_gift): „Имам нещо за теб!“, вдига го над главата
-// (gift) и после седи и го държи (gift_hold), докато Тут не го цъкне. Ако чака
-// повече от 30 мин, го оставя до себе си. Подаръците са в различни цветове.
-// Вътре има дреха, тапет, скин на менюто, страница или лешници.
+// връща с подарък пред себе си (hold_walk): „Имам нещо за теб!“. После стои и го
+// държи (hold), докато Тут не го цъкне:
+//  • цъкнеш мечока – „Заповядай!“, пуска го, подаръкът долита в средата на
+//    екрана и се отваря сам;
+//  • дълго не го вземеш (или нещо го прекъсне – вдигнат, заспи, работа) – оставя
+//    го в средата на екрана, където чака да го цъкнеш;
+//  • като се отвори – мечокът коментира какво е и (дреха, тапет, меню) пита дали
+//    да го сложи веднага.
+// Подаръците са в различни цветове. Вътре има дреха, тапет, скин на менюто,
+// страница от готварската книга или лешници.
 public sealed partial class PetWindow
 {
     private const double GiftChance = 0.7;          // в 7 от 10 дни има подарък
     private const double GiftReminder = 15 * 60;    // напомня на 15 мин (през Mutter)
+    private const double GiftHoldMax = 10 * 60;     // толкова го държи, после го оставя в средата
 
-    private enum GiftRun { None, Leaving, Away, Returning }
+    private enum GiftRun { None, Leaving, Away, Returning, Holding }
 
     private GiftRun _giftRun;
     private double _giftDeadline;      // ако нещо го прекъсне, подаръкът пак идва
@@ -26,20 +33,18 @@ public sealed partial class PetWindow
     private readonly Image _carry = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
 
     private bool GiftAway => _giftRun == GiftRun.Away;
-    private bool CarriesGift => _giftRun == GiftRun.Returning || _giftHold != GiftHold.None;
 
-    // Подава подаръка: първо над главата, после седи с него в скута.
-    private enum GiftHold { None, Overhead, Lap }
-
-    private GiftHold _giftHold;
-    private const double GiftHoldMax = 30 * 60;   // след толкова седене го оставя до себе си
+    /// <summary>Подаръкът е в лапите му (носи го или го държи).</summary>
+    private bool CarriesGift => _giftRun is GiftRun.Returning or GiftRun.Holding;
 
     private string GiftSuffix => _save.GiftColor.Length > 0 ? "_" + _save.GiftColor : "";
 
     private string GiftArt(bool open = false) => "gift" + GiftSuffix + (open ? "_open" : "");
 
-    /// <summary>Анимацията с подаръка в лапите (в цвета на подаръка).</summary>
-    private string GiftWalk => _lib.Has("walk_gift" + GiftSuffix) ? "walk_gift" + GiftSuffix : "walk_gift";
+    /// <summary>Носи го пред себе си: hold_walk (стари рисунки: walk_gift в цвета на подаръка).</summary>
+    private string GiftWalk => _lib.Has("hold_walk") ? "hold_walk" : _lib.Has("walk_gift" + GiftSuffix) ? "walk_gift" + GiftSuffix : "walk_gift";
+
+    private string GiftHoldAnim => _lib.Has("hold") ? "hold" : "idle";
 
     private static readonly string[] GiftColors = { "", "pink", "green", "yellow", "purple", "red" };
 
@@ -87,7 +92,7 @@ public sealed partial class PetWindow
                 _giftRun = GiftRun.Returning;
                 _peeking = true;
                 var a = Area;
-                // Носи го в лапите (walk_gift) и спира малко навътре от ръба.
+                // Носи го пред себе си и спира малко навътре от ръба.
                 double spot = dir < 0 ? a.Left + SpriteWidth * 2.5 : a.Right - SpriteWidth * 2.5;
                 WalkTo(spot, PresentGift);
                 if (_lib.Has(GiftWalk)) _anim = GiftWalk;
@@ -95,56 +100,55 @@ public sealed partial class PetWindow
         });
     }
 
-    /// <summary>Върна се: „Имам нещо за теб!“, вдига подаръка над главата, после седи и го държи.</summary>
+    /// <summary>Върна се: „Имам нещо за теб!“ и стои, държейки подаръка пред себе си.</summary>
     private void PresentGift()
     {
-        _giftRun = GiftRun.None;
         _peeking = false;
         _save.GiftPending = true;
         _save.GiftAt = DateTime.MinValue;
         Persist();
-        _facingLeft = _x > Area.Left + Area.Width / 2;
         Say(R.Pick("gift.present", _save.OwnerName), 5);
         Emote("heart");
-        _giftHold = GiftHold.Overhead;
-        Play("happy", length: 4, after: HoldGift);   // ръцете горе, подаръкът над главата
+        HoldGift();
         _nextGiftReminder = Now + GiftReminder;
     }
 
-    /// <summary>Седи с подаръка в скута и чака Тут да го цъкне (най-много 30 мин).</summary>
+    /// <summary>Стои с подаръка в лапите (hold) и чака Тут да го цъкне.</summary>
     private void HoldGift()
     {
         if (!_save.GiftPending) return;
-        _giftHold = GiftHold.Lap;
-        Play("sit", length: GiftHoldMax, after: () =>   // седи, подаръкът в скута (gift_hold)
+        _giftRun = GiftRun.Holding;
+        Play(GiftHoldAnim, length: GiftHoldMax, after: () =>
         {
-            if (_giftHold == GiftHold.None) return;
+            if (_giftRun != GiftRun.Holding) return;
             Say(R.Pick("gift.putdown", _save.OwnerName), 4);
             PutGiftDown();
         });
     }
 
-    /// <summary>Оставя подаръка на земята до себе си (дълго чака, вдигнаха го…).</summary>
+    /// <summary>Оставя подаръка в средата на екрана (дълго чака, вдигнаха го, заспа…) – чака да го цъкнеш.</summary>
     private void PutGiftDown()
     {
-        _giftHold = GiftHold.None;
+        _giftRun = GiftRun.None;
+        _peeking = false;
         if (_save.GiftPending) ShowGift(fromBear: true);
     }
 
-    /// <summary>Тут цъкна мечока, докато държи подаръка: отваря се в лапите му.</summary>
+    /// <summary>Тут цъкна мечока, докато държи подаръка: пуска го, той долита в средата и се отваря.</summary>
     private bool OpenHeldGift()
     {
-        if (_giftHold == GiftHold.None || !_save.GiftPending) return false;
-        _giftHold = GiftHold.None;
+        if (_giftRun != GiftRun.Holding || !_save.GiftPending) return false;
+        _giftRun = GiftRun.None;
+        Say(R.Pick("gift.giving", _save.OwnerName), 3);
         ShowGift(fromBear: true, open: true);
+        if (CanAnimateFreely) Play("happy");
         return true;
     }
 
-    /// <summary>Оставя подаръка (за стари записи и Developer: направо на земята до него).</summary>
+    /// <summary>Оставя подаръка (стари записи, прекъснат път, Developer): направо в средата.</summary>
     private void DropGift()
     {
         _giftRun = GiftRun.None;
-        _giftHold = GiftHold.None;
         _peeking = false;
         _save.GiftPending = true;
         _save.GiftAt = DateTime.MinValue;
@@ -155,30 +159,41 @@ public sealed partial class PetWindow
         _nextGiftReminder = Now + GiftReminder;
     }
 
+    /// <summary>Средата на работната площ (там чака и се отваря подаръкът).</summary>
+    private Point GiftCenter
+    {
+        get
+        {
+            var a = Area;
+            return new Point(a.Left + a.Width / 2, a.Top + a.Height / 2);
+        }
+    }
+
+    /// <summary>Подаръкът долита от лапите му (или се появява) в средата; open – отваря се щом кацне.</summary>
     private void ShowGift(bool fromBear, bool open = false)
     {
-        if (_giftWindow is { IsVisible: true }) return;
-        var area = Area;
+        if (_giftWindow is { IsVisible: true })
+        {
+            if (open) _giftWindow.OpenWhenLanded();
+            return;
+        }
         double scale = PixelSize * 1.5;
         _giftWindow = new GiftWindow(this, _lib.GetProp(GiftArt(), 16, 16, 0).Image, _lib.GetProp(GiftArt(open: true), 16, 16, 0).Image, scale);
         _giftWindow.Closed += (_, _) => _giftWindow = null;
-        // На земята до мечока (от страната с повече място).
-        double side = _x > area.Left + area.Width / 2 ? -1 : 1;
-        var spot = new Point(Math.Clamp(_x + side * SpriteWidth, area.Left + 40, area.Right - 40), area.Bottom - 16 * scale / 2);
-        if (open)
-        {
-            // Отваря се направо в лапите му: над главата.
-            var head = new Point(_x, _bearRect.Top - 8 * scale);
-            _giftWindow.FlyIn(head, head);
-            OpenGift(_giftWindow);
-            return;
-        }
-        _giftWindow.FlyIn(fromBear ? new Point(_x, _bearRect.Top + _bearRect.Height / 2) : spot, spot);
+        var center = GiftCenter;
+        var paws = new Point(_x, _bearRect.Top + _bearRect.Height * 0.66);
+        _giftWindow.FlyIn(fromBear && IsVisible ? paws : center, center);
+        if (open) _giftWindow.OpenWhenLanded();
     }
 
     /// <summary>Тут цъкна подаръка: какво има вътре.</summary>
     internal void OpenGift(GiftWindow window)
     {
+        if (!_save.GiftPending)
+        {
+            window.Close();
+            return;
+        }
         _save.GiftPending = false;
         // Дрехи, аксесоари и тапети – само ако има гардероб.
         bool wardrobe = DailyOffer.HasWardrobe(_save);
@@ -195,14 +210,14 @@ public sealed partial class PetWindow
             bool learned = Kitchen.HasRecipe(before, _save);
             window.Reveal(_lib.GetProp("shop_cookbook", 16, 16, 0).Image, 5, "Страница от готварска книга!",
                 learned ? $"Научи {before.Name}!" : $"Следваща рецепта: {_save.RecipePages}/{need} страници.");
-            if (!learned) Say(Lines.Pick(Lines.GiftOpened, _save.OwnerName), 4);
+            Later(1.2, () => Say(R.Put(R.Pick(learned ? "gift.got.recipe" : "gift.got.page", _save.OwnerName), "храна", before.Name.ToLowerInvariant()), 5));
         }
         else if (prizes.Count == 0)
         {
             int nuts = 5 + _rng.Next(11);
             _save.Hazelnuts += nuts;
             window.Reveal(_lib.GetProp("nut", 5, 6, 0).Image, 8, $"{nuts} лешника!", wardrobe ? "Имаш вече всичко, затова лешници." : "С гардероб тук може да има и дрехи.");
-            Say($"Изненада! {nuts} лешника 🌰", 4);
+            Later(1.2, () => Say(R.Pick("gift.got.nuts", _save.OwnerName).Replace("{число}", nuts.ToString()), 4));
         }
         else
         {
@@ -212,17 +227,17 @@ public sealed partial class PetWindow
                     _save.OwnedClothes.Add(g.Id);
                     var art = GarmentPreview(g);
                     window.Reveal(art, Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 3, 8), g.Name, "Отиде в гардероба.");
-                    Say(Lines.Pick(Lines.GiftOpened, _save.OwnerName), 4);
+                    GiftReaction("gift.got.clothes", g.Name, "Да го облека ли сега?", p => p.WearGift(g));
                     break;
                 case UiTheme t:
                     _save.Owned.Add(t.Key);
                     window.Reveal(UiThemes.Preview(t), 4, $"Меню: {t.Name}", "Сложи го от гардероба → Меню.");
-                    Say(Lines.Pick(Lines.GiftOpened, _save.OwnerName), 4);
+                    GiftReaction("gift.got.theme", t.Name, "Да сменя ли менюто с него?", p => p.UseUiTheme(t));
                     break;
                 case Backdrop b:
                     _save.Owned.Add("bg_" + b.Id);
                     window.Reveal(BackdropImage(b), 2, $"Тапет: {b.Name}", "Сложи го от гардероба (Тапети) или с клик на портрета.");
-                    Say(Lines.Pick(Lines.GiftOpened, _save.OwnerName), 4);
+                    GiftReaction("gift.got.backdrop", b.Name, "Да го сложа ли за фон?", p => p.UseBackdrop(b));
                     break;
             }
         }
@@ -235,9 +250,13 @@ public sealed partial class PetWindow
     private void UpdateGifts(double now)
     {
         PlanGift();
-        if (_save.GiftPending && _giftWindow == null && _giftRun == GiftRun.None && _giftHold == GiftHold.None) ShowGift(fromBear: false);
-        // Държи подаръка, а нещо го прекъсна (вдигнаха го, заспа, пуснаха работа): оставя го.
-        if (_giftHold != GiftHold.None && _state != BearState.Busy) PutGiftDown();
+        if (_save.GiftPending && _giftWindow == null && _giftRun == GiftRun.None) ShowGift(fromBear: false);
+        // Държи подаръка, а нещо го прекъсна (вдигнаха го, заспа, пуснаха работа): оставя го в средата.
+        if (_giftRun == GiftRun.Holding && (_state != BearState.Busy || _anim != GiftHoldAnim))
+        {
+            if (DragTalk()) Say(R.Pick("gift.dropped", _save.OwnerName), 3);
+            PutGiftDown();
+        }
         if (_save.GiftPending && now > _nextGiftReminder && _nextGiftReminder > 0)
         {
             _nextGiftReminder = now + GiftReminder;
@@ -252,7 +271,7 @@ public sealed partial class PetWindow
             GiftRun.Away => _state == BearState.Busy,
             _ => true,
         };
-        if (_giftRun != GiftRun.None && (!onTrack || now > _giftDeadline))
+        if (_giftRun is GiftRun.Leaving or GiftRun.Away or GiftRun.Returning && (!onTrack || now > _giftDeadline))
         {
             var area = Area;
             _x = Math.Clamp(_x, area.Left + HalfWidth, area.Right - HalfWidth);
@@ -260,32 +279,15 @@ public sealed partial class PetWindow
         }
     }
 
-    /// <summary>Подаръкът в лапите му, докато се връща.</summary>
+    /// <summary>Подаръкът в лапите му (носи го или го държи): пред корема, на височината на лапите.</summary>
     private Rect CarryRect(Rect bear)
     {
-        bool on = CarriesGift;
+        bool on = CarriesGift && _state is BearState.Walk or BearState.Busy;
+        // Старата рисунка walk_gift е с подаръка в самата нея.
+        if (on && _anim.StartsWith("walk_gift") && _lib.Has(_anim)) on = false;
         _carry.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         if (!on) return Rect.Empty;
         var img = _lib.GetProp(GiftArt(), 16, 16, 0).Image;
-        // С подаръка в лапите (walk_gift) той е в самата рисунка.
-        if (_anim.StartsWith("walk_gift") && _lib.Has(_anim))
-        {
-            _carry.Visibility = Visibility.Collapsed;
-            return Rect.Empty;
-        }
-        // В скута: слоят gift_hold (32 x 32, колкото кадърът) отгоре на седналия мечок.
-        if (_giftHold == GiftHold.Lap && _lib.HasProp("gift_hold" + GiftSuffix))
-        {
-            var lap = _lib.GetProp("gift_hold" + GiftSuffix, 32, 32, 0).Image;
-            if (_carry.Source != lap)
-            {
-                _carry.Source = lap;
-                RenderOptions.SetBitmapScalingMode(_carry, BitmapScalingMode.NearestNeighbor);
-            }
-            _carry.Width = lap.PixelWidth * PixelSize;
-            _carry.Height = lap.PixelHeight * PixelSize;
-            return new Rect(bear.Left, bear.Top, _carry.Width, _carry.Height);
-        }
         if (_carry.Source != img)
         {
             _carry.Source = img;
@@ -294,12 +296,32 @@ public sealed partial class PetWindow
         double w = img.PixelWidth * PixelSize * 0.75, h = img.PixelHeight * PixelSize * 0.75;
         _carry.Width = w;
         _carry.Height = h;
-        double cx = bear.Left + bear.Width / 2 + (_facingLeft ? -1 : 1) * bear.Width * 0.12;
-        if (_giftHold == GiftHold.Overhead)   // вдигнат над главата
-            return new Rect(bear.Left + bear.Width / 2 - w / 2, bear.Top - h * 0.6 - Math.Abs(Math.Sin(Now * 5)) * PixelSize * 2, w, h);
-        if (_giftHold == GiftHold.Lap)        // в скута
-            return new Rect(bear.Left + bear.Width / 2 - w / 2, bear.Top + bear.Height * 0.62 - h / 2, w, h);
-        return new Rect(cx - w / 2, bear.Top + bear.Height * 0.55 - h / 2, w, h);
+        // hold/hold_walk са с лице напред: подаръкът е в средата, малко подскача при ходене.
+        double bob = _state == BearState.Walk ? Math.Abs(Math.Sin(Now * 8)) * PixelSize : 0;
+        return new Rect(bear.Left + bear.Width / 2 - w / 2, bear.Top + bear.Height * 0.68 - h / 2 - bob, w, h);
+    }
+
+    /// <summary>След отварянето: коментира подаръка и (дреха, меню, тапет) пита дали да го сложи.</summary>
+    private void GiftReaction(string key, string name, string question, Action<PetWindow> use)
+    {
+        Later(1.2, () =>
+        {
+            string line = R.Pick(key, _save.OwnerName).Replace("{нещо}", name.ToLowerInvariant());
+            if (InFocus || IsQuiet)
+            {
+                Mutter(line, 4);
+                return;
+            }
+            Ask(new ChatQuestion(line + " " + question,
+                new ChatOption("✨ Да, сложи го", p => { use(p); p.Say(R.Pick("gift.used", p.Save.OwnerName), 3); }),
+                new ChatOption("По-късно", p => p.Say(R.Pick("gift.later", p.Save.OwnerName), 3))));
+        });
+    }
+
+    /// <summary>Облича дрехата от подаръка (както от гардероба).</summary>
+    internal void WearGift(Garment g)
+    {
+        if (Clothes.Owns(_save, g)) Wear(g);
     }
 
     // ── Developer ──

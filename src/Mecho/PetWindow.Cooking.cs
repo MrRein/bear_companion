@@ -300,7 +300,7 @@ public sealed partial class PetWindow
                     if (_cook is not { Popped: false } cc) return;
                     cc.Going = false;
                     _facingLeft = faceLeft;
-                    Play(Stirs(cc.Tool) ? "cook" : "idle", length: Math.Max(2, cc.PopAt - Now + 1));
+                    PlayNear(CookerAnchor, Stirs(cc.Tool) ? "cook" : "idle", length: Math.Max(2, cc.PopAt - Now + 1));
                 });
             }
 
@@ -434,7 +434,7 @@ public sealed partial class PetWindow
             if (AtCooker(c))
             {
                 _facingLeft = c.Window.CenterX < _x;
-                Play(Stirs(c.Tool) ? "cook" : "idle", length: 3);
+                PlayNear(CookerAnchor, Stirs(c.Tool) ? "cook" : "idle", length: 3);
             }
             return true;
         }
@@ -459,7 +459,7 @@ public sealed partial class PetWindow
             {
                 _facingLeft = faceLeft;
                 Announce(Lines.Pick(talk.Check, _save.OwnerName), 3, food: true);
-                Play(Stirs(c.Tool) ? "cook" : "idle", length: 6 + _rng.Next(7));
+                PlayNear(CookerAnchor, Stirs(c.Tool) ? "cook" : "idle", length: 6 + _rng.Next(7));
             });
             return true;
         }
@@ -470,6 +470,7 @@ public sealed partial class PetWindow
             WalkTo(seat, () =>
             {
                 StartScene(Scenes.Sit, quiet: true);
+                _sceneNear = CookerAnchor;   // седи до уреда – премести ли го Тут, отива при него
                 _facingLeft = seatFace;
                 _sceneUntil = Now + 60 + _rng.Next(90);
                 if (!IsQuiet) Say(Lines.Pick(talk.Sit, _save.OwnerName), 3);
@@ -543,7 +544,7 @@ public sealed partial class PetWindow
         WalkTo(stand, () =>
         {
             _facingLeft = faceLeft;
-            Play(Stirs(c.Tool) ? "cook" : "idle", length: 4 + _rng.Next(3));
+            PlayNear(CookerAnchor, Stirs(c.Tool) ? "cook" : "idle", length: 4 + _rng.Next(3));
         });
         return true;
     }

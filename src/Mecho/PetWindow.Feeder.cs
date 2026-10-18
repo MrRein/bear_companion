@@ -91,7 +91,7 @@ public sealed partial class PetWindow
         WalkTo(cx + side * (SpriteWidth * 0.45 + 4 * PixelSize), () =>
         {
             _facingLeft = side > 0;
-            Play("doing", length: 3.5, after: () =>
+            PlayNear(FeederAnchor, "doing", length: 3.5, after: () =>
             {
                 _save.FeederFood = 3;
                 Persist();

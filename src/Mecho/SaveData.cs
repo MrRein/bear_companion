@@ -176,6 +176,9 @@ public sealed class SaveData
     public int SurveysToday { get; set; }
     public string RemarkDay { get; set; } = "";                 // спомня си отговорите: в кой ден и колко пъти
     public int RemarksToday { get; set; }
+    public List<string> WishList { get; set; } = new();        // какво му се иска (id-та на ястия) – изпълненото се маха
+    public string WishDay { get; set; } = "";                   // за кой ден е списъкът
+    public int WishesAddedToday { get; set; }                   // нови желания през деня (след ядене)
     public string WorkPlanDay { get; set; } = "";               // „Ще се работи ли днес?“ – за кой ден
     public string WorkPlan { get; set; } = "";                  // yes / light / no / later („още не знам“)
     public int WorkPlanAsks { get; set; }                       // колко пъти е питал днес

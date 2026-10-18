@@ -270,6 +270,7 @@ public sealed partial class PetWindow
         WalkTo(spot, () =>
         {
             StartScene(Scenes.Sit, quiet: true);
+            _sceneNear = HeaterAnchor;   // топли се само до печицата
             _facingLeft = side > 0;
             // Колкото по-студено, толкова по-дълго седи до нея (2–5 мин, в мраза до 10).
             _sceneUntil = Now + 120 + _rng.Next(180) + ColdLevel * 75;

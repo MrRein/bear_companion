@@ -461,9 +461,9 @@ public sealed partial class PetWindow
             });
         }
         yield return (giftNew, "Цял път: излиза и се връща", () => { _giftWindow?.Close(); _save.GiftPending = false; StartGiftRun(); });
-        yield return (giftNew, "Седи с подаръка", () => { _save.GiftPending = true; _giftHold = GiftHold.Lap; HoldGift(); });
-        yield return (giftNew, "Отвори подаръка в лапите", () => OpenHeldGift());
-        yield return (giftNew, "Остави го на земята", PutGiftDown);
+        yield return (giftNew, "Държи подаръка", () => { _giftWindow?.Close(); _save.GiftPending = true; HoldGift(); });
+        yield return (giftNew, "Подай го (като цъкнеш мечока)", () => OpenHeldGift());
+        yield return (giftNew, "Остави го в средата", PutGiftDown);
         yield return (garden, "Извади растението и се грижи", () => { if (!_save.Owned.Contains(Kitchen.PlantPot)) _save.Owned.Add(Kitchen.PlantPot); InstantModes = true; Relax(Scenes.Plant); InstantModes = false; });
         yield return (garden, "Прибери растението", () => { if (InGarden) { GetUp(); } });
         yield return (garden, "Полива (лейка)", () => DevPlantCare("wateringcan"));

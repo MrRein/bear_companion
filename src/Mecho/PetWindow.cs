@@ -283,7 +283,7 @@ public sealed partial class PetWindow : Window
             case BearState.Busy: UpdateBusy(); break;
             case BearState.Sleep: UpdateSleep(); break;
             case BearState.Falling: UpdateFalling(dt); break;
-            case BearState.Couch: UpdateScene(now); break;
+            case BearState.Couch: _tickDt = dt; UpdateScene(now); break;
             case BearState.Chase: if (!typingPause) UpdateChase(dt); break;
             case BearState.Jump: UpdateJump(dt); break;
             case BearState.Bounce: UpdateBounce(dt); break;
@@ -421,7 +421,7 @@ public sealed partial class PetWindow : Window
     {
         bool moving = IsVisible && !_calm && (_state is BearState.Walk or BearState.Chase or BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce
             || _bfActive || _visitor != null || _parcel is { IsFalling: true } || _peeking || _anim == "juggle" || _drops.Count > 0 || _birdPhase is 1 or 3 || Dressing || CookShaking || EmotePopping || _cook is { Window.IsFalling: true }
-            || FoodMoving() || (InGarden && _gardenPhase < 2) || _plantPushing);
+            || FoodMoving() || (InGarden && _gardenPhase < 2) || _plantPushing || _anchorWalk);
         // Тут пише, а мечокът върви: 15 кадъра в секунда стигат (не с всеки кадър на
         // екрана) – прозрачният прозорец „винаги отгоре“ не бива да товари писането.
         bool smooth = moving && !_typing;
@@ -594,6 +594,14 @@ public sealed partial class PetWindow : Window
 
     private void UpdateBusy()
     {
+        // Бъркаше/пълнеше нещо, а вече не е до него (преместиха предмета): спира.
+        if (BusyLostAnchor())
+        {
+            _busyNear = null;
+            _afterAction = null;
+            SetIdle();
+            return;
+        }
         if (_stateTime < _stateLength) return;
         if (_afterBusy == "sleep") EnterSleep(_sleepIsAway);
         else FinishThen();
@@ -662,6 +670,7 @@ public sealed partial class PetWindow : Window
 
     private void SetState(BearState state, string anim, double length = 0)
     {
+        _busyNear = null;   // кратко нещо с предмет: PlayNear я слага наново след Play
         // Ако го вдигнат или заспи, слиза от батута (батутът изчезва).
         if (_onTrampoline && state is BearState.Drag or BearState.Sleep or BearState.Couch)
         {
@@ -895,7 +904,8 @@ public sealed partial class PetWindow : Window
             else
                 Say(Lines.Pick(Lines.Dragged, _save.OwnerName), 2);
         }
-        SetState(BearState.Drag, _inScene ? _anim : "drag");
+        // В кътче за предмет (растение, радио, печица) не прави нещото във въздуха.
+        SetState(BearState.Drag, _inScene && _sceneNear == null ? _anim : "drag");
     }
 
     private double _lastDragTalk = -1000;

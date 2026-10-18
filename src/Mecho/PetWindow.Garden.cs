@@ -139,6 +139,7 @@ public sealed partial class PetWindow
         _gardenLast = Now;
         GrowPlantByTime();
         ShowGarden();
+        NotifyCare();   // „Сложи“ → Растение светва
     }
 
     /// <summary>Мястото на саксията, когато е издърпана (до ръба, вътре в екрана).</summary>
@@ -297,6 +298,7 @@ public sealed partial class PetWindow
             _plantPushing = false;
             _plantOut = 0;
             HideGarden();
+            NotifyCare();
             WalkTo(inside);
         }));
     }

@@ -73,22 +73,55 @@ public sealed partial class PetWindow
     private void FinishedAll(Food food)
     {
         Joy(JoyFed);
-        if (WishThanks(food)) return;
-        if (!ThankForMeal()) Say(DoneLine(food), 4);
+        bool thanked = WishThanks(food);
+        if (!thanked && !ThankForMeal()) Say(DoneLine(food), 4);
+        FulfillWish(food);
     }
 
-    /// <summary>Каквото иска днес (любимото със сърчице и желанията от „Желание“).</summary>
+    /// <summary>
+    /// Каквото му се иска сега (сърчицата в „Храна“ и разделът „Желание“). Всяка сутрин –
+    /// нов списък: любимото за деня и в някои дни още едно-две. Изпълненото се маха;
+    /// понякога след ядене се появява ново (за следващото хранене).
+    /// </summary>
     public Food[] Wishes()
     {
-        var list = new List<Food>();
-        // Едно желание = любимото за деня (със сърчицето); в някои дни (с много рецепти)
-        // – още едно-две от Kitchen.Cravings.
-        var cravings = Kitchen.Cravings(_save);
-        if (FavoriteFood is { } fav) list.Add(fav);
-        foreach (var f in cravings)
-            if (list.Count < cravings.Length && !list.Contains(f)) list.Add(f);
+        EnsureWishes();
         // Не му се иска нещо, което сега не може да се сготви (заключено).
-        return list.Where(f => Kitchen.CanCook(f, _save)).ToArray();
+        return _save.WishList.Select(id => Kitchen.Foods.FirstOrDefault(f => f.Id == id))
+            .Where(f => f != null && Kitchen.CanCook(f, _save)).ToArray()!;
+    }
+
+    /// <summary>Нов ден: нов списък с желания.</summary>
+    private void EnsureWishes()
+    {
+        string today = DayKey(DateTime.Today);
+        if (_save.WishDay == today) return;
+        _save.WishDay = today;
+        _save.WishesAddedToday = 0;
+        _save.WishList.Clear();
+        var cravings = Kitchen.Cravings(_save);
+        if (FavoriteFood is { } fav) _save.WishList.Add(fav.Id);
+        foreach (var f in cravings)
+            if (_save.WishList.Count < Math.Max(1, cravings.Length) && !_save.WishList.Contains(f.Id)) _save.WishList.Add(f.Id);
+    }
+
+    /// <summary>Получи желаното: маха го от списъка; понякога (рядко) му се дояжда нещо друго за следващия път.</summary>
+    private void FulfillWish(Food food)
+    {
+        EnsureWishes();
+        if (!_save.WishList.Remove(food.Id)) return;
+        Persist();
+        NotifyCare();
+        if (_save.WishesAddedToday >= 2 || _rng.NextDouble() > 0.15) return;
+        var options = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 5 && Kitchen.CanCook(f, _save)
+            && f.Id != food.Id && !_save.WishList.Contains(f.Id) && !TodayRec.Foods.Contains(f.Id)).ToList();
+        if (options.Count == 0) return;
+        var next = options[_rng.Next(options.Count)];
+        _save.WishList.Add(next.Id);
+        _save.WishesAddedToday++;
+        Persist();
+        NotifyCare();
+        Later(8, () => Mutter(R.Pick("wish.new", _save.OwnerName).Replace("{ястие}", next.Name.ToLowerInvariant()), 5));
     }
 
     /// <summary>

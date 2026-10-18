@@ -99,7 +99,11 @@ public sealed partial class PetWindow
                 {
                     Joy(JoyFed);
                     if (_drinkLast && _food.Count == 0) FinishedAll(drink);
-                    else Say(DoneLine(drink), 3);
+                    else
+                    {
+                        Say(DoneLine(drink), 3);
+                        FulfillWish(drink);
+                    }
                 }
                 _drinkFood = null;
                 LeaveScene();

@@ -11,8 +11,9 @@ using static Mecho.Ui;
 namespace Mecho;
 
 /// <summary>
-/// Подаръкът в средата на екрана: долита от мечока, леко подскача и чака
-/// клик. Като го отвориш, капакът хвръква и се вижда какво има вътре.
+/// Подаръкът в средата на екрана: долита от лапите на мечока и или се отваря
+/// сам (той го подаде), или леко подскача и чака клик. Като се отвори, капакът
+/// хвръква и се вижда какво има вътре.
 /// </summary>
 public sealed class GiftWindow : Window
 {
@@ -23,7 +24,10 @@ public sealed class GiftWindow : Window
     private readonly BitmapSource _open;
     private Point _from, _to;
     private double _t;
-    private bool _opened;
+    private bool _opened, _openWhenLanded;
+
+    /// <summary>Отваря се сам, щом кацне в средата (мечокът го подаде).</summary>
+    public void OpenWhenLanded() => _openWhenLanded = true;
     private DateTime _openedAt;
 
     public GiftWindow(PetWindow pet, BitmapSource closed, BitmapSource open, double scale)
@@ -97,6 +101,13 @@ public sealed class GiftWindow : Window
             // Дъга нагоре към средата.
             double k = _t / 0.8, ease = 1 - (1 - k) * (1 - k);
             NativeMethods.MoveWindow(this, _from.X + (_to.X - _from.X) * ease, _from.Y + (_to.Y - _from.Y) * ease - Math.Sin(Math.PI * k) * 80);
+            return;
+        }
+        // Подаден от мечока: каца и след миг се отваря сам.
+        if (_openWhenLanded && _t > 1.1)
+        {
+            NativeMethods.MoveWindow(this, _to.X, _to.Y);
+            _pet.OpenGift(this);
             return;
         }
         // Чака: подскача леко.

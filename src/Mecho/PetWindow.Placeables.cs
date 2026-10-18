@@ -34,18 +34,41 @@ public sealed partial class PetWindow
     /// <summary>Радиото е сложено от Тут (не от мечока за танц).</summary>
     public bool RadioPlacedByOwner => RadioPlaced && !_save.RadioAuto;
 
-    /// <summary>„Сложи“ → Радио: слага/прибира; сложеното от мечока става нейно.</summary>
+    /// <summary>
+    /// „Сложи“ → Радио. Светнало е и когато мечокът сам го е сложил (танцува) –
+    /// цъкането тогава спира танца и радиото се прибира. Иначе слага/прибира радиото на Тут.
+    /// </summary>
     public void ToggleRadioPlaced()
     {
-        if (_save.RadioAuto)
+        if (!RadioPlaced)
         {
-            _save.RadioAuto = false;
-            _save.RadioAutoOn = false;
-            Persist();
-            NotifyCare();
+            SetRadio(true);
             return;
         }
-        SetRadio(!RadioPlaced);
+        if (_inScene && _scene == Scenes.Music) GetUp();   // EndMusic маха сам сложеното
+        if (RadioPlaced) SetRadio(false);
+        _save.RadioAuto = _save.RadioAutoOn = false;
+        Persist();
+        NotifyCare();
+    }
+
+    /// <summary>Растението е навън: сложено от Тут или изнесено от мечока (грижи се за него).</summary>
+    public bool PlantOut => _save.PlantPlaced || InGarden;
+
+    /// <summary>
+    /// „Сложи“ → Растение. Светнало е и докато мечокът сам се грижи за него – цъкането
+    /// тогава спира грижата и той го прибира. Иначе слага/прибира саксията.
+    /// </summary>
+    public void TogglePlant()
+    {
+        if (!PlantOut)
+        {
+            SetPlant(true);
+            return;
+        }
+        if (InGarden) GetUp();
+        if (_save.PlantPlaced) SetPlant(false);
+        NotifyCare();
     }
 
     /// <summary>Къде застава да танцува до радиото и от коя страна.</summary>
@@ -140,12 +163,15 @@ public sealed partial class PetWindow
             var area = Area;
             _save.PlantX = Math.Clamp(x, area.Left + PlantW * PixelSize * 0.7, area.Right - PlantW * PixelSize * 0.7);
             _save.PlantPlaced = true;
+            _plantOut = 1;
+            _plantShownAsVisible = IsVisible;
             ShowGarden();
         }
         else
         {
             if (InGarden) GetUp();
             _save.PlantPlaced = false;
+            _plantShownAsVisible = false;
             if (!InGarden && !_plantPushing)
             {
                 _plantOut = 0;

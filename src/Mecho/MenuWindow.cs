@@ -596,15 +596,15 @@ public sealed class MenuWindow : Window
             if (!Kitchen.Owns(s, item)) return;
             var chip = Chip((Kitchen.Find(item)?.Icon ?? "") + " " + label, () => { toggle(); Refresh(false); });
             chip.Margin = new Thickness(0, 0, 6, 4);
-            chip.ToolTip = Tip(on ? "Сложено – цъкни, за да го прибереш." : "Цъкни, за да го сложиш до мечока.");
+            chip.ToolTip = Tip(on ? "Навън е – цъкни, за да го прибереш (ако мечокът го ползва, спира)." : "Цъкни, за да го сложиш до мечока.");
             SetOn(chip, on);
             _placeOptions.Children.Add(chip);
         }
         Add(Kitchen.Heater, "Печица", s.HeaterOn, () => _pet.SetHeater(!s.HeaterOn));
         Add(Kitchen.Lamp, "Лампа", _pet.LampOn, () => _pet.SetLamp(!_pet.LampOn));
-        Add(Kitchen.Radio, "Радио", _pet.RadioPlacedByOwner, _pet.ToggleRadioPlaced);
+        Add(Kitchen.Radio, "Радио", _pet.RadioPlaced, _pet.ToggleRadioPlaced);
         Add(Kitchen.Feeder, "Хранилка", _pet.FeederPlaced, () => _pet.SetFeeder(!_pet.FeederPlaced));
-        Add(Kitchen.PlantPot, "Растение", s.PlantPlaced, () => _pet.SetPlant(!s.PlantPlaced));
+        Add(Kitchen.PlantPot, "Растение", _pet.PlantOut, _pet.TogglePlant);
     }
     private Button _walkButton = null!;
 
@@ -825,7 +825,7 @@ public sealed class MenuWindow : Window
                     s.Energy >= Kitchen.FoodEnergyCap ? "Догоре – само със сън." : "Догоре – само със сън."));
 
             // Любимото за днес: сърчице (дадеш ли му го – радва се специално).
-            if (_pet.FavoriteFood?.Id == f.Id || wishes.Contains(f))
+            if (wishes.Contains(f))
             {
                 // Само сърчицето (без надпис): това му се иска днес.
                 var fav = IconText("heart", "");

@@ -394,6 +394,8 @@ public sealed partial class PetWindow
         _scene = scene;
         _inScene = true;
         _sceneUntil = 0;
+        _sceneNear = AnchorFor(scene);
+        _anchorWalk = false;
         if (Scenes.Fun.Contains(scene) && !TodayRec.Hobbies.Contains(scene.Id)) TodayRec.Hobbies.Add(scene.Id);
         LoadSceneArt(scene);
         _facingLeft = false;
@@ -417,6 +419,12 @@ public sealed partial class PetWindow
         }
         _facingLeft = false;
         SetState(BearState.Couch, SceneAnim(_scene));
+        // Кътче за предмет: първо се връща до предмета (FollowSceneAnchor), после продължава.
+        if (_sceneNear != null)
+        {
+            _anim = "idle";
+            _anchorWalk = true;
+        }
         ClampX();
     }
 
@@ -431,6 +439,8 @@ public sealed partial class PetWindow
         bool wasAuto = _autoBlock;
         _cup = null;
         _autoBlock = false;
+        _sceneNear = null;
+        _anchorWalk = false;
         _inScene = false;
         _scene = null;
         _sceneUntil = 0;
@@ -511,6 +521,9 @@ public sealed partial class PetWindow
             LeaveScene();
             return;
         }
+
+        // Кътче за предмет (растение, радио, печица, уред): далече е – първо отива до него.
+        if (FollowSceneAnchor(scene, _tickDt)) return;
 
         if (scene == Scenes.Wardrobe)
         {
