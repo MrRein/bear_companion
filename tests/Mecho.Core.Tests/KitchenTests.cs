@@ -52,6 +52,19 @@ public class KitchenTests
     }
 
     [Fact]
+    public void Lifted_bear_delays_the_cooking()
+    {
+        var (e, _) = Started();
+        var t = new DateTime(2026, 10, 18, 12, 0, 0);
+        Assert.False(e.Bus.Send(new DelayCook(TimeSpan.FromSeconds(10))).Ok);   // нищо не се готви
+        e.Bus.Send(new StartCook("soup", t, 3));
+        Assert.True(e.Bus.Send(new DelayCook(TimeSpan.FromSeconds(30))).Ok);
+        Assert.Equal(t.AddSeconds(30), e.Store.Get<CookingState>().ReadyAt);
+        e.Bus.Send(new DelayCook(TimeSpan.FromSeconds(-5)));                    // назад не се връща
+        Assert.Equal(t.AddSeconds(30), e.Store.Get<CookingState>().ReadyAt);
+    }
+
+    [Fact]
     public void Wishes_are_fulfilled_once_and_capped()
     {
         var (e, signals) = Started();

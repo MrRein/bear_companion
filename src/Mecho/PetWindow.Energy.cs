@@ -210,7 +210,6 @@ public sealed partial class PetWindow
     /// </summary>
     private double RestFactor(Scene s, double e)
     {
-        if (s == Scenes.Tea) return 1.2;
         if (s == Scenes.Reading) return HasCouch ? 1.2 : 1;
         if (s == Scenes.Music || s == Scenes.Guitar) return 1.1;
         if (s == Scenes.Knit) return 1.15;
@@ -413,7 +412,7 @@ public sealed partial class PetWindow
         LeaveWorkMode();
         if (!CanAnimateFreely || IsAsleep) return;
         double seconds = Math.Max(30, (_save.PomodoroEndsAt - DateTime.Now).TotalSeconds);
-        var tired = new[] { Scenes.Tea, Scenes.Reading, Scenes.Music, Scenes.Knit };
+        var tired = new[] { Scenes.Reading, Scenes.Music, Scenes.Knit };
         var fresh = new[] { Scenes.Yoga, Scenes.Plant, Scenes.Gaming, Scenes.Music, Scenes.Guitar };
         var pool = (_save.Energy < 50 ? tired : fresh).Where(CanDo).ToList();
         if (pool.Count == 0) pool = tired.Where(CanDo).ToList();

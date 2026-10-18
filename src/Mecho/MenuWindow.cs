@@ -513,14 +513,24 @@ public sealed class MenuWindow : Window
             Refresh(true);
         }, icon: "stop"));
         actions.Children.Add(_couchButton);
-        // Сложи: печица, лампа… (неща, които Тут слага на земята и прибира).
-        _placeButton = Wide(Button("Сложи", () =>
+        // Уреди (печица, лампа, радио…) и Мебели (бюро, диван, легло…): неща, които Тут
+        // слага на земята (мечокът ги носи) и прибира.
+        _placeButton = Wide(Button("Уреди", () =>
         {
-            _placeOpen = !_placeOpen;
+            _placeOpen = _placeGroup != PlaceGroup.Devices || !_placeOpen;
+            _placeGroup = PlaceGroup.Devices;
             _sleepOpen = _quietOpen = _walkOpen = false;
             Refresh(false);
         }, icon: "shop_heater"));
         actions.Children.Add(_placeButton);
+        _furnitureButton = Wide(Button("Мебели", () =>
+        {
+            _placeOpen = _placeGroup != PlaceGroup.Furniture || !_placeOpen;
+            _placeGroup = PlaceGroup.Furniture;
+            _sleepOpen = _quietOpen = _walkOpen = false;
+            Refresh(false);
+        }, icon: "couch"));
+        actions.Children.Add(_furnitureButton);
         // Рисувай – само със статива.
         _drawButton = Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil"));
         actions.Children.Add(_drawButton);
@@ -587,27 +597,47 @@ public sealed class MenuWindow : Window
     private readonly WrapPanel _sleepOptions = new(), _quietOptions = new(), _walkOptions = new();
     private bool _sleepOpen, _quietOpen, _walkOpen, _placeOpen;
     private readonly WrapPanel _placeOptions = new();
-    private Button _placeButton = null!;
+    private Button _placeButton = null!, _furnitureButton = null!;
 
-    /// <summary>Какво може да се сложи (само купеното): светнало = сложено; цъкане слага/прибира.</summary>
+    private enum PlaceGroup { Devices, Furniture }
+
+    private PlaceGroup _placeGroup = PlaceGroup.Devices;
+
+    /// <summary>Уредите за слагане (печица, лампа…), по ред.</summary>
+    private static readonly string[] Devices = { Kitchen.Heater, Kitchen.Lamp, Kitchen.Radio, Kitchen.Feeder, Kitchen.PlantPot };
+
+    /// <summary>Какво може да се сложи (само купеното): светнало = сложено (или го носи); цъкане слага/прибира.</summary>
     private void BuildPlaceOptions()
     {
         var s = _pet.Save;
         _placeOptions.Children.Clear();
-        void Add(string item, string label, bool on, Action toggle)
+        void Add(string item, string label, bool on)
         {
             if (!Kitchen.Owns(s, item)) return;
-            var chip = Chip((Kitchen.Find(item)?.Icon ?? "") + " " + label, () => { toggle(); Refresh(false); });
+            on |= _pet.Carrying(item);
+            var chip = Chip((Kitchen.Find(item)?.Icon ?? "") + " " + label, () => { _pet.ToggleFromMenu(item); Refresh(false); });
             chip.Margin = new Thickness(0, 0, 6, 4);
-            chip.ToolTip = Tip(on ? "Навън е – цъкни, за да го прибереш (ако мечокът го ползва, спира)." : "Цъкни, за да го сложиш до мечока.");
+            chip.ToolTip = Tip(on ? "Навън е – цъкни, за да го прибереш (ако мечокът го ползва, спира)." : "Цъкни: мечокът ще го сложи (зает ли е – появява се до него).");
             SetOn(chip, on);
             _placeOptions.Children.Add(chip);
         }
-        Add(Kitchen.Heater, "Печица", s.HeaterPlaced, () => _pet.SetHeaterPlaced(!s.HeaterPlaced));
-        Add(Kitchen.Lamp, "Лампа", _pet.LampOn, () => _pet.SetLamp(!_pet.LampOn));
-        Add(Kitchen.Radio, "Радио", _pet.RadioPlaced, _pet.ToggleRadioPlaced);
-        Add(Kitchen.Feeder, "Хранилка", _pet.FeederPlaced, () => _pet.SetFeeder(!_pet.FeederPlaced));
-        Add(Kitchen.PlantPot, "Растение", _pet.PlantOut, _pet.TogglePlant);
+        if (_placeGroup == PlaceGroup.Devices)
+        {
+            Add(Kitchen.Heater, "Печица", s.HeaterPlaced);
+            Add(Kitchen.Lamp, "Лампа", _pet.LampOn);
+            Add(Kitchen.Radio, "Радио", _pet.RadioPlaced);
+            Add(Kitchen.Feeder, "Хранилка", _pet.FeederPlaced);
+            Add(Kitchen.PlantPot, "Растение", _pet.PlantOut);
+            return;
+        }
+        Add(Kitchen.Desk, "Бюро", _pet.FurniturePlaced(Kitchen.Desk));
+        Add(Kitchen.Computer, "Компютър", _pet.FurniturePlaced(Kitchen.Computer));
+        Add(Kitchen.Easel, "Статив", _pet.FurniturePlaced(Kitchen.Easel));
+        Add(Kitchen.BoardGame, "Настолна игра", _pet.FurniturePlaced(Kitchen.BoardGame));
+        Add(Kitchen.YarnBasket, "Кошница с прежда", _pet.FurniturePlaced(Kitchen.YarnBasket));
+        Add(Kitchen.Couch, "Диван", _pet.FurniturePlaced(Kitchen.Couch));
+        Add(Kitchen.YogaMat, "Постелка", _pet.FurniturePlaced(Kitchen.YogaMat));
+        Add(Kitchen.Bed, "Легло", _pet.FurniturePlaced(Kitchen.Bed));
     }
     private Button _walkButton = null!;
 
@@ -2363,10 +2393,13 @@ public sealed class MenuWindow : Window
                 _weatherRow.ToolTip = tip;
             }
         }
-        bool canPlace = new[] { Kitchen.Heater, Kitchen.Lamp, Kitchen.Radio, Kitchen.Feeder }.Any(i => Kitchen.Owns(s, i));
-        _placeButton.Visibility = canPlace ? Visibility.Visible : Visibility.Collapsed;
-        if (!canPlace) _placeOpen = false;
-        SetOn(_placeButton, _placeOpen);
+        bool canDevices = Devices.Any(i => Kitchen.Owns(s, i));
+        bool canFurniture = PetWindow.FurnitureKinds.Any(i => Kitchen.Owns(s, i));
+        _placeButton.Visibility = canDevices ? Visibility.Visible : Visibility.Collapsed;
+        _furnitureButton.Visibility = canFurniture ? Visibility.Visible : Visibility.Collapsed;
+        if (_placeGroup == PlaceGroup.Devices ? !canDevices : !canFurniture) _placeOpen = false;
+        SetOn(_placeButton, _placeOpen && _placeGroup == PlaceGroup.Devices);
+        SetOn(_furnitureButton, _placeOpen && _placeGroup == PlaceGroup.Furniture);
         BuildPlaceOptions();
         _placeOptions.Visibility = _placeOpen ? Visibility.Visible : Visibility.Collapsed;
         if (_pet.IsAsleep) SetButton(_sleepButton, "Събуди", "sun");

@@ -66,8 +66,8 @@ public static class Furniture
         [Kitchen.Guitar] = Of(Kitchen.Guitar, (Classic, "Акустична китара", 0), ("electric", "Червена електрическа", 35),
             ("ukulele", "Укулеле", 20), ("blue", "Синя китара", 25), ("star", "Китара звезда", 30)),
         [Kitchen.PlantPot] = Of(Kitchen.PlantPot, (Classic, "Слънчоглед", 0), ("monstera", "Монстера", 20), ("cactus", "Кактус", 20)),
-        [Kitchen.Desk] = Of(Kitchen.Desk, (Classic, "Бюро със столче", 0), ("oak", "Дъбово бюро с пънче", 20), ("white", "Бяло бюро с кръгло столче", 20),
-            ("pink", "Розово бюро с възглавничка", 25), ("drawers", "Бюро с чекмеджета и зелено столче", 30)),
+        [Kitchen.Desk] = Of(Kitchen.Desk, (Classic, "Бюро", 0), ("oak", "Дъбово бюро", 20), ("white", "Бяло бюро", 20),
+            ("pink", "Розово бюро", 25), ("drawers", "Бюро с чекмеджета", 30)),
         [Kitchen.Radio] = Of(Kitchen.Radio, (Classic, "Радио", 0), ("gramophone", "Грамофон", 35), ("boombox", "Касетофон", 25),
             ("retro", "Старо лампово радио", 25), ("jukebox", "Джубокс", 40)),
         [Kitchen.Feeder] = Of(Kitchen.Feeder, (Classic, "Дървена хранилка", 0), ("tube", "Хранилка тръба", 15), ("cottage", "Хранилка къщичка", 20),
@@ -81,16 +81,6 @@ public static class Furniture
         [Kitchen.SandwichMaker] = Of(Kitchen.SandwichMaker, (Classic, "Сандвичарник", 0), ("red", "Червен сандвичарник", 15), ("waffle", "Гофретник", 20)),
         [Kitchen.IceCream] = Of(Kitchen.IceCream, (Classic, "Машинка за сладолед", 0), ("cart", "Количка за сладолед", 25), ("pink", "Розова машинка", 15)),
         [Kitchen.Grill] = Of(Kitchen.Grill, (Classic, "Скара", 0), ("kettle", "Кръгло барбекю", 20), ("camp", "Огнище", 25)),
-    };
-
-    /// <summary>Столчето към бюрото: всеки скин на бюрото идва със свое столче.</summary>
-    public static string StoolArt(SaveData save) => Current(save, Kitchen.Desk).Id switch
-    {
-        "oak" => "stool_log",
-        "white" => "stool_round",
-        "pink" => "stool_cushion",
-        "drawers" => "stool_green",
-        _ => "stool",
     };
 
     public static Skin[] SkinsFor(string item) => ByItem.TryGetValue(item, out var list) ? list : System.Array.Empty<Skin>();

@@ -730,7 +730,7 @@ public sealed partial class PetWindow
     {
         LeaveWorkMode();
         if (CanAnimateFreely && !IsAsleep)
-            Play("dance", length: 3, after: () => { if (!InFocus && CanAnimateFreely) StartScene(CanDo(Scenes.Tea) ? Scenes.Tea : Scenes.Reading, 120 + _rng.Next(60)); });
+            Play("dance", length: 3, after: () => { if (!InFocus && CanAnimateFreely) StartScene(Scenes.Reading, 120 + _rng.Next(60)); });
     }
 
     // ───────────────────────── Таймерът, когато мечокът е скрит ─────────────────────────

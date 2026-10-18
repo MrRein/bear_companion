@@ -7,9 +7,11 @@ namespace Mecho;
 /// Предмет, до който трябва да е мечокът, за да прави нещо с него (бърка в
 /// тенджерата, поли растението, танцува до радиото, топли се до печицата).
 /// Target – къде е предметът сега (null = няма го вече); Gap – колко встрани от
-/// ръба му застава мечокът (средата на мечока).
+/// ръба му застава мечокът (средата на мечока). Мебелите: SideDir – от коя страна на
+/// мечока трябва да е предметът, за да пасне на анимацията (иначе мечокът се обръща);
+/// Seat – сяда/ляга върху предмета (застава в средата му).
 /// </summary>
-internal sealed record ItemAnchor(string Kind, Func<Rect?> Target, double Gap);
+internal sealed record ItemAnchor(string Kind, Func<Rect?> Target, double Gap, int SideDir = 0, bool Seat = false);
 
 // Занимания, вързани за предмет. Правилото е едно за всички:
 //  • анимацията за предмета (поливане, бъркане, танц…) върви само докато мечокът е
@@ -62,6 +64,7 @@ public sealed partial class PetWindow
     private ItemAnchor? AnchorFor(Scene scene) =>
         scene == Scenes.Music && Kitchen.Owns(_save, Kitchen.Radio) ? RadioAnchor
         : scene == Scenes.Plant ? PlantAnchor
+        : FurnishingFor(scene) is { } f ? FurnitureAnchor(f, scene)
         : null;
 
     /// <summary>Къде застава до предмета: от страната, от която е (саксията до ръба – само откъм екрана).</summary>
@@ -69,10 +72,13 @@ public sealed partial class PetWindow
     {
         if (a.Kind == "plant") return (CareSpot, _plantSide < 0);
         double cx = r.Left + r.Width / 2;
+        if (a.Seat) return (cx, false);
         int side = _x < cx ? -1 : 1;
         var area = AreaAt(cx, r.Bottom - 1);
         double spot = cx + side * (r.Width / 2 + a.Gap);
         if (spot - HalfWidth < area.Left || spot + HalfWidth > area.Right) spot = cx - side * (r.Width / 2 + a.Gap);
+        // Мебел: анимацията е нарисувана с предмета откъм SideDir – от другата страна се обръща.
+        if (a.SideDir != 0) return (spot, Math.Sign(cx - spot) != a.SideDir);
         return (spot, spot > cx);
     }
 
@@ -102,8 +108,28 @@ public sealed partial class PetWindow
             return true;
         }
         var (spot, faceLeft) = AnchorSpot(a, r);
-        // Достатъчно близо е – прави си нещото; иначе отива точно до мястото.
-        if (!_anchorWalk && (a.Kind == "plant" ? Math.Abs(_x - spot) <= SpriteWidth * 0.35 : NearAnchor(a))) return false;
+        bool furniture = a.Seat || a.SideDir != 0;
+        // Самопроверката не чака разходки: веднага е на мястото си.
+        if (furniture && InstantModes && !_anchorWalk)
+        {
+            if (Math.Abs(_x - spot) > 0.5 || _facingLeft != faceLeft)
+            {
+                _x = spot;
+                _facingLeft = faceLeft;
+                LoadSceneArt(scene, _anim);
+            }
+            return false;
+        }
+        // Достатъчно близо е – прави си нещото; иначе отива точно до мястото
+        // (до мебелта – точно на мястото си, за да пасне на столчето/дивана).
+        bool near = a.Kind == "plant" ? Math.Abs(_x - spot) <= SpriteWidth * 0.35
+            : furniture ? Math.Abs(_x - spot) <= PixelSize * 2
+            : NearAnchor(a);
+        if (!_anchorWalk && near)
+        {
+            if (furniture && _facingLeft != faceLeft) _facingLeft = faceLeft;
+            return false;
+        }
         if (Math.Abs(_x - spot) > PixelSize)
         {
             if (!_anchorWalk)
@@ -130,8 +156,10 @@ public sealed partial class PetWindow
             if (scene == Scenes.Plant) NextCare(Now);
             else
             {
+                if (furniture) _x = spot;
                 _anim = SceneAnim(scene);
                 _animTime = 0;
+                LoadSceneArt(scene, _anim);   // седна на дивана/постелката – вече е под него
             }
         }
         return false;

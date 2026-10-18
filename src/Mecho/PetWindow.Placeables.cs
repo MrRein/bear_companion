@@ -7,7 +7,7 @@ namespace Mecho;
 // Нещата, които стоят на земята като отделни прозорци: печица, лампа, радио,
 // хранилка, растение. Правилата са едни за всички:
 //  • от всеки вид има най-много един (един прозорец; при грешка излишните се затварят);
-//  • сложеното от Тут („Сложи“) стои, докато Тут не го махне;
+//  • сложеното от Тут („Уреди“/„Мебели“) стои, докато Тут не го махне;
 //  • сложеното от мечока за някое занимание (радиото, докато танцува; саксията,
 //    която изнася от ъгъла) се прибира, щом свърши заниманието;
 //  • ако Тут сложи нещо, което мечокът вече е сложил сам – става нейно и остава.
@@ -35,7 +35,7 @@ public sealed partial class PetWindow
     public bool RadioPlacedByOwner => RadioPlaced && !_save.RadioAuto;
 
     /// <summary>
-    /// „Сложи“ → Радио. Светнало е и когато мечокът сам го е сложил (танцува) –
+    /// „Уреди“ → Радио. Светнало е и когато мечокът сам го е сложил (танцува) –
     /// цъкането тогава спира танца и радиото се прибира. Иначе слага/прибира радиото на Тут.
     /// </summary>
     public void ToggleRadioPlaced()
@@ -55,7 +55,7 @@ public sealed partial class PetWindow
     public bool PlantOut => _save.PlantPlaced || InGarden;
 
     /// <summary>
-    /// „Сложи“ → Растение. Светнало е и докато мечокът сам се грижи за него – цъкането
+    /// „Уреди“ → Растение. Светнало е и докато мечокът сам се грижи за него – цъкането
     /// тогава спира грижата и той го прибира. Иначе слага/прибира саксията.
     /// </summary>
     public void TogglePlant()
@@ -134,7 +134,7 @@ public sealed partial class PetWindow
 
     // ── Растението ──
 
-    /// <summary>„Сложи“ → Растение: саксията стои на земята, докато Тут не я прибере.</summary>
+    /// <summary>„Уреди“ → Растение: саксията стои на земята, докато Тут не я прибере.</summary>
     public void SetPlant(bool placed)
     {
         if (!Kitchen.Owns(_save, Kitchen.PlantPot)) return;
@@ -243,8 +243,8 @@ public sealed partial class PetWindow
     /// </summary>
     private void CloseDuplicatePlaceables()
     {
-        var keep = new Window?[] { _heaterWindow, _lampWindow, _radioWindow, _feederWindow, _potWindow };
-        foreach (string title in new[] { "Печица", "Лампа", "Радио", "Хранилка", "Растение" })
+        var keep = new Window?[] { _heaterWindow, _lampWindow, _radioWindow, _feederWindow, _potWindow }.Concat(_furnishings.Select(f => f.Window)).ToArray();
+        foreach (string title in new[] { "Печица", "Лампа", "Радио", "Хранилка", "Растение" }.Concat(_furnishings.Select(f => f.Title)))
         {
             var mine = keep.FirstOrDefault(w => w?.Title == title);
             foreach (var w in Application.Current.Windows.OfType<CookerWindow>().Where(w => w.Title == title && !ReferenceEquals(w, mine)).ToList())

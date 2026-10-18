@@ -62,9 +62,6 @@ public sealed partial class PetWindow
 
     private void UpdateDrinking(double now)
     {
-        // Чай на масичката: чашата е чай, пие без край, докато е там.
-        if (_scene == Scenes.Tea && _cup == null) BeginCup("tea", sips: -1);
-
         double loop = _lib.Get("sit_drinking").Duration;
         if (_anim == "sit_drinking")
         {

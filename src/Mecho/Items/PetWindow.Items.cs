@@ -92,7 +92,7 @@ public sealed partial class PetWindow
             new RadioItem(this),
             new FeederItem(this),
             new PlantItem(this),
-        };
+        }.Concat(FurnitureKinds.Select(k => (PlacedItem)new FurnitureItem(this, k))).ToArray();
     }
 
     /// <summary>Свободен ли е да се занимае с предмет (не работи, не спи, не яде, не е зает…).</summary>

@@ -224,7 +224,7 @@ public sealed partial class PetWindow
         NotifyCare();
     }
 
-    /// <summary>Тут я слага (включена) или прибира („Сложи“ в менюто).</summary>
+    /// <summary>Тут я слага (включена) или прибира („Уреди“ в менюто).</summary>
     public void SetHeaterPlaced(bool placed)
     {
         if (placed && !Kitchen.Owns(_save, Kitchen.Heater)) return;

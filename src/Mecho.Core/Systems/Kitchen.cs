@@ -47,6 +47,8 @@ public sealed record StartCook(string FoodId, DateTime ReadyAt, int Cost, int St
 /// <summary>Първият уред свърши – сега главният (нов срок, може и ново място).</summary>
 public sealed record NextCookStage(DateTime ReadyAt, double X = double.NaN) : IGameCommand;
 public sealed record MoveCooker(double X) : IGameCommand;
+/// <summary>Готвенето чака толкова (мечокът беше вдигнат – нищо не тече скрито).</summary>
+public sealed record DelayCook(TimeSpan By) : IGameCommand;
 /// <summary>Край на готвенето. Completed – извадено готово; иначе спряно.</summary>
 public sealed record EndCook(bool Completed) : IGameCommand;
 public sealed record SetWishes(string Day, System.Collections.Generic.IReadOnlyList<string> Foods) : IGameCommand;
@@ -98,6 +100,14 @@ public sealed class KitchenModule : GameModule
             if (s.Stage >= 1) return CommandResult.Rejected("вече е в главния уред");
             Store.Set(s with { Stage = 1, ReadyAt = c.ReadyAt, X = double.IsNaN(c.X) ? s.X : c.X });
             Emit(new CookingStarted(s.FoodId!, c.ReadyAt, 1));
+            return CommandResult.Done;
+        });
+        Handle<DelayCook>(c =>
+        {
+            var s = State<CookingState>();
+            if (!s.Cooking) return CommandResult.Rejected("нищо не се готви");
+            if (c.By <= TimeSpan.Zero) return CommandResult.Done;
+            Store.Set(s with { ReadyAt = s.ReadyAt + c.By });
             return CommandResult.Done;
         });
         Handle<MoveCooker>(c =>

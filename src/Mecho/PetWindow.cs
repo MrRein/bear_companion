@@ -102,6 +102,7 @@ public sealed partial class PetWindow : Window
         WireEvents();   // събития (пижамен ден, болен ден, Коледа, пеперуда…)
         WireBehaviour(); // продаден/махнат предмет спира заниманието; нов скин – пречертава
         InitItems();     // предметите на земята и какво прави мечокът с тях (Items/*.cs)
+        InitFurnishings(); // мебелите за слагане (бюро, диван, легло…) – Items/Furnishings.cs
         Kitchen.ExtrasNow = () => CoreEngine.Modifiers.Get(Mecho.Core.Mods.ShopExtras);
         R.Owner = () => _save.OwnerName;
         // Размерите на шрифта и иконките зависят от мащаба на екрана.
@@ -261,6 +262,9 @@ public sealed partial class PetWindow : Window
             : R.Pick("greet.restart", _save.OwnerName);
         if (_save.SleepingByChoice)
         {
+            // Спеше в леглото, което сам беше сложил (ядрото го прибра при пускането): пак е под него.
+            if (Kitchen.Owns(_save, Kitchen.Bed) && !FurniturePlaced(Kitchen.Bed)) CoreEngine.Bus.Send(new Mecho.Core.PlaceItem(Kitchen.Bed, Mecho.Core.PlacedBy.Bear, _x));
+            else if (FurniturePlaced(Kitchen.Bed) && !double.IsNaN(PlacementOf(Kitchen.Bed).X)) _x = PlacementOf(Kitchen.Bed).X;
             EnterSleep(away: false);
         }
         else if (_save.StayPut)
@@ -359,6 +363,8 @@ public sealed partial class PetWindow : Window
         }
         UpdateWeather(now);
         UpdatePlacedPlant();
+        UpdateFurnishings();
+        UpdateHand(now);
         P("времето, печица, лампа, радио");
         UpdatePajamas();
         P("пижами");
@@ -677,6 +683,7 @@ public sealed partial class PetWindow : Window
         _y = floor;
         _vy = 0;
         bool hard = floor - _fallFrom > 120;
+        ResumeAfterLift();
         // Спеше в ръцете ѝ: спи си и на земята.
         if (_dragAsleep)
         {
@@ -692,10 +699,11 @@ public sealed partial class PetWindow : Window
         }
         if (_inScene)
         {
-            // С дивана (или столчето) кацането е меко.
-            if (hard && DragTalk()) Say(Lines.Pick(_scene == Scenes.Reading && HasCouch ? Lines.CouchLanded : Lines.LandedInScene, _save.OwnerName));
+            if (hard && DragTalk()) Say(Lines.Pick(Lines.LandedInScene, _save.OwnerName));
             ResumeScene();
         }
+        // Тръгнал беше да спи: пак отива да легне.
+        else if (GoingToBedAgain()) { }
         else if (hard)
         {
             if (DragTalk()) Say(Lines.Pick(Lines.Fell, _save.OwnerName));
@@ -899,7 +907,7 @@ public sealed partial class PetWindow : Window
         var area = AreaAt(p.X, p.Y);
         double half = HalfWidth;
         _x = Math.Clamp(p.X + _grabOffset.X, area.Left + half, Math.Max(area.Left + half, area.Right - half));
-        _y = Math.Clamp(p.Y + _grabOffset.Y, area.Top + SpriteHeight + (_inScene ? SeatHeight : 0), area.Bottom);
+        _y = Math.Clamp(p.Y + _grabOffset.Y, area.Top + SpriteHeight, area.Bottom);
     }
 
     /// <summary>Тут го вдигна: казва нещо и спира каквото прави.</summary>
@@ -924,6 +932,8 @@ public sealed partial class PetWindow : Window
         }
         _dragAsleep = IsAsleep;
         _dragAway = _sleepIsAway;
+        _liftedAt = Now;
+        FinishHand();   // носеше нещо от „Уреди“/„Мебели“ – появява се
         if (_dragAsleep)
         {
             SetState(BearState.Drag, "sleep");
@@ -931,19 +941,46 @@ public sealed partial class PetWindow : Window
         }
         if (_eating != null)
         {
+            // Яденето чака (хапките не текат), докато е във въздуха; после дояжда.
             if (DragTalk()) Say("Момент, ям! *държи храната здраво*", 2);
-            SetState(BearState.Drag, "eat_hold");
+            SetState(BearState.Drag, "drag");
             return;
         }
         if (DragTalk())
         {
             if (_inScene)
-                Say(Lines.Pick(_scene == Scenes.Reading && HasCouch ? Lines.FlyingCouch : _scene == Scenes.Focus ? Lines.LiftedAtWork : Lines.LiftedInScene, _save.OwnerName), 3);
+                Say(Lines.Pick(_scene == Scenes.Focus ? Lines.LiftedAtWork : Lines.LiftedInScene, _save.OwnerName), 3);
             else
                 Say(Lines.Pick(Lines.Dragged, _save.OwnerName), 2);
         }
-        // В кътче за предмет (растение, радио, печица) не прави нещото във въздуха.
-        SetState(BearState.Drag, _inScene && _sceneNear == null ? _anim : "drag");
+        // Каквото прави, чака (не тече скрито); във въздуха виси с „drag“, после продължава.
+        SetState(BearState.Drag, "drag");
+    }
+
+    /// <summary>Вдигнат е (или пада): седалката и предметите не летят с него.</summary>
+    private bool Lifted => _state is BearState.Drag or BearState.Falling;
+
+    /// <summary>Седалката на кътчето се рисува под него (не и докато виси във въздуха).</summary>
+    private bool SeatShown => _inScene && _seatProp != null && !Lifted;
+
+    private double _liftedAt = -1;
+
+    /// <summary>
+    /// Кацна: каквото чакаше, докато беше във въздуха, продължава оттам, където беше –
+    /// краят на заниманието и готвенето се отместват с толкова, колкото е висял.
+    /// </summary>
+    private void ResumeAfterLift()
+    {
+        if (_liftedAt < 0) return;
+        double held = Math.Max(0, Now - _liftedAt);
+        _liftedAt = -1;
+        if (held <= 0) return;
+        if (_inScene && _sceneUntil > 0) _sceneUntil += held;
+        if (_cook is { Popped: false } c && Now < c.PopAt)
+        {
+            c.PopAt += held;
+            CoreEngine.Bus.Send(new Mecho.Core.DelayCook(TimeSpan.FromSeconds(held)));
+        }
     }
 
     private double _lastDragTalk = -1000;
@@ -1264,12 +1301,12 @@ public sealed partial class PetWindow : Window
         double xs = ax / dpi, ys = ay / dpi;
         _window = new Rect((ax - wpx / 2) / dpi, (ay + 4 - hpx) / dpi, wpx / dpi, hpx / dpi);
 
-        var bear = new Rect(xs - SpriteWidth / 2, ys - SpriteHeight - (_inScene ? SeatHeight : 0) - BedLift, SpriteWidth, SpriteHeight);
+        var bear = new Rect(xs - SpriteWidth / 2, ys - SpriteHeight - (SeatShown ? SeatHeight : 0) - BedLift, SpriteWidth, SpriteHeight);
         var bed = BedRect(xs, ys);
         _bearRect = bear;
 
         Rect seat = Rect.Empty, side = Rect.Empty;
-        bool hasSeat = _inScene && _seatProp != null, hasSide = _inScene && _sideProp != null;
+        bool hasSeat = SeatShown, hasSide = _inScene && _sideProp != null && !Lifted;
         var seatVis = hasSeat ? Visibility.Visible : Visibility.Collapsed;
         var sideVis = hasSide ? Visibility.Visible : Visibility.Collapsed;
         if (_seat.Visibility != seatVis) _seat.Visibility = seatVis;

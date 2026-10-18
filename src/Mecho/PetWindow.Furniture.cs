@@ -15,8 +15,13 @@ public sealed partial class PetWindow
 
     // ── Леглото ──
 
-    /// <summary>Купено легло: заспи ли (не на дивана), ляга в него.</summary>
-    private bool BedOn => _state == BearState.Sleep && !_inScene && Kitchen.Owns(_save, Kitchen.Bed);
+    /// <summary>
+    /// Спи в леглото: то е сложено на земята и мечокът е върху него (отиде до него или
+    /// сам го сложи, преди да легне – GoToBed). Тогава леглото се рисува под него.
+    /// </summary>
+    private bool BedOn => _state == BearState.Sleep && !_inScene && FurniturePlaced(Kitchen.Bed) && Math.Abs(_x - BedX) <= SpriteWidth * 0.3;
+
+    private double BedX => FurnishingOf(Kitchen.Bed)?.Window?.CenterX ?? PlacementOf(Kitchen.Bed).X;
 
     private double BedLift => BedOn ? BedProp.Seat * PixelSize : 0;
 

@@ -1790,6 +1790,59 @@ public sealed partial class PetWindow
             HideBubble();
             if (stillGaming) throw new Exception("играе на компютър, който го няма");
         }, 300);
+        await step("мебели: няма я – слага я сам", () =>
+        {
+            foreach (var kind in FurnitureKinds) SetFurniture(kind, false);
+            StartScene(Scenes.Gaming, quiet: true);
+            var p = CoreEngine.Store.Get<Mecho.Core.PlacementState>().Get(Kitchen.Computer);
+            if (!p.Placed || p.Owner != Mecho.Core.PlacedBy.Bear) throw new Exception("не сложи компютъра сам");
+            if (_sideProp != null) throw new Exception("компютърът е нарисуван и до мечока");
+        }, 600);
+        await step("мебели: в свой прозорец, свърши ли – изчезва", () =>
+        {
+            if (FurnishingOf(Kitchen.Computer)?.Window == null) throw new Exception("компютърът не е на земята");
+            LeaveScene();
+            SetIdle();
+        }, 600);
+        await step("мебели: сложеното от Тут остава", () =>
+        {
+            if (FurniturePlaced(Kitchen.Computer)) throw new Exception("сам сложеният компютър не се прибра");
+            ToggleFromMenu(Kitchen.Couch);
+            if (!FurniturePlaced(Kitchen.Couch)) throw new Exception("Тут сложи дивана, а го няма");
+            StartScene(Scenes.Reading, quiet: true);
+            if (_sceneNear?.Kind != Kitchen.Couch) throw new Exception("не отива на дивана");
+            UpdateScene(Now);
+            if (_seatProp == null || _seatKind != Kitchen.Couch) throw new Exception("седна, а диванът не е под него");
+        }, 600);
+        await step("мебели: диванът е под него, после пак в прозореца си", () =>
+        {
+            if (FurnishingOf(Kitchen.Couch)?.Window is { IsVisible: true }) throw new Exception("диванът е два пъти (и под мечока, и в прозореца)");
+            LeaveScene();
+            SetIdle();
+        }, 600);
+        await step("мебели: прибиране – веднага", () =>
+        {
+            if (!FurniturePlaced(Kitchen.Couch)) throw new Exception("диванът на Тут изчезна след четенето");
+            ToggleFromMenu(Kitchen.Couch);
+            if (FurniturePlaced(Kitchen.Couch)) throw new Exception("не се прибра веднага");
+        }, 400);
+        await step("вдигнат: заниманието чака", () =>
+        {
+            StartScene(Scenes.Write, quiet: true);
+            _sceneUntil = Now + 100;
+            LiftUp();
+            if (_anim != "drag" || !_inScene) throw new Exception("вдигнат: не е drag или спря");
+            _liftedAt = Now - 30;
+            ResumeAfterLift();
+            if (_sceneUntil < Now + 125) throw new Exception("времето на заниманието течеше, докато висеше");
+            SetState(BearState.Falling, _anim);
+        }, 800);
+        await step("вдигнат: пак пише", () =>
+        {
+            if (!_inScene || _scene != Scenes.Write) throw new Exception("не се върна към тефтера");
+            LeaveScene();
+            SetIdle();
+        }, 300);
         await step("предмети: печицата знае кога ѝ трябва", () =>
         {
             if (!Kitchen.Owns(_save, Kitchen.Heater)) _save.Owned.Add(Kitchen.Heater);

@@ -487,7 +487,7 @@ public sealed partial class PetWindow
         yield return (radio, "Хранилка: купи и сложи", () => { if (!_save.Owned.Contains(Kitchen.Feeder)) _save.Owned.Add(Kitchen.Feeder); SetFeeder(true); });
         yield return (radio, "Хранилка: напълни я", FillFeeder);
         yield return (radio, "Птичка – сега", () => { _save.FeederFood = Math.Max(1, _save.FeederFood); _nextBird = 0; });
-        yield return (radio, "Бюро и столче: купи / махни", () =>
+        yield return (radio, "Бюро: купи / махни", () =>
         {
             bool has = _save.Owned.Contains(Kitchen.Desk);
             if (has) _save.Owned.Remove(Kitchen.Desk); else _save.Owned.Add(Kitchen.Desk);
