@@ -198,7 +198,11 @@ public sealed partial class PetWindow : Window
         };
         DpiChanged += (_, _) => ApplySpriteSize();
         Loaded += (_, _) => OnStart();
-        IsVisibleChanged += (_, _) => SyncCompanions();
+        IsVisibleChanged += (_, _) =>
+        {
+            _movedTo = new Point(double.NaN, double.NaN);   // показан наново: преместваме го пак
+            SyncCompanions();
+        };
         Activated += (_, _) => RaiseCompanions();
         PreviewMouseLeftButtonUp += (_, _) => Dispatcher.BeginInvoke(RaiseCompanions, DispatcherPriority.Background);
 
@@ -403,6 +407,7 @@ public sealed partial class PetWindow : Window
         {
             _lastSave = now;
             CloseDuplicatePlaceables();
+            _movedTo = new Point(double.NaN, double.NaN);   // веднъж в минута: пак на мястото си, ако Windows го е мръднал
             StartNewDay();
             Persist();
             P("нов ден/запис");
@@ -419,7 +424,7 @@ public sealed partial class PetWindow : Window
     private bool _calm, _typing;
 
     /// <summary>Докато Тут пише: прерисува се най-много толкова често (с). По-рядко – курсорът не премигва; по-често – по-плавно.</summary>
-    private const double CalmRedraw = 0.3;
+    private const double CalmRedraw = 0.1;
     private double _lastDraw, _cursorMovedAt, _freezeUntil;
     private System.Drawing.Point _typingCursor;
 
@@ -462,9 +467,9 @@ public sealed partial class PetWindow : Window
         int ms = smooth ? 100   // резервен (ако екранът не рисува кадри)
             : moving ? 66
             : !IsVisible ? 500
-            : _calm ? 150
+            : _calm ? 100
             : IsAsleep && _bubble.Visibility != Visibility.Visible && _food.Count == 0 ? 200
-            : 66;
+            : 40;   // анимация на място: 25 пъти в секунда – кадрите на рисунката идват точно навреме (при 66 мс някои „закъсняваха“)
         if ((int)_timer.Interval.TotalMilliseconds != ms) _timer.Interval = TimeSpan.FromMilliseconds(ms);
     }
 
@@ -1250,6 +1255,7 @@ public sealed partial class PetWindow : Window
     private double WindowW => 100 * PixelSize;
     private double WindowH => 80 * PixelSize + 30;
     private Rect _window;
+    private Point _movedTo = new(double.NaN, double.NaN);
 
     /// <summary>Нарежда мечока, дивана, табелката, балончето и пеперудата.</summary>
     private void UpdateLayoutAndWindow()
@@ -1317,7 +1323,12 @@ public sealed partial class PetWindow : Window
         if (Math.Abs(Height - _window.Height) > 0.01) Height = _window.Height;
         // x и y наведнъж, в цели пиксели (Left и Top поотделно го местеха два пъти).
         P("подреждане");
-        NativeMethods.MoveWindow(this, _window.Left, _window.Top);
+        // Само ако наистина е мръднал: и „преместване“ на същото място кара Windows да работи.
+        if (_window.Left != _movedTo.X || _window.Top != _movedTo.Y)
+        {
+            _movedTo = new Point(_window.Left, _window.Top);
+            NativeMethods.MoveWindow(this, _window.Left, _window.Top);
+        }
         P("местене на прозореца на мечока");
 
         PlaceDrops(dpi);

@@ -21,6 +21,12 @@ public static class Program
         using var mutex = new Mutex(true, "Mecho.SingleInstance", out bool first);
         if (!first) return 0;
 
+        // Мечокът почти не товари процесора (0,1%), но когато компютърът е зает (пишеш,
+        // браузър, игра), Windows дава кадрите му накрая и анимацията накъсва. С малко
+        // по-висок приоритет кадрите идват навреме; програмата пак е лека.
+        try { System.Diagnostics.Process.GetCurrentProcess().PriorityClass = System.Diagnostics.ProcessPriorityClass.AboveNormal; }
+        catch (Exception) { /* няма права – нищо */ }
+
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         // Неочаквана грешка: записва се в crash.log и мечокът продължава, вместо да изчезне.
         app.DispatcherUnhandledException += (_, e) =>
