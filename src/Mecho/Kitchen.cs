@@ -84,7 +84,8 @@ public static class Kitchen
         new("linden_tea", "Липов чай", "🌼", 5, 5, 1, 1, Kettle, Array.Empty<string>()),
 
         // ── Само докато трае събитие (Mods.ShopExtras; виж EventTag) ──
-        new(Medicine, "Лекарство: липов чай с мед", "🌼", 4, 10, 2, 1, Jug,
+        // Без уред: идва готово (като от аптеката) – не се „бърка“ в каничката за сок.
+        new(Medicine, "Лекарство: липов чай с мед", "🌼", 4, 10, 2, 1, null,
             new[] { "*сърба* Горчичко… но ми става по-добре.", "Благодаря, че се грижиш за мен.", "Мм. Вече не ми е толкова студено." }) { Art = "linden_tea" },
         new("eggs", "Яйца на очи", "🥚", 25, 5, 2, 2, Pan, Array.Empty<string>()),
         new("pancakes", "Палачинки с мед", "🥞", 40, 0, 4, 3, Pan, Array.Empty<string>()) { Prep = Mixer },

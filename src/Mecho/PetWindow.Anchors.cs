@@ -53,6 +53,7 @@ public sealed partial class PetWindow
     /// <summary>Саксията (на мястото си до ръба или там, където Тут я е сложила).</summary>
     private ItemAnchor PlantAnchor => new("plant", () =>
     {
+        if (!Kitchen.Owns(_save, Kitchen.PlantPot)) return null;
         double w = PlantW * PixelSize;
         return new Rect(PlantSpot - w / 2, _y - PlantH * PixelSize, w, PlantH * PixelSize);
     }, PlantGap - PlantW * PixelSize / 2);

@@ -164,8 +164,10 @@ public sealed partial class PetWindow
     {
         if (_save.CookFood == null) return;
         var food = Kitchen.Foods.FirstOrDefault(f => f.Id == _save.CookFood);
-        if (food?.Tool == null)
+        // Уредът вече го няма (продаден, стар запис): не се показва – лешниците се връщат.
+        if (food?.Tool == null || !Kitchen.HasTool(food, _save))
         {
+            if (food != null) _save.Hazelnuts += _save.CookCost;
             CoreEngine.Bus.Send(new Mecho.Core.EndCook(false));
             return;
         }

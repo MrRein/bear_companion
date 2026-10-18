@@ -415,8 +415,8 @@ public sealed partial class PetWindow
         double seconds = Math.Max(30, (_save.PomodoroEndsAt - DateTime.Now).TotalSeconds);
         var tired = new[] { Scenes.Tea, Scenes.Reading, Scenes.Music, Scenes.Knit };
         var fresh = new[] { Scenes.Yoga, Scenes.Trampoline, Scenes.Plant, Scenes.Gaming, Scenes.Music, Scenes.Guitar };
-        var pool = (_save.Energy < 50 ? tired : fresh).Where(s => Scenes.IsUnlocked(s, _save)).ToList();
-        if (pool.Count == 0) pool = tired.Where(s => Scenes.IsUnlocked(s, _save)).ToList();
+        var pool = (_save.Energy < 50 ? tired : fresh).Where(CanDo).ToList();
+        if (pool.Count == 0) pool = tired.Where(CanDo).ToList();
         var scene = pool.Count > 0 ? pool[_rng.Next(pool.Count)] : Scenes.Reading;
         Play("dance", length: 3, after: () =>
         {

@@ -1736,6 +1736,54 @@ public sealed partial class PetWindow
             if (CoreEngine.Store.Get<Mecho.Core.LooksState>().Worn("hat") != "selftest_hat") throw new Exception("облеклото не е в ядрото");
             if (hat == null) _save.Outfit.Remove("hat"); else _save.Outfit["hat"] = hat;
         }, 200);
+        await step("каталог: всяко кътче – с нужните предмети и правилната седалка", () =>
+        {
+            DevUnlockAll();
+            bool instant = InstantModes;
+            InstantModes = true;
+            if (_inScene) LeaveScene();
+            SetIdle();
+            // Музиката и растението първо отиват до предмета (котва) – те имат свои стъпки.
+            foreach (var sc in Scenes.All.Where(x => x != Scenes.Trampoline && x != Scenes.Music && x != Scenes.Plant))
+            {
+                if (!CanDo(sc)) throw new Exception($"всичко е купено, а „{sc.Name}“ не може");
+                StartScene(sc, quiet: true);
+                if (!_inScene || _scene != sc) throw new Exception($"не седна: {sc.Name}");
+                var pose = Behaviour.PostureOf(_anim);
+                if (_seatProp != null && pose != Behaviour.Posture.Sit && !Behaviour.IsFloorSeat(sc.Seat))
+                    throw new Exception($"„{sc.Name}“: стои прав ({_anim}) върху седалка");
+                if (sc.Seat != null && pose == Behaviour.Posture.Sit && _seatProp == null && sc.Seat != "couch")
+                    throw new Exception($"„{sc.Name}“: седи, а седалката я няма");
+                if (sc == Scenes.Yoga && _seatProp == null) throw new Exception("йога без постелка");
+                LeaveScene();
+            }
+            // Без бюро „Работи на бюрото“ не става (и не казва „сядам на бюрото“).
+            _save.Owned.Remove(Kitchen.Desk);
+            if (CanDo(Scenes.Desk)) throw new Exception("работи на бюро, което го няма");
+            _save.Owned.Add(Kitchen.Desk);
+            // На бюрото: „мисли“ е права поза – столчето изчезва, после се връща.
+            StartScene(Scenes.Desk, quiet: true);
+            _anim = "think";
+            UpdateScene(Now);
+            if (_seatProp != null) throw new Exception("мисли прав върху столчето");
+            _anim = "focus";
+            UpdateScene(Now);
+            if (_seatProp == null) throw new Exception("седна, а столчето не се върна");
+            // Продаден компютър насред играта: става (проверява се в следващата стъпка).
+            LeaveScene();
+            StartScene(Scenes.Gaming, quiet: true);
+            _save.Owned.Remove(Kitchen.Computer);
+            InstantModes = instant;
+        }, 400);
+        await step("каталог: махнат предмет спира заниманието", () =>
+        {
+            bool stillGaming = _inScene && _scene == Scenes.Gaming;
+            _save.Owned.Add(Kitchen.Computer);
+            if (_inScene) LeaveScene();
+            SetIdle();
+            HideBubble();
+            if (stillGaming) throw new Exception("играе на компютър, който го няма");
+        }, 300);
         await step("всички реплики са във файла", () =>
         {
             if (R.Keys.Count < 200) throw new Exception("repliki.txt не се зареди");

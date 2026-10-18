@@ -32,6 +32,9 @@ public sealed record Scene(
     /// <summary>Кой предмет от магазина го отключва (null = свободно).</summary>
     public string? Unlock { get; init; }
 
+    /// <summary>Още предмети, без които не става (бюро за „Работи на бюрото“). Виж Behaviour.</summary>
+    public string[] Needs { get; init; } = Array.Empty<string>();
+
     /// <summary>Анимацията, докато Тут не е нарисувала своята (Anim) – например doing_sit с предмет в лапата.</summary>
     public string? Fallback { get; init; }
 }
@@ -55,7 +58,7 @@ public static class Scenes
         R.Get("scene.desk.start"),
         R.Get("scene.desk.during"),
         R.Get("scene.desk.end"))
-    { Doing = "работя на бюрото", Name = "Работи на бюрото", Icon = "tasks" };
+    { Doing = "работя на бюрото", Name = "Работи на бюрото", Icon = "tasks", Needs = new[] { Kitchen.Desk } };
 
     /// <summary>Пише в тефтера (без предмет).</summary>
     public static readonly Scene Write = new("write", null, null, 0, "write",
@@ -93,7 +96,8 @@ public static class Scenes
 
     public static Scene ById(string? id) => All.FirstOrDefault(s => s.Id == id) ?? Reading;
 
-    public static bool IsUnlocked(Scene scene, SaveData save) => scene.Unlock == null || Kitchen.Owns(save, scene.Unlock);
+    /// <summary>Има ли всичко нужно (отключващия предмет и задължителните мебели) – виж Behaviour.</summary>
+    public static bool IsUnlocked(Scene scene, SaveData save) => Behaviour.Available(scene, save);
 
     public static readonly Scene Reading = new("reading", "couch", null, 0, "read",
         Lines.SatDown, Lines.Reading, Lines.DoneReading)
@@ -202,8 +206,13 @@ public sealed partial class PetWindow
         if (BusyEating()) return;
         if (!Scenes.IsUnlocked(scene, _save))
         {
-            var item = scene.Unlock == null ? null : Kitchen.Find(scene.Unlock);
+            var item = Behaviour.Missing(scene, _save) is { } id ? Kitchen.Find(id) : null;
             Say($"Нямам {item?.Name.ToLowerInvariant()}…", 3);
+            return;
+        }
+        if (HobbyBlocked(scene))
+        {
+            Say(R.Any("event.blocked"), 3);
             return;
         }
         if (InFocus)
@@ -291,7 +300,12 @@ public sealed partial class PetWindow
         Scene? started = null;
         if (RelaxesRandomly) started = StartRandomRelax(_lastFun);
         else if (WorksRandomly) started = StartRandomWork(_lastFun);
-        else StartScene(Scenes.ById(_save.StayScene), quiet: true);
+        else
+        {
+            // Избраното кътче – само ако още има всичко за него (иначе – четене).
+            var chosen = Scenes.ById(_save.StayScene);
+            StartScene(CanDo(chosen) ? chosen : Scenes.Reading, quiet: true);
+        }
         if (_sayIntentNext && started != null) SayIntent(started, Scenes.Fun);
         _sayIntentNext = false;
     }
@@ -302,7 +316,7 @@ public sealed partial class PetWindow
     /// <summary>Следващото работно занимание (различно от предното), за 10–20 минути.</summary>
     private Scene StartRandomWork(Scene? last, bool quiet = true)
     {
-        var options = Scenes.Work.Where(f => Scenes.IsUnlocked(f, _save) && f != last).ToList();
+        var options = Scenes.Work.Where(f => CanDo(f) && f != last).ToList();
         var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Desk;
         StartScene(scene, quiet: quiet);
         _sceneUntil = Now + 600 + _rng.Next(600);
@@ -332,7 +346,7 @@ public sealed partial class PetWindow
     private Scene StartRandomRelax(Scene? last, bool quiet = true)
     {
         // Събитие днес може да забрани някои (болен – без батут) или да предпочете други (пижамен ден – четене).
-        var options = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save) && f != last && !HobbyBlocked(f)).ToList();
+        var options = Scenes.Fun.Where(f => CanDo(f) && f != last).ToList();
         var preferred = options.Where(HobbyPreferred).ToList();
         if (preferred.Count > 0 && _rng.Next(3) > 0) options = preferred;
         var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Reading;
@@ -460,14 +474,25 @@ public sealed partial class PetWindow
         if (_state is BearState.Couch) SetIdle();
     }
 
-    private void LoadSceneArt(Scene scene)
+    /// <summary>Позата, с която са нарисувани седалката и предметът (сменя ли се анимацията – наново).</summary>
+    private Behaviour.Posture _artPosture;
+
+    private void LoadSceneArt(Scene scene) => LoadSceneArt(scene, SceneAnim(scene));
+
+    /// <summary>
+    /// Рисува седалката и предмета до мечока според каталога (Behaviour): само каквото
+    /// е купено, и седалка – само ако позата на анимацията е седнал (постелката – винаги).
+    /// </summary>
+    private void LoadSceneArt(Scene scene, string anim)
     {
+        _artPosture = Behaviour.PostureOf(anim);
         string? seat = scene.Seat == "couch" && !HasCouch ? null : scene.Seat;
         if (seat == "couch") seat = Furniture.Current(_save, Kitchen.Couch).Prop;   // скинът на дивана
         // Бюрото със столчето се купува (едно); без него работи и играе на земята.
         if (seat == "stool") seat = Kitchen.Owns(_save, Kitchen.Desk) ? Furniture.StoolArt(_save) : null;
-        // Права анимация (work, write…) не сяда на столче – иначе стои прав върху него.
-        if (seat != null && StandingAnims.Contains(SceneAnim(scene))) seat = null;
+        if (seat == "mat" && !Kitchen.Owns(_save, Kitchen.YogaMat)) seat = null;
+        // Права анимация (work, write…) не сяда на столче – иначе стои прав върху него; постелката остава.
+        seat = Behaviour.SeatFor(seat, _artPosture);
         string? side = scene.Side;
         if (side == "desk") side = Kitchen.Owns(_save, Kitchen.Desk) ? Furniture.CurrentArt(_save, Kitchen.Desk) : null;
         if (side == "easel") side = EaselArt();
@@ -490,11 +515,6 @@ public sealed partial class PetWindow
         return _lib.HasProp("easel_" + n) ? "easel_" + n : "easel";
     }
 
-    /// <summary>Анимации, в които мечокът е прав (с тях не сяда на столчето/дивана).</summary>
-    private static readonly System.Collections.Generic.HashSet<string> StandingAnims = new()
-    {
-        "idle", "work", "work_tired", "write", "write_tired", "doing", "doing_tired", "dance", "walk", "happy", "think", "juggle", "yoga",
-    };
 
     private void SizeSceneArt()
     {
@@ -520,6 +540,8 @@ public sealed partial class PetWindow
             LeaveScene();
             return;
         }
+        // Смени ли се позата в кътчето (на бюрото: „мисли“ прав), седалката се пречертава.
+        if (_state == BearState.Couch && Behaviour.PostureOf(_anim) != _artPosture) LoadSceneArt(scene, _anim);
 
         bool stay = _save.StayPut && scene.Id == _save.StayScene;
         if (!stay && _sceneUntil > 0 && now > _sceneUntil)

@@ -158,7 +158,7 @@ public sealed partial class PetWindow
     {
         int hour = DateTime.Now.Hour;
         bool morning = hour is >= 6 and < 12, evening = hour >= 18 || hour < 6;
-        var owned = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save) && f.Id != _lastActivity).ToList();
+        var owned = Scenes.Fun.Where(f => CanDo(f) && f.Id != _lastActivity).ToList();
         if (owned.Count == 0) owned.Add(Scenes.Reading);
         double Weight(Scene f) =>
             (morning && (f == Scenes.Yoga || f == Scenes.Tea || f == Scenes.Plant) ? 3 : 1) *
@@ -195,7 +195,7 @@ public sealed partial class PetWindow
     /// <summary>Случайно отключено кътче.</summary>
     public Scene RandomUnlockedFun()
     {
-        var owned = Scenes.Fun.Where(f => Scenes.IsUnlocked(f, _save)).ToList();
+        var owned = Scenes.Fun.Where(CanDo).ToList();
         return owned[_rng.Next(owned.Count)];
     }
 

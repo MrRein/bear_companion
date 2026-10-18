@@ -100,6 +100,7 @@ public sealed partial class PetWindow : Window
         CoreEngine = Engine.CoreSetup.Build(this, save, a => Dispatcher.BeginInvoke(a));
         WireWork();     // мечо-доро и таймер: ядрото засича края, мечокът реагира
         WireEvents();   // събития (пижамен ден, болен ден, Коледа, пеперуда…)
+        WireBehaviour(); // продаден/махнат предмет спира заниманието; нов скин – пречертава
         Kitchen.ExtrasNow = () => CoreEngine.Modifiers.Get(Mecho.Core.Mods.ShopExtras);
         R.Owner = () => _save.OwnerName;
         // Размерите на шрифта и иконките зависят от мащаба на екрана.
@@ -260,7 +261,10 @@ public sealed partial class PetWindow : Window
         else if (_save.StayPut)
         {
             // Същия ден: пак си е в кътчето, където го оставихме (или почива на случаен принцип).
-            if (!RelaxesRandomly) StartScene(Scenes.ById(_save.StayScene), quiet: true);
+            // „Почивай си“/„Работи си“ на случаен принцип – избира наново; избраното кътче – само ако още може.
+            if (RelaxesRandomly || WorksRandomly) DecideMode();
+            else if (CanDo(Scenes.ById(_save.StayScene))) StartScene(Scenes.ById(_save.StayScene), quiet: true);
+            else _save.StayPut = false;
             Say(hello);
         }
         else if (!(newDay && MorningRitual()))
