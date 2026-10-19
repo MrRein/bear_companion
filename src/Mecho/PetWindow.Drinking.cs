@@ -44,13 +44,16 @@ public sealed partial class PetWindow
     private IReadOnlyDictionary<string, string> WithCup(IReadOnlyDictionary<string, string> outfit)
     {
         // Рисува/полива/плете/свири: четката, лейката, куките или китарата в лапите.
-        if (Dresser.HoldsTool(_anim) && !(_anim.StartsWith("doing") && !_inScene))
+        // Само в кътче, което има свой предмет, и не докато слага мебелта (тогава лапите са празни –
+        // иначе с „doing“ се появяваше четката, например докато слага бюрото за работа).
+        if (Dresser.HoldsTool(_anim) && _inScene && _placing == null)
         {
             string? tool = _scene == Scenes.Plant ? _plantTool
                 : _scene == Scenes.Knit ? "knitting"
                 : _scene == Scenes.Guitar ? Furniture.CurrentArt(_save, Kitchen.Guitar)
                 : _scene == Scenes.Board || _scene == Scenes.BoardPlay ? CardsTool   // на играта: карти в лапите
-                : _brush;
+                : _scene?.Easel == true ? _brush                                     // на статива: четка
+                : null;
             if (tool == null) return outfit;
             return new Dictionary<string, string>(outfit) { [Clothes.Tool.Id] = tool };
         }

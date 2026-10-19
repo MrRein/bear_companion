@@ -1892,6 +1892,19 @@ public sealed partial class PetWindow
                 SetFurniture(Kitchen.Couch, false);
             }
         }, 400);
+        await step("лапите: четка само на статива (не докато слага бюрото)", () =>
+        {
+            var empty = new Dictionary<string, string>();
+            StartScene(Scenes.Desk, quiet: true);
+            _anim = "doing";
+            if (WithCup(empty).ContainsKey(Clothes.Tool.Id)) throw new Exception("на бюрото с предмет в лапите (" + WithCup(empty)[Clothes.Tool.Id] + ")");
+            LeaveScene();
+            StartScene(Scenes.PaintFun, quiet: true);
+            _anim = "doing_sit";
+            if (!WithCup(empty).TryGetValue(Clothes.Tool.Id, out var brush) || !brush.StartsWith("paintbrush")) throw new Exception("на статива без четка");
+            LeaveScene();
+            SetIdle();
+        }, 300);
         await step("легло: колко да спи", () =>
         {
             AskSleepTime();

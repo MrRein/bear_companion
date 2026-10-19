@@ -73,7 +73,8 @@ public sealed partial class PetWindow
         WalkTo(_x + dir * step, () =>
         {
             _facingLeft = dir < 0;
-            StartPendingCook();
+            // Слага уреда като другите неща – с лапите (doing), и тогава той се появява.
+            Play(IsExhausted && _lib.Has("doing_tired") ? "doing_tired" : "doing", length: 1.2, after: StartPendingCook);
         });
     }
 
@@ -459,7 +460,9 @@ public sealed partial class PetWindow
             {
                 _facingLeft = faceLeft;
                 Announce(Lines.Pick(talk.Check, _save.OwnerName), 3, food: true);
-                PlayNear(CookerAnchor, Stirs(c.Tool) ? "cook" : "idle", length: 6 + _rng.Next(7));
+                // Понякога (1 от 3) пипа нещо по уреда с лапите (doing), иначе бърка/наднича.
+                if (_rng.Next(3) == 0) PlayNear(CookerAnchor, "doing", length: 2.5 + _rng.NextDouble() * 2);
+                else PlayNear(CookerAnchor, Stirs(c.Tool) ? "cook" : "idle", length: 6 + _rng.Next(7));
             });
             return true;
         }
