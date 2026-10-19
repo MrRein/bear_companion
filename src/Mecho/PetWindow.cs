@@ -1162,7 +1162,11 @@ public sealed partial class PetWindow : Window
         _chat.Ask(question, _bearRect, Area);
     }
 
-    internal void ChatClosed() => _chatClosedAt = Now;
+    internal void ChatClosed()
+    {
+        _chatClosedAt = Now;
+        AfterReminderChat();
+    }
 
     /// <summary>Пита следващото след малко (за разговори с продължение), ако още е свободен.</summary>
     public void AskAfter(double seconds, ChatQuestion question) =>

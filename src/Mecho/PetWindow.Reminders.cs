@@ -5,11 +5,12 @@ using System.Linq;
 
 namespace Mecho;
 
-// НАПОМНЯНИЯ (таб „Бележки“ → „Напомняния“): Тут пише какво и кога (дата, час) и дали
-// се повтаря (всеки ден, делнични, всяка седмица, месец, година). Може и за бележка (⏰ до
-// бележката). Като дойде часът, мечокът пита с балонче: Готово / След 10 мин / След 1 ч /
-// Утре – и звъни (динг). Скрит или на разходка – съобщение до часовника. Пропуснатото
-// (програмата е била спряна) – казва го, щом се пусне.
+// НАПОМНЯНИЯ: част от бележката – тикче „⏰ Напомни“ (или ⏰ до записана бележка): след
+// малко (5 мин… 3 ч, свои минути) или ден и точен час, по желание с повторение (всеки ден,
+// делнични, седмица, месец, година). Всички се виждат в „Бележки“ → „Напомняния“. Като дойде
+// часът, мечокът пита с балонче: Готово / След 10 мин / След 1 ч / Утре – и звъни (динг).
+// Скрит е – появява се, напомня и пак се скрива; на разходка – идва, напомня и се връща на
+// разходката. Пропуснатото (програмата е била спряна) – казва го, щом се пусне.
 public sealed partial class PetWindow
 {
     public static readonly (string Id, string Name)[] ReminderRepeats =
@@ -20,7 +21,6 @@ public sealed partial class PetWindow
 
     private static readonly CultureInfo Bg = new("bg-BG");
 
-    private readonly HashSet<Guid> _reminderBallooned = new();
     private readonly Dictionary<Guid, double> _reminderAsked = new();   // кога е питал (затвори ли балончето – пак след 10 мин)
     private double _nextReminderCheck;
 
@@ -32,6 +32,35 @@ public sealed partial class PetWindow
         Say(R.Pick("reminder.added", _save.OwnerName).Replace("{кога}", WhenText(due)), 3);
         NotifyCare();
         Persist();
+    }
+
+    /// <summary>Напомнянето на бележка (едно на бележка – новото сменя старото).</summary>
+    public void SetNoteReminder(NoteItem note, DateTime due, string repeat)
+    {
+        _save.Reminders.RemoveAll(r => r.NoteId == note.Id);
+        string text = note.Text.Replace('\n', ' ').Trim();
+        AddReminder(text.Length > 120 ? text[..120] + "…" : text, due, repeat, note.Id);
+    }
+
+    public void ClearNoteReminder(NoteItem note)
+    {
+        _save.Reminders.RemoveAll(r => r.NoteId == note.Id);
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>Бележка с напомняне наведнъж (напр. „Отговори на писмото“ от пощата).</summary>
+    public void AddNoteReminder(string text, DateTime due, string repeat = "none")
+    {
+        if (AddNote(text, quiet: true) is { } note) SetNoteReminder(note, due, repeat);
+    }
+
+    /// <summary>„30 мин“, „1 ч“, „1 ч 30 мин“.</summary>
+    public static string MinutesText(double minutes)
+    {
+        int m = (int)Math.Round(minutes);
+        if (m < 60) return $"{m} мин";
+        return m % 60 == 0 ? $"{m / 60} ч" : $"{m / 60} ч {m % 60} мин";
     }
 
     public void DeleteReminder(ReminderItem r)
@@ -46,7 +75,6 @@ public sealed partial class PetWindow
     {
         if (r.Repeat == "none") _save.Reminders.Remove(r);
         else r.Due = NextDue(r.Due, r.Repeat, DateTime.Now);
-        _reminderBallooned.Remove(r.Id);
         _reminderAsked.Remove(r.Id);
         NotifyCare();
         Persist();
@@ -56,7 +84,6 @@ public sealed partial class PetWindow
     public void SnoozeReminder(ReminderItem r, TimeSpan by)
     {
         r.Due = DateTime.Now + by;
-        _reminderBallooned.Remove(r.Id);
         _reminderAsked.Remove(r.Id);
         NotifyCare();
         Persist();
@@ -101,15 +128,60 @@ public sealed partial class PetWindow
         var due = _save.Reminders.Where(r => r.Due <= DateTime.Now
                 && !(_reminderAsked.TryGetValue(r.Id, out var asked) && now - asked < 10 * 60))
             .OrderBy(r => r.Due).FirstOrDefault();
-        if (due == null) return;
-        // Скрит или на разходка: съобщение до часовника (веднъж); балончето – щом се появи.
+        if (due == null || _walkingOut || _walkingBack) return;   // тръгва/идва – след малко
         if (!IsVisible || OnWalk)
         {
-            if (_reminderBallooned.Add(due.Id)) TrayIcon.Current?.Balloon("⏰ Напомняне от Мечо", due.Text);
+            PopInForReminder(due);
             return;
         }
         if (ChatIsOpen) return;   // друг въпрос е отворен – след него
         AskReminder(due);
+    }
+
+    // Появил се е само заради напомнянето: после пак се скрива („hidden“) или се връща на разходката („walk“).
+    private string? _popIn;
+    private double _popWalkLeft;
+    private bool _popWalkNap, _popWalkSolo;
+
+    /// <summary>Скрит – появява се и пита; на разходка – идва отстрани, пита и после пак тръгва.</summary>
+    internal void PopInForReminder(ReminderItem r)
+    {
+        if (OnWalk)
+        {
+            _popIn = "walk";
+            _popWalkLeft = WalkLeft.TotalMinutes;
+            _popWalkNap = _save.WalkNap;
+            _popWalkSolo = _save.WalkSolo;
+            _reminderAsked[r.Id] = Now;   // докато идва, да не го вика пак
+            ReturnFromWalk(called: true, arrived: () => AskReminder(r));
+            return;
+        }
+        _popIn = "hidden";
+        ShowBear();
+        AskReminder(r);
+    }
+
+    /// <summary>Балончето се затвори: ако е дошъл само за напомнянето – след малко пак си отива.</summary>
+    private void AfterReminderChat()
+    {
+        if (_popIn == null) return;
+        Later(3, () =>
+        {
+            if (_popIn == null || ChatIsOpen) return;   // нов въпрос – отива си след него
+            string mode = _popIn;
+            _popIn = null;
+            if (MenuIsOpen || _state == BearState.Drag) return;   // Тут се занимава с него – остава
+            if (mode == "hidden")
+            {
+                HideBubble();
+                Hide();
+            }
+            else if (mode == "walk" && _popWalkLeft >= 1 && !OnWalk)
+            {
+                GoForWalk(_popWalkLeft, solo: _popWalkSolo);
+                if (OnWalk) _save.WalkNap = _popWalkNap;
+            }
+        });
     }
 
     /// <summary>Балончето с напомнянето.</summary>

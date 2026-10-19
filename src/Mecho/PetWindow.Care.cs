@@ -462,19 +462,22 @@ public sealed partial class PetWindow
 
     // ───────────────────────── Бележки ─────────────────────────
 
-    public void AddNote(string text, bool quiet = false)
+    public NoteItem? AddNote(string text, bool quiet = false)
     {
         text = text.Trim();
-        if (text.Length == 0) return;
-        _save.Notes.Insert(0, new NoteItem { Text = text });
+        if (text.Length == 0) return null;
+        var note = new NoteItem { Text = text };
+        _save.Notes.Insert(0, note);
         if (!quiet) Say(Lines.Pick(Lines.NoteAdded, _save.OwnerName), 3);
         NotifyCare();
         Persist();
+        return note;
     }
 
     public void DeleteNote(NoteItem note)
     {
         _save.Notes.Remove(note);
+        _save.Reminders.RemoveAll(r => r.NoteId == note.Id);   // напомнянето е част от бележката
         NotifyCare();
         Persist();
     }

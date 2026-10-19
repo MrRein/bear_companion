@@ -225,8 +225,8 @@ public sealed partial class PetWindow
         // Поща – да напомни ли за писмото?
         if (kind is "mail" or "browser.mail")
             return new ChatQuestion(R.Pick("app.ask.mail", name),
-                new ChatOption("⏰ След 1 час", p => p.AddReminder("Отговори на писмото", DateTime.Now.AddHours(1), "none")),
-                new ChatOption("⏰ Утре сутрин", p => p.AddReminder("Отговори на писмото", DateTime.Today.AddDays(1).AddHours(9), "none")),
+                new ChatOption("⏰ След 1 час", p => p.AddNoteReminder("Отговори на писмото", DateTime.Now.AddHours(1))),
+                new ChatOption("⏰ Утре сутрин", p => p.AddNoteReminder("Отговори на писмото", DateTime.Today.AddDays(1).AddHours(9))),
                 Answer("Не, няма нужда", "app.ask.mail.no"));
         // Музика – може ли да потанцува?
         if (kind == "music" && !InFocus)

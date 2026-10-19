@@ -1948,6 +1948,33 @@ public sealed partial class PetWindow
             OpenMenu(MenuWindow.NotesTab);
             HideBubble();
         }, 400);
+        await step("напомняне към бележка", () =>
+        {
+            var n = AddNote("Тест: бележка с напомняне", quiet: true) ?? throw new Exception("бележката не се записа");
+            SetNoteReminder(n, DateTime.Now.AddMinutes(30), "none");
+            SetNoteReminder(n, DateTime.Now.AddMinutes(60), "daily");
+            if (_save.Reminders.Count(r => r.NoteId == n.Id) != 1 || ReminderFor(n)?.Repeat != "daily") throw new Exception("бележката трябва да има едно напомняне");
+            DeleteNote(n);
+            if (_save.Reminders.Any(r => r.NoteId == n.Id)) throw new Exception("напомнянето остана без бележката");
+            if (MinutesText(90) != "1 ч 30 мин" || MinutesText(15) != "15 мин") throw new Exception("MinutesText");
+            _menu?.Hide();
+        }, 200);
+        await step("напомняне: скрит – появява се", () =>
+        {
+            var n = AddNote("Тест: появи се", quiet: true)!;
+            SetNoteReminder(n, DateTime.Now.AddMinutes(-1), "none");
+            HideBubble();
+            Hide();
+            PopInForReminder(ReminderFor(n)!);
+            if (!IsVisible || !ChatIsOpen) throw new Exception("не се появи да напомни");
+            DeleteNote(n);
+            _chat?.Hide();
+        }, 3600);
+        await step("напомняне: пак се скрива", () =>
+        {
+            if (IsVisible) throw new Exception("не се скри след напомнянето");
+            ShowBear();
+        }, 300);
         await step("легло: колко да спи", () =>
         {
             AskSleepTime();

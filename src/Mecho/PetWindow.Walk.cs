@@ -97,8 +97,8 @@ public sealed partial class PetWindow
         if (DateTime.Now >= _save.WalkUntil) ReturnFromWalk(called: false);
     }
 
-    /// <summary>Връща се от разходката (сам или защото Тут го повика).</summary>
-    public void ReturnFromWalk(bool called)
+    /// <summary>Връща се от разходката (сам или защото Тут го повика); arrived – вместо поздрава (напр. напомняне).</summary>
+    public void ReturnFromWalk(bool called, Action? arrived = null)
     {
         if (_save.WalkUntil == DateTime.MinValue && !_walkingOut) return;
         _walkingOut = false;
@@ -121,6 +121,11 @@ public sealed partial class PetWindow
         {
             _walkingBack = false;
             _facingLeft = !left;
+            if (arrived != null)
+            {
+                arrived();
+                return;
+            }
             Say(R.Pick(called ? "walk.called" : napped ? "walk.back.nap" : solo ? "walk.back.solo" : "walk.back", _save.OwnerName), 5);
             Emote(called ? "question" : "happy");
             React("happy");
