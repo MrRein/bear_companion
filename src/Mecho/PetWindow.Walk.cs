@@ -79,7 +79,8 @@ public sealed partial class PetWindow
     /// </summary>
     private bool MaybeWanderOff()
     {
-        if (Now < _nextSoloWalk) return false;
+        // Докато менюто е отворено, не излиза сам от екрана (да не изчезне, докато Тут избира нещо за него).
+        if (Now < _nextSoloWalk || MenuIsOpen) return false;
         _nextSoloWalk = Now + Minutes(120, 240);
         if (_rng.NextDouble() > 0.3) return false;
         if (OnWalk || IsAsleep || InFocus || TimerRunning || Cooks || _pendingCook != null || CarriesGift || _eating != null

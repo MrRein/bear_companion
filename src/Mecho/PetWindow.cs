@@ -558,7 +558,7 @@ public sealed partial class PetWindow : Window
         }
 
         // Работим (мечо-доро или таймер), а го бяха вдигнали: веднага се връща на бюрото.
-        if (InFocus && !WaitingForFood && !CookFinale && !MenuIsOpen && !ChatIsOpen && _stateTime > 1.5)
+        if (InFocus && !WaitingForFood && !CookFinale && !ChatIsOpen && _stateTime > 1.5)
         {
             EnterWorkMode();
             return;
@@ -566,7 +566,7 @@ public sealed partial class PetWindow : Window
 
         // В режим и е време да реши: веднага (не чака обикновеното стоене от 25–60 с).
         if (_save.StayPut && !_inScene && !_onTrampoline && _modeDecideAt > 0 && Now >= _modeDecideAt && _stateTime > 0.3
-            && !MenuIsOpen && !ChatIsOpen && !WaitingForFood && _cook == null && _pendingCook == null)
+            && !ChatIsOpen && !WaitingForFood && _cook == null && _pendingCook == null)
         {
             _modeDecideAt = 0;
             DecideMode();
@@ -575,8 +575,9 @@ public sealed partial class PetWindow : Window
 
         if (_stateTime < _stateLength) return;
 
-        // Докато панелът е отворен, стои до него.
-        if (MenuIsOpen || ChatIsOpen)
+        // Докато пита нещо (балончето с бутони е над него), стои. Отвореното меню не го спира –
+        // живее си нормално (менюто може да е отворено дълго, от иконката, далеч от него).
+        if (ChatIsOpen)
         {
             SetIdle();
             return;
