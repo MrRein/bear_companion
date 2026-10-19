@@ -110,12 +110,8 @@ public sealed class TrayIcon : IDisposable
 
     private readonly System.Drawing.Image? _eyeIcon = PixelIcon("eye"), _walkIcon = PixelIcon("walk");
 
-    /// <summary>Менюто на мечока. Скрит – показва се; на разходка – остава си на разходка.</summary>
-    private void OpenMenu()
-    {
-        if (!_pet.OnWalk && !_pet.IsVisible) Show();
-        _pet.OpenMenu(MenuWindow.BearTab);
-    }
+    /// <summary>Само отваря менюто на мечока: не го показва (скрит си остава скрит), не го вика от разходка.</summary>
+    private void OpenMenu() => _pet.OpenMenu(MenuWindow.BearTab);
 
     /// <summary>Скрий / Покажи (мечока и рисунките заедно) или – на разходка – Повикай.</summary>
     private void Toggle()

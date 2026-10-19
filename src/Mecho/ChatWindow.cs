@@ -69,7 +69,11 @@ public sealed class ChatWindow : Window
         panel.Children.Add(_options);
         Content = Frame(panel, new Thickness(12, 10, 12, 8));
 
-        Deactivated += (_, _) => Hide();
+        // Клик другаде – затваря се; но не и когато просто се отвори менюто (въпросът си стои).
+        Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            if (!IsActive && !_pet.MenuIsActive) Hide();
+        }, System.Windows.Threading.DispatcherPriority.Input);
         IsVisibleChanged += (_, _) =>
         {
             if (!IsVisible) _pet.ChatClosed();

@@ -1182,6 +1182,9 @@ public sealed partial class PetWindow : Window
 
     public bool MenuIsOpen => _menu is { IsOpen: true };
 
+    /// <summary>Менюто е на фокус (току-що отворено или цъкнато).</summary>
+    internal bool MenuIsActive => _menu is { IsActive: true };
+
     /// <summary>Отваря панела или го затваря. Връща true, ако го е отворил.</summary>
     public bool ToggleMenu(bool fromClick = false)
     {
@@ -1196,10 +1199,9 @@ public sealed partial class PetWindow : Window
         return true;
     }
 
-    /// <summary>Отваря панела на даден таб.</summary>
+    /// <summary>Отваря панела на даден таб. Само това – балончето с въпроса (ако има) си остава.</summary>
     public void OpenMenu(int tab)
     {
-        if (ChatIsOpen) _chat!.Hide();
         _menu ??= new MenuWindow(this);
         _menu.ShowNear(_bearRect, Area, tab);
     }
