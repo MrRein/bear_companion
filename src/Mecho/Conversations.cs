@@ -220,7 +220,7 @@ public static class Conversations
             new ChatOption("🎲 Още една!", p => p.Ask(Idea())),
             new ChatOption("📝 Запиши я в бележките", p =>
             {
-                p.AddNote("💡 " + idea, quiet: true);
+                p.AddNote("Идея", idea, pinned: true, quiet: true);
                 p.Cheer("Записах я в бележките!");
             }),
             Reply("Стига толкова", "Добре! Отивам да я прототипирам."));
@@ -301,7 +301,7 @@ public static class Conversations
             new ChatOption("🎲 Друга тема", p => p.Ask(SketchPrompt())),
             new ChatOption("📝 Запиши я", p =>
             {
-                p.AddNote("✏️ " + prompt, quiet: true);
+                p.AddNote("Тема за рисуване", prompt, pinned: true, quiet: true);
                 p.Cheer("Записах я в бележките!");
             }),
             new ChatOption("🍯 Пусни мечо-доро", p => p.StartFocus()),

@@ -247,7 +247,9 @@ public static class Ui
     private static readonly Dictionary<string, string> EmojiIcons = new()
     {
         ["🌰"] = "nut", ["⏰"] = "clock", ["🍯"] = "honey", ["☕"] = "tea", ["⚡"] = "energy",
-        ["■"] = "stop", ["▶"] = "play", ["▲"] = "arrow_up", ["▼"] = "arrow_down", ["✓"] = "check", ["✔"] = "check", ["✕"] = "close", ["✗"] = "close",
+        ["■"] = "stop", ["▶"] = "play", ["▲"] = "arrow_up", ["▼"] = "arrow_down",
+        // Стрелките в изреченията („Десен бутон → „Обнови““).
+        ["→"] = "arrow_right", ["↑"] = "arrow_up", ["↓"] = "arrow_down", ["✓"] = "check", ["✔"] = "check", ["✕"] = "close", ["✗"] = "close",
         ["🫐"] = "food_berries", ["🍿"] = "food_popcorn", ["🍖"] = "food_meatballs", ["🥔"] = "food_potatoes", ["🍵"] = "food_tea",
         ["🍲"] = "shop_pot", ["🫖"] = "shop_kettle", ["🍳"] = "shop_pan", ["🔥"] = "shop_oven", ["🎧"] = "shop_headphones",
         ["🛏"] = "shop_bed", ["🧊"] = "shop_fridge", ["📖"] = "shop_cookbook", ["🌱"] = "shop_plant", ["🧘"] = "shop_yoga_mat",
@@ -312,7 +314,7 @@ public static class Ui
         while (e.MoveNext())
         {
             string el = e.GetTextElement().Replace("\uFE0F", "");
-            if (EmojiIcons.TryGetValue(el, out var icon) && LoadIcon(icon) != null)
+            if (IconFor(el) is { } icon)
             {
                 Flush();
                 var image = Icon(icon);
@@ -422,7 +424,7 @@ public static class Ui
                 action = !action;
                 continue;
             }
-            if (EmojiIcons.TryGetValue(el, out var icon) && LoadIcon(icon) != null)
+            if (IconFor(el) is { } icon)
             {
                 Flush();
                 var image = Icon(icon);
@@ -457,9 +459,20 @@ public static class Ui
         return b;
     }
 
-    // „0️⃣“ (цифра в квадратче) започва с обикновена цифра – познава се по \u20E3 накрая.
+    /// <summary>Пикселната иконка за емоджи (или null); сложните („🧑‍🎨“) – по първото.</summary>
+    internal static string? IconFor(string el)
+    {
+        if (EmojiIcons.TryGetValue(el, out var icon) && LoadIcon(icon) != null) return icon;
+        int zwj = el.IndexOf('\u200D');
+        if (zwj > 0 && EmojiIcons.TryGetValue(el[..zwj], out icon) && LoadIcon(icon) != null) return icon;
+        return null;
+    }
+
+    // Емоджи без иконка не се показва (в пикселния шрифт стои неравно). Знаците за смятане
+    // (−, ≠) и чертите (─) са си текст. „0️⃣“ започва с обикновена цифра – познава се по \u20E3.
     private static bool IsEmoji(string el) =>
-        char.IsSurrogate(el[0]) || el[0] is >= '\u2190' and <= '\u2BFF' && el[0] != '…' || el.Contains('\u20E3');
+        char.IsSurrogate(el[0]) || el.Contains('\u20E3')
+        || el[0] is >= '\u2190' and <= '\u21FF' or >= '\u2300' and <= '\u23FF' or >= '\u25A0' and <= '\u27BF' or >= '\u2B00' and <= '\u2BFF';
 
     /// <summary>TextBlock с текст, в който емоджитата са пикселни иконки.</summary>
     public static TextBlock RichText(string text, double? size = null, bool bold = false)
