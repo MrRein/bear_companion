@@ -93,6 +93,7 @@ skype = call
 
 # ── Музика и видео ──
 spotify = music
+deezer = music
 itunes = music
 foobar2000 = music
 winamp = music

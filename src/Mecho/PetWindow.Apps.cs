@@ -104,6 +104,7 @@ public sealed partial class PetWindow
     private void UpdateApps(double now)
     {
         UpdateRestWithTut(now);
+        UpdateAfterCall(now);
         if (now < _nextAppCheck || !_save.WatchApps || SelfTest.Running) return;
         _nextAppCheck = now + AppCheckEvery;
         try
@@ -113,12 +114,29 @@ public sealed partial class PetWindow
             using var p = Process.GetProcessById((int)pid);
             if (IgnoredApps.Contains(p.ProcessName)) return;
             string? kind = AppKind(p.ProcessName, title);
+            // Същата програма като при миналото поглеждане (преди 2 ч) и Тут е пипала компютъра –
+            // значи е в нея от поне 2 часа.
+            bool sameAsBefore = p.ProcessName.Equals(_appLast, StringComparison.OrdinalIgnoreCase) && NativeMethods.IdleSeconds() < 300;
+            _appLast = p.ProcessName;
+            _appLong = sameAsBefore;
             if (kind == null)
             {
                 NoteUnknownApp(p);
                 return;
             }
-            if (_rng.NextDouble() < AppTalkChance) TalkAboutApp(kind);
+            // Среща (Zoom, Teams): сам става тих, без да казва нищо; после пита как е минала.
+            if (kind == "call")
+            {
+                if (!IsQuiet)
+                {
+                    SetQuietFor(45);
+                    _callQuietUntil = now + 45 * 60;
+                }
+                return;
+            }
+            // Въпрос (ако има за тази ситуация) – с шанс 50%; иначе коментар – с шанс 20%.
+            bool hasQuestion = AppQuestion(kind) != null;
+            if (_rng.NextDouble() < (hasQuestion ? AppQuestionChance : AppTalkChance)) TalkAboutApp(kind);
         }
         catch (Exception)
         {
@@ -127,7 +145,10 @@ public sealed partial class PetWindow
     }
 
     /// <summary>На колко време поглежда (секунди) и с какъв шанс казва нещо.</summary>
-    private const double AppCheckEvery = 2 * 3600, AppTalkChance = 0.2;
+    private const double AppCheckEvery = 2 * 3600, AppTalkChance = 0.2, AppQuestionChance = 0.5;
+
+    private string _appLast = "";   // програмата при миналото поглеждане
+    private bool _appLong;          // същата е от поне 2 часа
 
     /// <summary>
     /// Казва нещо за програмата – и докато е зает (работи, в кътче); не и ако спи, тихо е,
@@ -144,6 +165,14 @@ public sealed partial class PetWindow
         if (AppLinesKey(kind) is { } key) Mutter(R.Pick(key, _save.OwnerName), 5);
     }
 
+    /// <summary>Програми, в които Тут рисува.</summary>
+    private static bool DrawApp(string kind) =>
+        kind is "draw" or "3d" or "adobe.photoshop" or "adobe.illustrator" or "adobe.fresco" or "adobe.animate" or "adobe.substance";
+
+    /// <summary>Програми за работа (без рисуването) – там предлага мечо-доро.</summary>
+    private static bool WorkApp(string kind) =>
+        kind.StartsWith("office.") || kind is "adobe.indesign" or "adobe.acrobat" or "adobe.xd" or "design" or "code" or "notes";
+
     /// <summary>Програми за почивка (игра, филм, YouTube, социални мрежи).</summary>
     private static bool RestApp(string kind) =>
         kind is "game" or "video" or "browser.video" or "browser.youtube" or "browser.social";
@@ -154,11 +183,75 @@ public sealed partial class PetWindow
     /// </summary>
     private ChatQuestion? AppQuestion(string kind)
     {
+        string name = _save.OwnerName;
+        bool busyTimer = InFocus || TimerRunning;
+        int hour = DateTime.Now.Hour;
+        ChatOption Answer(string label, string key) => new(label, p => p.Say(R.Pick(key, p._save.OwnerName), 4));
+        // Тут играе (гледа нещо), а той работи – „Ти работиш ли?“
         if (RestApp(kind) && WorksRandomly && !InFocus)
-            return new ChatQuestion(R.Pick("app.ask.working", _save.OwnerName),
+            return new ChatQuestion(R.Pick("app.ask.working", name),
                 new ChatOption("Не, почивам си", p => p.RestWithTut()),
-                new ChatOption("Да, работя", p => p.Say(R.Pick("app.ask.working.yes", p._save.OwnerName), 4)));
+                Answer("Да, работя", "app.ask.working.yes"));
+        // Играе, а мечо-дорото тече – почивка ли е?
+        if (kind == "game" && PomodoroFocus)
+            return new ChatQuestion(R.Pick("app.ask.gamefocus", name),
+                new ChatOption("Да, спри го", p => { p.StopPomodoro(); p.Say(R.Pick("app.ask.gamefocus.stop", p._save.OwnerName), 4); }),
+                Answer("Само за малко", "app.ask.gamefocus.short"));
+        // Късно е, а играе.
+        if (kind == "game" && (hour >= 23 || hour < 4))
+            return new ChatQuestion(R.Pick("app.ask.lategame", name),
+                Answer("Да, последно", "app.ask.lategame.yes"),
+                Answer("Още малко", "app.ask.lategame.no"));
+        // Вечер гледа филм – да седне ли до нея?
+        if (kind is "video" or "browser.video" or "browser.youtube" && hour >= 19 && !WorksRandomly && !InFocus)
+            return new ChatQuestion(R.Pick("app.ask.movie", name),
+                new ChatOption("🍿 Да, сядай", p => { p.StartScene(Scenes.Sit, 30 * 60); p.Say(R.Pick("app.ask.movie.yes", p._save.OwnerName), 4); }),
+                Answer("Не сега", "app.ask.movie.no"));
+        // Рисува от поне 2 часа – пауза за чай (почивен таймер 10 мин).
+        if (DrawApp(kind) && _appLong && !busyTimer)
+            return new ChatQuestion(R.Pick("app.ask.longdraw", name),
+                new ChatOption("☕ Да, 10 минути", p => { p.StartTimer(10, "Пауза с Мечо", "rest"); p.Say(R.Pick("app.ask.longdraw.yes", p._save.OwnerName), 4); }),
+                new ChatOption("Още малко", p => p.Say(R.Pick("app.ask.longdraw.no", p._save.OwnerName), 4)));
+        // Рисува, а той почива – да поработи ли и той?
+        if (DrawApp(kind) && (RelaxesRandomly || (!WorksRandomly && !InFocus && !_save.StayPut)))
+            return new ChatQuestion(R.Pick("app.ask.drawrest", name),
+                new ChatOption("Да, работи и ти", p => { p.WorkRandom(); }),
+                new ChatOption("Не, почивай си", p => p.Say(R.Pick("app.ask.drawrest.no", p._save.OwnerName), 4)));
+        // 3D – докато рендерира, да си сготвят нещо?
+        if (kind == "3d")
+            return new ChatQuestion(R.Pick("app.ask.render", name),
+                new ChatOption("🍳 Да, отвори кухнята", p => p.OpenMenu(MenuWindow.FoodTab)),
+                Answer("Не, гледам рендера", "app.ask.render.no"));
+        // Поща – да напомни ли за писмото?
+        if (kind is "mail" or "browser.mail")
+            return new ChatQuestion(R.Pick("app.ask.mail", name),
+                new ChatOption("⏰ След 1 час", p => p.AddReminder("Отговори на писмото", DateTime.Now.AddHours(1), "none")),
+                new ChatOption("⏰ Утре сутрин", p => p.AddReminder("Отговори на писмото", DateTime.Today.AddDays(1).AddHours(9), "none")),
+                Answer("Не, няма нужда", "app.ask.mail.no"));
+        // Музика – може ли да потанцува?
+        if (kind == "music" && !InFocus)
+            return new ChatQuestion(R.Pick("app.ask.dance", name),
+                new ChatOption("💃 Да, танцувай", p => { if (p._inScene) p.LeaveScene(); p.Play("dance", length: 45); }),
+                Answer("Не сега", "app.ask.dance.no"));
+        // Работи (Word, InDesign, код…) без мечо-доро – да пуснат ли едно заедно?
+        if ((WorkApp(kind) || DrawApp(kind)) && !busyTimer)
+            return new ChatQuestion(R.Pick("app.ask.pomodoro", name),
+                new ChatOption("🍅 Да, пускай", p => p.StartFocus()),
+                new ChatOption("Не сега", p => p.Say(R.Pick("app.ask.pomodoro.no", p._save.OwnerName), 3)));
         return null;
+    }
+
+    /// <summary>Докога е тих заради среща (после пита как е минала); 0 – не.</summary>
+    private double _callQuietUntil;
+
+    private void UpdateAfterCall(double now)
+    {
+        if (_callQuietUntil <= 0 || now < _callQuietUntil) return;
+        _callQuietUntil = 0;
+        if (IsAsleep || ChatIsOpen || !IsVisible || OnWalk) return;
+        Ask(new ChatQuestion(R.Pick("app.call.after", _save.OwnerName),
+            new ChatOption("😊 Добре", p => p.Say(R.Pick("app.call.good", p._save.OwnerName), 4)),
+            new ChatOption("😩 Уморително", p => p.Say(R.Pick("app.call.tired", p._save.OwnerName), 4))));
     }
 
     /// <summary>Докога почива „с Тут“ (после пак „Работи си“); 0 – не.</summary>

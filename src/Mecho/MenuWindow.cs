@@ -1947,7 +1947,17 @@ public sealed class MenuWindow : Window
 
     private UIElement BuildNotesTab()
     {
-        var p = new StackPanel();
+        var root = new StackPanel();
+        // Отгоре: Бележки | Напомняния.
+        var tabs = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8 * U) };
+        _notesChip = Chip("📝 Бележки", () => { _showReminders = false; BuildNoteList(); });
+        _remindersChip = Chip("⏰ Напомняния", () => { _showReminders = true; BuildNoteList(); });
+        _notesChip.Margin = new Thickness(0, 0, 6, 0);
+        tabs.Children.Add(_notesChip);
+        tabs.Children.Add(_remindersChip);
+        root.Children.Add(tabs);
+
+        var p = _notesPane;
         _noteInput = NewTextInput();
         _noteInput.AcceptsReturn = true;
         _noteInput.TextWrapping = TextWrapping.Wrap;
@@ -1979,8 +1989,14 @@ public sealed class MenuWindow : Window
             Margin = new Thickness(0, 10, 0, 0),
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         });
-        return p;
+        root.Children.Add(p);
+        root.Children.Add(BuildRemindersPane());
+        return root;
     }
+
+    private readonly StackPanel _notesPane = new(), _remindersPane = new();
+    private Border _notesChip = null!, _remindersChip = null!;
+    private bool _showReminders;
 
     private void AddNote()
     {
@@ -1992,6 +2008,11 @@ public sealed class MenuWindow : Window
 
     private void BuildNoteList()
     {
+        SetOn(_notesChip, !_showReminders);
+        SetOn(_remindersChip, _showReminders);
+        _notesPane.Visibility = _showReminders ? Visibility.Collapsed : Visibility.Visible;
+        _remindersPane.Visibility = _showReminders ? Visibility.Visible : Visibility.Collapsed;
+        BuildReminderList();
         _noteList.Children.Clear();
         SetOn(_pinNotes, _pet.IsPinned(PinWindow.Notes));
         if (_pet.Save.Notes.Count == 0)
@@ -2020,15 +2041,256 @@ public sealed class MenuWindow : Window
                 FontSize = Body,
                 Padding = new Thickness(0),
             });
-            body.Children.Add(new TextBlock { Text = n.Created.ToString("d.MM.yyyy, HH:mm"), Foreground = Muted, Margin = new Thickness(0, 2, 0, 0) });
+            string stamp = n.Created.ToString("d.MM.yyyy, HH:mm");
+            if (_pet.ReminderFor(n) is { } rem) stamp += "   ⏰ " + PetWindow.WhenText(rem.Due);
+            body.Children.Add(new TextBlock { Text = stamp, Foreground = Muted, Margin = new Thickness(0, 2, 0, 0) });
             grid.Children.Add(body);
 
-            var del = Chip("✕", () => _pet.DeleteNote(n));
-            del.VerticalAlignment = VerticalAlignment.Top;
-            Grid.SetColumn(del, 1);
-            grid.Children.Add(del);
+            // ⏰ – напомняне за тази бележка; ✕ – изтрий.
+            var buttons = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+            var remind = Chip("⏰", () => StartReminderFor(n));
+            remind.ToolTip = Tip("Напомни ми за тази бележка");
+            remind.Margin = new Thickness(0, 0, 0, 4);
+            buttons.Children.Add(remind);
+            buttons.Children.Add(Chip("✕", () => _pet.DeleteNote(n)));
+            Grid.SetColumn(buttons, 1);
+            grid.Children.Add(buttons);
 
             _noteList.Children.Add(Card(grid, false));
+        }
+    }
+
+    // ── Напомняния ──
+
+    private TextBox _remInput = null!, _remTime = null!, _remDateBox = null!;
+    private readonly WrapPanel _remDays = new(), _remTimes = new(), _remRepeats = new(), _remQuick = new();
+    private readonly StackPanel _remList = new();
+    private DateTime _remDate = DateTime.Today;
+    private string _remRepeat = "none";
+    private Guid? _remNote;
+    private TextBlock _remNoteLabel = null!, _remWhen = null!;
+
+    /// <summary>„Напомняния“: какво, кога (бързи бутони, ден, час) и дали се повтаря; отдолу – списъкът.</summary>
+    private UIElement BuildRemindersPane()
+    {
+        var p = _remindersPane;
+        p.Visibility = Visibility.Collapsed;
+        _remInput = NewTextInput();
+        _remInput.TextWrapping = TextWrapping.Wrap;
+        p.Children.Add(WithHint(_remInput, "За какво да ти напомня?"));
+        _remNoteLabel = new TextBlock { Foreground = Muted, Margin = new Thickness(0, 2, 0, 0), Visibility = Visibility.Collapsed };
+        p.Children.Add(_remNoteLabel);
+
+        // Бързо: след 10 мин, след 1 ч, довечера, утре сутрин.
+        p.Children.Add(Label("Бързо:"));
+        foreach (var (label, when) in new (string, Func<DateTime>)[]
+        {
+            ("След 10 мин", () => DateTime.Now.AddMinutes(10)),
+            ("След 1 ч", () => DateTime.Now.AddHours(1)),
+            ("Довечера 20:00", () => DateTime.Today.AddHours(DateTime.Now.Hour >= 20 ? 44 : 20)),
+            ("Утре 9:00", () => DateTime.Today.AddDays(1).AddHours(9)),
+        })
+        {
+            var w = when;
+            var chip = Chip(label, () => SetReminderWhen(w()));
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            _remQuick.Children.Add(chip);
+        }
+        p.Children.Add(_remQuick);
+
+        // Ден: днес, утре и следващите дни; или дата.
+        p.Children.Add(Label("Ден:"));
+        p.Children.Add(_remDays);
+        var dateRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+        _remDateBox = NewTextInput();
+        _remDateBox.Width = 90 * U;
+        _remDateBox.TextChanged += (_, _) =>
+        {
+            if (TryParseDate(_remDateBox.Text, out var d))
+            {
+                _remDate = d;
+                _remDateBox.BorderBrush = Ink;
+                BuildReminderPicker();
+            }
+        };
+        dateRow.Children.Add(WithHint(_remDateBox, "дд.мм.гггг"));
+        p.Children.Add(dateRow);
+
+        // Час: готови и свой.
+        p.Children.Add(Label("Час:"));
+        var timeRow = new WrapPanel();
+        _remTime = NewTextInput();
+        _remTime.Width = 70 * U;
+        _remTime.Text = DateTime.Now.AddHours(1).ToString("H:00");
+        _remTime.TextChanged += (_, _) => UpdateReminderWhen();
+        var timeHint = WithHint(_remTime, "ЧЧ:ММ");
+        ((FrameworkElement)timeHint).Margin = new Thickness(0, 0, 6, 4);
+        timeRow.Children.Add(timeHint);
+        foreach (var t in new[] { "9:00", "12:00", "15:00", "18:00", "20:00", "22:00" })
+        {
+            string time = t;
+            var chip = Chip(time, () => { _remTime.Text = time; });
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            _remTimes.Children.Add(chip);
+        }
+        timeRow.Children.Add(_remTimes);
+        p.Children.Add(timeRow);
+
+        // Повтаря ли се.
+        p.Children.Add(Label("Повтаря се:"));
+        p.Children.Add(_remRepeats);
+
+        _remWhen = new TextBlock { FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6, 0, 6), TextWrapping = TextWrapping.Wrap };
+        p.Children.Add(_remWhen);
+        var add = Button("Напомни ми", AddReminder, primary: true, icon: "clock");
+        add.HorizontalAlignment = HorizontalAlignment.Left;
+        p.Children.Add(add);
+
+        p.Children.Add(Ribbon("Предстоящи", "clock"));
+        p.Children.Add(new ScrollViewer { Content = _remList, MaxHeight = 300 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        BuildReminderPicker();
+        return p;
+    }
+
+    private TextBlock Label(string text) => new() { Text = text, Foreground = Muted, Margin = new Thickness(0, 8, 0, 3) };
+
+    private static bool TryParseDate(string text, out DateTime date)
+    {
+        string t = text.Trim();
+        var formats = new[] { "d.M.yyyy", "d.M.yy", "d.M", "d.M." };
+        if (DateTime.TryParseExact(t, formats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out date))
+        {
+            if (!t.Count(c => c == '.').Equals(2) || t.EndsWith(".")) date = new DateTime(DateTime.Today.Year, date.Month, date.Day);
+            if (date < DateTime.Today) date = date.AddYears(1);   // „5.01“ през декември – догодина
+            return true;
+        }
+        return false;
+    }
+
+    private bool TryReminderTime(out DateTime when)
+    {
+        when = default;
+        string t = _remTime.Text.Trim().Replace('.', ':');
+        if (!TimeSpan.TryParseExact(t, new[] { @"h\:mm", @"hh\:mm", "%h" }, System.Globalization.CultureInfo.InvariantCulture, out var time) || time.TotalHours >= 24)
+            return false;
+        when = _remDate.Date + time;
+        return true;
+    }
+
+    /// <summary>Бързите бутони: слагат деня и часа наведнъж.</summary>
+    private void SetReminderWhen(DateTime when)
+    {
+        _remDate = when.Date;
+        _remTime.Text = when.ToString("H:mm");
+        _remDateBox.Text = "";
+        BuildReminderPicker();
+    }
+
+    /// <summary>Дните (днес… след 6 дни) и повторенията – светва избраното; отдолу пише кога точно.</summary>
+    private void BuildReminderPicker()
+    {
+        _remDays.Children.Clear();
+        var culture = new System.Globalization.CultureInfo("bg-BG");
+        for (int i = 0; i < 7; i++)
+        {
+            var day = DateTime.Today.AddDays(i);
+            string name = i == 0 ? "Днес" : i == 1 ? "Утре" : day.ToString("ddd d", culture);
+            var chip = Chip(name, () => { _remDate = day; _remDateBox.Text = ""; BuildReminderPicker(); });
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            SetOn(chip, _remDate == day);
+            _remDays.Children.Add(chip);
+        }
+        _remRepeats.Children.Clear();
+        foreach (var (id, name) in PetWindow.ReminderRepeats)
+        {
+            string r = id;
+            var chip = Chip(name, () => { _remRepeat = r; BuildReminderPicker(); });
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            SetOn(chip, _remRepeat == r);
+            _remRepeats.Children.Add(chip);
+        }
+        UpdateReminderWhen();
+    }
+
+    private void UpdateReminderWhen()
+    {
+        if (_remWhen == null) return;
+        if (!TryReminderTime(out var when))
+        {
+            _remWhen.Text = "Напиши час, например 14:30.";
+            _remWhen.Foreground = Bad;
+            return;
+        }
+        _remWhen.Foreground = when <= DateTime.Now ? Bad : Ink;
+        _remWhen.Text = when <= DateTime.Now ? "Този час вече мина – избери по-късен."
+            : $"⏰ {PetWindow.WhenText(when)}{(_remRepeat == "none" ? "" : " · " + PetWindow.RepeatName(_remRepeat).ToLowerInvariant())}";
+    }
+
+    /// <summary>⏰ до бележка: напомнянето е с нейния текст (може да се смени).</summary>
+    private void StartReminderFor(NoteItem note)
+    {
+        _showReminders = true;
+        _remNote = note.Id;
+        string text = note.Text.Replace('\n', ' ').Trim();
+        _remInput.Text = text.Length > 80 ? text[..80] + "…" : text;
+        _remNoteLabel.Text = "📝 за бележка";
+        _remNoteLabel.Visibility = Visibility.Visible;
+        BuildNoteList();
+        _remInput.Focus();
+    }
+
+    private void AddReminder()
+    {
+        if (string.IsNullOrWhiteSpace(_remInput.Text))
+        {
+            _remInput.BorderBrush = Bad;
+            return;
+        }
+        if (!TryReminderTime(out var when) || when <= DateTime.Now)
+        {
+            _remTime.BorderBrush = Bad;
+            return;
+        }
+        _pet.AddReminder(_remInput.Text, when, _remRepeat, _remNote);
+        _remInput.Clear();
+        _remNote = null;
+        _remNoteLabel.Visibility = Visibility.Collapsed;
+        _remRepeat = "none";
+        BuildNoteList();
+    }
+
+    /// <summary>Предстоящите напомняния (най-близките горе): кога, повтаряне, ✓ готово, ✕ изтрий.</summary>
+    private void BuildReminderList()
+    {
+        _remList.Children.Clear();
+        var list = _pet.Save.Reminders.OrderBy(r => r.Due).ToList();
+        if (list.Count == 0)
+        {
+            _remList.Children.Add(MutedText("Няма напомняния. Мечокът ще ти каже, като дойде часът."));
+            return;
+        }
+        foreach (var reminder in list)
+        {
+            var r = reminder;
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition());
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var body = new StackPanel();
+            body.Children.Add(new TextBlock { Text = "⏰ " + r.Text, TextWrapping = TextWrapping.Wrap, Foreground = Ink });
+            string meta = PetWindow.WhenText(r.Due);
+            if (r.Repeat != "none") meta += " · " + PetWindow.RepeatName(r.Repeat).ToLowerInvariant();
+            if (r.NoteId != null) meta += " · 📝 бележка";
+            body.Children.Add(new TextBlock { Text = meta, Foreground = r.Due <= DateTime.Now ? Bad : Muted, Margin = new Thickness(0, 2, 0, 0) });
+            grid.Children.Add(body);
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
+            var done = Chip("✓", () => _pet.CompleteReminder(r));
+            done.ToolTip = Tip(r.Repeat == "none" ? "Готово (маха се)" : "Готово (следващия път)");
+            done.Margin = new Thickness(0, 0, 4, 0);
+            buttons.Children.Add(done);
+            buttons.Children.Add(Chip("✕", () => _pet.DeleteReminder(r)));
+            Grid.SetColumn(buttons, 1);
+            grid.Children.Add(buttons);
+            _remList.Children.Add(Card(grid, false));
         }
     }
 

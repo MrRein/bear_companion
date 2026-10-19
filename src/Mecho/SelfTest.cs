@@ -1915,10 +1915,39 @@ public sealed partial class PetWindow
                 if (AppLinesKey(kind) == null) throw new Exception("няма реплики за програми от вида " + kind);
             foreach (var kind in new[] { "browser.youtube", "browser.pinterest", "browser.art", "browser.mail", "browser.video", "browser.social" })
                 if (AppLinesKey(kind) != "app." + kind) throw new Exception("няма свои реплики: " + kind);
-            foreach (var key in new[] { "app.ask.working", "app.ask.working.no", "app.ask.working.yes", "app.rest.over" })
+            foreach (var key in new[] { "app.ask.working", "app.ask.working.no", "app.ask.working.yes", "app.rest.over",
+                         "app.ask.longdraw", "app.ask.longdraw.yes", "app.ask.longdraw.no", "app.ask.drawrest", "app.ask.drawrest.no",
+                         "app.ask.pomodoro", "app.ask.pomodoro.no", "app.ask.gamefocus", "app.ask.gamefocus.stop", "app.ask.gamefocus.short", "app.ask.lategame", "app.ask.lategame.yes", "app.ask.lategame.no",
+                         "app.ask.movie", "app.ask.movie.yes", "app.ask.movie.no", "app.ask.render", "app.ask.render.no", "app.ask.mail", "app.ask.mail.no",
+                         "app.ask.dance", "app.ask.dance.no", "app.call.after", "app.call.good", "app.call.tired",
+                         "reminder.added", "reminder.now", "reminder.missed", "reminder.done" })
                 if (!R.Has(key)) throw new Exception("няма реплики: " + key);
             if (AppQuestion("game") != null && !WorksRandomly) throw new Exception("пита „Ти работиш ли?“, а не работи");
         }, 200);
+        await step("напомняния: повторения, готово, отлагане", () =>
+        {
+            var fri = new DateTime(2026, 10, 23, 9, 0, 0);   // петък
+            if (NextDue(fri, "weekdays", fri) != fri.AddDays(3)) throw new Exception("делничното след петък не е в понеделник");
+            if (NextDue(fri, "daily", fri.AddDays(2.5)) != fri.AddDays(3)) throw new Exception("всекидневното не прескача пропуснатите дни");
+            if (NextDue(new DateTime(2026, 1, 31, 8, 0, 0), "monthly", new DateTime(2026, 1, 31, 9, 0, 0)).Month != 2) throw new Exception("месечното");
+            int before = _save.Reminders.Count;
+            var due = DateTime.Now.AddHours(2);
+            AddReminder("Тест: полей цветята", due, "daily");
+            var r = _save.Reminders.Last();
+            if (_save.Reminders.Count != before + 1 || r.Due != due) throw new Exception("не се добави");
+            CompleteReminder(r);
+            if (!_save.Reminders.Contains(r) || r.Due != due.AddDays(1) && r.Due != due) throw new Exception("повтарящото се изчезна след „Готово“");
+            SnoozeReminder(r, TimeSpan.FromMinutes(10));
+            if (r.Due > DateTime.Now.AddMinutes(11)) throw new Exception("не се отложи");
+            DeleteReminder(r);
+            AddReminder("Тест: веднъж", DateTime.Now.AddMinutes(5), "none");
+            var once = _save.Reminders.Last();
+            CompleteReminder(once);
+            if (_save.Reminders.Contains(once)) throw new Exception("еднократното остана след „Готово“");
+            if (WhenText(DateTime.Today.AddHours(14.5)) != "днес в 14:30") throw new Exception("„днес в 14:30“: " + WhenText(DateTime.Today.AddHours(14.5)));
+            OpenMenu(MenuWindow.NotesTab);
+            HideBubble();
+        }, 400);
         await step("легло: колко да спи", () =>
         {
             AskSleepTime();

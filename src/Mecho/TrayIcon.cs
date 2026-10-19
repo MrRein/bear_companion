@@ -15,8 +15,19 @@ public sealed class TrayIcon : IDisposable
     private readonly SaveData _save;
     private readonly Forms.NotifyIcon _icon;
 
+    /// <summary>Иконката (за съобщенията до часовника – напомнянията, докато мечокът е скрит).</summary>
+    public static TrayIcon? Current { get; private set; }
+
+    /// <summary>Съобщение до часовника.</summary>
+    public void Balloon(string title, string text)
+    {
+        try { _icon.ShowBalloonTip(10000, title, text, Forms.ToolTipIcon.None); }
+        catch (Exception) { }
+    }
+
     public TrayIcon(PetWindow pet, SaveData save)
     {
+        Current = this;
         _pet = pet;
         _save = save;
 
@@ -93,6 +104,8 @@ public sealed class TrayIcon : IDisposable
             ContextMenuStrip = menu,
             Visible = true,
         };
+        // Цъкнеш ли съобщението (напомняне) – отваря бележките.
+        _icon.BalloonTipClicked += (_, _) => _pet.OpenMenu(MenuWindow.NotesTab);
         // При посочване: таймерите (мечо-доро, таймер, разходка) – до 63 знака.
         _icon.MouseMove += (_, _) =>
         {

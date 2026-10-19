@@ -104,6 +104,7 @@ public sealed class SaveData
     /// <summary>Печицата е включена.</summary>
 
     public List<NoteItem> Notes { get; set; } = new();
+    public List<ReminderItem> Reminders { get; set; } = new();
     public List<DayRecord> Days { get; set; } = new();          // какво сме правили всеки ден (последните 60)
     public string MemoryDay { get; set; } = "";                 // за кой ден вече каза спомена от вчера
     public string MemoryLaterDay { get; set; } = "";            // втори, по-късен спомен (следобед)
@@ -932,6 +933,21 @@ public sealed class DayRecord
     public List<string> Hobbies { get; set; } = new();
     public List<string> Bought { get; set; } = new();
     public int Clothes { get; set; }           // колко пъти се преоблича
+}
+
+/// <summary>
+/// Напомняне: текст, кога (дата и час) и дали се повтаря. NoteId – ако е за бележка.
+/// Повтарящото се след „Готово“ минава на следващия път; еднократното изчезва.
+/// </summary>
+public sealed class ReminderItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Text { get; set; } = "";
+    public DateTime Due { get; set; }
+    /// <summary>none, daily, weekdays, weekly, monthly, yearly.</summary>
+    public string Repeat { get; set; } = "none";
+    public Guid? NoteId { get; set; }
+    public DateTime Created { get; set; } = DateTime.Now;
 }
 
 /// <summary>Бележка в тефтера на мечока.</summary>
