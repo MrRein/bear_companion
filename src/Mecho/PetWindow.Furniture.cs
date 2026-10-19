@@ -167,6 +167,13 @@ public sealed partial class PetWindow
         _save.BearScale = Math.Clamp(scale, 1, 8);
         _bedProp = null;
         ApplySpriteSize();
+        // Мащабът е за всичко нарисувано: мебели, уреди, радио, лампа, растение, хранилка, храна, птичка.
+        foreach (Window w in Application.Current.Windows)
+        {
+            if (w is CookerWindow c) c.Rescale(PixelSize);
+            else if (w is FoodWindow f) f.Rescale(PixelSize);
+        }
+        _bird.Width = _bird.Height = BirdArt * PixelSize;
         ClampX();
         UpdateLayoutAndWindow();
         Persist();

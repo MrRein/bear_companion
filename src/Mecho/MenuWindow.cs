@@ -2708,7 +2708,7 @@ public sealed class MenuWindow : Window
         p.Children.Add(soundRow);
         ShowSound();
 
-        // Размерът на мечока на екрана (колко пиксела на екрана е един пиксел от рисунката).
+        // Мащаб на всичко нарисувано (мечокът, мебелите, уредите, храната…): колко пиксела на екрана е един пиксел от рисунката.
         var sizeLabel = new TextBlock { FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6, 0, 4) };
         var slider = new Slider
         {
@@ -2721,7 +2721,7 @@ public sealed class MenuWindow : Window
             Margin = new Thickness(0, 0, 0, 10),
             Cursor = Cursors.Hand,
         };
-        void ShowSize() => sizeLabel.Text = $"Размер на Мечо: {(int)slider.Value}× " + ((int)slider.Value switch
+        void ShowSize() => sizeLabel.Text = $"Мащаб: {(int)slider.Value}× " + ((int)slider.Value switch
         {
             1 => "(мъничък)",
             2 => "(малък)",

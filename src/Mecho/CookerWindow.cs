@@ -147,7 +147,7 @@ public sealed class CookerWindow : Window
 
     public void SetArt(BitmapSource art, double pixelSize)
     {
-        if (ReferenceEquals(_image.Source, art)) return;
+        if (ReferenceEquals(_image.Source, art) && Math.Abs(_image.Width - art.PixelWidth * pixelSize) < 0.01) return;
         _image.Source = art;
         _image.Width = art.PixelWidth * pixelSize;
         _image.Height = art.PixelHeight * pixelSize;
@@ -155,6 +155,15 @@ public sealed class CookerWindow : Window
     }
 
     private bool _sizeDirty = true;
+
+    internal double ArtWidth => _image.Width;
+
+    /// <summary>Нов мащаб: същата рисунка, друг размер (стои на същото място на земята).</summary>
+    public void Rescale(double pixelSize)
+    {
+        if (_image.Source is BitmapSource art) SetArt(art, pixelSize);
+        Reposition();
+    }
 
     /// <summary>Остава време (null = скрий табелката).</summary>
     public void SetTime(string? text)

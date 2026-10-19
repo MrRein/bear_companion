@@ -42,6 +42,19 @@ public sealed class FoodWindow : Window
     private DateTime _lastMove;
     public bool IsDragging => _dragging;
 
+    private readonly Image _image;
+
+    /// <summary>Нов мащаб: по-голяма/по-малка храна (долният край и средата остават).</summary>
+    public void Rescale(double pixelSize)
+    {
+        double w = Art.PixelWidth * pixelSize, h = Art.PixelHeight * pixelSize;
+        double cx = Left + Width / 2, bottom = Top + Height;
+        _image.Width = Width = w;
+        _image.Height = Height = h;
+        Left = cx - w / 2;
+        Top = bottom - h;
+    }
+
     public FoodWindow(PetWindow pet, Food food, double fullness, double energy, Prop prop, double pixelSize)
     {
         _pet = pet;
@@ -72,6 +85,7 @@ public sealed class FoodWindow : Window
         Content = image;
         Width = image.Width;
         Height = image.Height;
+        _image = image;
 
         SourceInitialized += (_, _) => NativeMethods.MakeToolWindow(new WindowInteropHelper(this).Handle);
 

@@ -693,7 +693,17 @@ public sealed partial class PetWindow
             foreach (var p in Clothes.PajamaSets) { UsePajama(p); PajamaPreview(p); }
             foreach (var skin in Furniture.ByItem.Values.SelectMany(x => x)) if (Furniture.Owns(_save, skin)) SkinImage(skin);
         }, 1000);
-        await step("размер", () => { SetBearScale(5); SetBearScale(1); SetBearScale(3); }, 800);
+        await step("мащаб: за всичко нарисувано", () =>
+        {
+            var probe = new CookerWindow("Тест: мащаб");
+            probe.Place(RadioArt, PixelSize, Area.Left + 200, Area.Bottom);
+            SetBearScale(5);
+            if (Math.Abs(probe.ArtWidth - RadioArt.PixelWidth * PixelSize) > 0.5) throw new Exception("предметът не смени размера си с мащаба");
+            SetBearScale(1);
+            SetBearScale(3);
+            if (Math.Abs(probe.ArtWidth - RadioArt.PixelWidth * PixelSize) > 0.5) throw new Exception("предметът не се върна в мащаба");
+            probe.Close();
+        }, 800);
         await step("съблечи", Undress, 1200);
         await step("затвори менюто", () => _menu!.Hide(), 500);
         await step("подарък: тръгва", DevGiftNow, 3000);

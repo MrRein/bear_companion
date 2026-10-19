@@ -41,8 +41,8 @@ public sealed partial class PetWindow
         _emote.Visibility = Visibility.Visible;
     }
 
-    /// <summary>Колкото пикселите на мечока (мечокът е PixelSize на пиксел).</summary>
-    private double EmoteScale => Math.Max(3, PixelSize);
+    /// <summary>Колкото пикселите на мечока – следва мащаба.</summary>
+    private double EmoteScale => PixelSize;
 
     /// <summary>Всеки кадър: подскача при появата, избледнява накрая; къде стои – виж UpdateLayoutAndWindow.</summary>
     /// <summary>Иконката тъкмо изскача или изчезва (тогава се рисува плавно, иначе стига 15 кадъра в секунда).</summary>
