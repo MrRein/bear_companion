@@ -109,6 +109,8 @@ public sealed class SaveData
     public List<string> MemoryUsed { get; set; } = new();       // последните казани видове спомени (да не се повтарят)
     public string FavFood { get; set; } = "";                   // любимата храна за днес (виж PetWindow.Memory.cs)
     public string FavFoodDay { get; set; } = "";
+    public string WishTimes { get; set; } = "";                // днешните желания, които още не са се появили (минути от полунощ)
+    public Dictionary<string, DateTime> WishUntil { get; set; } = new();   // докога трае всяко появило се желание
     public string OddCraving { get; set; } = "";               // тайното странно желание за днес (храна), "" – няма
     public string OddCravingDay { get; set; } = "";
     public int OddCravingMeal { get; set; }                     // за кое хранене (Kitchen.Meal)

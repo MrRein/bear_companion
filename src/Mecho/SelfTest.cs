@@ -927,8 +927,11 @@ public sealed partial class PetWindow
         await step("желания: изпълненото се маха", () =>
         {
             _save.WishDay = "";
+            // Желанията са събития (може днес да няма): тестът си пуска едно сега.
+            if (SpawnWish(DateTime.Now, announce: false) == null) throw new Exception("не се появи желание");
             var w = Wishes();
             if (w.Length == 0) throw new Exception("няма желания");
+            if (w.Any(f => !Kitchen.FitsNow(f, DateTime.Now))) throw new Exception("желание не за това хранене");
             bool fulfilled = false;
             var listener = new object();
             CoreEngine.Bus.Subscribe<Mecho.Core.WishFulfilled>(listener, x => fulfilled |= x.FoodId == w[0].Id);
@@ -1083,6 +1086,7 @@ public sealed partial class PetWindow
         }, 3000);
         await step("желание: връща услугата", () =>
         {
+            if (Wishes().Length == 0) SpawnWish(DateTime.Now, announce: false);
             var wishes = Wishes();
             if (wishes.Length == 0) throw new Exception("няма желания");
             int nuts = _save.Hazelnuts, pages = _save.RecipePages;
@@ -1399,7 +1403,7 @@ public sealed partial class PetWindow
             if (c.Any(f => !Kitchen.FitsNow(f, DateTime.Now))) throw new Exception("желание не за това хранене");
             if (OddCravingNow is { } odd && Kitchen.FitsNow(odd, DateTime.Now)) throw new Exception("странното желание не е странно");
             if (Kitchen.Foods.Any(f => Kitchen.MealsOf(f) == Kitchen.Meal.None)) throw new Exception("храна без хранене");
-            if (!R.Has("craving.odd") || !R.Has("craving.odd.done") || !R.Has("craving.odd.no")) throw new Exception("няма реплики за странното желание");
+            if (!R.Has("craving.odd") || !R.Has("craving.odd.done") || !R.Has("craving.odd.no") || !R.Has("wish.appear")) throw new Exception("няма реплики за желанията");
             double full = _save.Fullness;
             _save.Fullness = 10;
             Ask(Conversations.Next(this));

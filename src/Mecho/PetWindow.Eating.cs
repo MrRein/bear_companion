@@ -97,33 +97,88 @@ public sealed partial class PetWindow
     public Food[] Wishes()
     {
         EnsureWishes();
-        // Само каквото е логично за сегашното хранене (закуска – закуска, обяд – обедно…)
-        // и каквото може да се сготви сега (не е заключено).
+        SpawnDueWishes();
+        // Само докато трае (до края на храненето, за което се е появило) и ако може да се сготви сега.
         var now = DateTime.Now;
         return _save.WishList.Select(id => Kitchen.Foods.FirstOrDefault(f => f.Id == id))
-            .Where(f => f != null && Kitchen.CanCook(f, _save) && Kitchen.FitsNow(f, now)).ToArray()!;
+            .Where(f => f != null && Kitchen.CanCook(f, _save)
+                && _save.WishUntil.TryGetValue(f.Id, out var until) && until > now).ToArray()!;
     }
 
     /// <summary>
-    /// Нов ден: по едно желание за закуска, обяд и вечеря и едно-две за между храненията
-    /// (само от това, което може да се сготви), плюс любимото за деня. Показват се само в
-    /// своето време (Wishes). Понякога – и едно тайно „странно“ желание (OddCraving).
+    /// Нов ден: желанията не са гарантирани – като събитие. Колко ще има днес: 0 (54%),
+    /// 1 (36%), 2 (8%), 3 (2%), всяко в случаен час (7:30–20:30, поне час и половина
+    /// едно от друго). Какво му се иска се решава чак тогава (SpawnDueWishes) – по храненето
+    /// в този час и по това колко е гладен. Понякога – и тайно „странно“ желание.
     /// </summary>
     private void EnsureWishes()
     {
-        string today = DayKey(DateTime.Today) + "|meals";
+        string today = DayKey(DateTime.Today) + "|events";
         if (_save.WishDay == today) return;
-        var can = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 5 && Kitchen.Regular(f) && Kitchen.CanCook(f, _save)).ToList();
-        var list = new List<string>();
-        if (FavoriteFood is { } fav) list.Add(fav.Id);
-        int snacks = can.Count > 8 && _rng.Next(2) == 0 ? 2 : 1;
-        foreach (var meal in new[] { Kitchen.Meal.Breakfast, Kitchen.Meal.Lunch, Kitchen.Meal.Dinner }.Concat(Enumerable.Repeat(Kitchen.Meal.Snack, snacks)))
+        double roll = _rng.NextDouble();
+        int count = roll < 0.54 ? 0 : roll < 0.90 ? 1 : roll < 0.98 ? 2 : 3;
+        var times = new List<int>();   // минути от полунощ
+        for (int tries = 0; times.Count < count && tries < 200; tries++)
         {
-            var options = can.Where(f => (Kitchen.MealsOf(f) & meal) != 0 && !list.Contains(f.Id)).ToList();
-            if (options.Count > 0) list.Add(options[_rng.Next(options.Count)].Id);
+            int m = 7 * 60 + 30 + _rng.Next(13 * 60);
+            if (times.All(t => Math.Abs(t - m) >= 90)) times.Add(m);
         }
-        CoreEngine.Bus.Send(new Mecho.Core.SetWishes(today, list));
+        times.Sort();
+        _save.WishTimes = string.Join(",", times);
+        _save.WishUntil.Clear();
+        CoreEngine.Bus.Send(new Mecho.Core.SetWishes(today, Array.Empty<string>()));
+        var can = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 5 && Kitchen.Regular(f) && Kitchen.CanCook(f, _save)).ToList();
         PickOddCraving(today, can);
+    }
+
+    /// <summary>Дошъл ли е часът на някое от днешните желания: появява се (и го казва).</summary>
+    private void SpawnDueWishes()
+    {
+        if (_save.WishTimes.Length == 0) return;
+        var now = DateTime.Now;
+        int minute = now.Hour * 60 + now.Minute;
+        var times = _save.WishTimes.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList();
+        var due = times.Where(t => t <= minute).ToList();
+        if (due.Count == 0) return;
+        _save.WishTimes = string.Join(",", times.Except(due));
+        // Програмата е била спряна дълго: изпуснатото желание просто не се е случило.
+        if (minute - due.Max() > 120) return;
+        SpawnWish(now, announce: true);
+    }
+
+    /// <summary>
+    /// Ново желание сега: логично за това хранене (закуска/обяд/вечеря/между храненията) и
+    /// според глада – много гладен иска нещо солидно, леко гладен – нещо малко.
+    /// </summary>
+    internal Food? SpawnWish(DateTime now, bool announce)
+    {
+        var meal = Kitchen.MealAt(now);
+        var can = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 2 && Kitchen.Regular(f) && Kitchen.CanCook(f, _save)
+            && (Kitchen.MealsOf(f) & meal) != 0 && !_save.WishList.Contains(f.Id)).ToList();
+        if (can.Count == 0) return null;
+        double full = _save.Fullness;
+        var fits = can.Where(f => full < 35 ? f.Fullness >= 30 : full < 65 ? f.Fullness is >= 12 and <= 35 : f.Fullness <= 15).ToList();
+        if (fits.Count == 0) fits = can;
+        var food = fits[_rng.Next(fits.Count)];
+        if (!CoreEngine.Bus.Send(new Mecho.Core.AddWish(food.Id)).Ok) return null;
+        // Трае до края на храненето (между храненията – два часа).
+        var day = now.Date;
+        _save.WishUntil[food.Id] = meal switch
+        {
+            Kitchen.Meal.Breakfast => day.AddHours(10.5),
+            Kitchen.Meal.Lunch => day.AddHours(14.5),
+            Kitchen.Meal.Dinner => day.AddHours(21),
+            _ => now.AddHours(2),
+        };
+        Persist();
+        NotifyCare();
+        if (announce && !IsQuiet && !IsAsleep && !InFocus)
+            Later(2, () =>
+            {
+                Mutter(R.Pick("wish.appear", _save.OwnerName).Replace("{ястие}", food.Name.ToLowerInvariant()), 5);
+                Emote("hungry", 3);
+            });
+        return food;
     }
 
     // ── Странното желание ──
@@ -167,19 +222,6 @@ public sealed partial class PetWindow
         if (!CoreEngine.Bus.Send(new Mecho.Core.FulfillWish(food.Id)).Ok) return;
         Persist();
         NotifyCare();
-        if (_save.TodayCount("wish.added") >= 2 || _rng.NextDouble() > 0.15) return;
-        // За следващото хранене (след закуската – нещо за обяд…), не каквото и да е.
-        var next = Kitchen.NextMeal(DateTime.Now);
-        var options = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 5 && Kitchen.Regular(f) && Kitchen.CanCook(f, _save)
-            && (Kitchen.MealsOf(f) & next) != 0
-            && f.Id != food.Id && !_save.WishList.Contains(f.Id) && !TodayRec.Foods.Contains(f.Id)).ToList();
-        if (options.Count == 0) return;
-        var wish = options[_rng.Next(options.Count)];
-        if (!CoreEngine.Bus.Send(new Mecho.Core.AddWish(wish.Id)).Ok) return;
-        _save.CountToday("wish.added");
-        Persist();
-        NotifyCare();
-        Later(8, () => Mutter(R.Text("wish.new", _save.OwnerName, ("ястие", wish.Name.ToLowerInvariant())), 5));
     }
 
     /// <summary>

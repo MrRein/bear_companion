@@ -443,6 +443,20 @@ public sealed partial class PetWindow
         yield return (walk, "Вечерна дрямка-разходка 2 мин", () => { _save.Energy = 10; _save.WalkUntil = DateTime.MinValue; GoForWalk(2); _save.WalkNap = true; });
         yield return (walk, "Сам тръгва (1 мин, както когато скучае)", () => GoForWalk(1, solo: true));
         yield return (walk, "Сам тръгва при следващия избор (шанс 30%)", () => { _nextSoloWalk = 0; _freeUntil = 0; });
+        yield return (walk, "Желание: появи се сега (по часа и глада)", () =>
+        {
+            if (SpawnWish(DateTime.Now, announce: true) is not { } f) Say("Нищо подходящо за сега.", 2);
+        });
+        yield return (walk, "Странно желание: сега", () =>
+        {
+            var can = Kitchen.Foods.Where(f => f.Cost > 0 && Kitchen.Regular(f) && Kitchen.CanCook(f, _save) && !Kitchen.FitsNow(f, DateTime.Now)).ToList();
+            if (can.Count == 0) return;
+            EnsureWishes();
+            _save.OddCraving = can[_rng.Next(can.Count)].Id;
+            _save.OddCravingDay = _save.WishDay;
+            _save.OddCravingMeal = (int)Kitchen.MealAt(DateTime.Now);
+            if (OddCravingNow is { } odd) Say(OddCravingLine(odd), 4);
+        });
         yield return (walk, "Желание: даде му каквото иска (награда)", () =>
         {
             if (Wishes() is { Length: > 0 } w)
