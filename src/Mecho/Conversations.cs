@@ -67,6 +67,11 @@ public static class Conversations
         // а ако вече се готви (или храната го чака), изобщо не пита.
         if (!pet.FoodComing && PetWindow.NeedLevel(s.Fullness) is int level && Rng.NextDouble() < HungerAskChance(level))
             return Hungry(pet);
+        // Странното желание: понякога, като го цъкнеш, си признава (и без да е много гладен).
+        if (!pet.FoodComing && pet.OddCravingNow is { } odd && Rng.Next(3) == 0)
+            return new ChatQuestion(pet.OddCravingLine(odd),
+                new ChatOption($"{odd.Icon} Сготви {odd.Name.ToLowerInvariant()}", p => p.Cook(odd)),
+                Reply("Наистина странно 😄", R.Any("craving.odd.no")));
         if (s.Energy < PetWindow.TiredBelow && PetWindow.NeedLevel(s.Energy) is int tired && Rng.NextDouble() < TiredAskChance(tired))
         {
             // Денем – дрямка за малко; вечер – лека нощ.
@@ -149,7 +154,11 @@ public static class Conversations
     {
         var s = pet.Save;
         var picks = new List<Food>();
-        picks.AddRange(Kitchen.Cravings(s));
+        // Странното желание (ако е сега) – първо; после желанията за това хранене (същите като в „Желание“).
+        var odd = pet.OddCravingNow;
+        if (odd != null) picks.Add(odd);
+        var wishes = pet.Wishes();
+        picks.AddRange(wishes.Where(f => !picks.Contains(f)));
         var berries = Kitchen.Foods.First(f => f.Cost == 0);
         if (Kitchen.BerriesIn(s) == 0) picks.Add(berries);
         var cheap = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 10 && Kitchen.CanCook(f, s) && !picks.Contains(f))
@@ -161,8 +170,9 @@ public static class Conversations
             .ToList();
         options.Add(new ChatOption("🍳 Отвори кухнята", p => p.OpenMenu(MenuWindow.FoodTab)));
         options.Add(Reply("По-късно", "Добре… *къркор*"));
-        bool nothing = picks.All(f => f.Cost == 0) && Kitchen.Cravings(s).Length == 0;
-        string ask = Kitchen.Cravings(s) is { Length: > 0 } c
+        bool nothing = picks.All(f => f.Cost == 0) && wishes.Length == 0;
+        string ask = odd != null ? pet.OddCravingLine(odd)
+            : wishes is { Length: > 0 } c
             ? R.Pick("hungry.craving", s.OwnerName).Replace("{ястие}", c[0].Name.ToLowerInvariant())
             : nothing ? R.Pick("hungry.nothing", s.OwnerName) : "Гладен съм… ще ме нахраниш ли?";
         return new ChatQuestion(ask, options.ToArray());

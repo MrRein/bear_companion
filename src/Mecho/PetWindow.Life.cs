@@ -354,7 +354,8 @@ public sealed partial class PetWindow
     /// <summary>Понякога вместо обикновена приказка казва как се чувства днес.</summary>
     private string? MoodLine()
     {
-        // Понякога казва какво му се яде днес (само от отключеното).
+        // Странното желание – понякога го казва сам; иначе какво му се яде за това хранене.
+        if (_rng.Next(6) == 0 && OddCravingNow is { } odd) return OddCravingLine(odd);
         if (_rng.Next(5) == 0 && Wishes() is { Length: > 0 } c)
             return R.Pick("craving", _save.OwnerName).Replace("{ястие}", c[_rng.Next(c.Length)].Name.ToLowerInvariant());
         if (_rng.Next(4) != 0) return null;

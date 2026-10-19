@@ -1393,8 +1393,13 @@ public sealed partial class PetWindow
         {
             _nextWish = 0;
             UpdateWishes(Now);
-            var c = Kitchen.Cravings(_save);
+            var c = Wishes();
             if (c.Any(f => !Kitchen.CanCook(f, _save))) throw new Exception("иска нещо, което не може да се сготви");
+            // Желанията са за сегашното хранене (закуска – закуска…); странното – не е между тях.
+            if (c.Any(f => !Kitchen.FitsNow(f, DateTime.Now))) throw new Exception("желание не за това хранене");
+            if (OddCravingNow is { } odd && Kitchen.FitsNow(odd, DateTime.Now)) throw new Exception("странното желание не е странно");
+            if (Kitchen.Foods.Any(f => Kitchen.MealsOf(f) == Kitchen.Meal.None)) throw new Exception("храна без хранене");
+            if (!R.Has("craving.odd") || !R.Has("craving.odd.done") || !R.Has("craving.odd.no")) throw new Exception("няма реплики за странното желание");
             double full = _save.Fullness;
             _save.Fullness = 10;
             Ask(Conversations.Next(this));
@@ -1711,7 +1716,7 @@ public sealed partial class PetWindow
             CoreEngine.Bus.Send(new Mecho.Core.StartGameEvent(Mecho.Core.GameEvents.SickDay, Force: true));
             if (!IsSick || !Kitchen.CanCook(med, _save)) throw new Exception("болен е, а лекарството го няма");
             if (CoreEngine.Modifiers.Get(Mecho.Core.Mods.EnergyDrain) <= 1) throw new Exception("болен, а не се уморява повече");
-            if (Kitchen.Cravings(_save).Contains(med)) throw new Exception("лекарството е желание");
+            if (Wishes().Contains(med) || OddCravingNow == med) throw new Exception("лекарството е желание");
             TookMedicine(med);
             if (IsSick || Kitchen.CanCook(med, _save)) throw new Exception("лекарството не го излекува");
             HideBubble();

@@ -115,8 +115,8 @@ public sealed partial class PetWindow
         double inside = left ? area.Left + depth : area.Right - depth;
         _x = left ? area.Left - SpriteWidth / 2 : area.Right + SpriteWidth / 2;
         _y = Ground(area.Bottom);
-        if (!IsVisible) Show();
         _walkingBack = true;
+        ShowBear();   // вече на новото място (иначе за миг се мярка там, откъдето излезе)
         WalkTo(inside, () =>
         {
             _walkingBack = false;

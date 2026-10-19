@@ -1553,9 +1553,9 @@ public sealed class MenuWindow : Window
         var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
         void AddChip(WrapPanel panel, string label, string icon, bool on, Action pick)
         {
-            var chip = Chip("", () => { pick(); BuildWardrobe(); });
+            // Без име на иконка: емоджито в началото на текста става пикселната иконка (като навсякъде, Chip).
+            var chip = Chip(icon.Length > 0 ? "" : label, () => { pick(); BuildWardrobe(); });
             if (icon.Length > 0) chip.Child = IconText(icon, label);
-            else chip.Child = new TextBlock { Text = label, Foreground = Ink };
             SetOn(chip, on);
             chip.Margin = new Thickness(0, 0, 5, 5);
             panel.Children.Add(chip);

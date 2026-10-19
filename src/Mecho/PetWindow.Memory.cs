@@ -164,7 +164,7 @@ public sealed partial class PetWindow
     /// <summary>„Днес ми се яде…“ (веднъж на ден).</summary>
     private void SayFavoriteWish()
     {
-        if (FavoriteFood is not { } f || _save.FavFoodSaid || TodayRec.FavFed) return;
+        if (FavoriteFood is not { } f || _save.FavFoodSaid || TodayRec.FavFed || !Kitchen.FitsNow(f, DateTime.Now)) return;
         _save.FavFoodSaid = true;
         Say(R.Put(R.Pick("fav.wish", _save.OwnerName), "храна", f.Name.ToLowerInvariant()), 5);
         Emote("hungry", 3);

@@ -1200,6 +1200,21 @@ public sealed partial class PetWindow : Window
         return true;
     }
 
+    /// <summary>
+    /// Показва скрития мечок: първо нарежда кадъра и прозореца на мястото, където е сега,
+    /// и чак тогава го показва – иначе за миг се мяркаше там, където е бил скрит (до ръба,
+    /// откъдето излезе на разходка) и после подскачаше.
+    /// </summary>
+    public void ShowBear()
+    {
+        if (IsVisible) return;
+        UpdateFrame();
+        _movedTo = new Point(double.NaN, double.NaN);
+        UpdateLayoutAndWindow();
+        Show();
+        UpdateLayoutAndWindow();
+    }
+
     /// <summary>Отваря панела на даден таб. Само това – балончето с въпроса (ако има) си остава.</summary>
     public void OpenMenu(int tab)
     {

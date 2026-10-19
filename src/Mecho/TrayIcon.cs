@@ -131,7 +131,7 @@ public sealed class TrayIcon : IDisposable
 
     private void Show()
     {
-        _pet.Show();
+        _pet.ShowBear();
         if (_pet.DrawingsHidden) _pet.SetDrawingsHidden(false);
     }
 

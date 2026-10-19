@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Mecho;
 
@@ -137,6 +138,60 @@ public static class Kitchen
     }
 
     public static bool IsCraving(Food f, SaveData save) => Cravings(save).Contains(f);
+
+    // ── Храненията: кое за кога е логично ──
+
+    /// <summary>За кое хранене е ястието: закуска, обяд, вечеря, нещо между храненията (може няколко).</summary>
+    [Flags]
+    public enum Meal
+    {
+        None = 0,
+        Breakfast = 1,
+        Lunch = 2,
+        Dinner = 4,
+        Snack = 8,
+    }
+
+    private const Meal B = Meal.Breakfast, L = Meal.Lunch, D = Meal.Dinner, S = Meal.Snack;
+
+    /// <summary>Храненията на всяко ястие. Каквото го няма тук – нещо между храненията.</summary>
+    private static readonly Dictionary<string, Meal> MealMap = new()
+    {
+        ["sandwich"] = B | S, ["popcorn"] = S, ["meatballs"] = L | D, ["potatoes"] = L | D,
+        ["coffee"] = B, ["tea"] = B | S, ["juice_orange"] = B | S, ["juice_berry"] = S, ["lemonade"] = S,
+        ["soup"] = L | D, ["roast_soup"] = L | D, ["corn"] = S, ["cocoa"] = B | S, ["linden_tea"] = S,
+        ["eggs"] = B, ["pancakes"] = B, ["espresso"] = B | S, ["latte"] = B, ["mocha"] = B | S, ["cappuccino"] = B,
+        ["iced_coffee"] = S, ["cookies"] = S, ["muffins"] = B | S, ["pizza"] = L | D, ["smoothie"] = B | S,
+        ["toast"] = B | S, ["sandwich_ham"] = B | L, ["pressed_caprese"] = L | S, ["pressed_veggie"] = L,
+        ["pressed_chicken"] = L | D, ["pressed_egg"] = B, ["pressed_mushroom"] = L | D, ["pressed_sandwich"] = L,
+        ["sandwich_honey"] = B | S, ["waffle_honey"] = B | S, ["waffle_choco"] = S, ["waffle_icecream"] = S,
+        ["icecream_honey"] = S, ["icecream_berry"] = S, ["skewers"] = L | D, ["veggies"] = L | D, ["grilled_bread"] = B | S,
+    };
+
+    public static Meal MealsOf(Food f) => MealMap.TryGetValue(f.Id, out var m) ? m : Meal.Snack;
+
+    /// <summary>
+    /// Кое хранене е сега: закуска 5:00–10:30, обяд 11:40–14:30, вечеря 18:30–21:00,
+    /// между тях (и късно вечер, и нощем) – нещо между храненията.
+    /// </summary>
+    public static Meal MealAt(DateTime t)
+    {
+        double h = t.Hour + t.Minute / 60.0;
+        return h >= 5 && h < 10.5 ? Meal.Breakfast
+            : h >= 11 + 40 / 60.0 && h < 14.5 ? Meal.Lunch
+            : h >= 18.5 && h < 21 ? Meal.Dinner
+            : Meal.Snack;
+    }
+
+    /// <summary>Следващото истинско хранене след t (за „за следващия път“).</summary>
+    public static Meal NextMeal(DateTime t)
+    {
+        double h = t.Hour + t.Minute / 60.0;
+        return h < 10.5 ? (h >= 5 ? Meal.Lunch : Meal.Breakfast) : h < 14.5 ? Meal.Dinner : h < 21 ? Meal.Dinner : Meal.Breakfast;
+    }
+
+    /// <summary>Логично ли е да му се яде това сега.</summary>
+    public static bool FitsNow(Food f, DateTime t) => (MealsOf(f) & MealAt(t)) != 0;
 
     /// <summary>Пие се (седнал, с чаша), а не се яде.</summary>
     /// <summary>Лекарството (болен ден): продава се само докато е болен.</summary>
