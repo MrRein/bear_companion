@@ -1958,6 +1958,18 @@ public sealed partial class PetWindow
             OpenMenu(MenuWindow.NotesTab);
             HideBubble();
         }, 400);
+        await step("бележка: име, съдържание, табло", () =>
+        {
+            var n = AddNote("Пазар", "мляко и мед", pinned: false, quiet: true) ?? throw new Exception("бележката не се записа");
+            if (n.Title != "Пазар" || n.Text != "мляко и мед" || n.Pinned) throw new Exception("името/съдържанието/таблото не се записаха");
+            if (n.Label != "Пазар") throw new Exception("напомнянето трябва да е с името");
+            SetNotePinned(n, true);
+            if (!n.Pinned) throw new Exception("не се закачи в таблото");
+            SetPinned(PinWindow.Notes, true);
+            SetPinned(PinWindow.Notes, false);
+            DeleteNote(n);
+            if (Ui.Shorten("абвгдежзий", 5) != "абвгд…") throw new Exception("Shorten");
+        }, 300);
         await step("напомняне към бележка", () =>
         {
             var n = AddNote("Тест: бележка с напомняне", quiet: true) ?? throw new Exception("бележката не се записа");

@@ -589,6 +589,13 @@ public static class Ui
 
     private static bool IsOn(FrameworkElement e) => e.Tag is true;
 
+    /// <summary>Съкратено до толкова знака (на един ред), с „…“ накрая.</summary>
+    public static string Shorten(string text, int max)
+    {
+        string t = text.Replace('\n', ' ').Trim();
+        return t.Length > max ? t[..max].TrimEnd() + "…" : t;
+    }
+
     /// <summary>Малко копче (размер на задача, ✕ и др.).</summary>
     public static Border Chip(string text, Action onClick)
     {

@@ -954,6 +954,18 @@ public sealed class ReminderItem
 public sealed class NoteItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string Text { get; set; } = "";
+    public string Title { get; set; } = "";                 // името (с удебелен шрифт); може да е празно
+    public string Text { get; set; } = "";                  // съдържанието
+    public bool Pinned { get; set; } = true;                // показва се в закаченото табло
     public DateTime Created { get; set; } = DateTime.Now;
+
+    /// <summary>Името, а ако няма – началото на текста (за напомнянията).</summary>
+    public string Label
+    {
+        get
+        {
+            string t = (Title.Length > 0 ? Title : Text).Replace('\n', ' ').Trim();
+            return t.Length > 120 ? t[..120] + "…" : t;
+        }
+    }
 }

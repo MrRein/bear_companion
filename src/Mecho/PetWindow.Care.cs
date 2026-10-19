@@ -462,16 +462,27 @@ public sealed partial class PetWindow
 
     // ───────────────────────── Бележки ─────────────────────────
 
-    public NoteItem? AddNote(string text, bool quiet = false)
+    public NoteItem? AddNote(string text, bool quiet = false) => AddNote("", text, pinned: true, quiet);
+
+    public NoteItem? AddNote(string title, string text, bool pinned, bool quiet = false)
     {
+        title = title.Trim();
         text = text.Trim();
-        if (text.Length == 0) return null;
-        var note = new NoteItem { Text = text };
+        if (text.Length == 0 && title.Length == 0) return null;
+        var note = new NoteItem { Title = title, Text = text, Pinned = pinned };
         _save.Notes.Insert(0, note);
         if (!quiet) Say(Lines.Pick(Lines.NoteAdded, _save.OwnerName), 3);
         NotifyCare();
         Persist();
         return note;
+    }
+
+    /// <summary>В закаченото табло ли е бележката.</summary>
+    public void SetNotePinned(NoteItem note, bool pinned)
+    {
+        note.Pinned = pinned;
+        NotifyCare();
+        Persist();
     }
 
     public void DeleteNote(NoteItem note)

@@ -334,7 +334,7 @@ public sealed class MenuWindow : Window
         Refresh(rebuild: false);
         BuildTab(index);
         if (tasks) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
-        if (index == NotesTab) Dispatcher.BeginInvoke(() => _noteInput.Focus(), DispatcherPriority.Input);
+        if (index == NotesTab) Dispatcher.BeginInvoke(() => _noteTitle.Focus(), DispatcherPriority.Input);
     }
 
     // ───────────────────────── Рамка: заглавие и табове ─────────────────────────
@@ -1878,6 +1878,7 @@ public sealed class MenuWindow : Window
                 Content = new TextBlock
                 {
                     Text = t.Title,
+                    FontWeight = FontWeights.Bold,
                     TextWrapping = TextWrapping.Wrap,
                     TextDecorations = t.Done ? TextDecorations.Strikethrough : null,
                     Foreground = t.Done ? Muted : Ink,
@@ -1892,7 +1893,8 @@ public sealed class MenuWindow : Window
                 head.Margin = new Thickness(0);
                 check.Content = both;
                 both.Children.Add(head);
-                both.Children.Add(new TextBlock { Text = t.Description, Foreground = Muted, TextWrapping = TextWrapping.Wrap });
+                both.Children.Add(new TextBlock { Text = Shorten(t.Description, 90), Foreground = Muted, TextWrapping = TextWrapping.Wrap });
+                if (t.Description.Length > 90) check.ToolTip = Tip(t.Description);
             }
             row.Children.Add(check);
 
@@ -1948,21 +1950,44 @@ public sealed class MenuWindow : Window
     private UIElement BuildNotesTab()
     {
         var root = new StackPanel();
-        // Отгоре: Бележки | Напомняния (всички напомняния на едно място).
-        var tabs = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8 * U) };
-        _notesChip = Chip("📝 Бележки", () => { _showReminders = false; BuildNoteList(); });
-        _remindersChip = Chip("⏰ Напомняния", () => { _showReminders = true; BuildNoteList(); });
-        _notesChip.Margin = new Thickness(0, 0, 6, 0);
-        tabs.Children.Add(_notesChip);
-        tabs.Children.Add(_remindersChip);
-        root.Children.Add(tabs);
+        // Отгоре: Бележки | Закачени | Напомняния, а вдясно – таблото на екрана.
+        var top = new DockPanel { Margin = new Thickness(0, 0, 0, 8 * U), LastChildFill = false };
+        _notesChip = Chip("📝 Бележки", () => { _notesView = 0; BuildNoteList(); });
+        _pinnedChip = Chip("📌 Закачени", () => { _notesView = 1; BuildNoteList(); });
+        _remindersChip = Chip("⏰ Напомняния", () => { _notesView = 2; BuildNoteList(); });
+        foreach (var c in new[] { _notesChip, _pinnedChip, _remindersChip })
+        {
+            c.Margin = new Thickness(0, 0, 6, 4);
+            DockPanel.SetDock(c, Dock.Left);
+            top.Children.Add(c);
+        }
+        _pinNotes = Chip("📌 Табло", () => _pet.SetPinned(PinWindow.Notes, !_pet.IsPinned(PinWindow.Notes)));
+        _pinNotes.ToolTip = Tip("Закачените бележки в малко табло, което стои на екрана");
+        _pinNotes.Margin = new Thickness(0, 0, 0, 4);
+        DockPanel.SetDock(_pinNotes, Dock.Right);
+        top.Children.Add(_pinNotes);
+        root.Children.Add(top);
 
-        var p = _notesPane;
+        // Нова бележка: име (удебелено) и съдържание.
+        var p = _noteEditor;
+        _noteTitle = NewTextInput();
+        _noteTitle.FontWeight = FontWeights.Bold;
+        _noteTitle.PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter)
+            {
+                if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) AddNote();
+                else _noteInput.Focus();
+                e.Handled = true;
+            }
+        };
+        p.Children.Add(WithHint(_noteTitle, "Име"));
         _noteInput = NewTextInput();
         _noteInput.AcceptsReturn = true;
         _noteInput.TextWrapping = TextWrapping.Wrap;
-        _noteInput.MinHeight = 70 * U;
+        _noteInput.MinHeight = 60 * U;
         _noteInput.MaxHeight = 160 * U;
+        _noteInput.Margin = new Thickness(0, 6, 0, 0);
         _noteInput.VerticalContentAlignment = VerticalAlignment.Top;
         _noteInput.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         _noteInput.PreviewKeyDown += (_, e) =>
@@ -1977,7 +2002,12 @@ public sealed class MenuWindow : Window
 
         var save = Button("Запиши", AddNote, primary: true, icon: "pencil");
         save.Margin = new Thickness(0, 0, 8, 0);
-        // Тикче „Напомни“: под бележката се отваря кога (след малко или ден и час).
+        // 📌 – в таблото ли да е (може да се махне и после); ⏰ – напомни ми.
+        _newPinned = Chip("📌 В таблото", () => { _newNotePinned = !_newNotePinned; SetOn(_newPinned, _newNotePinned); });
+        _newPinned.ToolTip = Tip("Да се вижда ли в закаченото табло");
+        _newPinned.Margin = new Thickness(0, 0, 8, 0);
+        _newPinned.VerticalAlignment = VerticalAlignment.Center;
+        SetOn(_newPinned, _newNotePinned);
         _remToggle = Chip("⏰ Напомни", () =>
         {
             _remOn = !_remOn || _remFor != null;
@@ -1985,39 +2015,128 @@ public sealed class MenuWindow : Window
             ShowReminderPanel();
         });
         _remToggle.ToolTip = Tip("Мечокът ще ти напомни за тази бележка");
-        _remToggle.Margin = new Thickness(0, 0, 8, 0);
         _remToggle.VerticalAlignment = VerticalAlignment.Center;
-        _pinNotes = Chip("📌 Закачи", () => _pet.SetPinned(PinWindow.Notes, !_pet.IsPinned(PinWindow.Notes)));
-        _pinNotes.ToolTip = Tip("Бележките в малко прозорче, което стои на екрана");
-        _pinNotes.VerticalAlignment = VerticalAlignment.Center;
-        p.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0), Children = { save, _remToggle, _pinNotes } });
-        p.Children.Add(BuildReminderPanel());
+        p.Children.Add(new WrapPanel { Margin = new Thickness(0, 8, 0, 0), Children = { save, _newPinned, _remToggle } });
+        root.Children.Add(p);
+        root.Children.Add(BuildReminderPanel());
 
-        p.Children.Add(new ScrollViewer
+        root.Children.Add(new ScrollViewer
         {
             Content = _noteList,
             MaxHeight = 360 * U,
             Margin = new Thickness(0, 10, 0, 0),
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         });
-        root.Children.Add(p);
-
-        _remindersPane.Visibility = Visibility.Collapsed;
-        _remindersPane.Children.Add(MutedText("Напомняне се слага към бележка: тикчето „⏰ Напомни“ или ⏰ до бележката."));
-        _remindersPane.Children.Add(new ScrollViewer
-        {
-            Content = _remList,
-            MaxHeight = 420 * U,
-            Margin = new Thickness(0, 8, 0, 0),
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-        });
-        root.Children.Add(_remindersPane);
         return root;
     }
 
-    private readonly StackPanel _notesPane = new(), _remindersPane = new(), _remList = new();
-    private Border _notesChip = null!, _remindersChip = null!;
-    private bool _showReminders;
+    private readonly StackPanel _noteEditor = new(), _remList = new();
+    private TextBox _noteTitle = null!;
+    private Border _notesChip = null!, _pinnedChip = null!, _remindersChip = null!, _newPinned = null!;
+    private int _notesView;                  // 0 – всички бележки, 1 – закачените, 2 – напомнянията
+    private bool _newNotePinned = true;
+
+    private void AddNote()
+    {
+        if (string.IsNullOrWhiteSpace(_noteInput.Text) && string.IsNullOrWhiteSpace(_noteTitle.Text)) return;
+        DateTime when = default;
+        bool remind = _remOn && _remFor == null;
+        if (remind && !TryReminderWhen(out when)) return;   // часът не става – не записва още
+        var note = _pet.AddNote(_noteTitle.Text, _noteInput.Text, _newNotePinned, quiet: remind);
+        if (note != null && remind) _pet.SetNoteReminder(note, when, _remDay ? _remRepeat : "none");
+        _noteTitle.Clear();
+        _noteInput.Clear();
+        _remOn = false;
+        ShowReminderPanel();
+        _noteTitle.Focus();
+    }
+
+    private void BuildNoteList()
+    {
+        SetOn(_notesChip, _notesView == 0);
+        SetOn(_pinnedChip, _notesView == 1);
+        SetOn(_remindersChip, _notesView == 2);
+        SetOn(_pinNotes, _pet.IsPinned(PinWindow.Notes));
+        _noteEditor.Visibility = _notesView == 0 ? Visibility.Visible : Visibility.Collapsed;
+        // Бележката, за която се слага напомняне, е изтрита – затваря.
+        if (_remFor != null && !_pet.Save.Notes.Contains(_remFor))
+        {
+            _remFor = null;
+            _remOn = false;
+        }
+        ShowReminderPanel();
+        _noteList.Children.Clear();
+        if (_notesView == 2)
+        {
+            BuildReminderList();
+            _noteList.Children.Add(_remList);
+            return;
+        }
+        var notes = _pet.Save.Notes.Where(n => _notesView == 0 || n.Pinned).ToList();
+        if (notes.Count == 0)
+        {
+            _noteList.Children.Add(MutedText(_notesView == 1 ? "Няма закачени бележки. Сложи 📌 на бележка и тя ще е в таблото." : "Тефтерът е празен."));
+            return;
+        }
+        foreach (var note in notes)
+        {
+            var n = note;
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition());
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var body = new StackPanel();
+            if (n.Title.Length > 0)
+                body.Children.Add(new TextBlock { Text = n.Title, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Foreground = Ink });
+            // TextBox само за четене, за да може текстът да се маркира и копира.
+            if (n.Text.Length > 0) body.Children.Add(new TextBox
+            {
+                Text = n.Text,
+                IsReadOnly = true,
+                TextWrapping = TextWrapping.Wrap,
+                BorderThickness = new Thickness(0),
+                Background = Brushes.Transparent,
+                Foreground = Ink,
+                FontFamily = GameFont,
+                FontSize = Body,
+                Padding = new Thickness(0),
+            });
+            body.Children.Add(new TextBlock { Text = n.Created.ToString("d.MM.yyyy, HH:mm"), Foreground = Muted, Margin = new Thickness(0, 2, 0, 0) });
+            var rem = _pet.ReminderFor(n);
+            if (rem != null)
+            {
+                var meta = RichText("⏰ " + ReminderMeta(rem), bold: true);
+                meta.Foreground = rem.Due <= DateTime.Now ? Bad : Ink;
+                meta.Margin = new Thickness(0, 2, 0, 0);
+                meta.HorizontalAlignment = HorizontalAlignment.Left;
+                body.Children.Add(meta);
+            }
+            grid.Children.Add(body);
+
+            // 📌 – в таблото; ⏰ – напомняне (светнало, ако има); ✕ – изтрий.
+            var buttons = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+            var pin = Chip("📌", () => _pet.SetNotePinned(n, !n.Pinned));
+            pin.ToolTip = Tip(n.Pinned ? "В таблото е – цъкни, за да я махнеш оттам" : "Сложи я в таблото");
+            SetOn(pin, n.Pinned);
+            var remind = Chip("⏰", () => EditReminderFor(n));
+            remind.ToolTip = Tip(rem == null ? "Напомни ми за тази бележка" : "Смени напомнянето");
+            SetOn(remind, rem != null || _remFor == n);
+            var del = Chip("✕", () => _pet.DeleteNote(n));
+            del.ToolTip = Tip("Изтрий");
+            foreach (var b in new[] { pin, remind, del })
+            {
+                b.Margin = new Thickness(4, 0, 0, 4);
+                buttons.Children.Add(b);
+            }
+            Grid.SetColumn(buttons, 1);
+            grid.Children.Add(buttons);
+
+            _noteList.Children.Add(Card(grid, false));
+        }
+    }
+
+    private static string ReminderMeta(ReminderItem r) =>
+        PetWindow.WhenText(r.Due) + (r.Repeat != "none" ? " · " + PetWindow.RepeatName(r.Repeat).ToLowerInvariant() : "");
 
     /// <summary>Всички напомняния (най-близките горе): кога, повтаряне, бележката; ⏰ смени, ✓ готово, ✕ махни.</summary>
     private void BuildReminderList()
@@ -2026,7 +2145,7 @@ public sealed class MenuWindow : Window
         var list = _pet.Save.Reminders.OrderBy(r => r.Due).ToList();
         if (list.Count == 0)
         {
-            _remList.Children.Add(MutedText("Няма напомняния. Мечокът ще ти каже, като дойде часът."));
+            _remList.Children.Add(MutedText("Няма напомняния. Слагат се към бележка – с „⏰ Напомни“ или ⏰ до бележката."));
             return;
         }
         foreach (var reminder in list)
@@ -2037,16 +2156,20 @@ public sealed class MenuWindow : Window
             grid.ColumnDefinitions.Add(new ColumnDefinition());
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var body = new StackPanel();
-            body.Children.Add(new TextBlock { Text = note?.Text ?? r.Text, TextWrapping = TextWrapping.Wrap, Foreground = Ink });
-            string meta = "⏰ " + PetWindow.WhenText(r.Due);
-            if (r.Repeat != "none") meta += " · " + PetWindow.RepeatName(r.Repeat).ToLowerInvariant();
-            body.Children.Add(new TextBlock { Text = meta, FontWeight = FontWeights.Bold, Foreground = r.Due <= DateTime.Now ? Bad : Muted, Margin = new Thickness(0, 2, 0, 0) });
+            body.Children.Add(new TextBlock { Text = note?.Label ?? r.Text, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Foreground = Ink });
+            if (note != null && note.Title.Length > 0 && note.Text.Length > 0)
+                body.Children.Add(new TextBlock { Text = Shorten(note.Text, 80), TextWrapping = TextWrapping.Wrap, Foreground = Muted });
+            var meta = RichText("⏰ " + ReminderMeta(r));
+            meta.Foreground = r.Due <= DateTime.Now ? Bad : Ink;
+            meta.HorizontalAlignment = HorizontalAlignment.Left;
+            meta.Margin = new Thickness(0, 2, 0, 0);
+            body.Children.Add(meta);
             grid.Children.Add(body);
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
             if (note != null)
             {
-                var edit = Chip("⏰", () => { _showReminders = false; EditReminderFor(note); });
-                edit.ToolTip = Tip("Смени кога (при бележката)");
+                var edit = Chip("⏰", () => { _notesView = 0; EditReminderFor(note); });
+                edit.ToolTip = Tip("Смени кога");
                 edit.Margin = new Thickness(0, 0, 4, 0);
                 buttons.Children.Add(edit);
             }
@@ -2063,103 +2186,25 @@ public sealed class MenuWindow : Window
         }
     }
 
-    private void AddNote()
-    {
-        if (string.IsNullOrWhiteSpace(_noteInput.Text)) return;
-        DateTime when = default;
-        if (_remOn && _remFor == null && !TryReminderWhen(out when)) return;   // часът не става – не записва още
-        var note = _pet.AddNote(_noteInput.Text, quiet: _remOn && _remFor == null);
-        if (note != null && _remOn && _remFor == null) _pet.SetNoteReminder(note, when, _remDay ? _remRepeat : "none");
-        _noteInput.Clear();
-        _remOn = false;
-        ShowReminderPanel();
-        _noteInput.Focus();
-    }
-
-    private void BuildNoteList()
-    {
-        SetOn(_notesChip, !_showReminders);
-        SetOn(_remindersChip, _showReminders);
-        _notesPane.Visibility = _showReminders ? Visibility.Collapsed : Visibility.Visible;
-        _remindersPane.Visibility = _showReminders ? Visibility.Visible : Visibility.Collapsed;
-        BuildReminderList();
-        SetOn(_pinNotes, _pet.IsPinned(PinWindow.Notes));
-        // Бележката, за която се слага напомняне, е изтрита – затваря.
-        if (_remFor != null && !_pet.Save.Notes.Contains(_remFor))
-        {
-            _remFor = null;
-            _remOn = false;
-        }
-        ShowReminderPanel();
-        _noteList.Children.Clear();
-        if (_pet.Save.Notes.Count == 0)
-        {
-            _noteList.Children.Add(MutedText("Тефтерът е празен."));
-            return;
-        }
-        foreach (var note in _pet.Save.Notes.ToList())
-        {
-            var n = note;
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition());
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var body = new StackPanel();
-            // TextBox само за четене, за да може текстът да се маркира и копира.
-            body.Children.Add(new TextBox
-            {
-                Text = n.Text,
-                IsReadOnly = true,
-                TextWrapping = TextWrapping.Wrap,
-                BorderThickness = new Thickness(0),
-                Background = Brushes.Transparent,
-                Foreground = Ink,
-                FontFamily = GameFont,
-                FontSize = Body,
-                Padding = new Thickness(0),
-            });
-            body.Children.Add(new TextBlock { Text = n.Created.ToString("d.MM.yyyy, HH:mm"), Foreground = Muted, Margin = new Thickness(0, 2, 0, 0) });
-            var rem = _pet.ReminderFor(n);
-            if (rem != null)
-            {
-                string meta = "⏰ " + PetWindow.WhenText(rem.Due);
-                if (rem.Repeat != "none") meta += " · " + PetWindow.RepeatName(rem.Repeat).ToLowerInvariant();
-                body.Children.Add(new TextBlock { Text = meta, FontWeight = FontWeights.Bold, Foreground = rem.Due <= DateTime.Now ? Bad : Ink, Margin = new Thickness(0, 2, 0, 0) });
-            }
-            grid.Children.Add(body);
-
-            // ⏰ – напомняне за тази бележка (светнало, ако има); ✕ – изтрий.
-            var buttons = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
-            var remind = Chip("⏰", () => EditReminderFor(n));
-            remind.ToolTip = Tip(rem == null ? "Напомни ми за тази бележка" : "Смени напомнянето");
-            remind.Margin = new Thickness(0, 0, 0, 4);
-            SetOn(remind, rem != null || _remFor == n);
-            buttons.Children.Add(remind);
-            buttons.Children.Add(Chip("✕", () => _pet.DeleteNote(n)));
-            Grid.SetColumn(buttons, 1);
-            grid.Children.Add(buttons);
-
-            _noteList.Children.Add(Card(grid, false));
-        }
-    }
-
     // ── Напомняне към бележка ──
 
-    private Border _remToggle = null!;
+    private Border _remToggle = null!, _remOtherDay = null!;
     private readonly StackPanel _remPanel = new(), _remAfterPane = new(), _remDayPane = new(), _remEditButtons = new();
-    private TextBox _remTime = null!, _remDateBox = null!, _remMinutes = null!;
+    private TextBox _remMinutes = null!;
     private readonly WrapPanel _remModes = new(), _remAfter = new(), _remDays = new(), _remTimes = new(), _remRepeats = new();
-    private TextBlock _remForLabel = null!, _remWhen = null!;
+    private TextBlock _remForLabel = null!, _remWhen = null!, _remHourText = null!, _remMinuteText = null!;
+    private Calendar _remCalendar = null!;
     private Button _remRemove = null!;
     private bool _remOn, _remDay;            // тикчето е сложено; „Ден и час“ (иначе „След…“)
     private NoteItem? _remFor;               // напомняне за вече записана бележка (иначе – за новата)
     private double _remAfterMin = 30;
     private DateTime _remDate = DateTime.Today;
+    private int _remHour = Math.Min(23, DateTime.Now.Hour + 1), _remMinute;
     private string _remRepeat = "none";
     private static readonly (string Label, double Minutes)[] RemAfterChoices =
         { ("5 мин", 5), ("10 мин", 10), ("15 мин", 15), ("30 мин", 30), ("1 ч", 60), ("2 ч", 120), ("3 ч", 180) };
 
-    /// <summary>Кога да напомни: „След…“ (5 мин… 3 ч или свои минути) или „Ден и час“ (ден, дата, час, повторение).</summary>
+    /// <summary>Кога да напомни: „След…“ (5 мин… 3 ч или свои минути) или „Ден и час“ (днес, утре или от календарчето; часовник; повторение).</summary>
     private UIElement BuildReminderPanel()
     {
         var p = _remPanel;
@@ -2189,46 +2234,72 @@ public sealed class MenuWindow : Window
         _remAfterPane.Children.Add(minutesRow);
         p.Children.Add(_remAfterPane);
 
-        // Ден и час.
+        // Ден: днес, утре или друг – от календарчето.
         var d = _remDayPane;
         d.Children.Add(Label("Ден:"));
+        _remOtherDay = Chip("📅 Друг ден", () =>
+        {
+            _remCalendar.Visibility = _remCalendar.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        });
         d.Children.Add(_remDays);
-        var dateRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-        _remDateBox = NewTextInput();
-        _remDateBox.Width = 90 * U;
-        _remDateBox.TextChanged += (_, _) =>
+        _remCalendar = new Calendar
         {
-            if (TryParseDate(_remDateBox.Text, out var date))
-            {
-                _remDate = date;
-                BuildReminderPicker();
-            }
+            DisplayDateStart = DateTime.Today,
+            FirstDayOfWeek = DayOfWeek.Monday,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Visibility = Visibility.Collapsed,
+            Margin = new Thickness(0, 2, 0, 4),
+            Background = Paper,
+            BorderBrush = Ink,
+            Language = System.Windows.Markup.XmlLanguage.GetLanguage("bg-BG"),
         };
-        dateRow.Children.Add(WithHint(_remDateBox, "дд.мм.гггг"));
-        d.Children.Add(dateRow);
-        d.Children.Add(Label("Час:"));
-        var timeRow = new WrapPanel();
-        _remTime = NewTextInput();
-        _remTime.Width = 70 * U;
-        _remTime.Text = DateTime.Now.AddHours(1).ToString("H:00");
-        _remTime.TextChanged += (_, _) => UpdateReminderWhen();
-        var timeHint = WithHint(_remTime, "ЧЧ:ММ");
-        ((FrameworkElement)timeHint).Margin = new Thickness(0, 0, 6, 4);
-        timeRow.Children.Add(timeHint);
-        foreach (var t in new[] { "9:00", "12:00", "15:00", "18:00", "20:00", "22:00" })
+        _remCalendar.SelectedDatesChanged += (_, _) =>
         {
-            string time = t;
-            var chip = Chip(time, () => { _remTime.Text = time; });
+            if (_remCalendar.SelectedDate is not { } day) return;
+            _remDate = day.Date;
+            _remCalendar.Visibility = Visibility.Collapsed;
+            BuildReminderPicker();
+        };
+        // Календарът държи мишката след избор (следващото цъкане иначе се губи).
+        _remCalendar.PreviewMouseUp += (_, _) =>
+        {
+            if (Mouse.Captured is CalendarItem) Mouse.Capture(null);
+        };
+        d.Children.Add(_remCalendar);
+
+        // Час: часовник – ▲/▼ (или колелцето на мишката) за часа и минутите; и готови часове.
+        d.Children.Add(Label("Час:"));
+        var clock = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+        _remHourText = ClockDigit(clock, h => SetReminderTime(_remHour + h, _remMinute));
+        clock.Children.Add(new TextBlock { Text = ":", FontSize = Body * 1.6, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) });
+        _remMinuteText = ClockDigit(clock, m => SetReminderTime(_remHour, _remMinute + m * 5));
+        var face = new Border
+        {
+            Child = clock,
+            Background = PaperDark,
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8, 2, 8, 2),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        d.Children.Add(face);
+        foreach (var t in new[] { (9, 0), (12, 0), (15, 0), (18, 0), (20, 0), (22, 0) })
+        {
+            var (h, m) = t;
+            var chip = Chip($"{h}:{m:00}", () => SetReminderTime(h, m));
             chip.Margin = new Thickness(0, 0, 6, 4);
             _remTimes.Children.Add(chip);
         }
-        timeRow.Children.Add(_remTimes);
-        d.Children.Add(timeRow);
+        d.Children.Add(_remTimes);
         d.Children.Add(Label("Повтаря се:"));
         d.Children.Add(_remRepeats);
         p.Children.Add(d);
 
-        _remWhen = new TextBlock { FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6, 0, 4), TextWrapping = TextWrapping.Wrap };
+        _remWhen = RichText("", bold: true);
+        _remWhen.HorizontalAlignment = HorizontalAlignment.Left;
+        _remWhen.Margin = new Thickness(0, 6, 0, 4);
         p.Children.Add(_remWhen);
 
         // За вече записана бележка: Напомни ми / Махни / Отказ (за новата – „Запиши“ горе).
@@ -2249,18 +2320,58 @@ public sealed class MenuWindow : Window
         return p;
     }
 
+    /// <summary>Едно поле на часовника: ▲, числото, ▼ (и колелцето на мишката върху него).</summary>
+    private TextBlock ClockDigit(Panel host, Action<int> step)
+    {
+        var col = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var up = Chip("▲", () => step(1));
+        var down = Chip("▼", () => step(-1));
+        foreach (var b in new[] { up, down })
+        {
+            b.Padding = new Thickness(6, 0, 6, 1);
+            b.HorizontalAlignment = HorizontalAlignment.Center;
+        }
+        var digits = new TextBlock
+        {
+            FontSize = Body * 1.6,
+            FontWeight = FontWeights.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 1, 0, 1),
+            Background = Brushes.Transparent,
+            Cursor = Cursors.SizeNS,
+        };
+        col.MouseWheel += (_, e) =>
+        {
+            step(e.Delta > 0 ? 1 : -1);
+            e.Handled = true;
+        };
+        col.Children.Add(up);
+        col.Children.Add(digits);
+        col.Children.Add(down);
+        host.Children.Add(col);
+        return digits;
+    }
+
+    private void SetReminderTime(int hour, int minute)
+    {
+        // Минутите минават през 60 (59 → 0 и часът +1); часът – през 24.
+        hour += (int)Math.Floor(minute / 60.0);
+        _remMinute = ((minute % 60) + 60) % 60;
+        _remHour = ((hour % 24) + 24) % 24;
+        UpdateReminderWhen();
+    }
+
     private TextBlock Label(string text) => new() { Text = text, Foreground = Muted, Margin = new Thickness(0, 8, 0, 3) };
 
     private void ShowReminderPanel()
     {
         if (_remToggle == null) return;
-        _remPanel.Visibility = _remOn ? Visibility.Visible : Visibility.Collapsed;
+        _remPanel.Visibility = _remOn && _notesView == 0 ? Visibility.Visible : Visibility.Collapsed;
         SetOn(_remToggle, _remOn && _remFor == null);
         if (!_remOn) return;
         if (_remFor != null)
         {
-            string text = _remFor.Text.Replace('\n', ' ').Trim();
-            _remForLabel.Text = $"⏰ Напомняне за: „{(text.Length > 60 ? text[..60] + "…" : text)}“";
+            _remForLabel.Text = $"Напомняне за: „{Shorten(_remFor.Label, 60)}“";
             _remForLabel.Visibility = Visibility.Visible;
             _remEditButtons.Visibility = Visibility.Visible;
             _remRemove.Visibility = _pet.ReminderFor(_remFor) != null ? Visibility.Visible : Visibility.Collapsed;
@@ -2276,7 +2387,7 @@ public sealed class MenuWindow : Window
     /// <summary>⏰ до бележка: отваря „кога“ за нея (с досегашното напомняне, ако има).</summary>
     private void EditReminderFor(NoteItem note)
     {
-        if (_remFor == note)
+        if (_remFor == note && _notesView == 0)
         {
             CloseReminderPanel();
             return;
@@ -2287,8 +2398,8 @@ public sealed class MenuWindow : Window
         {
             _remDay = true;
             _remDate = r.Due.Date;
-            _remTime.Text = r.Due.ToString("H:mm");
-            _remDateBox.Text = "";
+            _remHour = r.Due.Hour;
+            _remMinute = r.Due.Minute;
             _remRepeat = r.Repeat;
         }
         BuildNoteList();
@@ -2309,47 +2420,22 @@ public sealed class MenuWindow : Window
         CloseReminderPanel();
     }
 
-    private static bool TryParseDate(string text, out DateTime date)
+    private DateTime DayTime => _remDate.Date + new TimeSpan(_remHour, _remMinute, 0);
+
+    /// <summary>Избраното „кога“ (в бъдещето); не става ли – казва го в червено.</summary>
+    private bool TryReminderWhen(out DateTime when)
     {
-        string t = text.Trim();
-        var formats = new[] { "d.M.yyyy", "d.M.yy", "d.M", "d.M." };
-        if (DateTime.TryParseExact(t, formats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out date))
-        {
-            if (!t.Count(c => c == '.').Equals(2) || t.EndsWith(".")) date = new DateTime(DateTime.Today.Year, date.Month, date.Day);
-            if (date < DateTime.Today) date = date.AddYears(1);   // „5.01“ през декември – догодина
-            return true;
-        }
+        when = _remDay ? DayTime : DateTime.Now.AddMinutes(_remAfterMin);
+        if (when > DateTime.Now) return true;
+        UpdateReminderWhen();
         return false;
     }
 
-    private bool TryDayTime(out DateTime when)
-    {
-        when = default;
-        string t = _remTime.Text.Trim().Replace('.', ':');
-        if (!TimeSpan.TryParseExact(t, new[] { @"h\:mm", @"hh\:mm", "%h" }, System.Globalization.CultureInfo.InvariantCulture, out var time) || time.TotalHours >= 24)
-            return false;
-        when = _remDate.Date + time;
-        return true;
-    }
-
-    /// <summary>Избраното „кога“ (в бъдещето); не става ли – светва в червено.</summary>
-    private bool TryReminderWhen(out DateTime when)
-    {
-        when = _remDay ? default : DateTime.Now.AddMinutes(_remAfterMin);
-        if (_remDay && (!TryDayTime(out when) || when <= DateTime.Now))
-        {
-            _remTime.BorderBrush = Bad;
-            UpdateReminderWhen();
-            return false;
-        }
-        return true;
-    }
-
-    /// <summary>Чиповете (режим, след колко, дни, повторения) – светва избраното; отдолу пише кога точно.</summary>
+    /// <summary>Чиповете (режим, след колко, ден, повторения) – светва избраното; отдолу пише кога точно.</summary>
     private void BuildReminderPicker()
     {
         _remModes.Children.Clear();
-        foreach (var (label, day) in new[] { ("⏳ След…", false), ("📅 Ден и час", true) })
+        foreach (var (label, day) in new[] { ("⏳ След…", false), ("⏰ Ден и час", true) })
         {
             bool isDay = day;
             var chip = Chip(label, () => { _remDay = isDay; BuildReminderPicker(); });
@@ -2370,17 +2456,25 @@ public sealed class MenuWindow : Window
             _remAfter.Children.Add(chip);
         }
 
+        // Днес, утре и „друг ден“ (светва, ако е избран ден от календарчето).
         _remDays.Children.Clear();
-        var culture = new System.Globalization.CultureInfo("bg-BG");
-        for (int i = 0; i < 7; i++)
+        foreach (var (name, day) in new[] { ("Днес", DateTime.Today), ("Утре", DateTime.Today.AddDays(1)) })
         {
-            var day = DateTime.Today.AddDays(i);
-            string name = i == 0 ? "Днес" : i == 1 ? "Утре" : day.ToString("ddd d", culture);
-            var chip = Chip(name, () => { _remDate = day; _remDateBox.Text = ""; BuildReminderPicker(); });
+            var dd = day;
+            var chip = Chip(name, () => { _remDate = dd; _remCalendar.Visibility = Visibility.Collapsed; BuildReminderPicker(); });
             chip.Margin = new Thickness(0, 0, 6, 4);
-            SetOn(chip, _remDate == day);
+            SetOn(chip, _remDate == dd);
             _remDays.Children.Add(chip);
         }
+        bool other = _remDate > DateTime.Today.AddDays(1);
+        SetChip(_remOtherDay, other ? "📅 " + _remDate.ToString("ddd, d MMM", new System.Globalization.CultureInfo("bg-BG")) : "📅 Друг ден");
+        SetOn(_remOtherDay, other);
+        _remOtherDay.Margin = new Thickness(0, 0, 6, 4);
+        _remDays.Children.Add(_remOtherDay);
+        if (_remDate < DateTime.Today) _remDate = DateTime.Today;
+        _remCalendar.SelectedDate = other ? _remDate : null;
+        _remCalendar.DisplayDate = _remDate;
+
         _remRepeats.Children.Clear();
         foreach (var (id, name) in PetWindow.ReminderRepeats)
         {
@@ -2396,22 +2490,18 @@ public sealed class MenuWindow : Window
     private void UpdateReminderWhen()
     {
         if (_remWhen == null) return;
-        _remTime.BorderBrush = Ink;
+        _remHourText.Text = _remHour.ToString("00");
+        _remMinuteText.Text = _remMinute.ToString("00");
         if (!_remDay)
         {
             _remWhen.Foreground = Ink;
-            _remWhen.Text = $"⏰ {PetWindow.WhenText(DateTime.Now.AddMinutes(_remAfterMin))} (след {PetWindow.MinutesText(_remAfterMin)})";
+            SetRichText(_remWhen, $"⏰ {PetWindow.WhenText(DateTime.Now.AddMinutes(_remAfterMin))} (след {PetWindow.MinutesText(_remAfterMin)})");
             return;
         }
-        if (!TryDayTime(out var when))
-        {
-            _remWhen.Text = "Напиши час, например 14:30.";
-            _remWhen.Foreground = Bad;
-            return;
-        }
+        var when = DayTime;
         _remWhen.Foreground = when <= DateTime.Now ? Bad : Ink;
-        _remWhen.Text = when <= DateTime.Now ? "Този час вече мина – избери по-късен."
-            : $"⏰ {PetWindow.WhenText(when)}{(_remRepeat == "none" ? "" : " · " + PetWindow.RepeatName(_remRepeat).ToLowerInvariant())}";
+        SetRichText(_remWhen, when <= DateTime.Now ? "Този час вече мина – избери по-късен."
+            : $"⏰ {PetWindow.WhenText(when)}{(_remRepeat == "none" ? "" : " · " + PetWindow.RepeatName(_remRepeat).ToLowerInvariant())}");
     }
 
     // ───────────────────────── Работа ─────────────────────────

@@ -38,8 +38,7 @@ public sealed partial class PetWindow
     public void SetNoteReminder(NoteItem note, DateTime due, string repeat)
     {
         _save.Reminders.RemoveAll(r => r.NoteId == note.Id);
-        string text = note.Text.Replace('\n', ' ').Trim();
-        AddReminder(text.Length > 120 ? text[..120] + "…" : text, due, repeat, note.Id);
+        AddReminder(note.Label, due, repeat, note.Id);
     }
 
     public void ClearNoteReminder(NoteItem note)
@@ -52,7 +51,7 @@ public sealed partial class PetWindow
     /// <summary>Бележка с напомняне наведнъж (напр. „Отговори на писмото“ от пощата).</summary>
     public void AddNoteReminder(string text, DateTime due, string repeat = "none")
     {
-        if (AddNote(text, quiet: true) is { } note) SetNoteReminder(note, due, repeat);
+        if (AddNote(text, "", pinned: true, quiet: true) is { } note) SetNoteReminder(note, due, repeat);
     }
 
     /// <summary>„30 мин“, „1 ч“, „1 ч 30 мин“.</summary>

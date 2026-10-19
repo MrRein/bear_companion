@@ -72,8 +72,9 @@ public sealed class PinWindow : Window
         Width = s.W > 0 ? s.W : 300 * U;
         Height = s.H > 0 ? s.H : 320 * U;
         var area = SystemParameters.WorkArea;
-        Left = double.IsNaN(s.X) ? area.Right - Width - 20 : Math.Clamp(s.X, area.Left - Width + 60, area.Right - 60);
-        Top = double.IsNaN(s.Y) ? area.Top + 80 : Math.Clamp(s.Y, area.Top, area.Bottom - 40);
+        // Първия път – в средата на екрана (после там, където Тут го е сложила).
+        Left = double.IsNaN(s.X) ? area.Left + (area.Width - Width) / 2 : Math.Clamp(s.X, area.Left - Width + 60, area.Right - 60);
+        Top = double.IsNaN(s.Y) ? area.Top + Math.Max(40, (area.Height - (State.H > 0 ? State.H : 320 * U)) / 2) : Math.Clamp(s.Y, area.Top, area.Bottom - 40);
 
         // Заглавие: иконка, име, брой; копчета: свий, прозрачно, затвори. Влачи се оттук.
         var header = new DockPanel { Margin = new Thickness(2, 0, 2, 5), Background = Brushes.Transparent, Cursor = Cursors.SizeAll };
@@ -283,7 +284,7 @@ public sealed class PinWindow : Window
         var s = _pet.Save;
         string sig = _kind == Tasks
             ? string.Join("|", s.Tasks.Where(t => !t.Done).Select(t => t.Id + t.Title + t.Description + t.Size)) + "#" + s.FocusTask + _pet.InFocus
-            : string.Join("|", s.Notes.Select(n => n.Id + n.Text));
+            : string.Join("|", s.Notes.Where(n => n.Pinned).Select(n => n.Id + n.Title + "¦" + n.Text));
         if (sig == _shown) return;
         _shown = sig;
         _list.Children.Clear();
@@ -313,15 +314,20 @@ public sealed class PinWindow : Window
                 {
                     Text = t.Title,
                     TextWrapping = TextWrapping.Wrap,
-                    FontWeight = current ? FontWeights.Bold : FontWeights.Normal,
+                    FontWeight = FontWeights.Bold,
                     Margin = new Thickness(4, 0, 0, 0),
                 },
             };
             check.Click += (_, _) => _pet.SetTaskDone(t, check.IsChecked == true);
-            // Описанието (ако има) излиза при посочване; малкото „…“ подсказва, че има още.
+            // Описанието (ако има) – под името, съкратено; цялото излиза при посочване.
             if (t.Description.Length > 0)
             {
-                ((TextBlock)check.Content).Text = t.Title + " …";
+                var both = new StackPanel { Margin = new Thickness(4, 0, 0, 0) };
+                var head = (TextBlock)check.Content;
+                head.Margin = new Thickness(0);
+                check.Content = both;
+                both.Children.Add(head);
+                both.Children.Add(new TextBlock { Text = Ui.Shorten(t.Description, 70), Foreground = Muted, TextWrapping = TextWrapping.Wrap });
                 check.ToolTip = Tip(t.Description);
                 ToolTipService.SetInitialShowDelay(check, 250);
                 ToolTipService.SetShowDuration(check, 60000);
@@ -353,17 +359,20 @@ public sealed class PinWindow : Window
 
     private void BuildNotes()
     {
-        var notes = _pet.Save.Notes;
+        // Само бележките с „📌 В таблото“.
+        var notes = _pet.Save.Notes.Where(n => n.Pinned).ToList();
         _count.Text = notes.Count > 0 ? $"· {notes.Count}" : "";
-        if (notes.Count == 0) _list.Children.Add(MenuWindow.MutedText("Тефтерът е празен."));
-        foreach (var note in notes.ToList())
+        if (notes.Count == 0) _list.Children.Add(MenuWindow.MutedText("Няма закачени бележки."));
+        foreach (var note in notes)
         {
             var n = note;
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition());
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            // Само за четене, но се маркира и копира.
-            grid.Children.Add(new TextBox
+            // Само за четене, но се маркира и копира; името – удебелено.
+            var text = new StackPanel();
+            if (n.Title.Length > 0) text.Children.Add(new TextBlock { Text = n.Title, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Foreground = Ink });
+            if (n.Text.Length > 0) text.Children.Add(new TextBox
             {
                 Text = n.Text,
                 IsReadOnly = true,
@@ -375,12 +384,15 @@ public sealed class PinWindow : Window
                 FontSize = Body,
                 Padding = new Thickness(0),
             });
+            grid.Children.Add(text);
             var buttons = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
-            var copy = Chip("⧉", () => { try { Clipboard.SetText(n.Text); } catch (Exception) { } });
+            var copy = Chip("⧉", () => { try { Clipboard.SetText(n.Title.Length > 0 && n.Text.Length > 0 ? n.Title + "\n" + n.Text : n.Title + n.Text); } catch (Exception) { } });
             copy.ToolTip = Tip("Копирай");
+            var unpin = Chip("➖", () => _pet.SetNotePinned(n, false));
+            unpin.ToolTip = Tip("Махни я от таблото (бележката остава)");
             var del = Chip("✕", () => _pet.DeleteNote(n));
             del.ToolTip = Tip("Изтрий");
-            foreach (var b in new[] { copy, del })
+            foreach (var b in new[] { copy, unpin, del })
             {
                 b.Padding = new Thickness(5, 0, 5, 1);
                 b.Margin = new Thickness(4, 0, 0, 3);
