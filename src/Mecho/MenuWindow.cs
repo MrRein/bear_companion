@@ -1308,7 +1308,7 @@ public sealed class MenuWindow : Window
         bool hasItem = Kitchen.Owns(s, skin.Item);
         string? why = null;
         Button action;
-        if (shop && owned) action = ToWardrobe("furniture", out why);
+        if (shop && owned) action = ToWardrobe(skin.Item, out why);
         else if (used)
         {
             action = Button("Сложен", () => { });
@@ -1461,12 +1461,6 @@ public sealed class MenuWindow : Window
 
     private Border _pajamaChip = null!;
 
-    /// <summary>Гардероб → „Мебели и уреди“: коя мебел е отворена.</summary>
-    private string _wardrobeItem = AllSkins;
-
-    /// <summary>Подразделът „Всичко“ в „Мебели и уреди“.</summary>
-    private const string AllSkins = "all";
-
     /// <summary>Предметите, за които има поне един купен друг вид (само тогава се виждат и класическите).</summary>
     private static IEnumerable<string> SkinItems(SaveData s) =>
         Furniture.ByItem.Where(kv => Kitchen.Owns(s, kv.Key) && kv.Value.Any(k => k.Price > 0 && Furniture.Owns(s, k))).Select(kv => kv.Key);
@@ -1518,45 +1512,87 @@ public sealed class MenuWindow : Window
         _wardrobeBody.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
         if (!DailyOffer.HasWardrobe(s)) return;
 
-        // Раздели: всеки вид дреха/аксесоар, тапетите и мебелите (ако има диван или легло).
-        // Раздел се вижда чак когато има нещо в него (за безплатните – поне едно купено).
-        var sections = Clothes.Shelves
+        // Раздели (горе): Всичко · Облекло · Дом · Други; под тях – подраздели. Подраздел се
+        // вижда чак когато има нещо в него (за безплатните – поне едно купено), раздел – щом има подраздели.
+        var clothes = Clothes.Shelves
             .Where(slot => Clothes.All.Any(g => g.SlotId == slot.Id && !g.Hidden && Clothes.Owns(s, g)))
             .Select(slot => (Id: slot.Id, Name: slot.Name, Icon: slot.Icon)).ToList();
-        if (Clothes.PajamaSets.Count(p => Clothes.Owns(s, p)) > 1) sections.Add(("pajamas", "Пижами", "pajama"));
-        if (UiThemes.All.Count(t => UiThemes.Owns(s, t)) > 1) sections.Add(("themes", "Цвят на меню", "menu"));
-        if (Backdrops.All.Count(b => Backdrops.Owns(s, b)) > 1) sections.Add(("wallpapers", "Тапети", "picture"));
-        if (SkinItems(s).Any()) sections.Add(("furniture", "Мебели и уреди", "couch"));
-        if (sections.Count == 0)
+        if (Clothes.PajamaSets.Count(p => Clothes.Owns(s, p)) > 1) clothes.Add(("pajamas", "Пижами", "pajama"));
+        var home = SkinItems(s).Select(id => (Id: id, Name: ((Kitchen.Find(id)?.Icon ?? "") + " " + (Kitchen.Find(id)?.Name ?? id)).Trim(), Icon: "")).ToList();
+        var other = new List<(string Id, string Name, string Icon)>();
+        if (Backdrops.All.Count(b => Backdrops.Owns(s, b)) > 1) other.Add(("wallpapers", "Тапети", "picture"));
+        if (UiThemes.All.Count(t => UiThemes.Owns(s, t)) > 1) other.Add(("themes", "Цвят на меню", "menu"));
+        var groups = new List<(string Id, string Name, string Icon, List<(string Id, string Name, string Icon)> Subs)>
+        {
+            ("clothes", "Облекло", "shirt", clothes),
+            ("home", "Дом", "couch", home),
+            ("other", "Други", "picture", other),
+        };
+        groups.RemoveAll(g => g.Subs.Count == 0);
+        if (groups.Count == 0)
         {
             _wardrobeShelves.Children.Add(MutedText("Гардеробът е празен. Нови неща има в офертата на деня."));
             return;
         }
-        if (!sections.Any(x => x.Id == _wardrobeSection)) _wardrobeSection = sections[0].Id;
+        // Старите имена (от „В гардероба“ в офертата): „furniture“ – първата мебел.
+        if (_wardrobeSection == "furniture") _wardrobeSection = home.Count > 0 ? home[0].Id : AllWardrobe;
+        var group = groups.FirstOrDefault(g => g.Subs.Any(x => x.Id == _wardrobeSection));
+        if (_wardrobeSection != AllWardrobe && group.Subs == null) _wardrobeSection = AllWardrobe;
 
         var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
-        foreach (var section in sections)
+        void AddChip(WrapPanel panel, string label, string icon, bool on, Action pick)
         {
-            string id = section.Id;
-            var chip = Chip("", () =>
-            {
-                _wardrobeSection = id;
-                BuildWardrobe();
-            });
-            chip.Child = IconText(section.Icon, section.Name);
-            SetOn(chip, id == _wardrobeSection);
+            var chip = Chip("", () => { pick(); BuildWardrobe(); });
+            if (icon.Length > 0) chip.Child = IconText(icon, label);
+            else chip.Child = new TextBlock { Text = label, Foreground = Ink };
+            SetOn(chip, on);
             chip.Margin = new Thickness(0, 0, 5, 5);
-            bar.Children.Add(chip);
+            panel.Children.Add(chip);
+        }
+        AddChip(bar, "Всичко", "wardrobe", _wardrobeSection == AllWardrobe, () => _wardrobeSection = AllWardrobe);
+        foreach (var g in groups)
+        {
+            var first = g.Subs[0].Id;
+            AddChip(bar, g.Name, g.Icon, group.Id == g.Id, () => _wardrobeSection = first);
         }
         _wardrobeShelves.Children.Add(bar);
 
-        // Съдържанието на раздела е на по-тъмна подложка (като офертата и подменютата в „Мечо“).
+        // Съдържанието е на по-тъмна подложка (като офертата и подменютата в „Мечо“); отгоре – подразделите.
         var grid = new UniformGrid { Columns = 3 };
         var shelf = new StackPanel();
+        if (group.Subs is { } subs)
+        {
+            var sub = new WrapPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
+            foreach (var x in subs)
+            {
+                string id = x.Id;
+                AddChip(sub, x.Name, x.Icon, id == _wardrobeSection, () => _wardrobeSection = id);
+            }
+            shelf.Children.Add(sub);
+        }
         shelf.Children.Add(grid);
         _wardrobeShelves.Children.Add(Pocket(shelf));
-        string empty;
-        if (_wardrobeSection == "wallpapers")
+
+        // „Всичко“: всичко, което имаш, подред; иначе – само избраният подраздел.
+        var shown = _wardrobeSection == AllWardrobe ? groups.SelectMany(g => g.Subs).Select(x => x.Id).ToList() : new List<string> { _wardrobeSection };
+        string empty = "";
+        foreach (var id in shown) empty = WardrobeTiles(id, grid);
+        if (_wardrobeSection == AllWardrobe) empty = "Гардеробът е празен. Нови неща има в офертата на деня.";
+        if (grid.Children.Count == 0) shelf.Children.Add(MutedText(empty));
+        var more = Button("Офертата на деня", () => OpenShop(), icon: "shop");
+        more.HorizontalAlignment = HorizontalAlignment.Center;
+        more.Margin = new Thickness(0, 10 * U, 0, 0);
+        _wardrobeShelves.Children.Add(more);
+    }
+
+    /// <summary>Гардероб → „Всичко“ (горе).</summary>
+    private const string AllWardrobe = "all";
+
+    /// <summary>Плочките на един подраздел на гардероба (дрехи от вид, пижами, тапети, цвят на меню, скинове на мебел). Връща текста, ако е празен.</summary>
+    private string WardrobeTiles(string id, UniformGrid grid)
+    {
+        var s = _pet.Save;
+        if (id == "wallpapers")
         {
             foreach (var backdrop in Backdrops.All.Where(b => Backdrops.Owns(s, b)))
             {
@@ -1571,75 +1607,46 @@ public sealed class MenuWindow : Window
                 else action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
                 grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, null, owned: used, artScale: 2));
             }
-            empty = "Нови тапети има в офертата на деня.";
+            return "Нови тапети има в офертата на деня.";
         }
-        else if (_wardrobeSection == "themes")
+        if (id == "themes")
         {
             // Скиновете на менюто идват от офертата на деня и от подаръците.
             foreach (var t in UiThemes.All.Where(t => UiThemes.Owns(s, t))) grid.Children.Add(ThemeTile(t, shop: false));
-            empty = "";
+            return "";
         }
-        else if (_wardrobeSection == "pajamas")
+        if (id == "pajamas")
         {
             foreach (var p in Clothes.PajamaSets.Where(p => Clothes.Owns(s, p))) grid.Children.Add(PajamaTile(p, shop: false));
-            empty = "Нови пижами има в офертата на деня.";
+            return "Нови пижами има в офертата на деня.";
         }
-        else if (_wardrobeSection == "furniture")
+        if (Furniture.ByItem.ContainsKey(id))
         {
-            // Подраздели: „Всичко“ (всички видове, които имаш) и по един за всяка мебел/уред
-            // (вижда се, щом има поне един купен друг вид).
-            var items = SkinItems(s).ToList();
-            if (_wardrobeItem != AllSkins && !items.Contains(_wardrobeItem)) _wardrobeItem = AllSkins;
-            var sub = new WrapPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
-            foreach (var item in items.Prepend(AllSkins))
-            {
-                string id = item;
-                var up = Kitchen.Find(id);
-                string label = id == AllSkins ? "Всичко" : ((up?.Icon ?? "") + " " + (up?.Name ?? id)).Trim();
-                var chip = Chip(label, () =>
-                {
-                    _wardrobeItem = id;
-                    BuildWardrobe();
-                });
-                SetOn(chip, id == _wardrobeItem);
-                chip.Margin = new Thickness(0, 0, 5, 5);
-                sub.Children.Add(chip);
-            }
-            shelf.Children.Insert(0, sub);
-            var shown = _wardrobeItem == AllSkins ? items : new List<string> { _wardrobeItem };
-            foreach (var item in shown)
-                foreach (var skin in Furniture.SkinsFor(item).Where(k => Furniture.Owns(s, k))) grid.Children.Add(SkinTile(skin, shop: false));
-            empty = "Други видове има в офертата на деня.";
+            foreach (var skin in Furniture.SkinsFor(id).Where(k => Furniture.Owns(s, k))) grid.Children.Add(SkinTile(skin, shop: false));
+            return "Други видове има в офертата на деня.";
         }
-        else
+        var slot = Clothes.Shelves.FirstOrDefault(x => x.Id == id);
+        if (slot == null) return "";
+        foreach (var garment in Clothes.All.Where(g => g.SlotId == slot.Id && !g.Hidden && Clothes.Owns(s, g)))
         {
-            var slot = Clothes.Shelves.First(x => x.Id == _wardrobeSection);
-            foreach (var garment in Clothes.All.Where(g => g.SlotId == slot.Id && !g.Hidden && Clothes.Owns(s, g)))
+            var g = garment;
+            bool worn = Clothes.IsWorn(s, g);
+            var action = worn ? Button("Свали", () => _pet.TakeOff(slot)) : Button("Облечи", () => _pet.Wear(g), primary: true);
+            // Плочката показва самата дреха; по-малките са по-увеличени.
+            var art = _pet.GarmentPreview(g);
+            int scale = Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 3, 8);
+            var details = new TextBlock
             {
-                var g = garment;
-                bool worn = Clothes.IsWorn(s, g);
-                var action = worn ? Button("Свали", () => _pet.TakeOff(slot)) : Button("Облечи", () => _pet.Wear(g), primary: true);
-                // Плочката показва самата дреха; по-малките са по-увеличени.
-                var art = _pet.GarmentPreview(g);
-                int scale = Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 3, 8);
-                var details = new TextBlock
-                {
-                    Text = worn ? "Облечено" : "",
-                    Foreground = Muted,
-                    TextAlignment = TextAlignment.Center,
-                };
-                grid.Children.Add(MakeTile(art, g.Name, details, action, dim: false, null, owned: worn, artScale: scale));
-            }
-            empty = $"Още нямаш {slot.Name.ToLowerInvariant()}.";
+                Text = worn ? "Облечено" : "",
+                Foreground = Muted,
+                TextAlignment = TextAlignment.Center,
+            };
+            grid.Children.Add(MakeTile(art, g.Name, details, action, dim: false, null, owned: worn, artScale: scale));
         }
-        if (grid.Children.Count == 0) shelf.Children.Add(MutedText(empty));
-        var more = Button("Офертата на деня", () => OpenShop(), icon: "shop");
-        more.HorizontalAlignment = HorizontalAlignment.Center;
-        more.Margin = new Thickness(0, 10 * U, 0, 0);
-        _wardrobeShelves.Children.Add(more);
+        return $"Още нямаш {slot.Name.ToLowerInvariant()}.";
     }
 
-    private string _wardrobeSection = "hat";
+    private string _wardrobeSection = AllWardrobe;
     private readonly StackPanel _wardrobeBody = new();
     private readonly StackPanel _wardrobeLock = new();
 

@@ -585,7 +585,7 @@ public sealed partial class PetWindow
             LeaveScene();
             return;
         }
-        // Смени ли се позата в кътчето (на бюрото: „мисли“ прав), седалката се пречертава.
+        // Смени ли се позата в кътчето (в тефтера: „пише прав“), седалката се пречертава.
         if (_state == BearState.Couch && Behaviour.PostureOf(_anim) != _artPosture) LoadSceneArt(scene, _anim);
         // Слезе ли от дивана/постелката (отиде до мебелта отново), тя пак е в своя прозорец.
         else if (_seatKind != null && FurnishingOf(_seatKind) is { } on && !OnFurniture(on)) LoadSceneArt(scene, _anim);

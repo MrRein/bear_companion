@@ -56,7 +56,7 @@ public static class Clothes
 {
     public static readonly Slot Hat = new("hat", "Шапки", "hat", "head", "hat", Anchor.Bottom);
     public static readonly Slot Glasses = new("glasses", "Очила", "glasses", "face", "glasses", Anchor.Center);
-    public static readonly Slot Neck = new("neck", "Шалове и папийонки", "scarf", "neck", "neck", Anchor.Top);
+    public static readonly Slot Neck = new("neck", "Аксесоари", "scarf", "neck", "neck", Anchor.Top);
 
     /// <summary>Напитката в лапата, докато пие (не е дреха; рисунка drink_&lt;id&gt;.png на точката _cup).</summary>
     public static readonly Slot Cup = new("cup", "Напитка", "tea", "cup", "drink", Anchor.Bottom);

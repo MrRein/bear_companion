@@ -49,7 +49,7 @@ public sealed partial class PetWindow
             string? tool = _scene == Scenes.Plant ? _plantTool
                 : _scene == Scenes.Knit ? "knitting"
                 : _scene == Scenes.Guitar ? Furniture.CurrentArt(_save, Kitchen.Guitar)
-                : _scene == Scenes.Board || _scene == Scenes.BoardPlay ? (_lib.Clothes("tool_dice") != null ? "dice" : null)   // на играта: зар (ако е нарисуван)
+                : _scene == Scenes.Board || _scene == Scenes.BoardPlay ? CardsTool   // на играта: карти в лапите
                 : _brush;
             if (tool == null) return outfit;
             return new Dictionary<string, string>(outfit) { [Clothes.Tool.Id] = tool };
@@ -57,6 +57,22 @@ public sealed partial class PetWindow
         if (_cup == null || !_anim.StartsWith("sit_drinking")) return outfit;
         var withCup = new Dictionary<string, string>(outfit) { [Clothes.Cup.Id] = _cup };
         return withCup;
+    }
+
+    private static readonly string[] CardColors = { "red", "blue", "green", "purple", "yellow" };
+
+    /// <summary>
+    /// Картите на настолната игра (tools/make_cards.py): цветът и броят (2–4) се сменят
+    /// на всеки 2 часа – не всеки път, а като нова игра.
+    /// </summary>
+    private static string CardsTool
+    {
+        get
+        {
+            var now = DateTime.Now;
+            int slot = now.DayOfYear * 12 + now.Hour / 2;
+            return $"cards_{CardColors[slot % CardColors.Length]}_{2 + slot / CardColors.Length % 3}";
+        }
     }
 
     /// <summary>С коя четка рисува (сменя се всеки път, като седне на статива).</summary>

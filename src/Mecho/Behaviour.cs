@@ -34,7 +34,7 @@ public static class Behaviour
     private static readonly Dictionary<string, Posture> Poses = new(StringComparer.Ordinal)
     {
         ["idle"] = Posture.Stand, ["write"] = Posture.Stand, ["doing"] = Posture.Stand,
-        ["dance"] = Posture.Stand, ["walk"] = Posture.Stand, ["happy"] = Posture.Stand, ["think"] = Posture.Stand,
+        ["dance"] = Posture.Stand, ["walk"] = Posture.Stand, ["happy"] = Posture.Stand,
         ["juggle"] = Posture.Stand, ["bounce"] = Posture.Stand, ["hold"] = Posture.Stand, ["hold_walk"] = Posture.Stand,
         ["yoga"] = Posture.Floor,
     };

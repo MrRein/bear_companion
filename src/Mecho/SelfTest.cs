@@ -1767,11 +1767,14 @@ public sealed partial class PetWindow
             _save.Owned.Remove(Kitchen.Desk);
             if (CanDo(Scenes.Desk)) throw new Exception("работи на бюро, което го няма");
             _save.Owned.Add(Kitchen.Desk);
-            // На бюрото: „мисли“ е права поза – столчето изчезва, после се връща.
+            // На бюрото: „пише прав“ е права поза – столчето изчезва, после се връща; „мисли“ е седнал (на столчето).
             StartScene(Scenes.Desk, quiet: true);
+            _anim = "write";
+            UpdateScene(Now);
+            if (_seatProp != null) throw new Exception("пише прав върху столчето");
             _anim = "think";
             UpdateScene(Now);
-            if (_seatProp != null) throw new Exception("мисли прав върху столчето");
+            if (_seatProp == null) throw new Exception("мисли на земята, а седи на бюрото");
             _anim = "focus";
             UpdateScene(Now);
             if (_seatProp == null) throw new Exception("седна, а столчето не се върна");
