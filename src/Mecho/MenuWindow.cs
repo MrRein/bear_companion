@@ -486,6 +486,14 @@ public sealed class MenuWindow : Window
         // Разходи се: излиза от екрана за 10 мин, 30 мин, 1 ч или колкото напишеш.
         _walkButton = Wide(Button("Разходи се", () =>
         {
+            // На разходка: бутонът е „Повикай“ (натиснат) – връща се.
+            if (_pet.OnWalk)
+            {
+                _pet.ReturnFromWalk(called: true);
+                _walkOpen = false;
+                Refresh(false);
+                return;
+            }
             _walkOpen = !_walkOpen;
             _sleepOpen = _quietOpen = false;
             Refresh(false);
@@ -2453,7 +2461,9 @@ public sealed class MenuWindow : Window
         SetOn(_quietButton, _quietOpen);
         _sleepOptions.Visibility = _sleepOpen ? Visibility.Visible : Visibility.Collapsed;
         _quietOptions.Visibility = _quietOpen ? Visibility.Visible : Visibility.Collapsed;
-        SetOn(_walkButton, _walkOpen);
+        if (_pet.OnWalk) _walkOpen = false;
+        SetButton(_walkButton, _pet.OnWalk ? "Повикай" : "Разходи се", "walk");
+        SetOn(_walkButton, _walkOpen || _pet.OnWalk);
         _walkOptions.Visibility = _walkOpen ? Visibility.Visible : Visibility.Collapsed;
         _drawButton.Visibility = Kitchen.Owns(s, Kitchen.Easel) ? Visibility.Visible : Visibility.Collapsed;
         if (_pet.IsQuiet) SetButton(_quietButton, "Говори", "bell");

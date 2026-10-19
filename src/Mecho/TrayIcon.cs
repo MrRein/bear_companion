@@ -28,19 +28,12 @@ public sealed class TrayIcon : IDisposable
         }
 
         var menu = new Forms.ContextMenuStrip();
-        // Само докато го няма (на разходка или скрит): вика го.
-        var show = menu.Items.Add("Покажи мечока");
-        show.Click += (_, _) => Toggle();
+        // Менюто на мечока (и на разходка – той не се връща само от това).
         var panel = menu.Items.Add("Отвори меню");
-        panel.Click += (_, _) =>
-        {
-            if (_pet.OnWalk) _pet.ReturnFromWalk(called: true);
-            else if (!_pet.IsVisible) _pet.Show();
-            _pet.OpenMenu(MenuWindow.BearTab);
-        };
-        // Скрий всичко: всички рисунки (платформите) изчезват; пак оттук се показват.
-        var hideAll = menu.Items.Add("");
-        hideAll.Click += (_, _) => _pet.SetDrawingsHidden(!_pet.DrawingsHidden);
+        panel.Click += (_, _) => OpenMenu();
+        // Точно под него: Скрий (показан е) / Покажи (скрит е) / Повикай (на разходка – връща се).
+        var visibility = menu.Items.Add("");
+        visibility.Click += (_, _) => Toggle();
         // Таймери: табелката до часовника, докато мечокът е скрит.
         var timers = new Forms.ToolStripMenuItem("Таймери");
         timers.Click += (_, _) =>
@@ -71,7 +64,7 @@ public sealed class TrayIcon : IDisposable
         menu.ImageScalingSize = new System.Drawing.Size(24, 24);
         (Forms.ToolStripItem Item, string Icon)[] icons =
         {
-            (show, "walk"), (panel, "bear"), (hideAll, "hide"), (update, "update"), (exit, "close"),
+            (panel, "bear"), (update, "update"), (exit, "close"),
         };
         foreach (var (item, icon) in icons) item.Image = PixelIcon(icon);
         exit.Click += (_, _) =>
@@ -82,9 +75,10 @@ public sealed class TrayIcon : IDisposable
 
         menu.Opening += (_, _) =>
         {
-            show.Visible = _pet.OnWalk || !_pet.IsVisible;
             timers.Checked = _save.ShowTimers;
-            hideAll.Text = _pet.DrawingsHidden ? "Покажи рисунките" : "Скрий всичко";
+            // Окото – скрий/покажи; човечето от „Разходи се“ – повикай го от разходката.
+            visibility.Text = _pet.OnWalk ? "Повикай" : _pet.IsVisible ? "Скрий" : "Покажи";
+            visibility.Image = _pet.OnWalk ? _walkIcon : _eyeIcon;
             autostart.Checked = _save.StartWithWindows;
             update.Text = _pet.Updater.IsAvailable
                 ? "Обнови"
@@ -105,19 +99,44 @@ public sealed class TrayIcon : IDisposable
             string t = _pet.TimersText;
             _icon.Text = t.Length > 63 ? t[..63] : t;
         };
-        _icon.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) Toggle(); };
+        // Цъкане: менюто на мечока (Developer може да го върне на „скрий/покажи“, както беше).
+        _icon.MouseClick += (_, e) =>
+        {
+            if (e.Button != Forms.MouseButtons.Left) return;
+            if (_save.TrayClickHides) Toggle();
+            else OpenMenu();
+        };
     }
 
+    private readonly System.Drawing.Image? _eyeIcon = PixelIcon("eye"), _walkIcon = PixelIcon("walk");
+
+    /// <summary>Менюто на мечока. Скрит – показва се; на разходка – остава си на разходка.</summary>
+    private void OpenMenu()
+    {
+        if (!_pet.OnWalk && !_pet.IsVisible) Show();
+        _pet.OpenMenu(MenuWindow.BearTab);
+    }
+
+    /// <summary>Скрий / Покажи (мечока и рисунките заедно) или – на разходка – Повикай.</summary>
     private void Toggle()
     {
-        // На разходка: иконката го вика обратно.
         if (_pet.OnWalk)
         {
             _pet.ReturnFromWalk(called: true);
             return;
         }
-        if (_pet.IsVisible) _pet.Hide();
-        else _pet.Show();
+        if (_pet.IsVisible)
+        {
+            _pet.Hide();
+            _pet.SetDrawingsHidden(true);
+        }
+        else Show();
+    }
+
+    private void Show()
+    {
+        _pet.Show();
+        if (_pet.DrawingsHidden) _pet.SetDrawingsHidden(false);
     }
 
     /// <summary>Пикселна иконка от assets/ui, увеличена 2 пъти без размазване.</summary>

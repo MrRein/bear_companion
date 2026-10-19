@@ -225,6 +225,12 @@ public sealed partial class PetWindow
             _save.CalmWhileTyping = !_save.CalmWhileTyping;
             Say(_save.CalmWhileTyping ? "Докато пишеш, ще стоя мирно." : "Ще се движа и докато пишеш.", 3);
         });
+        yield return (draw, "Иконката до часовника: цъкане скрива мечока / отваря менюто", () =>
+        {
+            _save.TrayClickHides = !_save.TrayClickHides;
+            Persist();
+            Say(_save.TrayClickHides ? "Цъкнеш ли иконката – скривам се (като преди)." : "Цъкнеш ли иконката – отварям менюто.", 3);
+        });
         yield return (draw, "Без прерисуване 30 с", () => DevFreezeDrawing(30));
         yield return (draw, "Без прерисуване 2 мин", () => DevFreezeDrawing(120));
         const string tired = "Умора и вид на деня";

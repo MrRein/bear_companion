@@ -982,6 +982,22 @@ mm........mm
 ............"""
 
 
+# „Скрий“/„Покажи“ (иконката до часовника): око.
+ICONS["eye"] = """
+............
+............
+...kkkkkk...
+.kkwwwwwwkk.
+kwwwuuuuwwwk
+kwwuukkuuwwk
+kwwuukkuuwwk
+kwwwuuuuwwwk
+.kkwwwwwwkk.
+...kkkkkk...
+............
+............"""
+
+
 def main(only=None):
     os.makedirs(OUT, exist_ok=True)
     preview = Image.new("RGBA", (13 * len(ICONS), 12), (255, 244, 220, 255))
