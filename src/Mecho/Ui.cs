@@ -247,7 +247,7 @@ public static class Ui
     private static readonly Dictionary<string, string> EmojiIcons = new()
     {
         ["🌰"] = "nut", ["⏰"] = "clock", ["🍯"] = "honey", ["☕"] = "tea", ["⚡"] = "energy",
-        ["■"] = "stop", ["▶"] = "play", ["✓"] = "check", ["✔"] = "check", ["✕"] = "close", ["✗"] = "close",
+        ["■"] = "stop", ["▶"] = "play", ["▲"] = "arrow_up", ["▼"] = "arrow_down", ["✓"] = "check", ["✔"] = "check", ["✕"] = "close", ["✗"] = "close",
         ["🫐"] = "food_berries", ["🍿"] = "food_popcorn", ["🍖"] = "food_meatballs", ["🥔"] = "food_potatoes", ["🍵"] = "food_tea",
         ["🍲"] = "shop_pot", ["🫖"] = "shop_kettle", ["🍳"] = "shop_pan", ["🔥"] = "shop_oven", ["🎧"] = "shop_headphones",
         ["🛏"] = "shop_bed", ["🧊"] = "shop_fridge", ["📖"] = "shop_cookbook", ["🌱"] = "shop_plant", ["🧘"] = "shop_yoga_mat",
@@ -457,8 +457,9 @@ public static class Ui
         return b;
     }
 
+    // „0️⃣“ (цифра в квадратче) започва с обикновена цифра – познава се по \u20E3 накрая.
     private static bool IsEmoji(string el) =>
-        char.IsSurrogate(el[0]) || el[0] is >= '\u2190' and <= '\u2BFF' && el[0] != '…';
+        char.IsSurrogate(el[0]) || el[0] is >= '\u2190' and <= '\u2BFF' && el[0] != '…' || el.Contains('\u20E3');
 
     /// <summary>TextBlock с текст, в който емоджитата са пикселни иконки.</summary>
     public static TextBlock RichText(string text, double? size = null, bool bold = false)
