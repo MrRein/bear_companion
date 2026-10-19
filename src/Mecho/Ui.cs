@@ -249,7 +249,7 @@ public static class Ui
         ["🌰"] = "nut", ["⏰"] = "clock", ["🍯"] = "honey", ["☕"] = "tea", ["⚡"] = "energy",
         ["■"] = "stop", ["▶"] = "play", ["▲"] = "arrow_up", ["▼"] = "arrow_down",
         // Стрелките в изреченията („Десен бутон → „Обнови““).
-        ["→"] = "arrow_right", ["↑"] = "arrow_up", ["↓"] = "arrow_down", ["✓"] = "check", ["✔"] = "check", ["✕"] = "close", ["✗"] = "close",
+        ["📍"] = "unpin", ["➕"] = "plus", ["→"] = "arrow_right", ["↑"] = "arrow_up", ["↓"] = "arrow_down", ["✓"] = "check", ["✔"] = "check", ["✕"] = "close", ["✗"] = "close",
         ["🫐"] = "food_berries", ["🍿"] = "food_popcorn", ["🍖"] = "food_meatballs", ["🥔"] = "food_potatoes", ["🍵"] = "food_tea",
         ["🍲"] = "shop_pot", ["🫖"] = "shop_kettle", ["🍳"] = "shop_pan", ["🔥"] = "shop_oven", ["🎧"] = "shop_headphones",
         ["🛏"] = "shop_bed", ["🧊"] = "shop_fridge", ["📖"] = "shop_cookbook", ["🌱"] = "shop_plant", ["🧘"] = "shop_yoga_mat",

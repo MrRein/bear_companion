@@ -1970,6 +1970,17 @@ public sealed partial class PetWindow
             DeleteNote(n);
             if (Ui.Shorten("абвгдежзий", 5) != "абвгд…") throw new Exception("Shorten");
         }, 300);
+        await step("задачи: табло (📌 / 📍)", () =>
+        {
+            AddTask("Тест: табло", 1);
+            var t = _save.Tasks.Last(x => x.Title == "Тест: табло");
+            if (!TaskOnBoard(t)) throw new Exception("новата задача трябва да е в таблото");
+            SetTaskOnBoard(t, false);
+            if (TaskOnBoard(t)) throw new Exception("не се махна от таблото");
+            SetTaskOnBoard(t, true);
+            if (!TaskOnBoard(t) || _save.TasksOffBoard.Contains(t.Id)) throw new Exception("не се върна в таблото");
+            DeleteTask(t);
+        }, 300);
         await step("напомняне към бележка", () =>
         {
             var n = AddNote("Тест: бележка с напомняне", quiet: true) ?? throw new Exception("бележката не се записа");

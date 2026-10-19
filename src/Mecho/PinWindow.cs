@@ -283,7 +283,7 @@ public sealed class PinWindow : Window
     {
         var s = _pet.Save;
         string sig = _kind == Tasks
-            ? string.Join("|", s.Tasks.Where(t => !t.Done).Select(t => t.Id + t.Title + t.Description + t.Size)) + "#" + s.FocusTask + _pet.InFocus
+            ? string.Join("|", s.Tasks.Where(t => !t.Done && _pet.TaskOnBoard(t)).Select(t => t.Id + t.Title + t.Description + t.Size)) + "#" + s.FocusTask + _pet.InFocus
             : string.Join("|", s.Notes.Where(n => n.Pinned).Select(n => n.Id + n.Title + "¦" + n.Text));
         if (sig == _shown) return;
         _shown = sig;
@@ -295,15 +295,17 @@ public sealed class PinWindow : Window
     private void BuildTasks()
     {
         var s = _pet.Save;
-        var tasks = s.Tasks.Where(t => !t.Done).ToList();
+        // Само задачите в таблото (📍 ги маха оттук, в менюто 📌 ги връща).
+        var tasks = s.Tasks.Where(t => !t.Done && _pet.TaskOnBoard(t)).ToList();
         _count.Text = tasks.Count > 0 ? $"· {tasks.Count}" : "";
-        if (tasks.Count == 0) _list.Children.Add(MenuWindow.MutedText("Няма задачи. Напиши една отдолу!"));
+        if (tasks.Count == 0) _list.Children.Add(MenuWindow.MutedText("Няма задачи в таблото. Напиши една отдолу!"));
         foreach (var task in tasks)
         {
             var t = task;
             bool current = s.FocusTask == t.Id;
             var row = new Grid();
             row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var check = new CheckBox
@@ -350,6 +352,13 @@ public sealed class PinWindow : Window
             if (current) SetOn(focus, true);
             Grid.SetColumn(focus, 2);
             row.Children.Add(focus);
+            var off = Chip("📍", () => _pet.SetTaskOnBoard(t, false));
+            off.ToolTip = Tip("Махни я от таблото (задачата остава)");
+            off.Padding = new Thickness(5, 1, 5, 2);
+            off.Margin = new Thickness(4, 0, 0, 0);
+            off.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(off, 3);
+            row.Children.Add(off);
             var card = MenuWindow.Card(row, false);
             card.Padding = new Thickness(6, 4, 4, 4);
             card.Margin = new Thickness(0, 0, 0, 4);
@@ -388,7 +397,7 @@ public sealed class PinWindow : Window
             var buttons = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
             var copy = Chip("⧉", () => { try { Clipboard.SetText(n.Title.Length > 0 && n.Text.Length > 0 ? n.Title + "\n" + n.Text : n.Title + n.Text); } catch (Exception) { } });
             copy.ToolTip = Tip("Копирай");
-            var unpin = Chip("➖", () => _pet.SetNotePinned(n, false));
+            var unpin = Chip("📍", () => _pet.SetNotePinned(n, false));
             unpin.ToolTip = Tip("Махни я от таблото (бележката остава)");
             var del = Chip("✕", () => _pet.DeleteNote(n));
             del.ToolTip = Tip("Изтрий");

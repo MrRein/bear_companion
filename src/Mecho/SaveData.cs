@@ -104,6 +104,7 @@ public sealed class SaveData
     /// <summary>Печицата е включена.</summary>
 
     public List<NoteItem> Notes { get; set; } = new();
+    public List<Guid> TasksOffBoard { get; set; } = new();   // задачи, махнати от таблото (другите са в него)
     public List<ReminderItem> Reminders { get; set; } = new();
     public List<DayRecord> Days { get; set; } = new();          // какво сме правили всеки ден (последните 60)
     public string MemoryDay { get; set; } = "";                 // за кой ден вече каза спомена от вчера

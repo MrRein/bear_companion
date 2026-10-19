@@ -477,6 +477,17 @@ public sealed partial class PetWindow
         return note;
     }
 
+    /// <summary>В таблото със задачите ли е задачата (по подразбиране – да).</summary>
+    public bool TaskOnBoard(TaskItem task) => !_save.TasksOffBoard.Contains(task.Id);
+
+    public void SetTaskOnBoard(TaskItem task, bool on)
+    {
+        _save.TasksOffBoard.Remove(task.Id);
+        if (!on) _save.TasksOffBoard.Add(task.Id);
+        NotifyCare();
+        Persist();
+    }
+
     /// <summary>В закаченото табло ли е бележката.</summary>
     public void SetNotePinned(NoteItem note, bool pinned)
     {

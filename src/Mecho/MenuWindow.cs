@@ -334,7 +334,7 @@ public sealed class MenuWindow : Window
         Refresh(rebuild: false);
         BuildTab(index);
         if (tasks) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
-        if (index == NotesTab) Dispatcher.BeginInvoke(() => _noteTitle.Focus(), DispatcherPriority.Input);
+        if (index == NotesTab && _notesView == 3) Dispatcher.BeginInvoke(() => _noteTitle.Focus(), DispatcherPriority.Input);
     }
 
     // ───────────────────────── Рамка: заглавие и табове ─────────────────────────
@@ -1789,8 +1789,8 @@ public sealed class MenuWindow : Window
         });
         DockPanel.SetDock(_historyButton, Dock.Right);
         bottom.Children.Add(_historyButton);
-        _pinTasks = Chip("📌 Закачи", () => _pet.SetPinned(PinWindow.Tasks, !_pet.IsPinned(PinWindow.Tasks)));
-        _pinTasks.ToolTip = Tip("Задачите в малко прозорче, което стои на екрана");
+        _pinTasks = Chip("📌 Табло", () => _pet.SetPinned(PinWindow.Tasks, !_pet.IsPinned(PinWindow.Tasks)));
+        _pinTasks.ToolTip = Tip("Задачите с 📌 в малко табло, което стои на екрана");
         _pinTasks.Margin = new Thickness(0, 0, 6, 0);
         DockPanel.SetDock(_pinTasks, Dock.Right);
         bottom.Children.Add(_pinTasks);
@@ -1856,8 +1856,8 @@ public sealed class MenuWindow : Window
             BuildTaskHistory();
             return;
         }
-        // Свършените се виждат само в „История“.
-        var tasks = _pet.Save.Tasks.Where(t => !t.Done).ToList();
+        // Свършените се виждат само в „История“; тези в таблото (📌) са най-горе.
+        var tasks = _pet.Save.Tasks.Where(t => !t.Done).OrderBy(t => _pet.TaskOnBoard(t) ? 0 : 1).ToList();
         if (tasks.Count == 0)
             _taskList.Children.Add(MutedText("Няма задачи."));
 
@@ -1866,6 +1866,7 @@ public sealed class MenuWindow : Window
             var t = task;
             var row = new Grid();
             row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -1918,9 +1919,19 @@ public sealed class MenuWindow : Window
             Grid.SetColumn(play, 2);
             row.Children.Add(play);
 
+            // 📌 – в таблото ли е (светнало – да).
+            bool onBoard = _pet.TaskOnBoard(t);
+            var pin = Chip("📌", () => _pet.SetTaskOnBoard(t, !onBoard));
+            pin.ToolTip = Tip(onBoard ? "В таблото е – цъкни, за да я махнеш оттам" : "Сложи я в таблото");
+            pin.VerticalAlignment = VerticalAlignment.Center;
+            pin.Margin = new Thickness(0, 0, 6, 0);
+            SetOn(pin, onBoard);
+            Grid.SetColumn(pin, 3);
+            row.Children.Add(pin);
+
             var del = Chip("✕", () => _pet.DeleteTask(t));
             del.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(del, 3);
+            Grid.SetColumn(del, 4);
             row.Children.Add(del);
 
             _taskList.Children.Add(Card(row, t.Done));
@@ -1950,12 +1961,19 @@ public sealed class MenuWindow : Window
     private UIElement BuildNotesTab()
     {
         var root = new StackPanel();
-        // Отгоре: Бележки | Закачени | Напомняния, а вдясно – таблото на екрана.
+        // Отгоре: Бележки | Закачени | Напомняния | ➕ Нова, а вдясно – таблото на екрана.
         var top = new DockPanel { Margin = new Thickness(0, 0, 0, 8 * U), LastChildFill = false };
         _notesChip = Chip("📝 Бележки", () => { _notesView = 0; BuildNoteList(); });
         _pinnedChip = Chip("📌 Закачени", () => { _notesView = 1; BuildNoteList(); });
         _remindersChip = Chip("⏰ Напомняния", () => { _notesView = 2; BuildNoteList(); });
-        foreach (var c in new[] { _notesChip, _pinnedChip, _remindersChip })
+        _newNoteChip = Chip("➕ Нова", () =>
+        {
+            _notesView = 3;
+            _remFor = null;
+            BuildNoteList();
+            Dispatcher.BeginInvoke(() => _noteTitle.Focus(), DispatcherPriority.Input);
+        });
+        foreach (var c in new[] { _notesChip, _pinnedChip, _remindersChip, _newNoteChip })
         {
             c.Margin = new Thickness(0, 0, 6, 4);
             DockPanel.SetDock(c, Dock.Left);
@@ -1968,7 +1986,7 @@ public sealed class MenuWindow : Window
         top.Children.Add(_pinNotes);
         root.Children.Add(top);
 
-        // Нова бележка: име (удебелено) и съдържание.
+        // Нова бележка (таб „➕ Нова“, отделно от списъка): име (удебелено) и съдържание.
         var p = _noteEditor;
         _noteTitle = NewTextInput();
         _noteTitle.FontWeight = FontWeights.Bold;
@@ -2032,8 +2050,8 @@ public sealed class MenuWindow : Window
 
     private readonly StackPanel _noteEditor = new(), _remList = new();
     private TextBox _noteTitle = null!;
-    private Border _notesChip = null!, _pinnedChip = null!, _remindersChip = null!, _newPinned = null!;
-    private int _notesView;                  // 0 – всички бележки, 1 – закачените, 2 – напомнянията
+    private Border _notesChip = null!, _pinnedChip = null!, _remindersChip = null!, _newNoteChip = null!, _newPinned = null!;
+    private int _notesView;                  // 0 – всички бележки, 1 – закачените, 2 – напомнянията, 3 – нова бележка
     private bool _newNotePinned = true;
 
     private void AddNote()
@@ -2047,8 +2065,8 @@ public sealed class MenuWindow : Window
         _noteTitle.Clear();
         _noteInput.Clear();
         _remOn = false;
-        ShowReminderPanel();
-        _noteTitle.Focus();
+        _notesView = 0;   // записана – обратно към бележките (новата е най-горе)
+        BuildNoteList();
     }
 
     private void BuildNoteList()
@@ -2056,8 +2074,9 @@ public sealed class MenuWindow : Window
         SetOn(_notesChip, _notesView == 0);
         SetOn(_pinnedChip, _notesView == 1);
         SetOn(_remindersChip, _notesView == 2);
+        SetOn(_newNoteChip, _notesView == 3);
         SetOn(_pinNotes, _pet.IsPinned(PinWindow.Notes));
-        _noteEditor.Visibility = _notesView == 0 ? Visibility.Visible : Visibility.Collapsed;
+        _noteEditor.Visibility = _notesView == 3 ? Visibility.Visible : Visibility.Collapsed;
         // Бележката, за която се слага напомняне, е изтрита – затваря.
         if (_remFor != null && !_pet.Save.Notes.Contains(_remFor))
         {
@@ -2066,13 +2085,15 @@ public sealed class MenuWindow : Window
         }
         ShowReminderPanel();
         _noteList.Children.Clear();
+        if (_notesView == 3) return;   // новата бележка е сама, без списъка
         if (_notesView == 2)
         {
             BuildReminderList();
             _noteList.Children.Add(_remList);
             return;
         }
-        var notes = _pet.Save.Notes.Where(n => _notesView == 0 || n.Pinned).ToList();
+        // Закачените (в таблото) – най-горе.
+        var notes = _pet.Save.Notes.Where(n => _notesView == 0 || n.Pinned).OrderBy(n => n.Pinned ? 0 : 1).ToList();
         if (notes.Count == 0)
         {
             _noteList.Children.Add(MutedText(_notesView == 1 ? "Няма закачени бележки. Сложи 📌 на бележка и тя ще е в таблото." : "Тефтерът е празен."));
@@ -2366,7 +2387,9 @@ public sealed class MenuWindow : Window
     private void ShowReminderPanel()
     {
         if (_remToggle == null) return;
-        _remPanel.Visibility = _remOn && _notesView == 0 ? Visibility.Visible : Visibility.Collapsed;
+        // За нова бележка – в „➕ Нова“; за записана (⏰ до нея) – над списъка.
+        bool here = _remFor == null ? _notesView == 3 : _notesView is 0 or 1;
+        _remPanel.Visibility = _remOn && here ? Visibility.Visible : Visibility.Collapsed;
         SetOn(_remToggle, _remOn && _remFor == null);
         if (!_remOn) return;
         if (_remFor != null)
@@ -2387,7 +2410,7 @@ public sealed class MenuWindow : Window
     /// <summary>⏰ до бележка: отваря „кога“ за нея (с досегашното напомняне, ако има).</summary>
     private void EditReminderFor(NoteItem note)
     {
-        if (_remFor == note && _notesView == 0)
+        if (_remFor == note && _notesView is 0 or 1)
         {
             CloseReminderPanel();
             return;
