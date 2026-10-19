@@ -7,7 +7,7 @@ namespace Mecho;
 // Нещата, които стоят на земята като отделни прозорци: печица, лампа, радио,
 // хранилка, растение. Правилата са едни за всички:
 //  • от всеки вид има най-много един (един прозорец; при грешка излишните се затварят);
-//  • сложеното от Тут („Уреди“/„Мебели“) стои, докато Тут не го махне;
+//  • сложеното от Тут („Неща на Мечо“) стои, докато Тут не го махне;
 //  • сложеното от мечока за някое занимание (радиото, докато танцува; саксията,
 //    която изнася от ъгъла) се прибира, щом свърши заниманието;
 //  • ако Тут сложи нещо, което мечокът вече е сложил сам – става нейно и остава.
@@ -35,7 +35,7 @@ public sealed partial class PetWindow
     public bool RadioPlacedByOwner => RadioPlaced && !_save.RadioAuto;
 
     /// <summary>
-    /// „Уреди“ → Радио. Светнало е и когато мечокът сам го е сложил (танцува) –
+    /// „Неща на Мечо“ → Радио. Светнало е и когато мечокът сам го е сложил (танцува) –
     /// цъкането тогава спира танца и радиото се прибира. Иначе слага/прибира радиото на Тут.
     /// </summary>
     public void ToggleRadioPlaced()
@@ -55,7 +55,7 @@ public sealed partial class PetWindow
     public bool PlantOut => _save.PlantPlaced || InGarden;
 
     /// <summary>
-    /// „Уреди“ → Растение. Светнало е и докато мечокът сам се грижи за него – цъкането
+    /// „Неща на Мечо“ → Растение. Светнало е и докато мечокът сам се грижи за него – цъкането
     /// тогава спира грижата и той го прибира. Иначе слага/прибира саксията.
     /// </summary>
     public void TogglePlant()
@@ -134,7 +134,7 @@ public sealed partial class PetWindow
 
     // ── Растението ──
 
-    /// <summary>„Уреди“ → Растение: саксията стои на земята, докато Тут не я прибере.</summary>
+    /// <summary>„Неща на Мечо“ → Растение: саксията стои на земята, докато Тут не я прибере.</summary>
     public void SetPlant(bool placed)
     {
         if (!Kitchen.Owns(_save, Kitchen.PlantPot)) return;
@@ -194,7 +194,7 @@ public sealed partial class PetWindow
         {
             var area = AreaAt(_save.PlantX, _y - 1);
             _potWindow = new CookerWindow("Растение");
-            Companion(_potWindow);
+            Companion(_potWindow, Kitchen.PlantPot);
             _potWindow.SetTime(null);
             _potWindow.Hint = "Растението.";
             _potWindow.Clicked += () => Ask(new ChatQuestion("Растението. Какво да правим?",

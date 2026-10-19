@@ -413,6 +413,7 @@ public sealed partial class PetWindow : Window
         {
             _lastSave = now;
             CloseDuplicatePlaceables();
+            KeepBearInFront();   // диванът/стативът (изключенията) – пак зад мечока
             _movedTo = new Point(double.NaN, double.NaN);   // веднъж в минута: пак на мястото си, ако Windows го е мръднал
             StartNewDay();
             Persist();
@@ -933,7 +934,7 @@ public sealed partial class PetWindow : Window
         _dragAsleep = IsAsleep;
         _dragAway = _sleepIsAway;
         _liftedAt = Now;
-        FinishHand();   // носеше нещо от „Уреди“/„Мебели“ – появява се
+        FinishHand();   // носеше нещо от „Неща на Мечо“ – появява се
         if (_dragAsleep)
         {
             SetState(BearState.Drag, "sleep");
@@ -1261,7 +1262,7 @@ public sealed partial class PetWindow : Window
     private void UpdateFrame()
     {
         _dresser.Book = TodaysBook;
-        // Уморен: ако е нарисувана уморена версия (game_tired, work_tired…) – нея.
+        // Уморен: ако е нарисувана уморена версия (game_tired, write_tired…) – нея.
         string anim = IsExhausted && !IsResting && !_anim.EndsWith("_tired") && _lib.Has(_anim + "_tired") ? _anim + "_tired" : _anim;
         var frame = _dresser.Frame(_lib, anim, _lib.Get(anim).IndexAt(_animTime), EffectiveOutfit);
         // Докато се преоблича, е скрит зад вратата на гардероба.

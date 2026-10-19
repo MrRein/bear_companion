@@ -92,7 +92,7 @@ public sealed partial class PetWindow
             }),
             ("wonder", 10, Wonder),
             ("climb", tired || near || !HasPlatforms ? 0 : 8, Climb),
-            ("sketch", tired ? 1 : 5, () => Play("work", length: 25 + _rng.Next(35), after: () => Announce(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
+            ("sketch", tired ? 1 : 5, () => Play("write", length: 25 + _rng.Next(35), after: () => Announce(Lines.Pick(Lines.SketchDone, _save.OwnerName), 5))),
             ("dice", tired ? 0 : 4, () =>
             {
                 int n = _rng.Next(1, 7);

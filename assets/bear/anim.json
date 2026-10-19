@@ -38,11 +38,6 @@
       "fps": 6,
       "loop": true
     },
-    "work": {
-      "file": "work.png",
-      "fps": 5,
-      "loop": true
-    },
     "dice": {
       "file": "dice.png",
       "fps": 5,
@@ -186,11 +181,6 @@
     "game_tired": {
       "file": "game_tired.png",
       "fps": 9,
-      "loop": true
-    },
-    "work_tired": {
-      "file": "work_tired.png",
-      "fps": 4,
       "loop": true
     },
     "write_tired": {

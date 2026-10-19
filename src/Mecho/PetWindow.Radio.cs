@@ -5,7 +5,7 @@ using System.Windows.Media;
 
 namespace Mecho;
 
-// Радиото (купува се в „Хобита“): Тут го слага от „Уреди“. Може да е включено
+// Радиото (купува се в „Хобита“): Тут го слага от „Неща на Мечо“. Може да е включено
 // или изключено. Включеното подскача леко и от него излизат нотки, а мечокът –
 // ако има енергия и не работи – понякога отива до него и танцува. Цъкнеш ли го:
 // Изключи/Включи, Махни, Остави. Скинове: грамофон, касетофон, лампово радио, джубокс.
@@ -54,7 +54,7 @@ public sealed partial class PetWindow
             double x = double.IsNaN(_save.RadioX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.8 : _save.RadioX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _radioWindow = new CookerWindow("Радио");
-            Companion(_radioWindow);
+            Companion(_radioWindow, Kitchen.Radio);
             _radioWindow.SetTime(null);
             _radioWindow.Hint = "Радиото.";
             _radioWindow.Clicked += () => Ask(new ChatQuestion(RadioPlaying ? "Да спра ли музиката?" : "Да пусна ли музика?",

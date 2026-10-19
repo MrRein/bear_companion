@@ -6,7 +6,7 @@ using System.Windows.Media.Imaging;
 
 namespace Mecho;
 
-// Хранилката за птички (купува се в „Мебели“): Тут я слага от „Уреди“ някъде на
+// Хранилката за птички (купува се в „Мебели“): Тут я слага от „Неща на Мечо“ някъде на
 // земята. Празна ли е, мечокът понякога отива и слага семенца. Докато има храна,
 // рядко (на 20–50 мин) долита птичка – врабче, червеношийка, синигер, червенушка
 // или синя птичка – кълве малко и отлита (всяка изяжда една порция от три).
@@ -54,7 +54,7 @@ public sealed partial class PetWindow
             double x = double.IsNaN(_save.FeederX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.6 : _save.FeederX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _feederWindow = new CookerWindow("Хранилка");
-            Companion(_feederWindow);
+            Companion(_feederWindow, Kitchen.Feeder);
             _feederWindow.SetTime(null);
             _feederWindow.Hint = "Хранилката за птички.";
             _feederWindow.Clicked += () => Ask(new ChatQuestion(_save.FeederFood > 0 ? "Хранилката има семенца. Какво да правим?" : "Хранилката е празна. Да сложа ли семенца?",

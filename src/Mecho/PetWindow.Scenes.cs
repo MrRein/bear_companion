@@ -41,6 +41,13 @@ public sealed record Scene(
     /// </summary>
     public string? Item { get; init; }
 
+    /// <summary>
+    /// Анимациите, които сменя, докато е там (на 25–70 с, без да повтаря подред):
+    /// на бюрото мисли, пише, чете… Нарисуваните само – още ненарисуваните се прескачат.
+    /// Празно – само Anim.
+    /// </summary>
+    public string[] Cycle { get; init; } = Array.Empty<string>();
+
     /// <summary>Анимацията, докато Тут не е нарисувала своята (Anim) – например doing_sit с предмет в лапата.</summary>
     public string? Fallback { get; init; }
 }
@@ -64,14 +71,15 @@ public static class Scenes
         R.Get("scene.desk.start"),
         R.Get("scene.desk.during"),
         R.Get("scene.desk.end"))
-    { Doing = "работя на бюрото", Name = "Работи на бюрото", Icon = "tasks", Needs = new[] { Kitchen.Desk }, Item = Kitchen.Desk };
+    { Doing = "работя на бюрото", Name = "Работи на бюрото", Icon = "tasks", Needs = new[] { Kitchen.Desk }, Item = Kitchen.Desk,
+      Cycle = new[] { "focus", "focus_write", "write_sit", "read" } };
 
     /// <summary>Пише в тефтера (без предмет).</summary>
-    public static readonly Scene Write = new("write", null, null, 0, "write",
+    public static readonly Scene Write = new("write", "stool", null, 0, "write",
         R.Get("scene.write.start"),
         R.Get("scene.write.during"),
         R.Get("scene.write.end"))
-    { Doing = "пиша идеи в тефтера", Name = "Пиши в тефтера", Icon = "notes" };
+    { Doing = "пиша идеи в тефтера", Name = "Пиши в тефтера", Icon = "notes", Cycle = new[] { "write", "write_sit" } };
 
     /// <summary>Батутът е особен: не седи, а подскача (виж PetWindow.Trampoline.cs).</summary>
     public static readonly Scene Trampoline = new("trampoline", null, null, 0, "bounce",
@@ -160,18 +168,20 @@ public static class Scenes
         R.Get("scene.guitar.end"))
     { Doing = "свиря на китара", Name = "Свири на китара", Icon = "guitar", Unlock = Kitchen.Guitar, Fallback = "doing_sit" };
 
-    public static readonly Scene Board = new("board", "stool", "table_board", 1, "work",
+    public static readonly Scene Board = new("board", "stool", "table_board", 1, "doing_sit",
         R.Get("scene.board.start"),
         R.Get("scene.board.during"),
         R.Get("scene.board.end"))
-    { Doing = "измислям нова настолна игра", Name = "Измисляй настолна игра", Icon = "board", Unlock = Kitchen.BoardGame, Item = Kitchen.BoardGame };
+    { Doing = "измислям нова настолна игра", Name = "Работи върху настолна игра", Icon = "board", Unlock = Kitchen.BoardGame, Item = Kitchen.BoardGame,
+      Cycle = new[] { "doing_sit", "dice_sit_boardgame", "read", "write_sit" } };
 
     /// <summary>Почивка: играе си настолна игра сам (същата масичка, но за удоволствие, не тества).</summary>
-    public static readonly Scene BoardPlay = new("boardplay", "stool", "table_board", 1, "work",
+    public static readonly Scene BoardPlay = new("boardplay", "stool", "table_board", 1, "doing_sit",
         R.Get("scene.boardplay.start"),
         R.Get("scene.boardplay.during"),
         R.Get("scene.boardplay.end"))
-    { Doing = "играя настолна игра соло", Name = "Играй настолна игра", Icon = "board", Unlock = Kitchen.BoardGame, Item = Kitchen.BoardGame };
+    { Doing = "играя настолна игра соло", Name = "Играй настолна игра", Icon = "board", Unlock = Kitchen.BoardGame, Item = Kitchen.BoardGame,
+      Cycle = new[] { "doing_sit", "dice_sit_boardgame" } };
 
     /// <summary>Почивка: рисува на статива просто така, за удоволствие.</summary>
     public static readonly Scene PaintFun = new("paintfun", "stool", "easel", 1, "doing_sit",
@@ -418,6 +428,7 @@ public sealed partial class PetWindow
         _sceneNear = AnchorFor(scene);
         _anchorWalk = false;
         _placing = null;
+        _nextCycle = Now + 25 + _rng.Next(45);
         // Мебелта на кътчето не е сложена: първо я слага сам на свободно място (после я прибира).
         if (FurnishingFor(scene) is { } furniture && !FurniturePlaced(furniture.Kind)) BeginPlacing(furniture);
         if (Scenes.Fun.Contains(scene) && !TodayRec.Hobbies.Contains(scene.Id)) TodayRec.Hobbies.Add(scene.Id);
@@ -610,6 +621,8 @@ public sealed partial class PetWindow
             return;
         }
 
+        CycleSceneAnim(scene, now);
+
         bool dozing = false;
         if (scene == Scenes.Reading)
         {
@@ -633,6 +646,19 @@ public sealed partial class PetWindow
                 : Lines.Pick(games && _rng.Next(2) == 0 ? Lines.Chatter : scene.During, _save.OwnerName));
             Mutter(during, 5);
         }
+    }
+
+    private double _nextCycle;
+
+    /// <summary>Сменя анимацията в кътчето (Scene.Cycle): на бюрото мисли, пише, чете…</summary>
+    private void CycleSceneAnim(Scene scene, double now)
+    {
+        if (scene.Cycle.Length == 0 || _state != BearState.Couch || now < _nextCycle) return;
+        _nextCycle = now + 25 + _rng.Next(45);
+        var options = scene.Cycle.Where(a => a != _anim && _lib.Has(a)).ToList();
+        if (options.Count == 0) return;
+        _anim = options[_rng.Next(options.Count)];
+        _animTime = 0;
     }
 
     /// <summary>Под толкова енергия задрямва над книжката.</summary>

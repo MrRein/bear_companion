@@ -22,7 +22,7 @@ HAND_DRAWN = {"idle", "walk", "sleep", "read", "read_sleep", "drag", "dance", "d
               "happy", "sad", "think", "tired", "walk_tired", "sleep_peek",
               "cook", "eat_hold", "focus", "focus_tired", "juggle", "sit", "yawn",
               "cook_tired", "doing", "doing_tired", "doing_sit", "doing_sit_tired", "focus_write", "game", "game_tired",
-              "work", "work_tired", "write", "write_tired", "yoga"}
+              "write", "write_tired", "write_sit", "write_sit_tired", "dice_sit_boardgame", "yoga"}
 
 # Нарисувани от Тут анимации, които нямат placeholder: име → (кадри в секунда, повтаря ли се).
 EXTRA_DRAWN = {"sit_drinking": (10, True), "sit_drinking_sip": (10, False), "sit_drinking_blow": (10, False),
@@ -598,8 +598,6 @@ ANIMS = {
                bear(eyes="happy", mouth="open", arms="up", bob=-1),
                bear(eyes="happy", mouth="smile", arms="right_up", legs="step2"),
                bear(eyes="happy", mouth="open", arms="up", bob=-1)], 6, True),
-    "work": ([bear(arms="front", extra=pencil(0)), bear(arms="front", extra=pencil(-2)),
-              bear(arms="front", eyes="closed", extra=pencil(0)), bear(arms="front", extra=pencil(-2))], 3, True),
     "dice": ([bear(arms="right_up", extra=die(24, 4, [(2, 2)])),
               bear(arms="down", mouth="open", extra=die(26, 14, [(1, 1), (3, 3)])),
               bear(eyes="happy", mouth="smile", extra=die(25, 26, [(1, 1), (2, 2), (3, 3)]))], 5, False),

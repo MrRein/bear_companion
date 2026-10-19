@@ -33,16 +33,25 @@ public static class Behaviour
     /// <summary>Позите на анимациите. Каквото не е тук – седнал.</summary>
     private static readonly Dictionary<string, Posture> Poses = new(StringComparer.Ordinal)
     {
-        ["idle"] = Posture.Stand, ["work"] = Posture.Stand, ["write"] = Posture.Stand, ["doing"] = Posture.Stand,
+        ["idle"] = Posture.Stand, ["write"] = Posture.Stand, ["doing"] = Posture.Stand,
         ["dance"] = Posture.Stand, ["walk"] = Posture.Stand, ["happy"] = Posture.Stand, ["think"] = Posture.Stand,
         ["juggle"] = Posture.Stand, ["bounce"] = Posture.Stand, ["hold"] = Posture.Stand, ["hold_walk"] = Posture.Stand,
         ["yoga"] = Posture.Floor,
     };
 
+    /// <summary>
+    /// ИЗКЛЮЧЕНИЯ „зад мечока“: обикновено всичко сложено е пред мечока (той е зад всичко),
+    /// а тези предмети са ЗАД него – минава пред дивана и пред статива. Друг предмет се
+    /// флагва, като се добави тук (видът от Kitchen) – прозорецът му сам застава зад мечока.
+    /// </summary>
+    public static readonly HashSet<string> BehindBear = new(StringComparer.Ordinal) { Kitchen.Couch, Kitchen.Easel };
+
+    public static bool IsBehindBear(string? kind) => kind != null && BehindBear.Contains(kind);
+
     /// <summary>Седалки на пода (рисуват се и под прав/легнал мечок).</summary>
     private static readonly HashSet<string> FloorSeats = new(StringComparer.Ordinal) { "mat" };
 
-    /// <summary>Позата на анимацията („work_tired“ е като „work“).</summary>
+    /// <summary>Позата на анимацията („write_tired“ е като „write“).</summary>
     public static Posture PostureOf(string? anim)
     {
         if (string.IsNullOrEmpty(anim)) return Posture.Sit;

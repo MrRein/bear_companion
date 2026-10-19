@@ -364,7 +364,7 @@ public sealed partial class PetWindow
         yield return (life, "Върна се (след часове)", () => { Say(R.Pick("welcome.missed", _save.OwnerName), 5); Play("happy"); });
         yield return (life, "Настроение: чудесно", () => { Joy(JoyPetted); Joy(JoyFed); Joy(JoyWorked); Say(R.Pick("mood.great", _save.OwnerName), 5); });
         yield return (life, "Настроение: тихичко", () => { _save.JoyFlags = 0; Say(R.Pick("mood.quiet", _save.OwnerName), 5); });
-        yield return (life, "Скицира", () => Play("work", length: 5, after: () => Say(Lines.Pick(Lines.SketchDone, _save.OwnerName), 4)));
+        yield return (life, "Скицира", () => Play("write", length: 5, after: () => Say(Lines.Pick(Lines.SketchDone, _save.OwnerName), 4)));
         yield return (life, "Хапва трохичка", () => { Play("eat", length: 2.5); Say(Lines.Pick(Lines.Snack, _save.OwnerName), 3); });
         yield return (life, "Протяга се", () => { Play("yawn"); Say(Lines.Pick(Lines.Sleepy, _save.OwnerName), 3); });
         yield return (life, "Катери се", Climb);

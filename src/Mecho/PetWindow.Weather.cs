@@ -224,7 +224,7 @@ public sealed partial class PetWindow
         NotifyCare();
     }
 
-    /// <summary>Тут я слага (включена) или прибира („Уреди“ в менюто).</summary>
+    /// <summary>Тут я слага (включена) или прибира („Неща на Мечо“ в менюто).</summary>
     public void SetHeaterPlaced(bool placed)
     {
         if (placed && !Kitchen.Owns(_save, Kitchen.Heater)) return;
@@ -256,7 +256,7 @@ public sealed partial class PetWindow
             double x = double.IsNaN(_save.HeaterX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.5 : _save.HeaterX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _heaterWindow = new CookerWindow("Печица");
-            Companion(_heaterWindow);
+            Companion(_heaterWindow, Kitchen.Heater);
             _heaterWindow.SetTime(null);
             _heaterWindow.Hint = "Печицата.";
             _heaterWindow.Clicked += () => Ask(_save.HeaterOn

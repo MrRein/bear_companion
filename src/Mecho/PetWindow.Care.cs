@@ -527,7 +527,8 @@ public sealed partial class PetWindow
         }
         if (now < _nextFocusSwitch) return;
         _nextFocusSwitch = now + 45 + _rng.Next(75);
-        string[] anims = { "focus", "focus", "think", "focus_write" };
+        // Работи: мисли, пише в тефтера, чете (ненарисуваните още – прескача).
+        var anims = new[] { "focus", "focus", "think", "focus_write", "write_sit", "read" }.Where(_lib.Has).ToArray();
         string next = anims[_rng.Next(anims.Length)];
         if (next == "think" && _rng.Next(3) == 0) Emote("idea");
         if (next != _anim)

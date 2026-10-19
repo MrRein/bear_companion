@@ -513,24 +513,15 @@ public sealed class MenuWindow : Window
             Refresh(true);
         }, icon: "stop"));
         actions.Children.Add(_couchButton);
-        // Уреди (печица, лампа, радио…) и Мебели (бюро, диван, легло…): неща, които Тут
-        // слага на земята (мечокът ги носи) и прибира.
-        _placeButton = Wide(Button("Уреди", () =>
+        // Неща на Мечо: уредите (печица, лампа, радио…) и мебелите (бюро, диван, легло…),
+        // които Тут слага на земята (мечокът ги носи) и прибира.
+        _placeButton = Wide(Button("Неща на Мечо", () =>
         {
-            _placeOpen = _placeGroup != PlaceGroup.Devices || !_placeOpen;
-            _placeGroup = PlaceGroup.Devices;
-            _sleepOpen = _quietOpen = _walkOpen = false;
-            Refresh(false);
-        }, icon: "shop_heater"));
-        actions.Children.Add(_placeButton);
-        _furnitureButton = Wide(Button("Мебели", () =>
-        {
-            _placeOpen = _placeGroup != PlaceGroup.Furniture || !_placeOpen;
-            _placeGroup = PlaceGroup.Furniture;
+            _placeOpen = !_placeOpen;
             _sleepOpen = _quietOpen = _walkOpen = false;
             Refresh(false);
         }, icon: "couch"));
-        actions.Children.Add(_furnitureButton);
+        actions.Children.Add(_placeButton);
         // Рисувай – само със статива.
         _drawButton = Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil"));
         actions.Children.Add(_drawButton);
@@ -597,11 +588,7 @@ public sealed class MenuWindow : Window
     private readonly WrapPanel _sleepOptions = new(), _quietOptions = new(), _walkOptions = new();
     private bool _sleepOpen, _quietOpen, _walkOpen, _placeOpen;
     private readonly WrapPanel _placeOptions = new();
-    private Button _placeButton = null!, _furnitureButton = null!;
-
-    private enum PlaceGroup { Devices, Furniture }
-
-    private PlaceGroup _placeGroup = PlaceGroup.Devices;
+    private Button _placeButton = null!;
 
     /// <summary>Уредите за слагане (печица, лампа…), по ред.</summary>
     private static readonly string[] Devices = { Kitchen.Heater, Kitchen.Lamp, Kitchen.Radio, Kitchen.Feeder, Kitchen.PlantPot };
@@ -621,15 +608,12 @@ public sealed class MenuWindow : Window
             SetOn(chip, on);
             _placeOptions.Children.Add(chip);
         }
-        if (_placeGroup == PlaceGroup.Devices)
-        {
-            Add(Kitchen.Heater, "Печица", s.HeaterPlaced);
-            Add(Kitchen.Lamp, "Лампа", _pet.LampOn);
-            Add(Kitchen.Radio, "Радио", _pet.RadioPlaced);
-            Add(Kitchen.Feeder, "Хранилка", _pet.FeederPlaced);
-            Add(Kitchen.PlantPot, "Растение", _pet.PlantOut);
-            return;
-        }
+        // Първо уредите, после мебелите.
+        Add(Kitchen.Heater, "Печица", s.HeaterPlaced);
+        Add(Kitchen.Lamp, "Лампа", _pet.LampOn);
+        Add(Kitchen.Radio, "Радио", _pet.RadioPlaced);
+        Add(Kitchen.Feeder, "Хранилка", _pet.FeederPlaced);
+        Add(Kitchen.PlantPot, "Растение", _pet.PlantOut);
         Add(Kitchen.Desk, "Бюро", _pet.FurniturePlaced(Kitchen.Desk));
         Add(Kitchen.Computer, "Компютър", _pet.FurniturePlaced(Kitchen.Computer));
         Add(Kitchen.Easel, "Статив", _pet.FurniturePlaced(Kitchen.Easel));
@@ -1454,6 +1438,9 @@ public sealed class MenuWindow : Window
 
     private Border _pajamaChip = null!;
 
+    /// <summary>Гардероб → „Мебели и уреди“: коя мебел е отворена.</summary>
+    private string _wardrobeItem = "";
+
     /// <summary>Предметите, за които има поне един купен друг вид (само тогава се виждат и класическите).</summary>
     private static IEnumerable<string> SkinItems(SaveData s) =>
         Furniture.ByItem.Where(kv => Kitchen.Owns(s, kv.Key) && kv.Value.Any(k => k.Price > 0 && Furniture.Owns(s, k))).Select(kv => kv.Key);
@@ -1570,8 +1557,25 @@ public sealed class MenuWindow : Window
         }
         else if (_wardrobeSection == "furniture")
         {
-            foreach (var item in SkinItems(s))
-                    foreach (var skin in Furniture.SkinsFor(item).Where(k => Furniture.Owns(s, k))) grid.Children.Add(SkinTile(skin, shop: false));
+            // Подраздел за всяка мебел/уред (вижда се, щом има поне един купен друг вид).
+            var items = SkinItems(s).ToList();
+            if (!items.Contains(_wardrobeItem)) _wardrobeItem = items[0];
+            var sub = new WrapPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
+            foreach (var item in items)
+            {
+                string id = item;
+                var up = Kitchen.Find(id);
+                var chip = Chip(((up?.Icon ?? "") + " " + (up?.Name ?? id)).Trim(), () =>
+                {
+                    _wardrobeItem = id;
+                    BuildWardrobe();
+                });
+                SetOn(chip, id == _wardrobeItem);
+                chip.Margin = new Thickness(0, 0, 5, 5);
+                sub.Children.Add(chip);
+            }
+            _wardrobeShelves.Children.Insert(_wardrobeShelves.Children.IndexOf(grid), sub);
+            foreach (var skin in Furniture.SkinsFor(_wardrobeItem).Where(k => Furniture.Owns(s, k))) grid.Children.Add(SkinTile(skin, shop: false));
             empty = "Други видове има в офертата на деня.";
         }
         else
@@ -2393,13 +2397,10 @@ public sealed class MenuWindow : Window
                 _weatherRow.ToolTip = tip;
             }
         }
-        bool canDevices = Devices.Any(i => Kitchen.Owns(s, i));
-        bool canFurniture = PetWindow.FurnitureKinds.Any(i => Kitchen.Owns(s, i));
-        _placeButton.Visibility = canDevices ? Visibility.Visible : Visibility.Collapsed;
-        _furnitureButton.Visibility = canFurniture ? Visibility.Visible : Visibility.Collapsed;
-        if (_placeGroup == PlaceGroup.Devices ? !canDevices : !canFurniture) _placeOpen = false;
-        SetOn(_placeButton, _placeOpen && _placeGroup == PlaceGroup.Devices);
-        SetOn(_furnitureButton, _placeOpen && _placeGroup == PlaceGroup.Furniture);
+        bool canPlace = Devices.Concat(PetWindow.FurnitureKinds).Any(i => Kitchen.Owns(s, i));
+        _placeButton.Visibility = canPlace ? Visibility.Visible : Visibility.Collapsed;
+        if (!canPlace) _placeOpen = false;
+        SetOn(_placeButton, _placeOpen);
         BuildPlaceOptions();
         _placeOptions.Visibility = _placeOpen ? Visibility.Visible : Visibility.Collapsed;
         if (_pet.IsAsleep) SetButton(_sleepButton, "Събуди", "sun");

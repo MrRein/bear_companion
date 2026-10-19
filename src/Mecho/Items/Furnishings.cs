@@ -9,7 +9,7 @@ namespace Mecho;
 
 // МЕБЕЛИ ЗА СЛАГАНЕ: бюро, компютър, статив, настолна игра, кошница с прежда, диван,
 // постелка за йога, легло. Работят като другите предмети на земята (радио, растение):
-//  • Тут ги слага от „Мебели“ – стоят, докато не ги прибере; местят се с мишката;
+//  • Тут ги слага от „Неща на Мечо“ – стоят, докато не ги прибере; местят се с мишката;
 //  • мечокът избере ли занимание с мебел (Работи си / Почивай си / избрано от Тут):
 //      сложена е → отива до нея и почва;
 //      не е → намира място без други неща наоколо, слага я сам (doing), прави
@@ -53,7 +53,7 @@ public sealed partial class PetWindow
         };
     }
 
-    /// <summary>Видовете мебели за слагане (за менюто „Мебели“), по ред.</summary>
+    /// <summary>Видовете мебели за слагане (за менюто „Неща на Мечо“), по ред.</summary>
     public static readonly string[] FurnitureKinds =
         { Kitchen.Desk, Kitchen.Computer, Kitchen.Easel, Kitchen.BoardGame, Kitchen.YarnBasket, Kitchen.Couch, Kitchen.YogaMat, Kitchen.Bed };
 
@@ -72,7 +72,7 @@ public sealed partial class PetWindow
 
     private double FurnitureWidth(Furnishing f) => FurnitureImage(f).PixelWidth * PixelSize;
 
-    /// <summary>Тут я сложи (или прибра) от „Мебели“. Прибирането е веднага; слагането – мечокът я носи (PlaceByHand).</summary>
+    /// <summary>Тут я сложи (или прибра) от „Неща на Мечо“. Прибирането е веднага; слагането – мечокът я носи (PlaceByHand).</summary>
     public void SetFurniture(string kind, bool placed, double x = double.NaN)
     {
         if (!Kitchen.Owns(_save, kind)) return;
@@ -144,7 +144,7 @@ public sealed partial class PetWindow
                 x = Math.Clamp(x, area.Left + half, Math.Max(area.Left + half, area.Right - half));
                 var w = new CookerWindow(f.Title);
                 f.Window = w;
-                Companion(w);
+                Companion(w, f.Kind);   // диванът и стативът са зад мечока (Behaviour.BehindBear)
                 w.SetTime(null);
                 w.Hint = f.Title + ".";
                 var furn = f;
@@ -157,6 +157,7 @@ public sealed partial class PetWindow
                     w.FallTo(nx, a.Bottom);
                     CoreEngine.Bus.Send(new MoveItem(furn.Kind, nx));
                     Persist();
+                    KeepBearInFront();   // преместен диван/статив: мечокът пак е пред него
                 };
                 w.SetAway(!IsVisible || FurnitureUnderBear(f));
                 w.Place(img, PixelSize, x, area.Bottom);
@@ -176,10 +177,14 @@ public sealed partial class PetWindow
     /// <summary>Цъкна мебелта: да я прибере ли.</summary>
     private void FurnitureClicked(Furnishing f)
     {
-        var scene = Scenes.All.FirstOrDefault(s => s.Item == f.Kind && CanDo(s));
         var options = new List<ChatOption>();
-        if (f.Kind == Kitchen.Bed) options.Add(new ChatOption("Лягай да спиш", p => p.GoToSleep()));
-        else if (scene != null) options.Add(new ChatOption(scene.Name, p => p.Relax(scene)));
+        if (f.Kind == Kitchen.Bed) options.Add(new ChatOption("Лягай да спиш", p => p.AskSleepTime()));
+        // Всичко, което прави с нея (настолната игра: играй / работи върху нея; стативът: корица / за удоволствие).
+        foreach (var scene in Scenes.All.Where(s => s.Item == f.Kind && CanDo(s)))
+        {
+            var sc = scene;
+            options.Add(new ChatOption(sc.Name, p => p.Relax(sc)));
+        }
         options.Add(new ChatOption("Прибери", p => p.SetFurniture(f.Kind, false)));
         options.Add(new ChatOption("Остави", _ => { }));
         Ask(new ChatQuestion(f.Title + ". Какво да правим?", options.ToArray()));
@@ -305,7 +310,7 @@ public sealed partial class PetWindow
     private Action<double>? _handPlace;
     private double _handX, _handUntil;
 
-    /// <summary>Тут го носи ли в момента (от „Уреди“/„Мебели“) – менюто го показва като сложено.</summary>
+    /// <summary>Тут го носи ли в момента (от „Неща на Мечо“) – менюто го показва като сложено.</summary>
     public bool Carrying(string kind) => _handKind == kind;
 
     /// <summary>
@@ -357,7 +362,7 @@ public sealed partial class PetWindow
         if (!going) FinishHand();
     }
 
-    /// <summary>„Уреди“/„Мебели“: Тут слага нещо (мечокът го носи) или го прибира (веднага).</summary>
+    /// <summary>„Неща на Мечо“: Тут слага нещо (мечокът го носи) или го прибира (веднага).</summary>
     public void ToggleFromMenu(string kind)
     {
         if (_handKind == kind)
@@ -468,6 +473,31 @@ public sealed partial class PetWindow
             return;
         }
         WalkTo(bx, () => Play("yawn", then: "sleep"));
+    }
+
+    /// <summary>Цъкна леглото → „Лягай да спиш“: колко да спи (като в менюто) или свое число минути.</summary>
+    internal void AskSleepTime()
+    {
+        if (IsAsleep) return;
+        var options = new List<ChatOption>();
+        if (LateForBed) options.Add(new ChatOption("🌙 Лягай за деня", p => p.SleepForDay()));
+        foreach (var (label, minutes) in new[] { ("20 мин", 20), ("1 ч", 60), ("2 ч", 120) })
+        {
+            int m = minutes;
+            options.Add(new ChatOption(label, p => p.Sleep(m)));
+        }
+        options.Add(new ChatOption("Не сега", _ => { }));
+        Ask(new ChatQuestion("Колко да поспя?", options.ToArray())
+        {
+            FreePrompt = "Или напиши колко минути:",
+            FreeButton = "Спи",
+            FreeText = (p, text) =>
+            {
+                if (double.TryParse(text.Trim().Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var m)
+                    && m > 0 && m <= 24 * 60) p.Sleep(m);
+                else p.Say("Хм, колко минути? Напиши само число – например 45.", 3);
+            },
+        });
     }
 
     /// <summary>Тръгнал е да спи (Тут го сложи), но нещо го прекъсна (вдигна го) – пак отива да легне.</summary>

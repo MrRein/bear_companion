@@ -46,10 +46,12 @@ public sealed partial class PetWindow
         // Рисува/полива/плете/свири: четката, лейката, куките или китарата в лапите.
         if (Dresser.HoldsTool(_anim) && !(_anim.StartsWith("doing") && !_inScene))
         {
-            string tool = _scene == Scenes.Plant ? _plantTool
+            string? tool = _scene == Scenes.Plant ? _plantTool
                 : _scene == Scenes.Knit ? "knitting"
                 : _scene == Scenes.Guitar ? Furniture.CurrentArt(_save, Kitchen.Guitar)
+                : _scene == Scenes.Board || _scene == Scenes.BoardPlay ? (_lib.Clothes("tool_dice") != null ? "dice" : null)   // на играта: зар (ако е нарисуван)
                 : _brush;
+            if (tool == null) return outfit;
             return new Dictionary<string, string>(outfit) { [Clothes.Tool.Id] = tool };
         }
         if (_cup == null || !_anim.StartsWith("sit_drinking")) return outfit;

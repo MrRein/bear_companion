@@ -2,8 +2,8 @@ using System;
 
 namespace Mecho;
 
-// Лампата: Тут я слага („Уреди“ в менюто) и тя стои на земята до мечока и
-// свети, докато Тут не я прибере (пак от „Уреди“ или с клик върху нея). Може да се мести.
+// Лампата: Тут я слага („Неща на Мечо“ в менюто) и тя стои на земята до мечока и
+// свети, докато Тут не я прибере (пак от „Неща на Мечо“ или с клик върху нея). Може да се мести.
 public sealed partial class PetWindow
 {
     private CookerWindow? _lampWindow;
@@ -86,7 +86,7 @@ public sealed partial class PetWindow
             double x = double.IsNaN(_save.LampX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.2 : _save.LampX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
             _lampWindow = new CookerWindow("Лампа");
-            Companion(_lampWindow);
+            Companion(_lampWindow, Kitchen.Lamp);
             _lampWindow.SetTime(null);
             _lampWindow.Hint = "Лампата свети.";
             _lampWindow.Clicked += () => Ask(new ChatQuestion("Да прибера ли лампата?",

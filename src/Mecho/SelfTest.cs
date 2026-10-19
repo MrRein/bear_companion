@@ -1825,6 +1825,36 @@ public sealed partial class PetWindow
             if (!FurniturePlaced(Kitchen.Couch)) throw new Exception("диванът на Тут изчезна след четенето");
             ToggleFromMenu(Kitchen.Couch);
             if (FurniturePlaced(Kitchen.Couch)) throw new Exception("не се прибра веднага");
+            ToggleFromMenu(Kitchen.Couch);
+            ToggleFromMenu(Kitchen.Desk);
+        }, 400);
+        await step("изключения: диванът е зад мечока, бюрото – пред него", () =>
+        {
+            var couch = FurnishingOf(Kitchen.Couch)?.Window;
+            var desk = FurnishingOf(Kitchen.Desk)?.Window;
+            if (couch == null || desk == null) throw new Exception("диванът/бюрото не са на земята");
+            if (couch.Owner != null || !IsBehind(couch)) throw new Exception("диванът не е зад мечока");
+            if (!ReferenceEquals(desk.Owner, this) || IsBehind(desk)) throw new Exception("бюрото не е пред мечока");
+            ToggleFromMenu(Kitchen.Couch);
+            ToggleFromMenu(Kitchen.Desk);
+        }, 400);
+        await step("настолна игра: седи на столчето и сменя заниманията", () =>
+        {
+            StartScene(Scenes.Board, quiet: true);
+            UpdateScene(Now);
+            if (_seatProp == null) throw new Exception("работи върху играта прав");
+            _nextCycle = 0;
+            string before = _anim;
+            UpdateScene(Now);
+            if (Scenes.Board.Cycle.Count(_lib.Has) > 1 && _anim == before) throw new Exception("не смени анимацията");
+            LeaveScene();
+            SetIdle();
+        }, 400);
+        await step("легло: колко да спи", () =>
+        {
+            AskSleepTime();
+            if (!ChatIsOpen) throw new Exception("не пита колко да спи");
+            _chat?.Hide();
         }, 400);
         await step("вдигнат: заниманието чака", () =>
         {

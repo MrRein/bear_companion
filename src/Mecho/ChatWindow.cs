@@ -15,6 +15,10 @@ public sealed record ChatQuestion(string Text, params ChatOption[] Options)
 {
     /// <summary>Свободен отговор: поле, в което Тут пише своето (null = само бутони).</summary>
     public Action<PetWindow, string>? FreeText { get; init; }
+
+    /// <summary>Надписът над полето и на бутона („Или напиши минути:“ / „Спи“).</summary>
+    public string FreePrompt { get; init; } = "Или напиши своето:";
+    public string FreeButton { get; init; } = "Отговори";
 }
 
 /// <summary>
@@ -100,7 +104,7 @@ public sealed class ChatWindow : Window
         if (question.FreeText is { } free)
         {
             _free.Text = "";
-            _options.Children.Add(new TextBlock { Text = "Или напиши своето:", Foreground = Muted, Margin = new Thickness(0, 6, 0, 0) });
+            _options.Children.Add(new TextBlock { Text = question.FreePrompt, Foreground = Muted, Margin = new Thickness(0, 6, 0, 0) });
             _options.Children.Add(_free);
             void Submit()
             {
@@ -117,7 +121,7 @@ public sealed class ChatWindow : Window
                 Submit();
             };
             _free.KeyDown += _freeKey;
-            var send = Button("Отговори", Submit, primary: true);
+            var send = Button(question.FreeButton, Submit, primary: true);
             send.HorizontalAlignment = HorizontalAlignment.Right;
             _options.Children.Add(send);
         }
