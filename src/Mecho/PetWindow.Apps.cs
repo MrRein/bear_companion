@@ -99,10 +99,11 @@ public sealed partial class PetWindow
 
     /// <summary>
     /// Веднъж на 2 часа поглежда коя програма е отпред: непозната – записва я; позната –
-    /// с шанс 20% казва нещо за нея (ако е свободен: не работите, не спи, не е тихо, вижда се).
+    /// с шанс 20% казва нещо за нея (и докато е зает; не и ако спи, тихо е, на разходка е или е скрит).
     /// </summary>
     private void UpdateApps(double now)
     {
+        UpdateRestWithTut(now);
         if (now < _nextAppCheck || !_save.WatchApps || SelfTest.Running) return;
         _nextAppCheck = now + AppCheckEvery;
         try
@@ -128,10 +129,57 @@ public sealed partial class PetWindow
     /// <summary>На колко време поглежда (секунди) и с какъв шанс казва нещо.</summary>
     private const double AppCheckEvery = 2 * 3600, AppTalkChance = 0.2;
 
+    /// <summary>
+    /// Казва нещо за програмата – и докато е зает (работи, в кътче); не и ако спи, тихо е,
+    /// на разходка е или е скрит. Някои програми водят до въпрос (виж AppQuestion).
+    /// </summary>
     private void TalkAboutApp(string kind)
     {
-        if (IsQuiet || IsAsleep || InFocus || OnWalk || !IsVisible || ChatIsOpen) return;
+        if (IsQuiet || IsAsleep || OnWalk || !IsVisible || ChatIsOpen) return;
+        if (AppQuestion(kind) is { } question)
+        {
+            Ask(question);
+            return;
+        }
         if (AppLinesKey(kind) is { } key) Mutter(R.Pick(key, _save.OwnerName), 5);
+    }
+
+    /// <summary>Програми за почивка (игра, филм, YouTube, социални мрежи).</summary>
+    private static bool RestApp(string kind) =>
+        kind is "game" or "video" or "browser.video" or "browser.youtube" or "browser.social";
+
+    /// <summary>
+    /// Въпрос според програмата и това, което прави мечокът. Сега: Тут играе (гледа филм…),
+    /// а той работи („Работи си“) – „Ти работиш ли?“; „Не“ – и той почива 20 мин, после пак работи.
+    /// </summary>
+    private ChatQuestion? AppQuestion(string kind)
+    {
+        if (RestApp(kind) && WorksRandomly && !InFocus)
+            return new ChatQuestion(R.Pick("app.ask.working", _save.OwnerName),
+                new ChatOption("Не, почивам си", p => p.RestWithTut()),
+                new ChatOption("Да, работя", p => p.Say(R.Pick("app.ask.working.yes", p._save.OwnerName), 4)));
+        return null;
+    }
+
+    /// <summary>Докога почива „с Тут“ (после пак „Работи си“); 0 – не.</summary>
+    private double _restWithTutUntil;
+
+    /// <summary>„И аз ще си почина!“ – „Почивай си“ за 20 мин, после пак „Работи си“.</summary>
+    private void RestWithTut()
+    {
+        Say(R.Pick("app.ask.working.no", _save.OwnerName), 4);
+        RelaxRandom();
+        _restWithTutUntil = Now + 20 * 60;
+    }
+
+    /// <summary>На кадър: почивката с Тут свърши – пак на работа (ако още е в „Почивай си“).</summary>
+    private void UpdateRestWithTut(double now)
+    {
+        if (_restWithTutUntil <= 0 || now < _restWithTutUntil) return;
+        _restWithTutUntil = 0;
+        if (!RelaxesRandomly || IsAsleep || InFocus) return;   // Тут междувременно е сменила нещо
+        Say(R.Pick("app.rest.over", _save.OwnerName), 4);
+        WorkRandom();
     }
 
     /// <summary>Репликите за вида: „app.adobe.photoshop“, а ако ги няма – „app.adobe“.</summary>

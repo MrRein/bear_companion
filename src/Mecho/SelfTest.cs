@@ -1915,6 +1915,9 @@ public sealed partial class PetWindow
                 if (AppLinesKey(kind) == null) throw new Exception("няма реплики за програми от вида " + kind);
             foreach (var kind in new[] { "browser.youtube", "browser.pinterest", "browser.art", "browser.mail", "browser.video", "browser.social" })
                 if (AppLinesKey(kind) != "app." + kind) throw new Exception("няма свои реплики: " + kind);
+            foreach (var key in new[] { "app.ask.working", "app.ask.working.no", "app.ask.working.yes", "app.rest.over" })
+                if (!R.Has(key)) throw new Exception("няма реплики: " + key);
+            if (AppQuestion("game") != null && !WorksRandomly) throw new Exception("пита „Ти работиш ли?“, а не работи");
         }, 200);
         await step("легло: колко да спи", () =>
         {
