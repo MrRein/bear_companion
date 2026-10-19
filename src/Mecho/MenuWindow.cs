@@ -598,7 +598,7 @@ public sealed class MenuWindow : Window
     /// на по-тъмна подложка с рамка, като офертата на деня – отделя се от останалото.
     /// Вижда се, докато се вижда самото подменю.
     /// </summary>
-    private Border Pocket(FrameworkElement child)
+    private Border Pocket(FrameworkElement child, bool follow = true)
     {
         var pocket = new Border
         {
@@ -611,8 +611,10 @@ public sealed class MenuWindow : Window
             Child = child,
             Visibility = child.Visibility,
         };
-        System.ComponentModel.DependencyPropertyDescriptor.FromProperty(VisibilityProperty, typeof(UIElement))
-            .AddValueChanged(child, (_, _) => pocket.Visibility = child.Visibility);
+        // Само за подменютата, които се строят веднъж (иначе всяко прерисуване оставя слушател завинаги).
+        if (follow)
+            System.ComponentModel.DependencyPropertyDescriptor.FromProperty(VisibilityProperty, typeof(UIElement))
+                .AddValueChanged(child, (_, _) => pocket.Visibility = child.Visibility);
         return pocket;
     }
 
@@ -1544,6 +1546,7 @@ public sealed class MenuWindow : Window
         }
         // Старите имена (от „В гардероба“ в офертата): „furniture“ – първата мебел.
         if (_wardrobeSection == "furniture") _wardrobeSection = home.Count > 0 ? home[0].Id : AllWardrobe;
+        if (_wardrobeSection == "") _wardrobeSection = groups[0].Subs[0].Id;
         var group = groups.FirstOrDefault(g => g.Subs.Any(x => x.Id == _wardrobeSection));
         if (_wardrobeSection != AllWardrobe && group.Subs == null) _wardrobeSection = AllWardrobe;
 
@@ -1579,7 +1582,7 @@ public sealed class MenuWindow : Window
             shelf.Children.Add(sub);
         }
         shelf.Children.Add(grid);
-        _wardrobeShelves.Children.Add(Pocket(shelf));
+        _wardrobeShelves.Children.Add(Pocket(shelf, follow: false));
 
         // „Всичко“: всичко, което имаш, подред; иначе – само избраният подраздел.
         var shown = _wardrobeSection == AllWardrobe ? groups.SelectMany(g => g.Subs).Select(x => x.Id).ToList() : new List<string> { _wardrobeSection };
@@ -1654,7 +1657,7 @@ public sealed class MenuWindow : Window
         return $"Още нямаш {slot.Name.ToLowerInvariant()}.";
     }
 
-    private string _wardrobeSection = AllWardrobe;
+    private string _wardrobeSection = "";   // празно – първият подраздел на първия раздел („Всичко“ е тежко – само ако го избереш)
     private readonly StackPanel _wardrobeBody = new();
     private readonly StackPanel _wardrobeLock = new();
 

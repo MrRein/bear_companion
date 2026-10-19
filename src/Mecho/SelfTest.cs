@@ -58,7 +58,16 @@ public static class SelfTest
             app.Shutdown(2);
         };
         watchdog.Start();
-        return app.Run();
+        // И от друга нишка: ако самият прозорец е увиснал (тогава горният не тиктака),
+        // след 11 минути записва докъде е стигнал и спира – логът се вижда в CI.
+        var hardStop = new System.Threading.Timer(_ =>
+        {
+            Log("ГРЕШКА: тестът увисна (стъпката по-горе не свърши)");
+            Environment.Exit(3);
+        }, null, TimeSpan.FromMinutes(11), System.Threading.Timeout.InfiniteTimeSpan);
+        int code = app.Run();
+        hardStop.Dispose();
+        return code;
     }
 
     public static void Log(string line)
