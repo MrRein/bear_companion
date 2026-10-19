@@ -232,6 +232,17 @@ public sealed partial class PetWindow
             Say(_save.TrayClickHides ? "Цъкнеш ли иконката – скривам се (като преди)." : "Цъкнеш ли иконката – отварям менюто.", 3);
         });
         yield return (draw, "Без прерисуване 30 с", () => DevFreezeDrawing(30));
+        const string apps = "Програмите на Тут";
+        yield return (apps, "Кажи нещо за програмата отпред (след 3 с)", () => Later(3, DevAppTalk));
+        yield return (apps, "Отвори programi.txt (дописваш)", () => { LoadAppKinds(); OpenPath(UserAppsPath); });
+        yield return (apps, "Отвори nepoznati_programi.txt", () => OpenPath(UnknownAppsPath));
+        yield return (apps, "Презареди списъка", () => Say($"Знам {LoadAppKinds().Count} програми.", 3));
+        yield return (apps, "Гледай програмите: вкл/изкл", () =>
+        {
+            _save.WatchApps = !_save.WatchApps;
+            Persist();
+            Say(_save.WatchApps ? "Ще поглеждам какво правиш." : "Няма да гледам какво правиш.", 3);
+        });
         yield return (draw, "Без прерисуване 2 мин", () => DevFreezeDrawing(120));
         const string tired = "Умора и вид на деня";
         foreach (var k in Enum.GetValues<DayKind>())

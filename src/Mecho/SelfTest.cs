@@ -1905,6 +1905,17 @@ public sealed partial class PetWindow
             LeaveScene();
             SetIdle();
         }, 300);
+        await step("програмите на Тут: познава ги и има реплики за всеки вид", () =>
+        {
+            var kinds = LoadAppKinds();
+            if (AppKind("Photoshop", "") != "adobe.photoshop") throw new Exception("не познава Photoshop");
+            if (AppKind("chrome", "Котки – YouTube") != "browser.youtube") throw new Exception("не познава YouTube в браузъра");
+            if (AppKind("nqkakva_programa", "") != null) throw new Exception("познава непозната програма");
+            foreach (var kind in kinds.Values.Distinct())
+                if (AppLinesKey(kind) == null) throw new Exception("няма реплики за програми от вида " + kind);
+            foreach (var kind in new[] { "browser.youtube", "browser.pinterest", "browser.art", "browser.mail", "browser.video", "browser.social" })
+                if (AppLinesKey(kind) != "app." + kind) throw new Exception("няма свои реплики: " + kind);
+        }, 200);
         await step("легло: колко да спи", () =>
         {
             AskSleepTime();

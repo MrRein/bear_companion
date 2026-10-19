@@ -1,0 +1,159 @@
+# Програмите, които мечокът познава: име на програмата (без .exe) = вид.
+# Репликите за всеки вид са „app.<вид>“ в repliki.txt (ако ги няма – тези на „app.<първата част>“,
+# например „adobe.incopy“ без свои реплики ползва „app.adobe“).
+# Свои програми Тут дописва в programi.txt в папката на записа (%AppData%\Mecho) – там
+# може и да смени вида на някоя оттук. Непознатите се записват в nepoznati_programi.txt.
+
+# ── Adobe ──
+photoshop = adobe.photoshop
+illustrator = adobe.illustrator
+indesign = adobe.indesign
+incopy = adobe.incopy
+afterfx = adobe.aftereffects
+adobe premiere pro = adobe.premiere
+adobe premiere rush = adobe.premiere
+lightroom = adobe.lightroom
+lightroom classic = adobe.lightroom
+acrobat = adobe.acrobat
+acrord32 = adobe.acrobat
+animate = adobe.animate
+xd = adobe.xd
+adobe audition = adobe.audition
+adobe bridge = adobe.bridge
+bridge = adobe.bridge
+adobe media encoder = adobe.mediaencoder
+adobe substance 3d painter = adobe.substance
+adobe substance 3d designer = adobe.substance
+adobe substance 3d sampler = adobe.substance
+adobe substance 3d stager = adobe.substance
+fresco = adobe.fresco
+dimension = adobe.dimension
+character animator = adobe.character
+adobe character animator = adobe.character
+creative cloud = adobe
+adobe desktop service = adobe
+adobe express = adobe
+
+# ── Браузъри (сайтът се познава по заглавието: YouTube, Pinterest, ArtStation…) ──
+chrome = browser
+msedge = browser
+firefox = browser
+opera = browser
+brave = browser
+vivaldi = browser
+arc = browser
+iexplore = browser
+yandex = browser
+
+# ── Рисуване ──
+clipstudiopaint = draw
+clip studio paint = draw
+krita = draw
+aseprite = draw
+mspaint = draw
+paintdotnet = draw
+gimp = draw
+gimp-2.10 = draw
+gimp-3.0 = draw
+inkscape = design
+sai = draw
+sai2 = draw
+paintstorm studio = draw
+mypaint = draw
+rebelle 7 = draw
+artrage = draw
+medibangpaintpro = draw
+firealpaca = draw
+pureref = refs
+
+# ── 3D ──
+blender = 3d
+zbrush = 3d
+maya = 3d
+3dsmax = 3d
+cinema 4d = 3d
+nomad sculpt = 3d
+
+# ── Дизайн ──
+figma = design
+canva = design
+
+# ── Чат и разговори ──
+discord = chat
+slack = chat
+telegram = chat
+viber = chat
+whatsapp = chat
+messenger = chat
+signal = chat
+ms-teams = call
+teams = call
+zoom = call
+skype = call
+
+# ── Музика и видео ──
+spotify = music
+itunes = music
+foobar2000 = music
+winamp = music
+vlc = video
+mpc-hc64 = video
+mpc-be64 = video
+potplayermini64 = video
+netflix = video
+
+# ── Игри ──
+steam = game
+steamwebhelper = game
+epicgameslauncher = game
+battle.net = game
+galaxyclient = game
+eadesktop = game
+ubisoftconnect = game
+riotclientservices = game
+leagueclient = game
+league of legends = game
+valorant = game
+robloxplayerbeta = game
+ts4_x64 = game
+stardew valley = game
+hollow_knight = game
+genshinimpact = game
+minecraft = game
+minecraftlauncher = game
+
+# ── Офис ──
+winword = office.word
+excel = office.excel
+powerpnt = office.powerpoint
+outlook = mail
+olk = mail
+thunderbird = mail
+onenote = notes
+notion = notes
+obsidian = notes
+notepad = notes
+notepad++ = notes
+evernote = notes
+milanote = notes
+
+# ── Код и конзола ──
+code = code
+devenv = code
+rider64 = code
+idea64 = code
+pycharm64 = code
+sublime_text = code
+windowsterminal = terminal
+cmd = terminal
+powershell = terminal
+pwsh = terminal
+
+# ── Други ──
+obs64 = record
+calculatorapp = calc
+calc = calc
+microsoft.photos = photos
+photos = photos
+snippingtool = screenshot
+screenclippinghost = screenshot

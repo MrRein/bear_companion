@@ -16,6 +16,26 @@ internal static class NativeMethods
     private static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
 
     [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int max);
+
+    /// <summary>Програмата отпред: номерът на процеса и заглавието на прозореца (0, "" – няма).</summary>
+    public static (uint Pid, string Title) ForegroundWindow()
+    {
+        var hwnd = GetForegroundWindow();
+        if (hwnd == IntPtr.Zero) return (0, "");
+        GetWindowThreadProcessId(hwnd, out uint pid);
+        var text = new System.Text.StringBuilder(256);
+        GetWindowText(hwnd, text, text.Capacity);
+        return (pid, text.ToString());
+    }
+
+    [DllImport("user32.dll")]
     private static extern int GetWindowLong(IntPtr hWnd, int index);
 
     [DllImport("user32.dll")]

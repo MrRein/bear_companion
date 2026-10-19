@@ -365,6 +365,7 @@ public sealed partial class PetWindow : Window
         UpdatePlacedPlant();
         UpdateFurnishings();
         UpdateHand(now);
+        UpdateApps(now);
         P("времето, печица, лампа, радио");
         UpdatePajamas();
         P("пижами");

@@ -74,6 +74,7 @@ public sealed class SaveData
     public DateTime NapUntil { get; set; } = DateTime.MinValue;   // дрямка до (MinValue = не дреме)
     public double NapCap { get; set; } = 100;           // дрямката го вдига дотук
     public bool SleepForDay { get; set; }
+    public bool WatchApps { get; set; } = true;          // поглежда коя програма е отпред и понякога казва нещо (PetWindow.Apps.cs)
     public bool TrayClickHides { get; set; }            // Developer: цъкане на иконката до часовника скрива/показва мечока (иначе – отваря менюто)
     public bool CalmWhileTyping { get; set; }           // докато Тут пише – прерисува се по-рядко (само ако курсорът премигва; иначе накъсва)
     public bool TypingCalmReset { get; set; }           // веднъж: старото „включено“ по подразбиране се изключва (то беше причината за накъсването)
