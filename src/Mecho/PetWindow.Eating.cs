@@ -152,6 +152,7 @@ public sealed partial class PetWindow
     /// </summary>
     internal Food? SpawnWish(DateTime now, bool announce)
     {
+        EnsureWishes();   // първо днешният ден (иначе подреждането му би изтрило това желание)
         var meal = Kitchen.MealAt(now);
         var can = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 2 && Kitchen.Regular(f) && Kitchen.CanCook(f, _save)
             && (Kitchen.MealsOf(f) & meal) != 0 && !_save.WishList.Contains(f.Id)).ToList();
