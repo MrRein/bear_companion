@@ -142,6 +142,9 @@ public sealed partial class PetWindow
         GrowPlantByTime();
         ShowGarden();
         NotifyCare();   // „Неща на Мечо“ → Растение светва
+        // Тръгва веднага с ходенето (иначе за миг се мяркаше „doing“ насред пода).
+        _anim = IsExhausted ? "walk_tired" : "walk";
+        _animTime = 0;
     }
 
     /// <summary>Мястото на саксията, когато е издърпана (до ръба, вътре в екрана).</summary>

@@ -24,8 +24,8 @@ public sealed partial class PetWindow
                 Line("care_go", 3);
                 P.StartScene(Scenes.Plant, 120 + P._rng.Next(120));
             });
-            yield return Act("proud", P._save.PlantStage >= 3 ? 1 : 0, () => Line(Bloomed ? "bloom" : "proud"));
-            yield return Act("love", 1, () => Line("love"));
+            yield return Act("proud", P._save.PlantStage >= 3 ? 1 : 0, () => GoSay(Bloomed ? "bloom" : "proud"));
+            yield return Act("love", 1, () => GoSay("love"));
         }
 
         public override void Bonus()

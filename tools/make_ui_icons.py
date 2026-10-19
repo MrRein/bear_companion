@@ -966,6 +966,22 @@ ssssssssssk.
 })
 
 
+# „Почивай си“: хамак между две колчета (диванът вече е за „Неща на Мечо“).
+ICONS["relax"] = """
+............
+m..........m
+mk........km
+m.k......k.m
+m.kk....kk.m
+m.kyk..kyk.m
+m.kyykkyyk.m
+m..koyyok..m
+m...kkkk...m
+m..........m
+mm........mm
+............"""
+
+
 def main(only=None):
     os.makedirs(OUT, exist_ok=True)
     preview = Image.new("RGBA", (13 * len(ICONS), 12), (255, 244, 220, 255))

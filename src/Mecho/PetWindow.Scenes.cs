@@ -173,7 +173,7 @@ public static class Scenes
         R.Get("scene.board.during"),
         R.Get("scene.board.end"))
     { Doing = "измислям нова настолна игра", Name = "Работи върху настолна игра", Icon = "board", Unlock = Kitchen.BoardGame, Item = Kitchen.BoardGame,
-      Cycle = new[] { "doing_sit", "dice_sit_boardgame", "read", "write_sit" } };
+      Cycle = new[] { "doing_sit", "dice_sit_boardgame", "think", "read", "write_sit" } };
 
     /// <summary>Почивка: играе си настолна игра сам (същата масичка, но за удоволствие, не тества).</summary>
     public static readonly Scene BoardPlay = new("boardplay", "stool", "table_board", 1, "doing_sit",
@@ -181,7 +181,7 @@ public static class Scenes
         R.Get("scene.boardplay.during"),
         R.Get("scene.boardplay.end"))
     { Doing = "играя настолна игра соло", Name = "Играй настолна игра", Icon = "board", Unlock = Kitchen.BoardGame, Item = Kitchen.BoardGame,
-      Cycle = new[] { "doing_sit", "dice_sit_boardgame" } };
+      Cycle = new[] { "doing_sit", "dice_sit_boardgame", "think" } };
 
     /// <summary>Почивка: рисува на статива просто така, за удоволствие.</summary>
     public static readonly Scene PaintFun = new("paintfun", "stool", "easel", 1, "doing_sit",
@@ -429,18 +429,32 @@ public sealed partial class PetWindow
         _anchorWalk = false;
         _placing = null;
         _nextCycle = Now + 25 + _rng.Next(45);
+        _cycleBackAt = 0;
         // Мебелта на кътчето не е сложена: първо я слага сам на свободно място (после я прибира).
         if (FurnishingFor(scene) is { } furniture && !FurniturePlaced(furniture.Kind)) BeginPlacing(furniture);
         if (Scenes.Fun.Contains(scene) && !TodayRec.Hobbies.Contains(scene.Id)) TodayRec.Hobbies.Add(scene.Id);
-        LoadSceneArt(scene);
         _facingLeft = false;
-        SetState(BearState.Couch, SceneAnim(scene));
+        // Далече е от мебелта (или тепърва ще я слага): тръгва веднага с ходенето – иначе
+        // за миг се мяркаше анимацията на кътчето (бързо „чете“ насред пода) и чак после тръгваше.
+        string first = WalksFirst() ? (IsExhausted ? "walk_tired" : "walk") : SceneAnim(scene);
+        if (first != SceneAnim(scene) && _placing == null) _anchorWalk = true;
+        LoadSceneArt(scene, first);
+        SetState(BearState.Couch, first);
         ClampX();
         if (scene == Scenes.Plant) StartGarden();
         if (IsExhausted && scene != Scenes.Focus && _rng.Next(2) == 0) Announce(Lines.Pick(Lines.SleepyDoing, _save.OwnerName), 3);
         else if (!quiet && scene.Easel && R.Has($"easel.{EaselNumber}"))
             Announce(R.Pick($"easel.{EaselNumber}", _save.OwnerName));   // какво рисува днес
         else if (!quiet) Announce(Lines.Pick(scene == Scenes.Reading && !HasCouch ? Lines.SatOnFloor : scene.Start, _save.OwnerName));
+    }
+
+    /// <summary>Кътчето е до мебел, която е далече или още я няма: първо върви (без анимацията на кътчето).</summary>
+    private bool WalksFirst()
+    {
+        if (InstantModes) return false;
+        if (_placing != null) return true;
+        if (_sceneNear is not { } a || !(a.Seat || a.SideDir != 0) || a.Target() is not { } r) return false;
+        return Math.Abs(_x - AnchorSpot(a, r).Spot) > PixelSize * 2;
     }
 
     /// <summary>След като е бил вдигнат и пуснат: сяда пак в същото кътче.</summary>
@@ -648,17 +662,35 @@ public sealed partial class PetWindow
         }
     }
 
-    private double _nextCycle;
+    private double _nextCycle, _cycleBackAt;
+
+    /// <summary>
+    /// Еднократни в Cycle: пускат се веднъж (хвърля зара) и пак е основната анимация;
+    /// и рядко – само в 1 от 4 смени.
+    /// </summary>
+    private static readonly System.Collections.Generic.HashSet<string> OneShotAnims = new() { "dice_sit_boardgame" };
 
     /// <summary>Сменя анимацията в кътчето (Scene.Cycle): на бюрото мисли, пише, чете…</summary>
     private void CycleSceneAnim(Scene scene, double now)
     {
-        if (scene.Cycle.Length == 0 || _state != BearState.Couch || now < _nextCycle) return;
+        if (scene.Cycle.Length == 0 || _state != BearState.Couch) return;
+        if (_cycleBackAt > 0)
+        {
+            if (now < _cycleBackAt) return;
+            // Хвърли зара веднъж – обратно към основното.
+            _cycleBackAt = 0;
+            _anim = SceneAnim(scene);
+            _animTime = 0;
+            return;
+        }
+        if (now < _nextCycle) return;
         _nextCycle = now + 25 + _rng.Next(45);
         var options = scene.Cycle.Where(a => a != _anim && _lib.Has(a)).ToList();
+        if (options.Count > 1 && _rng.Next(4) > 0) options.RemoveAll(OneShotAnims.Contains);
         if (options.Count == 0) return;
         _anim = options[_rng.Next(options.Count)];
         _animTime = 0;
+        if (OneShotAnims.Contains(_anim)) _cycleBackAt = now + _lib.Get(_anim).Duration / BaseAnimSpeed;
     }
 
     /// <summary>Под толкова енергия задрямва над книжката.</summary>

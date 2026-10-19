@@ -497,7 +497,7 @@ public sealed class MenuWindow : Window
             if (_pet.RelaxesRandomly) _pet.GetUp();
             else _pet.RelaxRandom();
             Refresh(true);
-        }, icon: "couch"));
+        }, icon: "relax"));
         actions.Children.Add(_relaxButton);
         _workButton = Wide(Button("Работи си", () =>
         {
@@ -528,9 +528,9 @@ public sealed class MenuWindow : Window
         p.Children.Add(actions);
 
         // Колко да спи: 3 готови + свое число (минути); вечер отпред – „Лягай за деня“.
-        _sleepOptions.Margin = new Thickness(0, 2, 0, 6);
-        p.Children.Add(_sleepOptions);
-        _quietOptions.Margin = new Thickness(0, 2, 0, 6);
+        _sleepOptions.Margin = new Thickness(0);
+        p.Children.Add(Pocket(_sleepOptions));
+        _quietOptions.Margin = new Thickness(0);
         foreach (var (label, minutes) in new[] { ("30 мин", 30), ("1 ч", 60), ("2 ч", 120) })
         {
             int m = minutes;
@@ -543,8 +543,8 @@ public sealed class MenuWindow : Window
             chip.Margin = new Thickness(0, 0, 6, 4);
             _quietOptions.Children.Add(chip);
         }
-        p.Children.Add(_quietOptions);
-        _walkOptions.Margin = new Thickness(0, 2, 0, 6);
+        p.Children.Add(Pocket(_quietOptions));
+        _walkOptions.Margin = new Thickness(0);
         foreach (var (label, minutes) in new[] { ("10 мин", 10), ("30 мин", 30), ("1 ч", 60) })
         {
             int m = minutes;
@@ -570,9 +570,9 @@ public sealed class MenuWindow : Window
         });
         walkGo.Margin = new Thickness(0, 0, 6, 4);
         _walkOptions.Children.Add(walkGo);
-        p.Children.Add(_walkOptions);
-        _placeOptions.Margin = new Thickness(0, 2, 0, 6);
-        p.Children.Add(_placeOptions);
+        p.Children.Add(Pocket(_walkOptions));
+        _placeOptions.Margin = new Thickness(0);
+        p.Children.Add(Pocket(_placeOptions));
 
         // SOS: мечокът дава нещо за мотивация (листът е motivation.md в GitHub).
         var sos = Wide(Button("SOS: мотивация", () =>
@@ -583,6 +583,29 @@ public sealed class MenuWindow : Window
         sos.Margin = new Thickness(0, 0, 6, 6);
         p.Children.Add(sos);
         return new ScrollViewer { Content = p, MaxHeight = 600 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+    }
+
+    /// <summary>
+    /// Подменю, което се отваря под бутоните (колко да спи, разходка, „Неща на Мечо“…):
+    /// на по-тъмна подложка с рамка, като офертата на деня – отделя се от останалото.
+    /// Вижда се, докато се вижда самото подменю.
+    /// </summary>
+    private Border Pocket(FrameworkElement child)
+    {
+        var pocket = new Border
+        {
+            Background = Empty,
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(6 * U, 6 * U, 6 * U, 2 * U),
+            Margin = new Thickness(0, 2, 0, 6),
+            Child = child,
+            Visibility = child.Visibility,
+        };
+        System.ComponentModel.DependencyPropertyDescriptor.FromProperty(VisibilityProperty, typeof(UIElement))
+            .AddValueChanged(child, (_, _) => pocket.Visibility = child.Visibility);
+        return pocket;
     }
 
     private readonly WrapPanel _sleepOptions = new(), _quietOptions = new(), _walkOptions = new();

@@ -35,9 +35,9 @@ public sealed partial class PetWindow
             yield return Act("warm", On && cold && !Near ? 3 : 0, () => P.WarmUpByHeater());
             // Казва колко му е хубаво с нея / че я обича.
             yield return Act("cozy", On && cold && Near ? 2 : 0, () => Line("cozy"));
-            yield return Act("love", 1, () => Line(On ? "love" : "love_off"));
+            yield return Act("love", 1, () => GoSay(On ? "love" : "love_off"));
             // Трябва ли му днес?
-            yield return Act("need", Known && !On && !cold ? 1 : 0, () => Line("not_needed"));
+            yield return Act("need", Known && !On && !cold ? 1 : 0, () => GoSay("not_needed"));
         }
 
         private void TurnOn() => P.UseItem(P._heaterWindow, P.HeaterAnchor, "doing", 2.5, () =>

@@ -67,7 +67,49 @@ public sealed partial class PetWindow
             if (R.Has(key)) P.Say(R.Pick(key, P._save.OwnerName), seconds);
         }
 
+        /// <summary>
+        /// Казва нещо ЗА предмета („Здравей, растенийце!“, „обичам печицата“): ако е далече,
+        /// първо отива до него – иначе говори на цвете, което е на другия край на екрана.
+        /// </summary>
+        protected void GoSay(string what, double seconds = 4)
+        {
+            var w = P.ItemWindow(Kind);
+            if (w == null || P.NearWindow(w))
+            {
+                Line(what, seconds);
+                return;
+            }
+            var r = w.Bounds;
+            double cx = r.Left + r.Width / 2;
+            int side = P._x < cx ? -1 : 1;
+            var area = P.AreaAt(cx, r.Bottom - 1);
+            double spot = Math.Clamp(cx + side * (r.Width / 2 + P.SpriteWidth * 0.45), area.Left + P.SpriteWidth / 2, area.Right - P.SpriteWidth / 2);
+            P.WalkTo(spot, () =>
+            {
+                P._facingLeft = cx < P._x;
+                Line(what, seconds);
+            });
+        }
+
         protected ItemAction Act(string id, double weight, Action run, bool urgent = false) => new(id, weight, run, urgent);
+    }
+
+    /// <summary>Прозорецът на сложения предмет (null – не е на земята).</summary>
+    private CookerWindow? ItemWindow(string kind) => kind switch
+    {
+        Kitchen.Heater => _heaterWindow,
+        Kitchen.Lamp => _lampWindow,
+        Kitchen.Radio => _radioWindow,
+        Kitchen.Feeder => _feederWindow,
+        Kitchen.PlantPot => _potWindow,
+        _ => FurnishingOf(kind)?.Window,
+    };
+
+    /// <summary>Близо ли е до предмета (колкото да му говори).</summary>
+    private bool NearWindow(CookerWindow w)
+    {
+        var r = w.Bounds;
+        return Math.Abs(_x - (r.Left + r.Width / 2)) <= r.Width / 2 + SpriteWidth * 0.9;
     }
 
     private PlacedItem[] _items = Array.Empty<PlacedItem>();

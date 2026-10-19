@@ -23,7 +23,7 @@ public sealed partial class PetWindow
             bool playing = P.RadioPlaying;
             yield return Act("turn_on", !playing && !Late ? 2 : 0, TurnOn);
             yield return Act("turn_off", playing && Late ? 4 : 0, TurnOff);
-            yield return Act("love", 1, () => Line(playing ? "love" : "love_off"));
+            yield return Act("love", 1, () => GoSay(playing ? "love" : "love_off"));
             yield return Act("song", playing ? 1 : 0, () => Line("song"));
         }
 

@@ -20,8 +20,8 @@ public sealed partial class PetWindow
 
         public override IEnumerable<ItemAction> Actions()
         {
-            yield return Act("cozy", Dark ? 2 : 0, () => Line("cozy"));
-            yield return Act("love", 1, () => Line("love"));
+            yield return Act("cozy", Dark ? 2 : 0, () => GoSay("cozy"));
+            yield return Act("love", 1, () => GoSay("love"));
             // Денем: „Да я прибера ли?“ – решава Тут.
             yield return Act("day", !Dark ? 1 : 0, AskPutAway);
         }

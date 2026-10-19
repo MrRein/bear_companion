@@ -27,7 +27,7 @@ public sealed partial class PetWindow
                 Line("bird");
                 P.Emote("heart", 2.5);
             });
-            yield return Act("love", 1, () => Line(empty ? "empty" : "love"));
+            yield return Act("love", 1, () => GoSay(empty ? "empty" : "love"));
         }
     }
 }

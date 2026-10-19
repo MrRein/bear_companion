@@ -21,9 +21,9 @@ public sealed partial class PetWindow
 
         public override IEnumerable<ItemAction> Actions()
         {
-            yield return Act("love", 0.6, () => Line("love"));
+            yield return Act("love", 0.6, () => GoSay("love"));
             if (Kind == Kitchen.Bed) yield return Act("sleepy", Evening && P.IsExhausted ? 2 : 0, () => Line("sleepy"));
-            else yield return Act("invite", 0.8, () => Line("invite"));
+            else yield return Act("invite", 0.8, () => GoSay("invite"));
         }
     }
 }

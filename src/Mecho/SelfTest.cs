@@ -1850,6 +1850,27 @@ public sealed partial class PetWindow
             LeaveScene();
             SetIdle();
         }, 400);
+        await step("кътче до далечна мебел: тръгва с ходене (не „чете“ насред пода)", () =>
+        {
+            bool instant = InstantModes;
+            InstantModes = false;
+            try
+            {
+                var area = Area;
+                double far = _x > area.Left + area.Width / 2 ? area.Left + area.Width * 0.15 : area.Right - area.Width * 0.15;
+                SetFurniture(Kitchen.Couch, true, far);
+                StartScene(Scenes.Reading, quiet: true);
+                if (!_anim.StartsWith("walk")) throw new Exception("първо „" + _anim + "“, а диванът е далече");
+                if (_seatProp != null) throw new Exception("диванът е под него, а още върви");
+            }
+            finally
+            {
+                InstantModes = instant;
+                LeaveScene();
+                SetIdle();
+                SetFurniture(Kitchen.Couch, false);
+            }
+        }, 400);
         await step("легло: колко да спи", () =>
         {
             AskSleepTime();
