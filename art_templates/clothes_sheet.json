@@ -57,7 +57,7 @@
  {
   "anim": "eat",
   "y": 376,
-  "frames": 2
+  "frames": 11
  },
  {
   "anim": "eat_hold",

@@ -42,12 +42,12 @@ public sealed partial class PetWindow
     /// <summary>Пауза: само държи храната (2–6 секунди), после хапва.</summary>
     private void EatHold(double seconds) => Play("eat_hold", length: seconds, after: EatBite);
 
-    /// <summary>Една хапка: дъвче (анимацията се върти 3–6 пъти).</summary>
+    /// <summary>Една хапка: дъвче (анимацията – вдига храната и сдъвква три пъти – веднъж или два пъти).</summary>
     private void EatBite()
     {
         if (_eating is not { } food) return;
         if (_rng.Next(3) == 0) Say(Lines.Pick(FoodTalk.For(food).Chew, _save.OwnerName), 2);
-        Play("eat", length: _lib.Get("eat").Duration * (3 + _rng.Next(4)), after: () =>
+        Play("eat", length: _lib.Get("eat").Duration * (1 + _rng.Next(2)), after: () =>
         {
             if (--_bitesLeft > 0) EatHold(2.5 + _rng.NextDouble() * 3.5);
             else EatDone();
@@ -285,7 +285,7 @@ public sealed partial class PetWindow
         if (!on) return Rect.Empty;
         System.Windows.Media.RenderOptions.SetBitmapScalingMode(_held, System.Windows.Media.BitmapScalingMode.NearestNeighbor);
         var img = (BitmapSource)_held.Source!;
-        double scale = 0.6 * (0.45 + 0.55 * Math.Max(1, _bitesLeft) / Math.Max(1, _bitesTotal));
+        double scale = 0.8 * (0.45 + 0.55 * Math.Max(1, _bitesLeft) / Math.Max(1, _bitesTotal));
         double w = img.PixelWidth * PixelSize * scale, h = img.PixelHeight * PixelSize * scale;
         _held.Width = w;
         _held.Height = h;

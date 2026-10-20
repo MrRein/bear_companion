@@ -22,7 +22,7 @@
  {
   "anim": "eat",
   "y": 138,
-  "frames": 2
+  "frames": 11
  },
  {
   "anim": "eat_hold",

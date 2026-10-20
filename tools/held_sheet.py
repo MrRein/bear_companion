@@ -1,6 +1,7 @@
 """Лист с всичко, което мечето държи в лапите, както го рисува програмата.
 
     python tools/held_sheet.py        -> art_templates/held_items.png
+    python tools/held_sheet.py eat    -> art_templates/held_items_eat.png (само тези анимации)
 
 За всеки предмет: анимацията, в която го държи (до 4 кадъра), без дрехи. Предметът е
 на синята точка от hold_sheet. Където анимацията е с item_below_arm (anim.json),
@@ -11,6 +12,7 @@
 
 import json
 import os
+import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -72,7 +74,7 @@ def items():
     foods = sorted(f[:-4] for f in os.listdir(PROPS) if f.startswith("food_") and f.endswith(".png") and not f.endswith("_menu.png"))
     for f in foods:
         for anim in ("eat", "eat_hold"):
-            out.append((f[5:], anim, "cup", os.path.join(PROPS, f + ".png"), "over", 0.6))
+            out.append((f[5:], anim, "cup", os.path.join(PROPS, f + ".png"), "over", 0.8))
     gifts = sorted(f[:-4] for f in os.listdir(PROPS) if f.startswith("gift") and f.endswith(".png") and "_open" not in f)
     for g in gifts:
         for anim in ("hold", "hold_walk"):
@@ -132,11 +134,11 @@ def render(title, anim, point_layer, art_path, how, scale, below):
     return cells
 
 
-def main():
+def main(only=()):
     with open(os.path.join(BEAR, "anim.json"), encoding="utf-8") as fh:
         data = json.load(fh)
     anims = data.get("animations", data)
-    rows = items()
+    rows = [r for r in items() if not only or r[1].startswith(tuple(only))]
     label_w, gap, per_row = 170, 8, 3
     block_w = label_w + 4 * (CELL + 2) + gap * 2
     row_h = CELL + 22
@@ -153,9 +155,10 @@ def main():
         d.text((x0, y0 + CELL // 2 + 2), anim + (" · под ръцете" if below else ""), fill=(110, 110, 110), font=font(11))
         for j, cell in enumerate(render(title, anim, pl, path, how, scale, below)):
             sheet.paste(cell, (x0 + label_w + j * (CELL + 2), y0))
-    sheet.save(OUT)
-    print(os.path.relpath(OUT, ROOT), sheet.size, len(rows), "предмета")
+    out = OUT if not only else OUT.replace(".png", "_" + "_".join(only) + ".png")
+    sheet.save(out)
+    print(os.path.relpath(out, ROOT), sheet.size, len(rows), "предмета")
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
