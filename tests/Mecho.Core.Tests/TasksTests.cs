@@ -69,6 +69,23 @@ public class TasksTests
     }
 
     [Fact]
+    public void Edit_keeps_the_task_and_its_place()
+    {
+        var (e, _, _) = Started();
+        e.Bus.Send(new AddTask("a", 1));
+        e.Bus.Send(new AddTask("b", 1));
+        var first = e.Store.Get<TasksState>().Open[0];
+        Assert.True(e.Bus.Send(new EditTask(first.Id, "  нова  ", 9, " описание ")).Ok);
+        var edited = e.Store.Get<TasksState>().Open[0];
+        Assert.Equal(first.Id, edited.Id);
+        Assert.Equal("нова", edited.Title);
+        Assert.Equal(3, edited.Size);
+        Assert.Equal("описание", edited.Description);
+        Assert.False(e.Bus.Send(new EditTask(first.Id, "   ", 1)).Ok);
+        Assert.False(e.Bus.Send(new EditTask(Guid.NewGuid(), "x", 1)).Ok);
+    }
+
+    [Fact]
     public void Done_tasks_move_to_history_at_midnight()
     {
         var (e, clock, _) = Started(new DateTime(2026, 10, 18, 23, 59, 0));

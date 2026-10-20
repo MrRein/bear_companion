@@ -39,6 +39,8 @@ public sealed record TasksState(ImmutableList<TaskEntry> Open, ImmutableList<Tas
 public sealed record AddTask(string Title, int Size, string? Description = null) : IGameCommand;
 public sealed record SetTaskDone(Guid Id, bool Done) : IGameCommand;
 public sealed record DeleteTask(Guid Id) : IGameCommand;
+/// <summary>Поправя име, описание и трудност на несвършена задача (същата задача, същото място).</summary>
+public sealed record EditTask(Guid Id, string Title, int Size, string? Description = null) : IGameCommand;
 public sealed record SetFocusTask(Guid? Id) : IGameCommand;
 /// <summary>Свършените преди днес → в историята (става и само в полунощ).</summary>
 public sealed record ArchiveDoneTasks : IGameCommand;
@@ -99,6 +101,18 @@ public sealed class TasksModule : GameModule
                 if (back > 0) Send(new SpendNuts(back, "отменена задача"));
                 Emit(new TaskReopened(t.Id, t.Reward));
             }
+            return CommandResult.Done;
+        });
+        Handle<EditTask>(c =>
+        {
+            var s = State<TasksState>();
+            if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
+            if (t.Done) return CommandResult.Rejected("свършена е");
+            string title = c.Title.Trim();
+            if (title.Length == 0) return CommandResult.Rejected("празно име");
+            if (title.Length > MaxTitle) title = title[..MaxTitle];
+            var edited = t with { Title = title, Size = Math.Clamp(c.Size, 1, 3), Description = (c.Description ?? "").Trim() };
+            Store.Set(s with { Open = s.Open.Replace(t, edited) });
             return CommandResult.Done;
         });
         Handle<DeleteTask>(c =>

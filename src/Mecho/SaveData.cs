@@ -105,7 +105,9 @@ public sealed class SaveData
 
     public List<NoteItem> Notes { get; set; } = new();
     public List<NoteItem> NoteHistory { get; set; } = new();   // изтритите бележки (може да се върнат)
-    public List<Guid> TasksOffBoard { get; set; } = new();   // задачи, махнати от таблото (другите са в него)
+    public List<Guid> TasksOffBoard { get; set; } = new();
+    public bool TasksOldestFirst { get; set; }                  // подредба: най-старите горе (иначе – най-новите)
+    public bool NotesOldestFirst { get; set; }   // задачи, махнати от таблото (другите са в него)
     public List<ReminderItem> Reminders { get; set; } = new();
     public List<DayRecord> Days { get; set; } = new();          // какво сме правили всеки ден (последните 60)
     public string MemoryDay { get; set; } = "";                 // за кой ден вече каза спомена от вчера

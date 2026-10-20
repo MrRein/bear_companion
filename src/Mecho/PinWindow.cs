@@ -216,8 +216,8 @@ public sealed class PinWindow : Window
     {
         var s = _pet.Save;
         string sig = _kind == Tasks
-            ? string.Join("|", s.Tasks.Where(t => !t.Done && _pet.TaskOnBoard(t)).Select(t => t.Id + t.Title + t.Description + t.Size)) + "#" + s.FocusTask + _pet.InFocus
-            : string.Join("|", s.Notes.Where(n => n.Pinned).Select(n => n.Id + n.Title + "¦" + n.Text));
+            ? string.Join("|", _pet.OrderedTasks(boardOnly: true).Select(t => t.Id + t.Title + t.Description + t.Size))
+            : string.Join("|", _pet.OrderedNotes(pinnedOnly: true).Select(n => n.Id + n.Title + "¦" + n.Text));
         if (sig == _shown) return;
         _shown = sig;
         _list.Children.Clear();
@@ -229,7 +229,7 @@ public sealed class PinWindow : Window
     {
         var s = _pet.Save;
         // Само задачите в таблото (📍 ги маха оттук, в менюто 📌 ги връща).
-        var tasks = s.Tasks.Where(t => !t.Done && _pet.TaskOnBoard(t)).ToList();
+        var tasks = _pet.OrderedTasks(boardOnly: true);
         _count.Text = tasks.Count > 0 ? $"· {tasks.Count}" : "";
         if (tasks.Count == 0) _list.Children.Add(MenuWindow.MutedText("Няма задачи в таблото. Напиши една отдолу!"));
         foreach (var task in tasks)
@@ -272,13 +272,20 @@ public sealed class PinWindow : Window
             reward.Margin = new Thickness(6, 0, 4, 0);
             Grid.SetColumn(reward, 1);
             row.Children.Add(reward);
+            // 📍 махни от таблото, под него ✕ изтрий.
             var off = Chip("📍", () => _pet.SetTaskOnBoard(t, false));
             off.ToolTip = Tip("Махни я от таблото (задачата остава)");
-            off.Padding = new Thickness(5, 1, 5, 2);
-            off.Margin = new Thickness(4, 0, 0, 0);
-            off.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(off, 2);
-            row.Children.Add(off);
+            var del = Chip("✕", () => _pet.DeleteTask(t));
+            del.ToolTip = Tip("Изтрий");
+            var side = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+            foreach (var b in new[] { off, del })
+            {
+                b.Padding = new Thickness(5, 0, 5, 1);
+                b.Margin = new Thickness(4, 0, 0, 3);
+                side.Children.Add(b);
+            }
+            Grid.SetColumn(side, 2);
+            row.Children.Add(side);
             var card = MenuWindow.Card(row, false);
             card.Padding = new Thickness(6, 4, 4, 4);
             card.Margin = new Thickness(0, 0, 0, 4);
@@ -289,7 +296,7 @@ public sealed class PinWindow : Window
     private void BuildNotes()
     {
         // Само бележките с „📌 В таблото“.
-        var notes = _pet.Save.Notes.Where(n => n.Pinned).ToList();
+        var notes = _pet.OrderedNotes(pinnedOnly: true);
         _count.Text = notes.Count > 0 ? $"· {notes.Count}" : "";
         if (notes.Count == 0) _list.Children.Add(MenuWindow.MutedText("Няма закачени бележки."));
         foreach (var note in notes)
@@ -315,13 +322,11 @@ public sealed class PinWindow : Window
             });
             grid.Children.Add(text);
             var buttons = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
-            var copy = Chip("⧉", () => { try { Clipboard.SetText(n.Title.Length > 0 && n.Text.Length > 0 ? n.Title + "\n" + n.Text : n.Title + n.Text); } catch (Exception) { } });
-            copy.ToolTip = Tip("Копирай");
             var unpin = Chip("📍", () => _pet.SetNotePinned(n, false));
             unpin.ToolTip = Tip("Махни я от таблото (бележката остава)");
             var del = Chip("✕", () => _pet.DeleteNote(n));
             del.ToolTip = Tip("Изтрий");
-            foreach (var b in new[] { copy, unpin, del })
+            foreach (var b in new[] { unpin, del })
             {
                 b.Padding = new Thickness(5, 0, 5, 1);
                 b.Margin = new Thickness(4, 0, 0, 3);

@@ -1984,6 +1984,28 @@ public sealed partial class PetWindow
             OpenNew(PinWindow.Tasks);
             _menu?.Hide();
         }, 400);
+        await step("редактиране и подредба (задачи и бележки)", () =>
+        {
+            AddTask("Тест: стара", 1);
+            AddTask("Тест: нова", 1);
+            var task = _save.Tasks.First(x => x.Title == "Тест: стара");
+            EditTask(task, "Тест: поправена", 3, "описание");
+            var edited = _save.Tasks.First(x => x.Id == task.Id);
+            if (edited.Title != "Тест: поправена" || edited.Size != 3 || edited.Description != "описание") throw new Exception("задачата не се поправи");
+            SetTasksOldestFirst(false);
+            var newest = OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).ToList();
+            if (newest.First().Title != "Тест: нова") throw new Exception("най-новата задача не е горе");
+            SetTasksOldestFirst(true);
+            if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Title != "Тест: поправена") throw new Exception("най-старата задача не е горе");
+            SetTasksOldestFirst(false);
+            foreach (var x in _save.Tasks.Where(x => x.Title.StartsWith("Тест:")).ToList()) DeleteTask(x);
+            var n = AddNote("Тест", "текст", pinned: false, quiet: true)!;
+            EditNote(n, "Тест: поправена", "нов текст", pinned: true);
+            if (n.Title != "Тест: поправена" || n.Text != "нов текст" || !n.Pinned) throw new Exception("бележката не се поправи");
+            if (OrderedNotes().First() != n) throw new Exception("закачената бележка не е горе");
+            DeleteNote(n);
+            PurgeNote(n);
+        }, 300);
         await step("задачи: табло (📌 / 📍)", () =>
         {
             AddTask("Тест: табло", 1);

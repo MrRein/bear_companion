@@ -423,6 +423,43 @@ public sealed partial class PetWindow
         Persist();
     }
 
+    /// <summary>Поправя името, описанието и трудността (✏ в менюто).</summary>
+    public void EditTask(TaskItem task, string title, int size, string? description)
+    {
+        if (!CoreEngine.Bus.Send(new Mecho.Core.EditTask(task.Id, title, size, description)).Ok) return;
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>Несвършените задачи в избрания ред: тези в таблото – най-горе, после най-новите (или най-старите).</summary>
+    public System.Collections.Generic.List<TaskItem> OrderedTasks(bool boardOnly = false)
+    {
+        var open = _save.Tasks.Where(t => !t.Done && (!boardOnly || TaskOnBoard(t))).ToList();
+        if (!_save.TasksOldestFirst) open.Reverse();   // в ядрото новите са отзад
+        return open.OrderBy(t => TaskOnBoard(t) ? 0 : 1).ToList();
+    }
+
+    /// <summary>Бележките в избрания ред: закачените – най-горе, после най-новите (или най-старите).</summary>
+    public System.Collections.Generic.List<NoteItem> OrderedNotes(bool pinnedOnly = false) =>
+        (_save.NotesOldestFirst ? _save.Notes.OrderBy(n => n.Created) : _save.Notes.OrderByDescending(n => n.Created))
+            .Where(n => !pinnedOnly || n.Pinned)
+            .OrderBy(n => n.Pinned ? 0 : 1)
+            .ToList();
+
+    public void SetTasksOldestFirst(bool on)
+    {
+        _save.TasksOldestFirst = on;
+        NotifyCare();
+        Persist();
+    }
+
+    public void SetNotesOldestFirst(bool on)
+    {
+        _save.NotesOldestFirst = on;
+        NotifyCare();
+        Persist();
+    }
+
     public void SetTaskDone(TaskItem task, bool done)
     {
         // Наградата, брояча и историята ги пази ядрото (TasksModule); тук – само реакцията.
@@ -484,6 +521,20 @@ public sealed partial class PetWindow
     {
         _save.TasksOffBoard.Remove(task.Id);
         if (!on) _save.TasksOffBoard.Add(task.Id);
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>Поправя бележката (✏): име, съдържание, табло; напомнянето ѝ взима новото име.</summary>
+    public void EditNote(NoteItem note, string title, string text, bool pinned)
+    {
+        title = title.Trim();
+        text = text.Trim();
+        if (title.Length == 0 && text.Length == 0) return;
+        note.Title = title;
+        note.Text = text;
+        note.Pinned = pinned;
+        foreach (var r in _save.Reminders.Where(r => r.NoteId == note.Id)) r.Text = note.Label;
         NotifyCare();
         Persist();
     }
