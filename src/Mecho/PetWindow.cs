@@ -310,6 +310,7 @@ public sealed partial class PetWindow : Window
         // премигва курсорът в програмата, в която пише.
         bool typingPause = false;
         _animTime += real * AnimSpeed;
+        if (_crossPhase != 0 && _state != BearState.Walk) CancelCrossing();
 
         switch (_state)
         {
@@ -624,6 +625,8 @@ public sealed partial class PetWindow : Window
 
     private void UpdateWalk(double dt)
     {
+        // Целта е на друг монитор: през ръба, а след малко – от ръба на другия (PetWindow.Screens.cs).
+        if (UpdateCrossing(dt)) return;
         if (StepTowards(_walkTarget, IsExhausted ? WalkSpeed * 0.6 : WalkSpeed, dt) || _stateTime > 60) FinishThen();
     }
 

@@ -127,7 +127,7 @@ public sealed partial class PetWindow
         var due = _save.Reminders.Where(r => r.Due <= DateTime.Now
                 && !(_reminderAsked.TryGetValue(r.Id, out var asked) && now - asked < 10 * 60))
             .OrderBy(r => r.Due).FirstOrDefault();
-        if (due == null || _walkingOut || _walkingBack) return;   // тръгва/идва – след малко
+        if (due == null || _walkingOut || _walkingBack || _crossPhase != 0) return;   // тръгва/идва – след малко
         if (!IsVisible || OnWalk)
         {
             PopInForReminder(due);

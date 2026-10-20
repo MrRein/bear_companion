@@ -1916,6 +1916,23 @@ public sealed partial class PetWindow
             LeaveScene();
             SetIdle();
         }, 300);
+        await step("няколко екрана: на един екран не излиза; прекъснат – пак се показва", () =>
+        {
+            SetIdle();
+            var a = Area;
+            if (OnOtherScreen(a.Left + a.Width / 2)) throw new Exception("целта на същия екран се води „друг екран“");
+            if (System.Windows.Forms.Screen.AllScreens.Length == 1 && OnOtherScreen(a.Right + 500))
+                throw new Exception("с един екран тръгва да излиза");
+            // Излязъл е към друг екран, а нещо го прекъсва: показва се (не остава скрит завинаги).
+            WalkTo(_x);
+            _crossFrom = a;
+            _crossPhase = 2;
+            _crossAt = Now + 100;
+            Hide();
+            SetIdle();
+            CancelCrossing();
+            if (!IsVisible || _crossPhase != 0) throw new Exception("остана скрит след прекъснато минаване");
+        }, 300);
         await step("лапите: картите на настолната игра наистина се рисуват", () =>
         {
             var empty = new Dictionary<string, string>();
