@@ -2047,7 +2047,7 @@ public sealed class MenuWindow : Window
         var root = new StackPanel();
         // Отгоре: Всички | Закачени | Напомняния (отдолу – ➕ Нова, Табло, История, като при задачите).
         var top = _notesTop;
-        top.Margin = new Thickness(0, 0, 0, 8 * U);
+        top.Margin = new Thickness(0, 0, 12, 0);   // малко място до подредбата вдясно
         _notesChip = Chip("📝 Всички", () => { _notesView = 0; BuildNoteList(); });
         _pinnedChip = Chip("📌 Закачени", () => { _notesView = 1; BuildNoteList(); });
         _remindersChip = Chip("⏰ Напомняния", () => { _notesView = 2; BuildNoteList(); });
@@ -2056,7 +2056,6 @@ public sealed class MenuWindow : Window
             c.Margin = new Thickness(0, 0, 6, 4);
             top.Children.Add(c);
         }
-        root.Children.Add(top);
 
         // Нова бележка (таб „➕ Нова“, отделно от списъка): име (удебелено) и съдържание.
         var p = _noteEditor;
@@ -2118,7 +2117,13 @@ public sealed class MenuWindow : Window
         _noteActions.Rows = 1;
         _noteActions.Margin = new Thickness(0, 10, 0, 0);
         root.Children.Add(_noteActions);
-        root.Children.Add(_noteSort = SortChip(() => _pet.Save.NotesOldestFirst, on => _pet.SetNotesOldestFirst(on)));
+        // Над списъка, на един ред: Всички | Закачени | Напомняния – и вдясно подредбата.
+        _noteSort = SortChip(() => _pet.Save.NotesOldestFirst, on => _pet.SetNotesOldestFirst(on));
+        _noteSort.VerticalAlignment = VerticalAlignment.Top;
+        DockPanel.SetDock(_noteSort, Dock.Right);
+        _notesRow.Children.Add(_noteSort);
+        _notesRow.Children.Add(top);
+        root.Children.Add(_notesRow);
 
         root.Children.Add(new ScrollViewer
         {
@@ -2135,6 +2140,7 @@ public sealed class MenuWindow : Window
 
     private Border _newNoteButton = null!, _noteHistoryButton = null!, _noteSort = null!;
     private readonly WrapPanel _notesTop = new();
+    private readonly DockPanel _notesRow = new() { Margin = new Thickness(0, 10, 0, 0) };
     private readonly UniformGrid _noteActions = new();
     private UniformGrid _notesBottom = null!;
     private Button _addNoteButton = null!;
@@ -2189,9 +2195,9 @@ public sealed class MenuWindow : Window
         bool editing = _notesView == 3;
         _noteEditor.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
         _noteActions.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
-        _notesTop.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+        _notesRow.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
         _notesBottom.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
-        _noteSort.Visibility = _notesView is 0 or 1 ? Visibility.Visible : Visibility.Collapsed;
+        _noteSort.Visibility = _notesView is 0 or 1 ? Visibility.Visible : Visibility.Hidden;   // Hidden – редът не подскача
         // Бележката, за която се слага напомняне, е изтрита – затваря.
         if (_remFor != null && !_pet.Save.Notes.Contains(_remFor))
         {
