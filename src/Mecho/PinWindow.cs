@@ -19,6 +19,7 @@ public sealed class PinState
     public double H { get; set; }
     public bool Collapsed { get; set; }    // свито до заглавието
     public bool Faded { get; set; }        // полупрозрачно, докато мишката не е отгоре
+    public bool Centered { get; set; }     // веднъж е било в средата на екрана (старите версии го слагаха в ъгъла)
 }
 
 /// <summary>
@@ -71,6 +72,14 @@ public sealed class PinWindow : Window
         WindowStartupLocation = WindowStartupLocation.Manual;
 
         var s = State;
+        // Първото отваряне (и веднъж след старите версии, които го слагаха в ъгъла) – в
+        // средата; после стои там, където Тут го е оставила.
+        if (!s.Centered)
+        {
+            s.X = double.NaN;
+            s.Y = double.NaN;
+            s.Centered = true;
+        }
         Width = s.W > 0 ? s.W : 300 * U;
         Height = s.H > 0 ? s.H : DefaultHeight;
         var area = SystemParameters.WorkArea;

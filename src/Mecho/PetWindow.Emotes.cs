@@ -29,9 +29,11 @@ public sealed partial class PetWindow
     /// <summary>Показва емоция до главата (сменя предишната).</summary>
     public void Emote(string name, double seconds = 2.6)
     {
-        if (Ui.LoadIcon("emote_" + name) is not { } raw) return;
-        // Балончето е в цветовете на менюто (сменя се със скина му).
-        var img = Ui.Themed(raw);
+        // Проба: рисунките без балонче (assets/ui/no_bubble/) – те са си в своите цветове.
+        // Няма ли такава – старата с балонче, в цветовете на менюто (сменя се със скина му).
+        var img = Ui.LoadIcon(System.IO.Path.Combine("no_bubble", "emote_" + name)) is { } plain ? plain
+            : Ui.LoadIcon("emote_" + name) is { } raw ? Ui.Themed(raw) : null;
+        if (img == null) return;
         _emoteName = name;
         _emote.Source = img;
         _emote.Width = img.PixelWidth * EmoteScale;
