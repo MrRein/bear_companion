@@ -122,6 +122,19 @@ public sealed partial class PetWindow
         return Dresser.FirstPoint(strip[_lib.Get(_anim).IndexAt(_animTime) % strip.Length]);
     }
 
+    /// <summary>
+    /// Средата на предмета в лапите (синята точка от hold_sheet) спрямо мечока: колко е
+    /// вдясно от средата му и колко над земята (отрицателно), в пиксели на екрана.
+    /// </summary>
+    private (double Dx, double Dy)? HoldOffset()
+    {
+        if (ToolPoint() is not { } p || _bearRect.IsEmpty) return null;
+        var (px, py) = p;
+        if (_facingLeft) px = _lib.FrameWidth - 1 - px;
+        double cx = _bearRect.Left + (px + 0.5) * PixelSize, cy = _bearRect.Top + (py + 0.5) * PixelSize;
+        return (cx - (_bearRect.Left + _bearRect.Width / 2), cy - _bearRect.Bottom);
+    }
+
     /// <summary>Отива към по-близкия ръб, излиза зад него и се връща, като дърпа саксията след себе си.</summary>
     private void StartGarden()
     {
@@ -202,9 +215,18 @@ public sealed partial class PetWindow
         double bottom = _save.PlantPlaced && !_plantPushing ? AreaAt(PlantSpot, _y - 1).Bottom + PixelSize : Ground(_y) + PixelSize;
         if (PlantInPaws)
         {
-            // В лапите, точно пред него (hold/hold_walk са с лице напред), на височината на лапите.
-            center = _x;
-            bottom = _y - 9 * PixelSize;
+            // В лапите: средата на саксията е на синята точка (hold_sheet); без точка – точно
+            // пред него (hold/hold_walk са с лице напред), на височината на лапите.
+            if (HoldOffset() is { } o)
+            {
+                center = _x + o.Dx;
+                bottom = _y + o.Dy + _plant.Height / 2;
+            }
+            else
+            {
+                center = _x;
+                bottom = _y - 9 * PixelSize;
+            }
         }
         bool shown = _plantOut > 0 && IsVisible;
         if (shown) _gardenWindow.Place(center - _plant.Width / 2, bottom - _plant.Height);

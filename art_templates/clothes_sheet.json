@@ -100,108 +100,118 @@
   "frames": 3
  },
  {
-  "anim": "idle",
+  "anim": "hold",
   "y": 682,
-  "frames": 4
+  "frames": 1
  },
  {
-  "anim": "juggle",
+  "anim": "hold_walk",
   "y": 716,
   "frames": 4
  },
  {
-  "anim": "read",
+  "anim": "idle",
   "y": 750,
+  "frames": 4
+ },
+ {
+  "anim": "juggle",
+  "y": 784,
+  "frames": 4
+ },
+ {
+  "anim": "read",
+  "y": 818,
   "frames": 17
  },
  {
   "anim": "read_sleep",
-  "y": 784,
+  "y": 852,
   "frames": 2
  },
  {
   "anim": "sad",
-  "y": 818,
+  "y": 886,
   "frames": 2
  },
  {
   "anim": "sit",
-  "y": 852,
+  "y": 920,
   "frames": 17
  },
  {
   "anim": "sit_drinking",
-  "y": 886,
+  "y": 954,
   "frames": 42
  },
  {
   "anim": "sit_drinking_blow",
-  "y": 920,
+  "y": 988,
   "frames": 20
  },
  {
   "anim": "sit_drinking_sip",
-  "y": 954,
+  "y": 1022,
   "frames": 21
  },
  {
   "anim": "sleep",
-  "y": 988,
+  "y": 1056,
   "frames": 4
  },
  {
   "anim": "sleep_peek",
-  "y": 1022,
+  "y": 1090,
   "frames": 3
  },
  {
   "anim": "think",
-  "y": 1056,
+  "y": 1124,
   "frames": 2
  },
  {
   "anim": "tired",
-  "y": 1090,
-  "frames": 4
- },
- {
-  "anim": "walk",
-  "y": 1124,
-  "frames": 4
- },
- {
-  "anim": "walk_tired",
   "y": 1158,
   "frames": 4
  },
  {
-  "anim": "write",
+  "anim": "walk",
   "y": 1192,
-  "frames": 16
+  "frames": 4
  },
  {
-  "anim": "write_sit",
+  "anim": "walk_tired",
   "y": 1226,
-  "frames": 16
+  "frames": 4
  },
  {
-  "anim": "write_sit_tired",
+  "anim": "write",
   "y": 1260,
   "frames": 16
  },
  {
-  "anim": "write_tired",
+  "anim": "write_sit",
   "y": 1294,
   "frames": 16
  },
  {
-  "anim": "yawn",
+  "anim": "write_sit_tired",
   "y": 1328,
+  "frames": 16
+ },
+ {
+  "anim": "write_tired",
+  "y": 1362,
+  "frames": 16
+ },
+ {
+  "anim": "yawn",
+  "y": 1396,
   "frames": 13
  },
  {
   "anim": "yoga",
-  "y": 1362,
+  "y": 1430,
   "frames": 4
  }
 ]

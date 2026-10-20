@@ -1,0 +1,57 @@
+[
+ {
+  "anim": "doing",
+  "y": 2,
+  "frames": 4
+ },
+ {
+  "anim": "doing_sit",
+  "y": 36,
+  "frames": 4
+ },
+ {
+  "anim": "doing_sit_tired",
+  "y": 70,
+  "frames": 4
+ },
+ {
+  "anim": "doing_tired",
+  "y": 104,
+  "frames": 4
+ },
+ {
+  "anim": "eat",
+  "y": 138,
+  "frames": 2
+ },
+ {
+  "anim": "eat_hold",
+  "y": 172,
+  "frames": 1
+ },
+ {
+  "anim": "hold",
+  "y": 206,
+  "frames": 1
+ },
+ {
+  "anim": "hold_walk",
+  "y": 240,
+  "frames": 4
+ },
+ {
+  "anim": "sit_drinking",
+  "y": 274,
+  "frames": 42
+ },
+ {
+  "anim": "sit_drinking_blow",
+  "y": 308,
+  "frames": 20
+ },
+ {
+  "anim": "sit_drinking_sip",
+  "y": 342,
+  "frames": 21
+ }
+]

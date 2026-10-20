@@ -293,7 +293,15 @@ public sealed partial class PetWindow
         double w = img.PixelWidth * PixelSize * 0.75, h = img.PixelHeight * PixelSize * 0.75;
         _carry.Width = w;
         _carry.Height = h;
-        // hold/hold_walk са с лице напред: подаръкът е в средата, малко подскача при ходене.
+        // Средата на подаръка е на синята точка (hold_sheet). Без точка: hold/hold_walk са с лице
+        // напред – в средата, малко подскача при ходене.
+        if (ToolPoint() is { } p)
+        {
+            var (px, py) = p;
+            if (_facingLeft) px = _lib.FrameWidth - 1 - px;
+            double cx = bear.Left + (px + 0.5) * PixelSize, cy = bear.Top + (py + 0.5) * PixelSize;
+            return new Rect(cx - w / 2, cy - h / 2, w, h);
+        }
         double bob = _state == BearState.Walk ? Math.Abs(Math.Sin(Now * 8)) * PixelSize : 0;
         return new Rect(bear.Left + bear.Width / 2 - w / 2, bear.Top + bear.Height * 0.68 - h / 2 - bob, w, h);
     }

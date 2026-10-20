@@ -4,8 +4,8 @@
     python tools/clothes_sheet.py import       чете маркирания лист (done_art/clothes_sheet.png)
     python tools/clothes_sheet.py new a b c    лист само с тези анимации (clothes_sheet_new*.png)
     python tools/clothes_sheet.py import done_art/clothes_sheet_new.png
-    python tools/clothes_sheet.py points        лист само за синята точка (предмета в лапата)
-    python tools/clothes_sheet.py import-points чете го (done_art/tool_points.png)
+    python tools/clothes_sheet.py hold          hold_sheet: само синята точка – какво държи в лапите
+    python tools/clothes_sheet.py import-hold   чете го (done_art/hold_sheet.png)
 
 art_templates/clothes_sheet.png – мечокът без дрехи, кадрите един до друг, по
 един ред на анимация (размерът е 1:1, пиксел за пиксел). Тут го отваря в
@@ -35,7 +35,8 @@ SIZE, GAP, LABEL = 32, 2, 96
 
 
 def anims():
-    return ac.all_anims()   # нарисуваните, които ги има (без махнатите)
+    """Всички анимации на мечока, които ги има в assets/bear."""
+    return sorted(os.path.splitext(f)[0] for f in os.listdir(BEAR) if f.endswith(".png"))
 
 
 def layout(names=None):
@@ -67,7 +68,8 @@ def export(names=None, out="clothes_sheet"):
         strip = Image.open(os.path.join(BEAR, f"{r['anim']}.png")).convert("RGBA")
         paint_path = os.path.join(ac.PAINT, f"{r['anim']}.png")
         paint = Image.open(paint_path).convert("RGBA") if os.path.exists(paint_path) else None
-        dots = {n: os.path.join(ac.PAINT, f"{r['anim']}_{n}.png") for n in ac.POINT_COLORS}
+        # Точките на това, което държи (tool, cup), са в hold_sheet – тук не се показват.
+        dots = {n: os.path.join(ac.PAINT, f"{r['anim']}_{n}.png") for n in ac.POINT_COLORS if n not in HOLD_POINTS}
         dots = {n: Image.open(p).convert("RGBA") for n, p in dots.items() if os.path.exists(p)}
         for f in range(r["frames"]):
             frame = strip.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE))
@@ -238,37 +240,50 @@ def import_sheet(path):
     print("Нови карти:", ", ".join(done) or "няма маркирани редове")
 
 
-def holding_anims():
-    """Анимациите с предмет в лапата (четка, лейка, карти…) – тези с точка tool."""
-    return [a for a in anims() if a.startswith(("doing", "knit", "guitar"))]
+# Какво държи в лапите: четка/лейка/карти (tool), храна и чаша (cup), подарък/саксия (tool).
+HOLD_POINTS = ("tool", "cup")
 
 
-def export_points(out="tool_points"):
+def hold_point(anim):
+    """В кой слой отива синята точка от hold_sheet за тази анимация."""
+    return "cup" if anim.startswith(("eat", "sit_drinking")) else "tool"
+
+
+def hold_anims():
+    """Анимациите, в които мечето държи нещо."""
+    return [a for a in anims() if a.startswith(("doing", "knit", "guitar", "hold", "eat", "sit_drinking"))]
+
+
+def export_hold(out="hold_sheet"):
     """
-    Лист само за синята точка: мечокът без карта, по ред на анимация с предмет в лапата.
-    tool_points.png е празен (Тут слага по една синя точка (0,128,255) на кадър – там отива
-    средата на предмета); tool_points_now.png е същото със сегашните точки отгоре.
+    hold_sheet: само синята точка (0,128,255) – по една на кадър, там отива средата на
+    това, което държи (четка, лейка, карти, храна, чаша, подарък, саксия). Мечокът е без
+    карта на дрехите. hold_sheet.png е празен, hold_sheet_now.png е със сегашните точки.
     """
     os.makedirs(OUTDIR, exist_ok=True)
-    rows, width, height = layout(holding_anims())
+    rows, width, height = layout(hold_anims())
     bg = (200, 200, 200, 255)
     bare = Image.new("RGBA", (width, height), bg)
     now = Image.new("RGBA", (width, height), bg)
     font = ImageFont.load_default(size=11)
+    blue = ac.POINT_COLORS["tool"] + (255,)
     for img in (bare, now):
         d = ImageDraw.Draw(img)
         for r in rows:
             d.text((4, r["y"] + 10), r["anim"], fill=(40, 40, 40), font=font)
     for r in rows:
         strip = Image.open(os.path.join(BEAR, f"{r['anim']}.png")).convert("RGBA")
-        dot_path = os.path.join(ac.PAINT, f"{r['anim']}_tool.png")
+        dot_path = os.path.join(ac.PAINT, f"{r['anim']}_{hold_point(r['anim'])}.png")
         dot = Image.open(dot_path).convert("RGBA") if os.path.exists(dot_path) else None
         for f in range(r["frames"]):
             cell = Image.new("RGBA", (SIZE, SIZE), (255, 255, 255, 255))
             cell.alpha_composite(strip.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE)))
             bare.paste(cell, (cell_x(f), r["y"]))
-            if dot is not None:
-                cell.alpha_composite(dot.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE)))
+            if dot is not None:   # и точката на храната/чашата е синя тук
+                for y in range(SIZE):
+                    for x in range(SIZE):
+                        if f * SIZE + x < dot.width and dot.getpixel((f * SIZE + x, y))[3]:
+                            cell.putpixel((x, y), blue)
             now.paste(cell, (cell_x(f), r["y"]))
     bare.save(os.path.join(OUTDIR, f"{out}.png"))
     now.save(os.path.join(OUTDIR, f"{out}_now.png"))
@@ -277,46 +292,47 @@ def export_points(out="tool_points"):
     print(f"art_templates/{out}.png, {out}_now.png")
 
 
-def import_points(path):
+def import_hold(path):
     """Само синята точка: картата на дрехите не се пипа, цветът под точката остава."""
     sheet = Image.open(path).convert("RGBA")
-    with open(os.path.join(OUTDIR, "tool_points.json"), encoding="utf-8") as fh:
+    with open(os.path.join(OUTDIR, "hold_sheet.json"), encoding="utf-8") as fh:
         rows = json.load(fh)
     done = []
     for r in rows:
         anim = r["anim"]
-        dot_path = os.path.join(ac.PAINT, f"{anim}_tool.png")
-        strip_w = r["frames"] * SIZE
+        layer = hold_point(anim)
+        dot_path = os.path.join(ac.PAINT, f"{anim}_{layer}.png")
         old = Image.open(dot_path).convert("RGBA") if os.path.exists(dot_path) else None
-        dots = Image.new("RGBA", (strip_w, SIZE), (0, 0, 0, 0))
+        dots = Image.new("RGBA", (r["frames"] * SIZE, SIZE), (0, 0, 0, 0))
         changed = False
         for f in range(r["frames"]):
+            # Синя точка (и оранжевата от стария лист за храната – и тя става).
             pts = [(x, y) for y in range(SIZE) for x in range(SIZE)
                    if cell_x(f) + x < sheet.width and r["y"] + y < sheet.height
                    and sheet.getpixel((cell_x(f) + x, r["y"] + y))[3]
-                   and point_of(sheet.getpixel((cell_x(f) + x, r["y"] + y))[:3]) == "tool"]
+                   and point_of(sheet.getpixel((cell_x(f) + x, r["y"] + y))[:3]) in HOLD_POINTS]
             if len(pts) == 1:
                 x, y = pts[0]
-                dots.putpixel((f * SIZE + x, y), ac.POINT_COLORS["tool"] + (255,))
+                dots.putpixel((f * SIZE + x, y), ac.POINT_COLORS[layer] + (255,))
                 changed = True
             else:
                 if len(pts) > 1:
-                    print(f"{anim}, кадър {f + 1}: {len(pts)} сини точки – остава старата")
+                    print(f"{anim}, кадър {f + 1}: {len(pts)} точки – остава старата")
                 if old is not None:   # кадър без (ясна) точка – пази старата
                     dots.paste(old.crop((f * SIZE, 0, f * SIZE + SIZE, SIZE)), (f * SIZE, 0))
-        if not changed:
+        if not changed or (old is not None and old.tobytes() == dots.tobytes()):
             continue
         dots.save(dot_path)
         ac.main(anim)
         done.append(anim)
-    print("Нови точки:", ", ".join(done) or "няма")
+    print("Нови точки:", ", ".join(done) or "няма промени")
 
 
 if __name__ == "__main__":
-    if sys.argv[1:2] == ["points"]:
-        export_points()
-    elif sys.argv[1:2] == ["import-points"]:
-        import_points(sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "done_art", "tool_points.png"))
+    if sys.argv[1:2] == ["hold"]:
+        export_hold()
+    elif sys.argv[1:2] == ["import-hold"]:
+        import_hold(sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "done_art", "hold_sheet.png"))
     elif sys.argv[1:2] == ["import"]:
         import_sheet(sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "done_art", "clothes_sheet.png"))
     elif sys.argv[1:2] == ["new"]:
