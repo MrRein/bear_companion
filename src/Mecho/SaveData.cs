@@ -104,6 +104,7 @@ public sealed class SaveData
     /// <summary>Печицата е включена.</summary>
 
     public List<NoteItem> Notes { get; set; } = new();
+    public List<NoteItem> NoteHistory { get; set; } = new();   // изтритите бележки (може да се върнат)
     public List<Guid> TasksOffBoard { get; set; } = new();   // задачи, махнати от таблото (другите са в него)
     public List<ReminderItem> Reminders { get; set; } = new();
     public List<DayRecord> Days { get; set; } = new();          // какво сме правили всеки ден (последните 60)
@@ -959,6 +960,7 @@ public sealed class NoteItem
     public string Text { get; set; } = "";                  // съдържанието
     public bool Pinned { get; set; } = true;                // показва се в закаченото табло
     public DateTime Created { get; set; } = DateTime.Now;
+    public DateTime? Deleted { get; set; }                  // кога е изтрита (в „История“)
 
     /// <summary>Името, а ако няма – началото на текста (за напомнянията).</summary>
     public string Label

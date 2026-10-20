@@ -1970,6 +1970,20 @@ public sealed partial class PetWindow
             DeleteNote(n);
             if (Ui.Shorten("абвгдежзий", 5) != "абвгд…") throw new Exception("Shorten");
         }, 300);
+        await step("бележки: история – изтритата се връща", () =>
+        {
+            var n = AddNote("Тест: история", "", pinned: true, quiet: true)!;
+            DeleteNote(n);
+            if (_save.Notes.Contains(n) || !_save.NoteHistory.Contains(n) || n.Deleted == null) throw new Exception("изтритата не е в историята");
+            RestoreNote(n);
+            if (!_save.Notes.Contains(n) || _save.NoteHistory.Contains(n) || n.Deleted != null) throw new Exception("не се върна");
+            DeleteNote(n);
+            PurgeNote(n);
+            if (_save.NoteHistory.Contains(n)) throw new Exception("не се изтри завинаги");
+            OpenNew(PinWindow.Notes);
+            OpenNew(PinWindow.Tasks);
+            _menu?.Hide();
+        }, 400);
         await step("задачи: табло (📌 / 📍)", () =>
         {
             AddTask("Тест: табло", 1);

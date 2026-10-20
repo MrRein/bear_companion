@@ -36,12 +36,14 @@ public sealed class PinWindow : Window
     private readonly StackPanel _list = new();
     private readonly ScrollViewer _scroll;
     private readonly Border _body;
-    private readonly TextBox _input;
     private readonly TextBlock _count = new() { Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
     private readonly Border _collapse, _fade;
     private string _shown = "";
 
     private static double U => Body / 18;
+
+    /// <summary>Отначало: бележките са по-дълги надолу (текстът им е повече).</summary>
+    private double DefaultHeight => _kind == Notes ? 440 * U : 320 * U;
 
     private PinState State => _kind == Tasks ? _pet.Save.PinTasks : _pet.Save.PinNotes;
 
@@ -70,11 +72,11 @@ public sealed class PinWindow : Window
 
         var s = State;
         Width = s.W > 0 ? s.W : 300 * U;
-        Height = s.H > 0 ? s.H : 320 * U;
+        Height = s.H > 0 ? s.H : DefaultHeight;
         var area = SystemParameters.WorkArea;
         // Първия път – в средата на екрана (после там, където Тут го е сложила).
         Left = double.IsNaN(s.X) ? area.Left + (area.Width - Width) / 2 : Math.Clamp(s.X, area.Left - Width + 60, area.Right - 60);
-        Top = double.IsNaN(s.Y) ? area.Top + Math.Max(40, (area.Height - (State.H > 0 ? State.H : 320 * U)) / 2) : Math.Clamp(s.Y, area.Top, area.Bottom - 40);
+        Top = double.IsNaN(s.Y) ? area.Top + Math.Max(40, (area.Height - Height) / 2) : Math.Clamp(s.Y, area.Top, area.Bottom - 40);
 
         // Заглавие: иконка, име, брой; копчета: свий, прозрачно, затвори. Влачи се оттук.
         var header = new DockPanel { Margin = new Thickness(2, 0, 2, 5), Background = Brushes.Transparent, Cursor = Cursors.SizeAll };
@@ -95,6 +97,9 @@ public sealed class PinWindow : Window
         }
         var title = IconText(kind == Tasks ? "tasks" : "notes", Title, bold: true);
         title.VerticalAlignment = VerticalAlignment.Center;
+        // На дървената рамка – бели букви.
+        System.Windows.Documents.TextElement.SetForeground(title, Brushes.White);
+        _count.Foreground = Brushes.White;
         header.Children.Add(title);
         header.Children.Add(_count);
         header.MouseLeftButtonDown += (_, e) =>
@@ -108,59 +113,15 @@ public sealed class PinWindow : Window
             Remember();
         };
 
-        // Поле за ново: Enter добавя (при бележките – Ctrl+Enter, Enter е нов ред).
-        _input = MenuWindow.NewTextInput();
-        _input.Padding = new Thickness(6, 4, 6, 4);
-        if (kind == Notes)
-        {
-            _input.AcceptsReturn = true;
-            _input.TextWrapping = TextWrapping.Wrap;
-            _input.MaxHeight = 90 * U;
-        }
-        _input.PreviewKeyDown += (_, e) =>
-        {
-            bool add = kind == Tasks ? e.Key == Key.Enter : e.Key == Key.Enter && Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
-            if (add)
-            {
-                AddFromInput();
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Escape)
-            {
-                _input.Clear();
-                _sizeRow.Visibility = Visibility.Collapsed;
-            }
-
-        };
-        // Задачи: след „+“ (или Enter) – колко е трудна: малка / средна / голяма.
-        _sizeRow = new WrapPanel { Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed };
-        _sizeRow.Children.Add(new TextBlock { Text = "Колко е трудна?", Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 4) });
-        foreach (var (label, size) in new[] { ("малка", 1), ("средна", 2), ("голяма", 3) })
-        {
-            int sz = size;
-            var chip = Chip(label, () => AddTasks(sz));
-            chip.Margin = new Thickness(0, 0, 4, 4);
-            chip.Padding = new Thickness(6, 1, 6, 2);
-            _sizeRow.Children.Add(chip);
-        }
-        var cancel = Chip("✕", () => _sizeRow.Visibility = Visibility.Collapsed);
-        cancel.Margin = new Thickness(0, 0, 0, 4);
-        cancel.Padding = new Thickness(6, 1, 6, 2);
-        _sizeRow.Children.Add(cancel);
-        var inputRow = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
-        var plus = Chip("+", AddFromInput);
-        plus.Margin = new Thickness(4, 0, 0, 0);
-        plus.VerticalAlignment = VerticalAlignment.Top;
-        DockPanel.SetDock(plus, Dock.Right);
-        inputRow.Children.Add(plus);
-        inputRow.Children.Add(MenuWindow.WithHint(_input, kind == Tasks ? "Нова задача…" : "Бележка…"));
+        // „➕ Нова“ отваря менюто на новата задача/бележка (с всичко за нея – трудност, напомняне…).
+        var newButton = Button("Нова", () => _pet.OpenNew(kind), primary: true, icon: "plus");
+        newButton.Margin = new Thickness(0, 6, 0, 0);
+        newButton.HorizontalAlignment = HorizontalAlignment.Stretch;
 
         _scroll = new ScrollViewer { Content = _list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         var bodyPanel = new DockPanel();
-        DockPanel.SetDock(_sizeRow, Dock.Bottom);
-        bodyPanel.Children.Add(_sizeRow);
-        DockPanel.SetDock(inputRow, Dock.Bottom);
-        bodyPanel.Children.Add(inputRow);
+        DockPanel.SetDock(newButton, Dock.Bottom);
+        bodyPanel.Children.Add(newButton);
         bodyPanel.Children.Add(_scroll);
         _body = new Border
         {
@@ -243,40 +204,12 @@ public sealed class PinWindow : Window
             ResizeMode = ResizeMode.CanResizeWithGrip;
             MinHeight = 90 * U;
             State.H = height;
-            Height = height > 0 ? height : 320 * U;
+            Height = height > 0 ? height : DefaultHeight;
         }
         _applying = false;
     }
 
     private bool _applying;
-
-    private void AddFromInput()
-    {
-        string text = _input.Text.Trim();
-        if (text.Length == 0) return;
-        if (_kind == Tasks)
-        {
-            // Първо пита колко е трудна (копчетата отдолу), после я добавя.
-            _sizeRow.Visibility = Visibility.Visible;
-            return;
-        }
-        _pet.AddNote(text);
-        _input.Clear();
-        _input.Focus();
-    }
-
-    private readonly WrapPanel _sizeRow;
-
-    /// <summary>Добавя написаното като задача (или няколко – по ред) с избраната трудност.</summary>
-    private void AddTasks(int size)
-    {
-        string text = _input.Text.Trim();
-        _sizeRow.Visibility = Visibility.Collapsed;
-        if (text.Length == 0) return;
-        foreach (var line in text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0)) _pet.AddTask(line, size);
-        _input.Clear();
-        _input.Focus();
-    }
 
     /// <summary>Строи списъка наново, само ако нещо се е сменило.</summary>
     public void Refresh()
@@ -305,7 +238,6 @@ public sealed class PinWindow : Window
             bool current = s.FocusTask == t.Id;
             var row = new Grid();
             row.ColumnDefinitions.Add(new ColumnDefinition());
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var check = new CheckBox
@@ -340,24 +272,12 @@ public sealed class PinWindow : Window
             reward.Margin = new Thickness(6, 0, 4, 0);
             Grid.SetColumn(reward, 1);
             row.Children.Add(reward);
-            // ▶ – мечо-доро по тази задача (или „по нея работим“, ако вече тече).
-            var focus = Chip(current && _pet.InFocus ? "★" : "▶", () =>
-            {
-                if (_pet.InFocus) _pet.SetFocusTask(t);
-                else _pet.StartFocusOn(t);
-            });
-            focus.ToolTip = Tip(_pet.InFocus ? "Сега работим по нея" : "Мечо-доро по тази задача");
-            focus.Padding = new Thickness(6, 1, 6, 2);
-            focus.VerticalAlignment = VerticalAlignment.Center;
-            if (current) SetOn(focus, true);
-            Grid.SetColumn(focus, 2);
-            row.Children.Add(focus);
             var off = Chip("📍", () => _pet.SetTaskOnBoard(t, false));
             off.ToolTip = Tip("Махни я от таблото (задачата остава)");
             off.Padding = new Thickness(5, 1, 5, 2);
             off.Margin = new Thickness(4, 0, 0, 0);
             off.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(off, 3);
+            Grid.SetColumn(off, 2);
             row.Children.Add(off);
             var card = MenuWindow.Card(row, false);
             card.Padding = new Thickness(6, 4, 4, 4);

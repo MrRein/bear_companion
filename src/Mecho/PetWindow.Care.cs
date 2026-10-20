@@ -496,10 +496,32 @@ public sealed partial class PetWindow
         Persist();
     }
 
+    /// <summary>Изтрива я: отива в „История“ (най-много 200), откъдето може да се върне.</summary>
     public void DeleteNote(NoteItem note)
     {
         _save.Notes.Remove(note);
         _save.Reminders.RemoveAll(r => r.NoteId == note.Id);   // напомнянето е част от бележката
+        note.Deleted = DateTime.Now;
+        _save.NoteHistory.Add(note);
+        if (_save.NoteHistory.Count > 200) _save.NoteHistory.RemoveRange(0, _save.NoteHistory.Count - 200);
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>Връща изтрита бележка (най-горе при бележките).</summary>
+    public void RestoreNote(NoteItem note)
+    {
+        if (!_save.NoteHistory.Remove(note)) return;
+        note.Deleted = null;
+        _save.Notes.Insert(0, note);
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>Изтрива я завинаги (от „История“).</summary>
+    public void PurgeNote(NoteItem note)
+    {
+        _save.NoteHistory.Remove(note);
         NotifyCare();
         Persist();
     }

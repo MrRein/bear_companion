@@ -1230,6 +1230,14 @@ public sealed partial class PetWindow : Window
 
     internal void MenuClosed() => _menuClosedAt = Now;
 
+    /// <summary>„➕ Нова“ от таблото: менюто – направо на новата задача/бележка.</summary>
+    public void OpenNew(string kind)
+    {
+        OpenMenu(kind == PinWindow.Tasks ? MenuWindow.TasksTab : MenuWindow.NotesTab);
+        if (kind == PinWindow.Tasks) _menu!.ShowNewTask(true);
+        else _menu!.ShowNewNote(true);
+    }
+
     // ───────────────────────── Рисуване ─────────────────────────
 
     // Размерът на самия мечок (картинката е по-висока: отгоре има място за шапка).
