@@ -448,7 +448,7 @@ public sealed partial class PetWindow
 
         // ── Новите неща ──
         const string walk = "Разходка", giftNew = "Подарък в лапите", garden = "Растението", radio = "Радио, хранилка, бюро", emotes = "Емоции",
-            memory = "Спомени и любима храна", pins = "Закачени и задачи", looks = "Скинове, пижами, меню", misc = "Лампа, звук, енергия";
+            memory = "Спомени и желания", pins = "Закачени и задачи", looks = "Скинове, пижами, меню", misc = "Лампа, звук, енергия";
         yield return (walk, "Разходи се 1 мин", () => GoForWalk(1));
         yield return (walk, "Разходи се 10 мин", () => GoForWalk(10));
         yield return (walk, "Вечерна дрямка-разходка 2 мин", () => { _save.Energy = 10; _save.WalkUntil = DateTime.MinValue; GoForWalk(2); _save.WalkNap = true; });
@@ -555,9 +555,7 @@ public sealed partial class PetWindow
             MorningMemory();
         });
         yield return (memory, "Следобеден спомен", LaterMemory);
-        yield return (memory, "Любима храна: нова", () => { _save.FavFoodDay = ""; Say("Днес ми се яде: " + (FavoriteFood?.Name ?? "нищо"), 4); NotifyCare(); });
-        yield return (memory, "„Днес ми се яде…“", () => { _save.FavFoodSaid = false; TodayRec.FavFed = false; SayFavoriteWish(); });
-        yield return (memory, "Дай му любимото", () => { if (FavoriteFood is { } f) { TodayRec.FavFed = false; FavoriteEaten(f); } });
+        yield return (memory, "„Нещо ми се яде…“ (желанието)", () => { _save.FavFoodSaid = false; SayFavoriteWish(); });
         yield return (pins, "Закачи задачите", () => SetPinned(PinWindow.Tasks, !IsPinned(PinWindow.Tasks)));
         yield return (pins, "Закачи бележките", () => SetPinned(PinWindow.Notes, !IsPinned(PinWindow.Notes)));
         yield return (pins, "Мечо-доро по нова задача", () => { AddTask("Тестова задача", 2); StartFocusOn(_save.Tasks.Last()); });

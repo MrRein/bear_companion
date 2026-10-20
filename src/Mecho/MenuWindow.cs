@@ -828,7 +828,7 @@ public sealed class MenuWindow : Window
 
     private string _foodCat = "Всичко";
     private string? _foodKey;
-    private const string Wish = "Желание";
+    private const string Wish = "Желания";
 
     /// <summary>Плочки с храните: картинка, какво дава и бутон „Сготви“. Посочиш ли заключена, казва защо.</summary>
     private void BuildFoodTiles(bool force = false)
@@ -838,7 +838,7 @@ public sealed class MenuWindow : Window
         // ако нещо, което се вижда в тях, се е сменило.
         var wishes = _pet.Wishes();
         string key = string.Join("|", _foodCat, s.Hazelnuts, (int)s.Fullness, (int)s.Energy, Kitchen.BerriesIn(s),
-            _pet.FavoriteFood?.Id, string.Join(",", wishes.Select(f => f.Id)), s.Owned.Count, s.RecipePages,
+            string.Join(",", wishes.Select(f => f.Id)), s.Owned.Count, s.RecipePages,
             string.Join(",", s.Skins.Values));
         if (!force && key == _foodKey) return;
         _foodKey = key;
@@ -874,24 +874,19 @@ public sealed class MenuWindow : Window
                 effects.Children.Add(GainBar("energy", s.Energy, Kitchen.EnergyAfter(s.Energy, f.Energy), "енергия",
                     s.Energy >= Kitchen.FoodEnergyCap ? "Догоре – само със сън." : "Догоре – само със сън."));
 
-            // Любимото за днес: сърчице (дадеш ли му го – радва се специално).
-            if (wishes.Contains(f))
+            // Колко се готви: часовниче и общото време на всички уреди; ако са няколко –
+            // при посочване пише всеки уред с неговото време.
+            var steps = PetWindow.CookSteps(f).ToList();
+            if (steps.Count > 0)
             {
-                // Само сърчицето (без надпис): това му се иска днес.
-                var fav = IconText("heart", "");
-                fav.HorizontalAlignment = HorizontalAlignment.Center;
-                fav.Margin = new Thickness(0, 2, 0, 0);
-                effects.Children.Add(fav);
-            }
-            // Колко се готви във всеки уред (рецепта в два уреда – два реда): иконката на
-            // уреда и минутите; ако уредът няма иконка – часовниче.
-            foreach (var (tool, secs) in PetWindow.CookSteps(f))
-            {
-                string icon = LoadIcon("shop_" + tool) != null ? "shop_" + tool : "clock";
-                var time = IconText(icon, secs % 60 == 0 ? $"{secs / 60:0} мин" : $"{secs:0} с");
+                static string Dur(double secs) => secs % 60 == 0 ? $"{secs / 60:0} мин" : secs > 60 ? $"{Math.Floor(secs / 60):0} мин {secs % 60:0} с" : $"{secs:0} с";
+                var time = IconText("clock", Dur(steps.Sum(x => x.Item2)));
                 time.HorizontalAlignment = HorizontalAlignment.Center;
                 time.Margin = new Thickness(0, 2, 0, 0);
                 time.Opacity = 0.75;
+                time.Background = Brushes.Transparent;   // посочването хваща целия ред
+                if (steps.Count > 1)
+                    time.ToolTip = Tip(string.Join("\n", steps.Select(x => $"{Kitchen.Find(x.Item1)?.Name ?? x.Item1}: {Dur(x.Item2)}")));
                 effects.Children.Add(time);
             }
 
@@ -925,7 +920,8 @@ public sealed class MenuWindow : Window
                     why = $"Трябват {cost} лешника, а имаш {s.Hazelnuts}.";
                 }
             }
-            _foodTiles.Children.Add(MakeTile(_pet.FoodMenuImage(f), f.Name, effects, action, locked, why));
+            // Сърчице горе вдясно в картинката: това му се яде.
+            _foodTiles.Children.Add(MakeTile(_pet.FoodMenuImage(f), f.Name, effects, action, locked, why, heart: wishes.Contains(f)));
         }
         BuildRecipeProgress();
     }
@@ -1343,7 +1339,7 @@ public sealed class MenuWindow : Window
     /// в мрежата всички бутони стоят на една линия, колкото и дълги да са имената.
     /// why = подсказка при посочване (защо е заключено и т.н.).
     /// </summary>
-    private static Border MakeTile(BitmapSource art, string name, UIElement details, Button action, bool dim, string? why, bool owned = false, int artScale = 4)
+    private static Border MakeTile(BitmapSource art, string name, UIElement details, Button action, bool dim, string? why, bool owned = false, int artScale = 4, bool heart = false)
     {
         var image = Pixel(art, ArtScale(artScale));
         image.HorizontalAlignment = HorizontalAlignment.Center;
@@ -1357,6 +1353,14 @@ public sealed class MenuWindow : Window
             var badge = owned
                 ? Icon("check", 2)
                 : Icon("lock");
+            badge.HorizontalAlignment = HorizontalAlignment.Right;
+            badge.VerticalAlignment = VerticalAlignment.Top;
+            badge.Margin = new Thickness(0, 4, 6, 0);
+            artGrid.Children.Add(badge);
+        }
+        else if (heart)
+        {
+            var badge = Icon("heart", 2);
             badge.HorizontalAlignment = HorizontalAlignment.Right;
             badge.VerticalAlignment = VerticalAlignment.Top;
             badge.Margin = new Thickness(0, 4, 6, 0);
@@ -1781,7 +1785,8 @@ public sealed class MenuWindow : Window
         // Под трудността: Добави (Запази при поправка) и Отказ – еднакво големи.
         _addTaskButton = Button("Добави", AddTask, primary: true, icon: "plus");
         var cancel = Button("Отказ", () => ShowNewTask(false), icon: "close");
-        cancel.Margin = new Thickness(6, 0, 0, 0);
+        _addTaskButton.Margin = new Thickness(0, 0, 3, 0);   // еднакво големи
+        cancel.Margin = new Thickness(3, 0, 0, 0);
         p.Children.Add(new UniformGrid { Rows = 1, Margin = new Thickness(0, 10, 0, 0), Children = { _addTaskButton, cancel } });
         UpdateSizeButtons();
         root.Children.Add(p);
@@ -1790,7 +1795,7 @@ public sealed class MenuWindow : Window
         root.Children.Add(_taskScroll = new ScrollViewer
         {
             Content = _taskList,
-            MaxHeight = 360 * U,
+            MaxHeight = 480 * U,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         });
 
@@ -2106,7 +2111,8 @@ public sealed class MenuWindow : Window
         // Под Закачи/Напомни (и избора кога): Добави и Отказ – еднакво големи.
         _addNoteButton = Button("Добави", AddNote, primary: true, icon: "plus");
         var cancel = Button("Отказ", () => ShowNewNote(false), icon: "close");
-        cancel.Margin = new Thickness(6, 0, 0, 0);
+        _addNoteButton.Margin = new Thickness(0, 0, 3, 0);   // еднакво големи
+        cancel.Margin = new Thickness(3, 0, 0, 0);
         _noteActions.Children.Add(_addNoteButton);
         _noteActions.Children.Add(cancel);
         _noteActions.Rows = 1;
@@ -2117,7 +2123,7 @@ public sealed class MenuWindow : Window
         root.Children.Add(new ScrollViewer
         {
             Content = _noteList,
-            MaxHeight = 360 * U,
+            MaxHeight = 480 * U,
             Margin = new Thickness(0, 10, 0, 0),
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         });

@@ -90,41 +90,13 @@ public sealed partial class PetWindow
         if (!IsAsleep) r.MinEnergy = Math.Min(r.MinEnergy, _save.Energy);
     }
 
-    // ── Любимата храна за днес ──
+    // ── Какво му се яде: желанията (PetWindow.Eating.cs) ──
 
-    /// <summary>Любимото за днес (от храните, които може да сготви), избира се веднъж на ден.</summary>
-    public Food? FavoriteFood
-    {
-        get
-        {
-            string today = DayKey(DateTime.Today);
-            // Любимото е нещо, което може да сготви (иначе – ново, ако уредът го няма вече).
-            if (_save.FavFoodDay == today && Kitchen.Foods.FirstOrDefault(f => f.Id == _save.FavFood) is { } old && !Kitchen.CanCook(old, _save))
-                _save.FavFoodDay = "";
-            if (_save.FavFoodDay != today)
-            {
-                var can = Kitchen.Foods.Where(f => f.Fullness >= 5 && Kitchen.Regular(f) && Kitchen.CanCook(f, _save)).ToList();
-                if (can.Count == 0) return null;
-                // Не същото като вчера, ако има избор.
-                var pick = can.Where(f => f.Id != _save.FavFood).ToList();
-                _save.FavFood = (pick.Count > 0 ? pick : can)[_rng.Next((pick.Count > 0 ? pick : can).Count)].Id;
-                _save.FavFoodDay = today;
-                _save.FavFoodSaid = false;
-            }
-            return Kitchen.Foods.FirstOrDefault(f => f.Id == _save.FavFood);
-        }
-    }
+    /// <summary>Какво му се яде сега: първото от желанията (вече няма отделна „любима храна за деня“).</summary>
+    public Food? FavoriteFood => Wishes().FirstOrDefault();
 
-    /// <summary>Яде любимото за деня (първото парче): сърчице и благодари.</summary>
-    private void FavoriteEaten(Food f)
-    {
-        RecordFood(f);
-        if (FavoriteFood?.Id != f.Id || TodayRec.FavFed) return;
-        TodayRec.FavFed = true;
-        Emote("heart", 4);
-        Joy(JoyPetted);
-        Later(1.2, () => Say(R.Put(R.Pick("fav.eaten", _save.OwnerName), "храна", f.Name.ToLowerInvariant()), 4));
-    }
+    /// <summary>Яде нещо: само се записва за спомените (желанието се изпълнява в FulfillWish).</summary>
+    private void FavoriteEaten(Food f) => RecordFood(f);
 
     // ── Спомените ──
 
@@ -145,6 +117,7 @@ public sealed partial class PetWindow
         if (_save.MemoryDay != today && hour >= 6)
         {
             _save.MemoryDay = today;
+            _save.FavFoodSaid = false;   // нов ден – пак може да каже какво му се яде
             if (MorningMemory()) _memoryAt = now + 600;
             Persist();
             return;
@@ -157,16 +130,16 @@ public sealed partial class PetWindow
             else SayFavoriteWish();
             Persist();
         }
-        else if (!_save.FavFoodSaid && _save.FavFoodDay == today && hour is >= 10 and < 20 && _save.Fullness < 60 && _rng.Next(8) == 0)
+        else if (!_save.FavFoodSaid && hour is >= 10 and < 20 && _save.Fullness < 60 && _rng.Next(8) == 0)
             SayFavoriteWish();
     }
 
-    /// <summary>„Днес ми се яде…“ (веднъж на ден).</summary>
+    /// <summary>„Нещо ми се яде… / Дояде ми се…“ – напомня желанието (веднъж на ден).</summary>
     private void SayFavoriteWish()
     {
-        if (FavoriteFood is not { } f || _save.FavFoodSaid || TodayRec.FavFed || !Kitchen.FitsNow(f, DateTime.Now)) return;
+        if (FavoriteFood is not { } f || _save.FavFoodSaid) return;
         _save.FavFoodSaid = true;
-        Say(R.Put(R.Pick("fav.wish", _save.OwnerName), "храна", f.Name.ToLowerInvariant()), 5);
+        Say(R.Pick("wish.appear", _save.OwnerName).Replace("{ястие}", f.Name.ToLowerInvariant()), 5);
         Emote("hungry", 3);
     }
 

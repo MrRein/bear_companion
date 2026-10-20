@@ -357,7 +357,7 @@ public sealed partial class PetWindow
         // Странното желание – понякога го казва сам; иначе какво му се яде за това хранене.
         if (_rng.Next(6) == 0 && OddCravingNow is { } odd) return OddCravingLine(odd);
         if (_rng.Next(5) == 0 && Wishes() is { Length: > 0 } c)
-            return R.Pick("craving", _save.OwnerName).Replace("{ястие}", c[_rng.Next(c.Length)].Name.ToLowerInvariant());
+            return R.Pick("wish.appear", _save.OwnerName).Replace("{ястие}", c[_rng.Next(c.Length)].Name.ToLowerInvariant());
         if (_rng.Next(4) != 0) return null;
         int joy = JoyToday;
         if (joy >= 3) return R.Pick("mood.great", _save.OwnerName);

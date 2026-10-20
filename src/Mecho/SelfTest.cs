@@ -763,7 +763,8 @@ public sealed partial class PetWindow
                 _chat?.Hide();
             }
             LaterMemory();
-            if (FavoriteFood == null) throw new Exception("няма любима храна за днес");
+            // Какво му се яде = желанието (без отделна „любима храна“).
+            if (FavoriteFood != null && !Wishes().Contains(FavoriteFood)) throw new Exception("„какво му се яде“ не е от желанията");
             _save.FavFoodSaid = false;
             SayFavoriteWish();
             HideBubble();
@@ -1006,7 +1007,7 @@ public sealed partial class PetWindow
         }, 200);
         await step("реплики с {храна}: всички полета се попълват", () =>
         {
-            foreach (var key in new[] { "fav.wish", "fav.eaten", "memory.onefood", "memory.feast" })
+            foreach (var key in new[] { "memory.onefood", "memory.feast" })
                 foreach (var l in R.Get(key))
                 {
                     string line = R.Put(R.Put(R.Put(l, "храна", "мед"), "храна2", "чай"), "име", "Тут");
