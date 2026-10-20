@@ -127,6 +127,10 @@ def point_of(rgb):
 
 def import_sheet(path):
     sheet = Image.open(path).convert("RGBA")
+    # Точките може да са в отделен файл до листа (<лист>_points.png – слой само с точките,
+    # изнесен отделно от Aseprite). Тогава цветът под точката е този от листа, а не се гадае.
+    pts_path = os.path.splitext(path)[0] + "_points.png"
+    points = Image.open(pts_path).convert("RGBA") if os.path.exists(pts_path) else None
     # clothes_sheet_new.png → clothes_sheet_new.json (листът казва кой ред коя анимация е).
     name = os.path.splitext(os.path.basename(path))[0]
     if not os.path.exists(os.path.join(OUTDIR, f"{name}.json")):
@@ -140,6 +144,8 @@ def import_sheet(path):
         anim = r["anim"]
         strip = Image.open(os.path.join(BEAR, f"{anim}.png")).convert("RGBA")
         paint = Image.new("RGBA", strip.size, (0, 0, 0, 0))
+        old_paint_path = os.path.join(ac.PAINT, f"{anim}.png")
+        old_paint = Image.open(old_paint_path).convert("RGBA") if os.path.exists(old_paint_path) else None
         dots = {n: Image.new("RGBA", strip.size, (0, 0, 0, 0)) for n in ac.POINT_COLORS}
         old_dots = {}
         for n in ac.POINT_COLORS:
@@ -152,6 +158,11 @@ def import_sheet(path):
             for y in range(SIZE):
                 for x in range(SIZE):
                     p = sheet.getpixel((cell_x(f) + x, r["y"] + y))
+                    if points is not None:
+                        q = points.getpixel((cell_x(f) + x, r["y"] + y))
+                        if q[3] and (point := point_of(q[:3])):
+                            dots[point].putpixel((f * SIZE + x, y), ac.POINT_COLORS[point] + (255,))
+                            marked = True
                     if p[3] == 0:
                         continue
                     rgb = p[:3]
@@ -178,8 +189,13 @@ def import_sheet(path):
             around = [paint.getpixel((xx, yy)) for xx, yy in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1))
                       if 0 <= xx < paint.width and 0 <= yy < SIZE and xx // SIZE == x // SIZE]
             around = [p for p in around if p[3]]
-            if around:
-                paint.putpixel((x, y), max(set(around), key=around.count))
+            if not around:
+                continue
+            best = max(around.count(c) for c in set(around))
+            tied = {c for c in set(around) if around.count(c) == best}
+            # Равни съседи (ръкавица/блуза) – не се гадае: остава цветът от старата карта.
+            old_px = old_paint.getpixel((x, y)) if old_paint is not None and x < old_paint.width else (0, 0, 0, 0)
+            paint.putpixel((x, y), old_px if len(tied) > 1 and old_px in tied else max(tied, key=around.count))
         # Няколко точки от един вид в кадър (например бели очи, взети за шала):
         # остава тази, която е най-близо до мястото ѝ в другите кадри.
         for n, img in dots.items():
