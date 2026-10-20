@@ -1998,6 +1998,10 @@ public sealed partial class PetWindow
             if (newest.First().Title != "Тест: нова") throw new Exception("най-новата задача не е горе");
             SetTasksOldestFirst(true);
             if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Title != "Тест: поправена") throw new Exception("най-старата задача не е горе");
+            SetTasksSort(2);   // големите горе (поправената е голяма)
+            if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Size != 3) throw new Exception("„по големина“ не слага голямата горе");
+            SetTasksSort(3);
+            if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Size != 1) throw new Exception("„по големина ▲“ не слага малката горе");
             SetTasksOldestFirst(false);
             foreach (var x in _save.Tasks.Where(x => x.Title.StartsWith("Тест:")).ToList()) DeleteTask(x);
             var n = AddNote("Тест", "текст", pinned: false, quiet: true)!;

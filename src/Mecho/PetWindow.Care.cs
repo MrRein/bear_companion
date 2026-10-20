@@ -431,12 +431,29 @@ public sealed partial class PetWindow
         Persist();
     }
 
-    /// <summary>Несвършените задачи в избрания ред: тези в таблото – най-горе, после най-новите (или най-старите).</summary>
+    /// <summary>Подредбата на задачите: 0 най-нови, 1 най-стари, 2 по големина (големите горе), 3 по големина (малките горе).</summary>
+    public int TasksSort => _save.TasksSort is >= 0 and <= 3 ? _save.TasksSort : _save.TasksOldestFirst ? 1 : 0;
+
+    /// <summary>Несвършените задачи в избрания ред: тези в таблото – най-горе, после по подредбата.</summary>
     public System.Collections.Generic.List<TaskItem> OrderedTasks(bool boardOnly = false)
     {
         var open = _save.Tasks.Where(t => !t.Done && (!boardOnly || TaskOnBoard(t))).ToList();
-        if (!_save.TasksOldestFirst) open.Reverse();   // в ядрото новите са отзад
-        return open.OrderBy(t => TaskOnBoard(t) ? 0 : 1).ToList();
+        int sort = TasksSort;
+        if (sort != 1) open.Reverse();   // в ядрото новите са отзад; при еднаква големина – най-новите горе
+        var byBoard = open.OrderBy(t => TaskOnBoard(t) ? 0 : 1);
+        return (sort switch
+        {
+            2 => byBoard.ThenByDescending(t => t.Size),
+            3 => byBoard.ThenBy(t => t.Size),
+            _ => byBoard,
+        }).ToList();
+    }
+
+    public void SetTasksSort(int sort)
+    {
+        _save.TasksSort = ((sort % 4) + 4) % 4;
+        NotifyCare();
+        Persist();
     }
 
     /// <summary>Бележките в избрания ред: закачените – най-горе, после най-новите (или най-старите).</summary>
@@ -446,12 +463,7 @@ public sealed partial class PetWindow
             .OrderBy(n => n.Pinned ? 0 : 1)
             .ToList();
 
-    public void SetTasksOldestFirst(bool on)
-    {
-        _save.TasksOldestFirst = on;
-        NotifyCare();
-        Persist();
-    }
+    public void SetTasksOldestFirst(bool on) => SetTasksSort(on ? 1 : 0);
 
     public void SetNotesOldestFirst(bool on)
     {

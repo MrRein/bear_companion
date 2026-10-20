@@ -1791,7 +1791,7 @@ public sealed class MenuWindow : Window
         UpdateSizeButtons();
         root.Children.Add(p);
 
-        root.Children.Add(_taskSort = SortChip(() => _pet.Save.TasksOldestFirst, on => _pet.SetTasksOldestFirst(on)));
+        root.Children.Add(_taskSort = TaskSortChip());
         root.Children.Add(_taskScroll = new ScrollViewer
         {
             Content = _taskList,
@@ -1841,6 +1841,22 @@ public sealed class MenuWindow : Window
         _workBar.Visibility = list;
         Refresh(true);
         if (on && IsVisible) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
+    }
+
+    /// <summary>Подредбата на задачите – цъкаш и минава през четирите (закачените са винаги горе).</summary>
+    private Border TaskSortChip()
+    {
+        string[] names = { "▼ Най-нови", "▲ Най-стари", "▼ По големина", "▲ По големина" };
+        Border chip = null!;
+        chip = Chip(names[_pet.TasksSort], () =>
+        {
+            _pet.SetTasksSort(_pet.TasksSort + 1);
+            SetChip(chip, names[_pet.TasksSort]);
+        });
+        chip.ToolTip = Tip("Подредба (цъкни за следващата): най-новите горе, най-старите горе, големите горе, малките горе. Закачените са винаги най-отгоре.");
+        chip.HorizontalAlignment = HorizontalAlignment.Right;
+        chip.Margin = new Thickness(0, 0, 0, 6);
+        return chip;
     }
 
     /// <summary>„Най-нови / Най-стари“ – подредбата на списъка (закачените са винаги горе).</summary>
