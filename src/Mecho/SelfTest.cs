@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace Mecho;
@@ -720,7 +722,26 @@ public sealed partial class PetWindow
                 if (CurrentEmote != e) throw new Exception("емоцията не се показа: " + e);
                 UpdateLayoutAndWindow();
             }
+            // think е лента с кадри („.“ → „...“).
+            Emote("think");
+            if (CurrentEmote != "think" || _emoteFrames is not { Length: > 1 }) throw new Exception("think не е с кадри");
+            UpdateLayoutAndWindow();
         }, 800);
+        await step("храната се отхапва (пиксели, не смаляване)", () =>
+        {
+            var food = _lib.GetProp("food_cookies", 16, 16, 0).Image;
+            static int Opaque(BitmapSource b)
+            {
+                var c = new FormatConvertedBitmap(b, PixelFormats.Bgra32, null, 0);
+                var p = new uint[c.PixelWidth * c.PixelHeight];
+                c.CopyPixels(p, c.PixelWidth * 4, 0);
+                return p.Count(v => v >> 24 != 0);
+            }
+            var half = Nibbled(food, 1);
+            int all = Opaque(food), left = Opaque(half);
+            if (half.PixelWidth != food.PixelWidth || half.PixelHeight != food.PixelHeight) throw new Exception("размерът се смени");
+            if (left >= all || left < all * 0.4) throw new Exception($"изядени: {all - left} от {all}");
+        }, 300);
         await step("закачени задачи и бележки", () =>
         {
             AddTask("Тестова задача за прозорчето", 2);

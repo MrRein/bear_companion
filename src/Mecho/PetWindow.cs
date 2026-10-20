@@ -1310,6 +1310,9 @@ public sealed partial class PetWindow : Window
         _dresser.Book = TodaysBook;
         // Уморен: ако е нарисувана уморена версия (game_tired, write_tired…) – нея.
         string anim = IsExhausted && !IsResting && !_anim.EndsWith("_tired") && _lib.Has(_anim + "_tired") ? _anim + "_tired" : _anim;
+        // Мисли (think, think_tired…): точиците „...“ над главата, докато мисли (освен ако
+        // вече показва друга емоция – напр. крушката).
+        if (_anim.StartsWith("think") && CurrentEmote == null && IsVisible) Emote("think");
         int index = _lib.Get(anim).IndexAt(_animTime);
         var frame = _dresser.Frame(_lib, anim, index, EffectiveOutfit);
         var arms = _lib.Get(anim).ItemBelowArm ? _dresser.Arms(_lib, anim, index, frame) : null;

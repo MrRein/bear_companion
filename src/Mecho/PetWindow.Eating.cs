@@ -8,7 +8,8 @@ namespace Mecho;
 
 // Ядене: държи парчето в лапите и яде бавно, с паузи, както пие напитките.
 // Хапва (eat се върти няколко пъти), после само държи храната (eat_hold),
-// после пак хапва… С всяка хапка парчето е по-малко. Храната е в лапите:
+// после пак хапва… С всяка хапка изчезват пиксели отгоре надолу (накрая – около
+// половината), а размерът остава същият. Храната е в лапите:
 // точката е в eat_cup.png / eat_hold_cup.png и се мести с лапите кадър по кадър.
 public sealed partial class PetWindow
 {
@@ -17,6 +18,7 @@ public sealed partial class PetWindow
     private int _bitesLeft, _bitesTotal;
     private readonly System.Windows.Controls.Image _held = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
     private readonly Dictionary<BitmapSource, (int X, int Y)?> _heldPoints = new();
+    private BitmapSource? _heldWhole;   // храната цяла – от нея се махат изядените пиксели
 
     /// <summary>
     /// Яде или пие: не се прекъсва с други неща („Момент, сега ям.“). say=false –
@@ -32,7 +34,7 @@ public sealed partial class PetWindow
 
     private void StartEating(Food food, BitmapSource bite, bool last)
     {
-        _held.Source = bite;
+        _held.Source = _heldWhole = bite;
         _eating = food;
         _eatingLast = last;
         _bitesTotal = _bitesLeft = 4 + _rng.Next(3);
@@ -49,7 +51,11 @@ public sealed partial class PetWindow
         if (_rng.Next(3) == 0) Say(Lines.Pick(FoodTalk.For(food).Chew, _save.OwnerName), 2);
         Play("eat", length: _lib.Get("eat").Duration * (1 + _rng.Next(2)), after: () =>
         {
-            if (--_bitesLeft > 0) EatHold(2.5 + _rng.NextDouble() * 3.5);
+            if (--_bitesLeft > 0)
+            {
+                if (_heldWhole != null) _held.Source = Nibbled(_heldWhole, 1 - (double)_bitesLeft / _bitesTotal);
+                EatHold(2.5 + _rng.NextDouble() * 3.5);
+            }
             else EatDone();
         });
     }
@@ -58,7 +64,7 @@ public sealed partial class PetWindow
     {
         var food = _eating;
         _eating = null;
-        _held.Source = null;
+        _held.Source = _heldWhole = null;
         if (food == null) return;
         if (_eatingLast && _food.Count == 0)
         {
@@ -67,6 +73,28 @@ public sealed partial class PetWindow
         }
         // Изяде едно парче, а има още: понякога казва нещо кратко.
         else if (_rng.Next(10) < 3) Say(R.Pick("ate.piece", _save.OwnerName), 3);
+    }
+
+    /// <summary>
+    /// Отхапаното: от eaten 0 (цяло) до 1 (изядено) се махат до половината пиксели,
+    /// отгоре надолу, но разбъркано (не по права линия). Редът е винаги един и същ за
+    /// една рисунка. Прави се веднъж на хапка (4–6 пъти на ядене) – не забавя.
+    /// </summary>
+    private static BitmapSource Nibbled(BitmapSource whole, double eaten)
+    {
+        var src = whole.Format == System.Windows.Media.PixelFormats.Bgra32 ? whole
+            : new FormatConvertedBitmap(whole, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+        int w = src.PixelWidth, h = src.PixelHeight;
+        var px = new uint[w * h];
+        src.CopyPixels(px, w * 4, 0);
+        var rng = new Random(w * 7919 + h);
+        var order = Enumerable.Range(0, px.Length).Where(i => px[i] >> 24 != 0)
+            .Select(i => (i, key: i / w + rng.NextDouble() * 3)).OrderBy(p => p.key).Select(p => p.i).ToList();
+        int gone = (int)Math.Round(Math.Clamp(eaten, 0, 1) * 0.5 * order.Count);
+        for (int k = 0; k < gone; k++) px[order[k]] = 0;
+        var bmp = BitmapSource.Create(w, h, whole.DpiX, whole.DpiY, System.Windows.Media.PixelFormats.Bgra32, null, px, w * 4);
+        bmp.Freeze();
+        return bmp;
     }
 
     /// <summary>Изяде (или изпи) всичко: благодари за обяда/вечерята или казва нещо за яденето.</summary>
@@ -285,7 +313,7 @@ public sealed partial class PetWindow
         if (!on) return Rect.Empty;
         System.Windows.Media.RenderOptions.SetBitmapScalingMode(_held, System.Windows.Media.BitmapScalingMode.NearestNeighbor);
         var img = (BitmapSource)_held.Source!;
-        double scale = 0.8 * (0.45 + 0.55 * Math.Max(1, _bitesLeft) / Math.Max(1, _bitesTotal));
+        const double scale = 0.8;   // не се смалява – изяденото се маха като пиксели (Nibbled)
         double w = img.PixelWidth * PixelSize * scale, h = img.PixelHeight * PixelSize * scale;
         _held.Width = w;
         _held.Height = h;
