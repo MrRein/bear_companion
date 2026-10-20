@@ -186,12 +186,14 @@
     "doing_sit": {
       "file": "doing_sit.png",
       "fps": 4,
-      "loop": true
+      "loop": true,
+      "item_below_arm": true
     },
     "doing_sit_tired": {
       "file": "doing_sit_tired.png",
       "fps": 3,
-      "loop": true
+      "loop": true,
+      "item_below_arm": true
     },
     "hold": {
       "file": "hold.png",

@@ -446,6 +446,9 @@ public sealed class Dresser
     /// <summary>Слоевете на ръцете и краката (от картата на дрехите), които са над аксесоарите.</summary>
     private static readonly string[] LimbLayers = { "sleeves", "gloves", "shoes", "holes" };
 
+    /// <summary>Ръкавите и ръкавиците – над предмета в лапата, ако анимацията е с item_below_arm.</summary>
+    private static readonly string[] ArmLayers = { "sleeves", "gloves" };
+
     private static BitmapSource Dress(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit, string? book)
     {
         var frames = lib.Get(anim).Frames;
@@ -513,6 +516,25 @@ public sealed class Dresser
                 // Шал, очила и шапка са под ръцете: лапа пред тялото (слоят
                 // <anim>_front.png) остава отгоре. Снимката е от преди първия аксесоар.
                 if (slot != Clothes.Cup && slot != Clothes.Tool && !frontDone) under ??= (uint[])px.Clone();
+                // item_below_arm (anim.json): предметът е под ръкавите и ръкавиците – там не се рисува.
+                if (slot == Clothes.Tool && lib.Get(anim).ItemBelowArm)
+                {
+                    var beforeItem = (uint[])px.Clone();
+                    Blit(px, w, H, Pixels(art), art.PixelWidth, art.PixelHeight, ax - art.PixelWidth / 2, top + HatRoom);
+                    foreach (var layer in ArmLayers)
+                    {
+                        if (Pick(lib.Layer(anim, layer), index) is not { } arm) continue;
+                        var armPx = Pixels(arm);
+                        int aw = arm.PixelWidth;
+                        for (int i = 0; i < armPx.Length; i++)
+                        {
+                            if (armPx[i] >> 24 == 0) continue;
+                            int x = i % aw, y = i / aw;
+                            if (x < w && y + HatRoom < H) px[(y + HatRoom) * w + x] = beforeItem[(y + HatRoom) * w + x];
+                        }
+                    }
+                    continue;
+                }
                 Blit(px, w, H, Pixels(art), art.PixelWidth, art.PixelHeight, ax - art.PixelWidth / 2, top + HatRoom);
                 continue;
             }

@@ -16,6 +16,12 @@ public sealed class SpriteAnimation
     public double Fps { get; init; } = 4;
     public bool Loop { get; init; } = true;
 
+    /// <summary>
+    /// item_below_arm в anim.json: предметът в лапата (четка, карти, лейка…) е под ръкавите
+    /// и ръкавиците – където картата на дрехите води ръкав или ръкавица, предметът не се рисува.
+    /// </summary>
+    public bool ItemBelowArm { get; init; }
+
     public double Duration => Frames.Length / Fps;
 
     public BitmapSource FrameAt(double time) => Frames[IndexAt(time)];
@@ -55,6 +61,9 @@ public sealed class SpriteLibrary
         public string? File { get; set; }
         public double Fps { get; set; } = 4;
         public bool Loop { get; set; } = true;
+
+        [System.Text.Json.Serialization.JsonPropertyName("item_below_arm")]
+        public bool ItemBelowArm { get; set; }
     }
 
     private sealed class PropManifest
@@ -115,7 +124,7 @@ public sealed class SpriteLibrary
             var frames = lib.LoadStrip(entry.File ?? name + ".png");
             lib._files[name] = entry.File ?? name + ".png";
             if (frames != null)
-                lib._anims[name] = new SpriteAnimation { Frames = frames, Fps = Math.Max(0.1, entry.Fps), Loop = entry.Loop };
+                lib._anims[name] = new SpriteAnimation { Frames = frames, Fps = Math.Max(0.1, entry.Fps), Loop = entry.Loop, ItemBelowArm = entry.ItemBelowArm };
         }
 
         try
