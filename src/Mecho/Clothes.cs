@@ -444,7 +444,7 @@ public sealed class Dresser
     public string? Book { get; set; }
 
     /// <summary>Слоевете на ръцете и краката (от картата на дрехите), които са над аксесоарите.</summary>
-    private static readonly string[] LimbLayers = { "sleeves", "gloves", "shoes" };
+    private static readonly string[] LimbLayers = { "sleeves", "gloves", "shoes", "holes" };
 
     private static BitmapSource Dress(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit, string? book)
     {
@@ -458,7 +458,8 @@ public sealed class Dresser
 
         // Ръцете и краката – над шала, очилата и шапката: това, което картата на дрехите
         // води за ръкав (тъмночервено), ръкавица (зелено) и обувка (жълто) – с дреха или
-        // без (само с шал лапата пак е пред него). Сивото „отпред“ не изрязва.
+        // без (само с шал лапата пак е пред него) – и „дупките“ (<anim>_holes.png): неоцветеното
+        // или в непознат цвят под врата – книга, лъжица… Сивото „отпред“ не изрязва.
         void RestoreFront()
         {
             if (frontDone) return;

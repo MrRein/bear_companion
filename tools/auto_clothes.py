@@ -438,6 +438,24 @@ def layers_from(anim, strip, paint):
             layers[name] = Image.open(src).convert("RGBA")
         elif name in layers and name in ("cup", "tool"):
             del layers[name]
+    # „Дупките“: части от мечока, които картата не оцветява или са в непознат цвят (книга,
+    # лъжица, нещо в лапите…), от точката на врата надолу (главата и брадичката са над
+    # нея). И те са над шала.
+    if "neck" in layers:
+        holes = Image.new("RGBA", strip.size, (0, 0, 0, 0))
+        neck = layers["neck"]
+        for f in range(strip.width // SIZE):
+            ny = next((y for y in range(SIZE) for x in range(SIZE)
+                       if f * SIZE + x < neck.width and neck.getpixel((f * SIZE + x, y))[3]), None)
+            if ny is None:
+                continue
+            for y in range(ny, SIZE):
+                for x in range(f * SIZE, min((f + 1) * SIZE, paint.width)):
+                    p = paint.getpixel((x, y))
+                    unknown = p[3] < 128 or (nearest(p[:3], PART_COLORS) is None and nearest(p[:3], FRONT_COLORS) is None)
+                    if strip.getpixel((x, y))[3] and unknown:
+                        holes.putpixel((x, y), (255, 255, 255, 255))
+        layers["holes"] = holes
     os.makedirs(LAYERS, exist_ok=True)
     for name, img in layers.items():
         img.save(os.path.join(LAYERS, f"{anim}_{name}.png"))
@@ -498,7 +516,9 @@ def all_anims():
     """Нарисуваните от Тут (временните си имат точни шаблони от make_placeholders.py)."""
     sys.path.insert(0, os.path.dirname(__file__))
     import make_placeholders as mp
-    return sorted(mp.HAND_DRAWN | set(mp.EXTRA_DRAWN) | {"eat_hold"})
+    names = mp.HAND_DRAWN | set(mp.EXTRA_DRAWN) | {"eat_hold"}
+    # Само тези, които още ги има (махнатите анимации – без тях).
+    return sorted(n for n in names if os.path.exists(os.path.join(BEAR, f"{n}.png")))
 
 
 if __name__ == "__main__":
