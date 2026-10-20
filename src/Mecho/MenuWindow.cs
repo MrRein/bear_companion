@@ -2049,7 +2049,9 @@ public sealed class MenuWindow : Window
         });
         _remToggle.ToolTip = Tip("Мечокът ще ти напомни за тази бележка");
         _remToggle.VerticalAlignment = VerticalAlignment.Center;
-        p.Children.Add(new WrapPanel { Margin = new Thickness(0, 8, 0, 0), Children = { save, _newPinned, _remToggle } });
+        _remToggle.Margin = new Thickness(0, 0, 8, 0);
+        var cancel = Button("Отказ", () => ShowNewNote(false));
+        p.Children.Add(new WrapPanel { Margin = new Thickness(0, 8, 0, 0), Children = { save, _newPinned, _remToggle, cancel } });
         root.Children.Add(p);
         root.Children.Add(BuildReminderPanel());
 

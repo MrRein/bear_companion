@@ -443,6 +443,9 @@ public sealed class Dresser
     /// </summary>
     public string? Book { get; set; }
 
+    /// <summary>Слоевете на ръцете и краката (от картата на дрехите), които са над аксесоарите.</summary>
+    private static readonly string[] LimbLayers = { "front", "sleeves", "gloves", "shoes" };
+
     private static BitmapSource Dress(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit, string? book)
     {
         var frames = lib.Get(anim).Frames;
@@ -453,19 +456,25 @@ public sealed class Dresser
         uint[]? under = null;
         bool frontDone = false;
 
-        // Ръцете отпред (<anim>_front.png) – над шала, очилата и шапката.
+        // Ръцете и краката – над шала, очилата и шапката: ръцете отпред (<anim>_front.png)
+        // и всичко, което картата води за ръкави, ръкавици и обувки – с дреха или без
+        // (само с шал лапата пак е пред него).
         void RestoreFront()
         {
             if (frontDone) return;
             frontDone = true;
-            if (under == null || Pick(lib.Layer(anim, "front"), index) is not { } front) return;
-            var arms = Pixels(front);
-            int fw = front.PixelWidth;
-            for (int i = 0; i < arms.Length; i++)
+            if (under == null) return;
+            foreach (var layer in LimbLayers)
             {
-                if (arms[i] >> 24 == 0) continue;
-                int x = i % fw, y = i / fw;
-                if (x < w && y + HatRoom < H) px[(y + HatRoom) * w + x] = under[(y + HatRoom) * w + x];
+                if (Pick(lib.Layer(anim, layer), index) is not { } limb) continue;
+                var limbPx = Pixels(limb);
+                int lw = limb.PixelWidth;
+                for (int i = 0; i < limbPx.Length; i++)
+                {
+                    if (limbPx[i] >> 24 == 0) continue;
+                    int x = i % lw, y = i / lw;
+                    if (x < w && y + HatRoom < H) px[(y + HatRoom) * w + x] = under[(y + HatRoom) * w + x];
+                }
             }
         }
 
