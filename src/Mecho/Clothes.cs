@@ -481,7 +481,13 @@ public sealed class Dresser
 
         foreach (var slot in Clothes.Slots)
         {
-            if (!outfit.TryGetValue(slot.Id, out var id) || Clothes.Find(id) is not { } g || g.SlotId != slot.Id) continue;
+            if (!outfit.TryGetValue(slot.Id, out var id)) continue;
+            // Предметът в лапата (карти, китара, четка…) и напитката не са дрехи от гардероба:
+            // стига им рисунката (tool_<id>.png, drink_<id>.png). Преди искаха и запис в
+            // списъка с дрехите – картите и китарата ги нямаше там и не се показваха.
+            var g = Clothes.Find(id);
+            bool prop = slot == Clothes.Tool || slot == Clothes.Cup;
+            if (!prop && (g == null || g.SlotId != slot.Id)) continue;
             // Лапите държат нещо пред гърдите (книжка, джойстик, молив, чаша, четка,
             // лейка…): шалът, папийонката и колието не се рисуват – иначе са върху предмета.
             if (slot == Clothes.Neck && (HandsBusy.Contains(anim) || lib.Layer(anim, "book") != null)) continue;
@@ -492,7 +498,7 @@ public sealed class Dresser
             {
                 // Рисунка на точка: шапка (долният ѝ ред на точката), очила (средата),
                 // шал (горният ред). Без точка в тази анимация (сън) не се слага.
-                var art = lib.Clothes(slot.Sprite + "_" + g.Id);
+                var art = lib.Clothes(slot.Sprite + "_" + id);
                 var point = Pick(lib.Layer(anim, slot.Layer), index);
                 if (art == null || point == null) continue;
                 var anchor = FirstPixel(Pixels(point), point.PixelWidth, point.PixelHeight);
@@ -512,6 +518,7 @@ public sealed class Dresser
             }
 
             // Нарисувана дреха (цветна) или сив шаблон, който оцветяваме.
+            if (g == null) continue;
             var own = Pick(lib.Layer(anim, slot.Layer + "_" + g.Id), index);
             if (own != null)
             {

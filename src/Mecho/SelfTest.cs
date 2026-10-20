@@ -1916,6 +1916,32 @@ public sealed partial class PetWindow
             LeaveScene();
             SetIdle();
         }, 300);
+        await step("лапите: картите на настолната игра наистина се рисуват", () =>
+        {
+            var empty = new Dictionary<string, string>();
+            // Рисува мечока с предмета и без него: картинките трябва да се различават.
+            bool Drawn(string anim, string tool)
+            {
+                var bare = new Dresser().Frame(_lib, anim, 0, empty);
+                var with = new Dresser().Frame(_lib, anim, 0, new Dictionary<string, string> { [Clothes.Tool.Id] = tool });
+                int stride = bare.PixelWidth * 4;
+                var a = new byte[stride * bare.PixelHeight];
+                var b = new byte[stride * with.PixelHeight];
+                bare.CopyPixels(a, stride, 0);
+                with.CopyPixels(b, stride, 0);
+                return !a.AsSpan().SequenceEqual(b);
+            }
+            foreach (var scene in new[] { Scenes.Board, Scenes.BoardPlay })
+            {
+                StartScene(scene, quiet: true);
+                _anim = "doing_sit";
+                if (!WithCup(empty).TryGetValue(Clothes.Tool.Id, out var cards) || !cards.StartsWith("cards_")) throw new Exception(scene.Id + ": без карти в лапите");
+                if (_lib.Clothes("tool_" + cards) == null) throw new Exception("няма рисунка tool_" + cards);
+                if (!Drawn("doing_sit", cards)) throw new Exception(scene.Id + ": картите не се рисуват");
+                LeaveScene();
+            }
+            SetIdle();
+        }, 400);
         await step("програмите на Тут: познава ги и има реплики за всеки вид", () =>
         {
             var kinds = LoadAppKinds();
