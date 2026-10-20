@@ -33,7 +33,7 @@ SIZE, GAP, LABEL = 32, 2, 96
 
 
 def anims():
-    return sorted(mp.HAND_DRAWN | set(mp.EXTRA_DRAWN) | {"eat_hold"})
+    return ac.all_anims()   # нарисуваните, които ги има (без махнатите)
 
 
 def layout(names=None):
