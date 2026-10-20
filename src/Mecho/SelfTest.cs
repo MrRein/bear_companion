@@ -2090,21 +2090,31 @@ public sealed partial class PetWindow
             if (MinutesText(90) != "1 ч 30 мин" || MinutesText(15) != "15 мин") throw new Exception("MinutesText");
             _menu?.Hide();
         }, 200);
-        await step("напомняне: скрит – появява се", () =>
+        NoteItem? popNote = null;
+        await step("напомняне: скрит – влиза с ходене от ръба", () =>
         {
-            var n = AddNote("Тест: появи се", quiet: true)!;
-            SetNoteReminder(n, DateTime.Now.AddMinutes(-1), "none");
+            popNote = AddNote("Тест: появи се", quiet: true)!;
+            SetNoteReminder(popNote, DateTime.Now.AddMinutes(-1), "none");
+            if (_inScene) LeaveScene();
+            SetIdle();
+            _x = Area.Left + SpriteWidth;   // близо до ръба – кратко ходене
             HideBubble();
             Hide();
-            PopInForReminder(ReminderFor(n)!);
-            if (!IsVisible || !ChatIsOpen) throw new Exception("не се появи да напомни");
-            DeleteNote(n);
-            _chat?.Hide();
-        }, 3600);
-        await step("напомняне: пак се скрива", () =>
+            PopInForReminder(ReminderFor(popNote)!);
+            if (!IsVisible || _state != BearState.Walk) throw new Exception("не влиза с ходене да напомни");
+            if (_x > Area.Left) throw new Exception("не влиза иззад ръба");
+        }, 4500);
+        await step("напомняне: стигна и пита", () =>
         {
-            if (IsVisible) throw new Exception("не се скри след напомнянето");
+            if (!ChatIsOpen) throw new Exception("влезе, но не напомни");
+            DeleteNote(popNote!);
+            _chat?.Hide();
+        }, 8000);
+        await step("напомняне: пак излиза с ходене и се скрива", () =>
+        {
+            if (IsVisible) throw new Exception("не излезе след напомнянето");
             ShowBear();
+            SetIdle();
         }, 300);
         await step("легло: колко да спи", () =>
         {

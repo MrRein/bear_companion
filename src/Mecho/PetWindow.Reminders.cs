@@ -156,8 +156,8 @@ public sealed partial class PetWindow
             return;
         }
         _popIn = "hidden";
-        ShowBear();
-        AskReminder(r);
+        _reminderAsked[r.Id] = Now;   // докато влиза, да не го вика пак
+        ComeBackFromEdge(() => AskReminder(r));
     }
 
     /// <summary>Балончето се затвори: ако е дошъл само за напомнянето – след малко пак си отива.</summary>
@@ -170,11 +170,7 @@ public sealed partial class PetWindow
             string mode = _popIn;
             _popIn = null;
             if (MenuIsOpen || _state == BearState.Drag) return;   // Тут се занимава с него – остава
-            if (mode == "hidden")
-            {
-                HideBubble();
-                Hide();
-            }
+            if (mode == "hidden") LeaveThroughEdge();   // пак си отива с ходене през ръба
             else if (mode == "walk" && _popWalkLeft >= 1 && !OnWalk)
             {
                 GoForWalk(_popWalkLeft, solo: _popWalkSolo);

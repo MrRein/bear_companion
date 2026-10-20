@@ -144,7 +144,7 @@ public sealed class TrayIcon : IDisposable
 
     private void Show()
     {
-        _pet.ShowBear();
+        _pet.ComeBackFromEdge();   // влиза с ходене иззад ръба (спи/в кътче – направо там)
         if (_pet.DrawingsHidden) _pet.SetDrawingsHidden(false);
     }
 

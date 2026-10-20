@@ -894,7 +894,7 @@ public sealed partial class PetWindow
             {
                 _timerBadge.Hide();
                 if (OnWalk) ReturnFromWalk(called: true);
-                else ShowBear();
+                else ComeBackFromEdge();
             };
         }
         string text = string.Join("   ", parts);

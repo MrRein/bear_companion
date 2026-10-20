@@ -113,10 +113,15 @@ public sealed partial class PetWindow
         // Ако още работим, влиза поне 1/5 от екрана навътре и чак тогава сяда да работи.
         double depth = InFocus ? Math.Max(SpriteWidth * 1.5, area.Width / 5) : SpriteWidth * 1.5;
         double inside = left ? area.Left + depth : area.Right - depth;
-        _x = left ? area.Left - SpriteWidth / 2 : area.Right + SpriteWidth / 2;
-        _y = Ground(area.Bottom);
+        // Повикан, докато още вървеше към ръба (видим е): обръща се и се връща оттам,
+        // вместо изведнъж да се озове зад ръба.
+        if (!IsVisible)
+        {
+            _x = left ? area.Left - SpriteWidth / 2 : area.Right + SpriteWidth / 2;
+            _y = Ground(area.Bottom);
+            ShowBear();   // вече на новото място (иначе за миг се мярка там, откъдето излезе)
+        }
         _walkingBack = true;
-        ShowBear();   // вече на новото място (иначе за миг се мярка там, откъдето излезе)
         WalkTo(inside, () =>
         {
             _walkingBack = false;
@@ -131,5 +136,51 @@ public sealed partial class PetWindow
             React("happy");
         });
         NotifyCare();
+    }
+
+    /// <summary>
+    /// Скрит (без разходка) – появява се с влизане иззад по-близкия ръб и ходене до
+    /// мястото си; спи или е в кътче – направо там (да не прекъсва съня/заниманието).
+    /// </summary>
+    public void ComeBackFromEdge(Action? arrived = null)
+    {
+        if (IsVisible || OnWalk)
+        {
+            arrived?.Invoke();
+            return;
+        }
+        if (IsAsleep || _inScene || _state is not (BearState.Idle or BearState.Walk))
+        {
+            ShowBear();
+            arrived?.Invoke();
+            return;
+        }
+        var area = Area;
+        double spot = Math.Clamp(_x, area.Left + SpriteWidth, area.Right - SpriteWidth);
+        bool left = spot - area.Left < area.Right - spot;
+        _x = left ? area.Left - SpriteWidth / 2 : area.Right + SpriteWidth / 2;
+        _y = Ground(area.Bottom);
+        _walkingBack = true;
+        ShowBear();
+        WalkTo(spot, () =>
+        {
+            _walkingBack = false;
+            arrived?.Invoke();
+        });
+    }
+
+    /// <summary>Излиза с ходене през по-близкия ръб и се скрива (напр. след напомняне, ако беше скрит).</summary>
+    private void LeaveThroughEdge()
+    {
+        if (!IsVisible) return;
+        var area = Area;
+        bool left = _x - area.Left < area.Right - _x;
+        _peeking = true;   // докато излиза, не се връща в екрана
+        WalkTo(left ? area.Left - SpriteWidth / 2 : area.Right + SpriteWidth / 2, () =>
+        {
+            _peeking = false;
+            HideBubble();
+            Hide();
+        });
     }
 }
