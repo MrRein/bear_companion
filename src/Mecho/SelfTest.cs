@@ -1932,7 +1932,21 @@ public sealed partial class PetWindow
             SetIdle();
             CancelCrossing();
             if (!IsVisible || _crossPhase != 0) throw new Exception("остана скрит след прекъснато минаване");
+            if (_state != BearState.Walk) throw new Exception("прекъснат, не влиза с ходене");
         }, 300);
+        await step("няколко екрана: влиза с ходене и после е на земята", () =>
+        {
+            if (_crossEntering && _state != BearState.Walk) throw new Exception("влизането спря насред ръба");
+            _crossEntering = false;
+            SetIdle();
+            // Скрит – не пита нищо (въпросите не излизат до празното място).
+            _menu?.Hide();
+            _chat?.Hide();
+            Hide();
+            Ask(new ChatQuestion("Тест: скрит?", new ChatOption("Да", _ => { })));
+            if (ChatIsOpen) throw new Exception("скрит мечок пита");
+            ShowBear();
+        }, 2500);
         await step("лапите: картите на настолната игра наистина се рисуват", () =>
         {
             var empty = new Dictionary<string, string>();

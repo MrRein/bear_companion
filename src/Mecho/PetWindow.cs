@@ -372,7 +372,8 @@ public sealed partial class PetWindow : Window
         UpdatePajamas();
         P("пижами");
 
-        if (_state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
+        // Докато влиза иззад ръба на друг екран, е още „над“ стария: земята там не важи.
+        if (!_crossEntering && _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
         {
             // Земята: нарисувана платформа или долният край (лентата със задачи може да се е преместила).
             double ground = Ground(_y);
@@ -385,7 +386,7 @@ public sealed partial class PetWindow : Window
                 SetState(BearState.Falling, _inScene ? _anim : "drag");
             }
             else _y = ground;
-            if (!_peeking && !_walkingOut && !_walkingBack && !GardenOffscreenOk) ClampX();
+            if (!_peeking && !_walkingOut && !_walkingBack && !_crossEntering && !GardenOffscreenOk) ClampX();
         }
 
         if (_bubble.Visibility == Visibility.Visible && now > _bubbleUntil) HideBubble();
@@ -1159,6 +1160,9 @@ public sealed partial class PetWindow : Window
     /// <summary>Мечокът пита нещо и показва бутони за отговор.</summary>
     public void Ask(ChatQuestion question)
     {
+        // Скрит (Тут го е скрила, на разходка е или минава към друг екран): не пита нищо –
+        // освен ако Тут сама е избрала нещо от менюто (то е на фокус) или е дошъл за напомняне.
+        if (!IsVisible && !MenuIsActive && _popIn == null) return;
         if (MenuIsOpen) _menu!.Hide();
         HideBubble();
         _chat ??= new ChatWindow(this);
