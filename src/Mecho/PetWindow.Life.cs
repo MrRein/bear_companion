@@ -315,6 +315,7 @@ public sealed partial class PetWindow
 
     private void FindSomething()
     {
+        Emote("think", 1.5);
         Play("think", length: 1.5, after: () =>
         {
             Say(R.Pick("found", _save.OwnerName), 4);

@@ -207,7 +207,9 @@ public sealed partial class PetWindow
             ? $"Ех, да имах {missing[_rng.Next(missing.Count)].Name.ToLowerInvariant()}…"
             : Lines.Pick(Lines.Wondering, _save.OwnerName);
         Announce(line, 4);
-        Play(_rng.Next(2) == 0 ? "think" : "idle", length: 3 + _rng.Next(3));
+        bool thinks = _rng.Next(2) == 0;
+        Play(thinks ? "think" : "idle", length: 3 + _rng.Next(3));
+        if (thinks) Emote("think", 3);
     }
 
     // ───────────────────────── Наднича иззад ръба ─────────────────────────

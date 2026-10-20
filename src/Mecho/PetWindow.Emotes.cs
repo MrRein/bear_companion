@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Mecho;
 
@@ -35,12 +37,35 @@ public sealed partial class PetWindow
             : Ui.LoadIcon("emote_" + name) is { } raw ? Ui.Themed(raw) : null;
         if (img == null) return;
         _emoteName = name;
-        _emote.Source = img;
-        _emote.Width = img.PixelWidth * EmoteScale;
-        _emote.Height = img.PixelHeight * EmoteScale;
+        // Лента с кадри (по-широка, кадрите са квадратни – напр. think: „.“, „..“, „...“):
+        // върви по веднъж и спира на последния.
+        _emoteFrames = img.PixelWidth > img.PixelHeight && img.PixelWidth % img.PixelHeight == 0 ? EmoteFrames(name, img) : null;
+        var first = _emoteFrames?[0] ?? img;
+        _emote.Source = first;
+        _emote.Width = first.PixelWidth * EmoteScale;
+        _emote.Height = first.PixelHeight * EmoteScale;
         _emoteStart = Now;
         _emoteUntil = Now + seconds;
         _emote.Visibility = Visibility.Visible;
+    }
+
+    private const double EmoteFps = 4;
+    private BitmapSource[]? _emoteFrames;
+    private readonly Dictionary<string, BitmapSource[]> _emoteStrips = new();
+
+    private BitmapSource[] EmoteFrames(string name, BitmapSource strip)
+    {
+        if (_emoteStrips.TryGetValue(name, out var frames)) return frames;
+        int size = strip.PixelHeight;
+        frames = new BitmapSource[strip.PixelWidth / size];
+        for (int i = 0; i < frames.Length; i++)
+        {
+            var frame = new CroppedBitmap(strip, new Int32Rect(i * size, 0, size, size));
+            frame.Freeze();
+            frames[i] = frame;
+        }
+        _emoteStrips[name] = frames;
+        return frames;
     }
 
     /// <summary>Колкото пикселите на мечока – следва мащаба.</summary>
@@ -60,6 +85,11 @@ public sealed partial class PetWindow
             return Rect.Empty;
         }
         double t = now - _emoteStart;
+        if (_emoteFrames is { } frames)
+        {
+            var frame = frames[Math.Min(frames.Length - 1, (int)(t * EmoteFps))];
+            if (!ReferenceEquals(_emote.Source, frame)) _emote.Source = frame;
+        }
         double pop = t < 0.18 ? 0.5 + t / 0.18 * 0.65 : t < 0.3 ? 1.15 - (t - 0.18) / 0.12 * 0.15 : 1;
         _emote.Opacity = Math.Clamp((_emoteUntil - now) / 0.4, 0, 1);
         double bob = Math.Round(Math.Sin(t * 4) * PixelSize * 0.5);

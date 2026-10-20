@@ -640,7 +640,7 @@ public sealed partial class PetWindow
         // Работи: мисли, пише в тефтера, чете (ненарисуваните още – прескача).
         var anims = new[] { "focus", "focus", "think", "focus_write", "write_sit", "read" }.Where(_lib.Has).ToArray();
         string next = anims[_rng.Next(anims.Length)];
-        if (next == "think" && _rng.Next(3) == 0) Emote("idea");
+        if (next == "think") Emote(_rng.Next(3) == 0 ? "idea" : "think", 3);
         if (next != _anim)
         {
             _anim = next;
