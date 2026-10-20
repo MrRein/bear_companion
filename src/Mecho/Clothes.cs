@@ -290,9 +290,9 @@ public sealed class Dresser
 
     public static readonly HashSet<string> HandsBusy = new()
     {
-        "knit", "knit_tired", "guitar", "guitar_tired", "walk_gift", "walk_gift_pink", "walk_gift_green", "walk_gift_yellow", "walk_gift_purple", "walk_gift_red",
+        "knit", "knit_tired", "guitar", "guitar_tired",
         "read", "read_sleep", "game", "game_tired", "write", "write_tired", "write_sit", "write_sit_tired", "dice_sit_boardgame", "dice_sit_boardgame_tired", "focus", "focus_tired",
-        "focus_write", "paint", "doing", "doing_tired", "doing_sit", "doing_sit_tired", "water", "eat", "eat_hold",
+        "focus_write", "doing", "doing_tired", "doing_sit", "doing_sit_tired", "eat", "eat_hold",
         "sit_drinking", "sit_drinking_sip", "sit_drinking_blow", "cook", "cook_tired", "dice", "hold", "hold_walk",
     };
 

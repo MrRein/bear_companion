@@ -40,8 +40,8 @@ public sealed partial class PetWindow
 
     private string GiftArt(bool open = false) => "gift" + GiftSuffix + (open ? "_open" : "");
 
-    /// <summary>Носи го пред себе си: hold_walk (стари рисунки: walk_gift в цвета на подаръка).</summary>
-    private string GiftWalk => _lib.Has("hold_walk") ? "hold_walk" : _lib.Has("walk_gift" + GiftSuffix) ? "walk_gift" + GiftSuffix : "walk_gift";
+    /// <summary>Носи го пред себе си: hold_walk (подаръкът е отделна рисунка в лапите).</summary>
+    private string GiftWalk => _lib.Has("hold_walk") ? "hold_walk" : "walk";
 
     private string GiftHoldAnim => _lib.Has("hold") ? "hold" : "idle";
 
@@ -282,8 +282,6 @@ public sealed partial class PetWindow
     private Rect CarryRect(Rect bear)
     {
         bool on = CarriesGift && _state is BearState.Walk or BearState.Busy;
-        // Старата рисунка walk_gift е с подаръка в самата нея.
-        if (on && _anim.StartsWith("walk_gift") && _lib.Has(_anim)) on = false;
         _carry.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         if (!on) return Rect.Empty;
         var img = _lib.GetProp(GiftArt(), 16, 16, 0).Image;
