@@ -449,6 +449,41 @@ public sealed class Dresser
     /// <summary>Ръкавите и ръкавиците – над предмета в лапата, ако анимацията е с item_below_arm.</summary>
     private static readonly string[] ArmLayers = { "sleeves", "gloves" };
 
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<BitmapSource, BitmapSource> _arms = new();
+
+    /// <summary>
+    /// Само ръкавите и ръкавиците от облечения кадър (останалото прозрачно) – слага се над
+    /// това, което държи отделно от кадъра (храна, подарък, саксия), за item_below_arm.
+    /// Null, ако в кадъра няма ръце по картата.
+    /// </summary>
+    public BitmapSource? Arms(SpriteLibrary lib, string anim, int index, BitmapSource dressed)
+    {
+        if (_arms.TryGetValue(dressed, out var done)) return done;
+        int w = dressed.PixelWidth, H = dressed.PixelHeight;
+        var src = Pixels(dressed);
+        var px = new uint[w * H];
+        bool any = false;
+        foreach (var layer in ArmLayers)
+        {
+            if (Pick(lib.Layer(anim, layer), index) is not { } arm) continue;
+            var armPx = Pixels(arm);
+            int aw = arm.PixelWidth;
+            for (int i = 0; i < armPx.Length; i++)
+            {
+                if (armPx[i] >> 24 == 0) continue;
+                int x = i % aw, y = i / aw + HatRoom;
+                if (x >= w || y >= H) continue;
+                px[y * w + x] = src[y * w + x];
+                any = true;
+            }
+        }
+        if (!any) return null;
+        var bmp = BitmapSource.Create(w, H, 96, 96, PixelFormats.Bgra32, null, px, w * 4);
+        bmp.Freeze();
+        _arms.Add(dressed, bmp);
+        return bmp;
+    }
+
     private static BitmapSource Dress(SpriteLibrary lib, string anim, int index, IReadOnlyDictionary<string, string> outfit, string? book)
     {
         var frames = lib.Get(anim).Frames;
@@ -517,7 +552,7 @@ public sealed class Dresser
                 // <anim>_front.png) остава отгоре. Снимката е от преди първия аксесоар.
                 if (slot != Clothes.Cup && slot != Clothes.Tool && !frontDone) under ??= (uint[])px.Clone();
                 // item_below_arm (anim.json): предметът е под ръкавите и ръкавиците – там не се рисува.
-                if (slot == Clothes.Tool && lib.Get(anim).ItemBelowArm)
+                if ((slot == Clothes.Tool || slot == Clothes.Cup) && lib.Get(anim).ItemBelowArm)
                 {
                     var beforeItem = (uint[])px.Clone();
                     Blit(px, w, H, Pixels(art), art.PixelWidth, art.PixelHeight, ax - art.PixelWidth / 2, top + HatRoom);

@@ -2045,12 +2045,11 @@ def gift_opened(img):
 
 
 def save_gifts():
-    """Подаръците на Тут във всички цветове: кутията, отворена, в скута и анимацията с подаръка."""
+    """Подаръците на Тут във всички цветове: кутията, отворена и анимацията с подаръка (в лапите е кутията)."""
     gift = os.path.join(DONE_ART, "gift.png")
     if not os.path.exists(gift):
         return
     box = Image.open(gift).convert("RGBA")
-    hold = Image.open(os.path.join(DONE_ART, "gift_hold.png")).convert("RGBA") if os.path.exists(os.path.join(DONE_ART, "gift_hold.png")) else None
     walk = Image.open(os.path.join(OUT, "walk_gift.png")).convert("RGBA") if os.path.exists(os.path.join(OUT, "walk_gift.png")) else None
     with open(os.path.join(OUT, "anim.json"), encoding="utf-8") as fh:
         manifest = json.load(fh)
@@ -2059,8 +2058,6 @@ def save_gifts():
         closed = recolor_gift(box, color)
         closed.save(os.path.join(PROPS, f"gift{sfx}.png"))
         gift_opened(closed).save(os.path.join(PROPS, f"gift{sfx}_open.png"))
-        if hold is not None:
-            recolor_gift(hold, color).save(os.path.join(PROPS, f"gift_hold{sfx}.png"))
         if walk is not None and color:
             # Анимацията в цвета на подаръка (дрехите – същите шаблони като walk_gift).
             recolor_gift(walk, color).save(os.path.join(OUT, f"walk_gift{sfx}.png"))
@@ -2077,7 +2074,8 @@ def save_gifts():
         props = json.load(fh)
     for color in GIFT_RECOLOR:
         sfx = "_" + color if color else ""
-        for name in (f"gift{sfx}", f"gift{sfx}_open", f"gift_hold{sfx}"):
+        props["props"].pop(f"gift_hold{sfx}", None)   # в лапите е самата кутия (gift)
+        for name in (f"gift{sfx}", f"gift{sfx}_open"):
             if os.path.exists(os.path.join(PROPS, name + ".png")):
                 props["props"][name] = {"file": name + ".png", "seat": 0}
     with open(props_path, "w", encoding="utf-8") as fh:

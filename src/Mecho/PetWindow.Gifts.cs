@@ -278,19 +278,24 @@ public sealed partial class PetWindow
         }
     }
 
-    /// <summary>Подаръкът в лапите му (носи го или го държи): пред корема, на височината на лапите.</summary>
+    /// <summary>
+    /// Подаръкът (носи го или го държи) или саксията в лапите му: средата е на синята точка,
+    /// в прозореца на мечока – за да са ръкавите отгоре (item_below_arm).
+    /// </summary>
     private Rect CarryRect(Rect bear)
     {
-        bool on = CarriesGift && _state is BearState.Walk or BearState.Busy;
-        _carry.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-        if (!on) return Rect.Empty;
-        var img = _lib.GetProp(GiftArt(), 16, 16, 0).Image;
+        bool gift = CarriesGift && _state is BearState.Walk or BearState.Busy;
+        bool plant = !gift && PlantInPaws && _plantOut > 0;
+        _carry.Visibility = gift || plant ? Visibility.Visible : Visibility.Collapsed;
+        if (!gift && !plant) return Rect.Empty;
+        var img = gift ? _lib.GetProp(GiftArt(), 16, 16, 0).Image : _lib.GetProp(PlantArt, (int)PlantW, (int)PlantH, 0).Image;
         if (_carry.Source != img)
         {
             _carry.Source = img;
             RenderOptions.SetBitmapScalingMode(_carry, BitmapScalingMode.NearestNeighbor);
         }
-        double w = img.PixelWidth * PixelSize * 0.75, h = img.PixelHeight * PixelSize * 0.75;
+        double scale = gift ? 0.75 : 1;
+        double w = img.PixelWidth * PixelSize * scale, h = img.PixelHeight * PixelSize * scale;
         _carry.Width = w;
         _carry.Height = h;
         // Средата на подаръка е на синята точка (hold_sheet). Без точка: hold/hold_walk са с лице
@@ -300,8 +305,12 @@ public sealed partial class PetWindow
             var (px, py) = p;
             if (_facingLeft) px = _lib.FrameWidth - 1 - px;
             double cx = bear.Left + (px + 0.5) * PixelSize, cy = bear.Top + (py + 0.5) * PixelSize;
-            return new Rect(cx - w / 2, cy - h / 2, w, h);
+            // Саксията е по-висока от мечока: не слиза под земята (прозорецът свършва там).
+            double top = Math.Min(cy - h / 2, bear.Bottom - h);
+            return new Rect(cx - w / 2, top, w, h);
         }
+        if (plant)   // без точка: точно пред него, дъното на височината на лапите
+            return new Rect(bear.Left + bear.Width / 2 - w / 2, bear.Bottom - 9 * PixelSize - h, w, h);
         double bob = _state == BearState.Walk ? Math.Abs(Math.Sin(Now * 8)) * PixelSize : 0;
         return new Rect(bear.Left + bear.Width / 2 - w / 2, bear.Top + bear.Height * 0.68 - h / 2 - bob, w, h);
     }

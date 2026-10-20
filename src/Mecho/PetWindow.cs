@@ -40,6 +40,8 @@ public sealed partial class PetWindow : Window
     private readonly Random _rng = new();
     private readonly Canvas _root = new();
     private readonly Image _sprite = new();
+    // item_below_arm: ръкавите и ръкавиците отново, над храната/подаръка/саксията в лапите.
+    private readonly Image _armsOver = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed };
     private readonly Image _seat = new();   // седалката на кътчето (диван, столче, постелка)
     private readonly Image _side = new();   // предметът до мечока (компютър, статив…)
     private readonly Border _bubble;
@@ -122,6 +124,8 @@ public sealed partial class PetWindow : Window
         SnapsToDevicePixels = true;
 
         RenderOptions.SetBitmapScalingMode(_sprite, BitmapScalingMode.NearestNeighbor);
+        RenderOptions.SetBitmapScalingMode(_armsOver, BitmapScalingMode.NearestNeighbor);
+        _armsOver.RenderTransformOrigin = new Point(0.5, 0.5);
         RenderOptions.SetBitmapScalingMode(_seat, BitmapScalingMode.NearestNeighbor);
         RenderOptions.SetBitmapScalingMode(_side, BitmapScalingMode.NearestNeighbor);
         _sprite.RenderTransformOrigin = new Point(0.5, 0.5);
@@ -159,6 +163,7 @@ public sealed partial class PetWindow : Window
         _root.Children.Add(_sprite);
         _root.Children.Add(_carry);
         _root.Children.Add(_held);
+        _root.Children.Add(_armsOver);
         // Балончето е в свой малък прозорец (виж OverlayWindow).
         _bubbleWindow = new OverlayWindow(_bubble);
         Content = _root;
@@ -1265,6 +1270,8 @@ public sealed partial class PetWindow : Window
         PixelSize = pixelScale / dpi;
         _sprite.Width = _lib.FrameWidth * PixelSize;
         _sprite.Height = (_lib.FrameHeight + Dresser.HatRoom) * PixelSize;
+        _armsOver.Width = _sprite.Width;
+        _armsOver.Height = _sprite.Height;
         SizeSceneArt();
     }
 
@@ -1303,7 +1310,10 @@ public sealed partial class PetWindow : Window
         _dresser.Book = TodaysBook;
         // Уморен: ако е нарисувана уморена версия (game_tired, write_tired…) – нея.
         string anim = IsExhausted && !IsResting && !_anim.EndsWith("_tired") && _lib.Has(_anim + "_tired") ? _anim + "_tired" : _anim;
-        var frame = _dresser.Frame(_lib, anim, _lib.Get(anim).IndexAt(_animTime), EffectiveOutfit);
+        int index = _lib.Get(anim).IndexAt(_animTime);
+        var frame = _dresser.Frame(_lib, anim, index, EffectiveOutfit);
+        var arms = _lib.Get(anim).ItemBelowArm ? _dresser.Arms(_lib, anim, index, frame) : null;
+        if (!ReferenceEquals(_armsOver.Source, arms)) _armsOver.Source = arms;
         // Докато се преоблича, е скрит зад вратата на гардероба.
         _sprite.Visibility = Dressing || GiftAway ? Visibility.Hidden : Visibility.Visible;
         if (!ReferenceEquals(frame, _shownFrame))
@@ -1315,6 +1325,7 @@ public sealed partial class PetWindow : Window
         // В леглото лежи винаги с главата към възглавницата (както е нарисувано леглото).
         var flip = _facingLeft && !BedOn ? FlipLeft : Transform.Identity;
         if (!ReferenceEquals(_sprite.RenderTransform, flip)) _sprite.RenderTransform = flip;
+        if (!ReferenceEquals(_armsOver.RenderTransform, flip)) _armsOver.RenderTransform = flip;
     }
 
     // Прозорецът на мечока е с постоянен размер и върви точно с мечока (стъпалата
@@ -1387,6 +1398,10 @@ public sealed partial class PetWindow : Window
         if (!emote.IsEmpty) Place(_emote, emote, _window.Left, _window.Top, dpi);
         if (!carry.IsEmpty) Place(_carry, carry, _window.Left, _window.Top, dpi);
         if (!held.IsEmpty) Place(_held, held, _window.Left, _window.Top, dpi);
+        // Нещо отделно в лапите и анимацията е с item_below_arm: ръцете отгоре.
+        bool armsOn = (!carry.IsEmpty || !held.IsEmpty) && _armsOver.Source != null && _sprite.Visibility == Visibility.Visible;
+        _armsOver.Visibility = armsOn ? Visibility.Visible : Visibility.Collapsed;
+        if (armsOn) Place(_armsOver, sprite, _window.Left, _window.Top, dpi);
         for (int i = 0; i < nuts.Length; i++)
             if (_juggleNuts[i].Visibility == Visibility.Visible) Place(_juggleNuts[i], nuts[i], _window.Left, _window.Top, dpi);
 
