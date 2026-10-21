@@ -1947,10 +1947,13 @@ public sealed partial class PetWindow
             // Излязъл е към друг екран, а нещо го прекъсва: показва се (не остава скрит завинаги).
             WalkTo(_x);
             _crossFrom = a;
+            _crossTarget = _x;
             _crossPhase = 2;
             _crossAt = Now + 100;
+            _crossTouched = Now - 1;   // никое ходене (обикновено или до кътчето) вече не го води
             Hide();
             SetIdle();
+            if (!CrossingAbandoned) throw new Exception("не усети, че минаването е прекъснато");
             CancelCrossing();
             if (!IsVisible || _crossPhase != 0) throw new Exception("остана скрит след прекъснато минаване");
             if (_state != BearState.Walk) throw new Exception("прекъснат, не влиза с ходене");

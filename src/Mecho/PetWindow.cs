@@ -315,7 +315,7 @@ public sealed partial class PetWindow : Window
         // премигва курсорът в програмата, в която пише.
         bool typingPause = false;
         _animTime += real * AnimSpeed;
-        if (_crossPhase != 0 && _state != BearState.Walk) CancelCrossing();
+        if (CrossingAbandoned) CancelCrossing();
 
         switch (_state)
         {
