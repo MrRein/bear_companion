@@ -377,8 +377,8 @@ public sealed partial class PetWindow : Window
         UpdatePajamas();
         P("пижами");
 
-        // Докато влиза иззад ръба на друг екран, е още „над“ стария: земята там не важи.
-        if (!_crossEntering && _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
+        // Докато минава между екраните (излиза/влиза през ъгъла), земята и ръбовете не важат.
+        if (!Hopping && _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce))
         {
             // Земята: нарисувана платформа или долният край (лентата със задачи може да се е преместила).
             double ground = Ground(_y);
@@ -391,7 +391,7 @@ public sealed partial class PetWindow : Window
                 SetState(BearState.Falling, _inScene ? _anim : "drag");
             }
             else _y = ground;
-            if (!_peeking && !_walkingOut && !_walkingBack && !_crossEntering && !GardenOffscreenOk) ClampX();
+            if (!_peeking && !_walkingOut && !_walkingBack && !Hopping && !GardenOffscreenOk) ClampX();
         }
 
         if (_bubble.Visibility == Visibility.Visible && now > _bubbleUntil) HideBubble();

@@ -1944,31 +1944,30 @@ public sealed partial class PetWindow
             LeaveScene();
             SetIdle();
         }, 300);
-        await step("няколко екрана: на един екран не излиза; прекъснат – пак се показва", () =>
+        await step("няколко екрана: на един екран не излиза; прекъснат – пак влиза от ъгъла", () =>
         {
             SetIdle();
             var a = Area;
             if (OnOtherScreen(a.Left + a.Width / 2)) throw new Exception("целта на същия екран се води „друг екран“");
             if (System.Windows.Forms.Screen.AllScreens.Length == 1 && OnOtherScreen(a.Right + 500))
                 throw new Exception("с един екран тръгва да излиза");
-            // Излязъл е към друг екран, а нещо го прекъсва: показва се (не остава скрит завинаги).
-            WalkTo(_x);
-            _crossFrom = a;
-            _crossTarget = _x;
-            _crossPhase = 2;
-            _crossAt = Now + 100;
-            _crossTouched = Now - 1;   // никое ходене (обикновено или до кътчето) вече не го води
+            // Излязъл е през ъгъла (скрит), а нещо го прекъсва: влиза от ъгъла с ходене.
+            _hopTarget = a.Left + a.Width * 0.3;
+            _hop = Hop.Away;
+            _hopAt = Now + 100;
+            _hopTouched = Now - 1;   // никое ходене (обикновено или до кътчето) вече не го води
             Hide();
             SetIdle();
             if (!CrossingAbandoned) throw new Exception("не усети, че минаването е прекъснато");
             CancelCrossing();
-            if (!IsVisible || _crossPhase != 0) throw new Exception("остана скрит след прекъснато минаване");
-            if (_state != BearState.Walk) throw new Exception("прекъснат, не влиза с ходене");
+            if (!IsVisible) throw new Exception("остана скрит след прекъснато минаване");
+            if (_state != BearState.Walk || _hop != Hop.Entering) throw new Exception("прекъснат, не влиза с ходене");
+            if (_x > a.Left) throw new Exception("не влиза от ъгъла до нещото (левия)");
         }, 300);
-        await step("няколко екрана: влиза с ходене и после е на земята", () =>
+        await step("няколко екрана: влиза от ъгъла и после е на земята", () =>
         {
-            if (_crossEntering && _state != BearState.Walk) throw new Exception("влизането спря насред ръба");
-            _crossEntering = false;
+            if (Hopping && _state != BearState.Walk) throw new Exception("влизането спря насред ръба");
+            _hop = Hop.None;
             SetIdle();
             // Скрит – не пита нищо (въпросите не излизат до празното място).
             _menu?.Hide();
