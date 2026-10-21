@@ -243,6 +243,22 @@ public sealed class SaveData
         LegacyTimerIsWork = false;
         LegacyWishDay = null;
         LegacyRadioX = LegacyHeaterX = LegacyLampX = LegacyFeederX = LegacyPlantX = double.NaN;
+        RenameFoods();
+    }
+
+    /// <summary>Сменените ястия (Kitchen.Renamed): научените рецепти, любимата и следващата рецепта.</summary>
+    private void RenameFoods()
+    {
+        foreach (var (old, now) in Kitchen.Renamed)
+        {
+            if (Owned.Contains("recipe_" + old))
+            {
+                Owned.Remove("recipe_" + old);
+                Owned.Add("recipe_" + now);
+            }
+            if (FavFood == old) FavFood = now;
+            if (NextRecipe == old) NextRecipe = now;
+        }
     }
 
     // ── Лешници ──

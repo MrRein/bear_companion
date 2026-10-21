@@ -631,7 +631,7 @@ public sealed partial class PetWindow
         yield return (misc, "Енергия: вечерен таван", () => { _save.Energy = 100; Say($"Таванът сега: {EveningCap(DateTime.Now):0}", 3); NotifyCare(); });
         yield return (misc, "Плети", () => { if (!_save.Owned.Contains(Kitchen.YarnBasket)) _save.Owned.Add(Kitchen.YarnBasket); Relax(Scenes.Knit); });
         yield return (misc, "Свири на китара", () => { if (!_save.Owned.Contains(Kitchen.Guitar)) _save.Owned.Add(Kitchen.Guitar); Relax(Scenes.Guitar); });
-        yield return (misc, "Сготви сандвич", () => Cook(Kitchen.Foods.First(f => f.Id == "sandwich")));
+        yield return (misc, "Сготви сандвич", () => Cook(Kitchen.Foods.First(f => f.Id == "sandwich_veg")));
 
         yield return (lines, "Отвори repliki.txt", () => OpenPath(R.FilePath));
         yield return (lines, "Презареди репликите", () => Say($"Прочетох репликите наново ({R.Reload()} раздела). Някои се сменят чак след рестарт.", 5));

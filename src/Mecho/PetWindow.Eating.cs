@@ -37,8 +37,48 @@ public sealed partial class PetWindow
         _held.Source = _heldWhole = bite;
         _eating = food;
         _eatingLast = last;
-        _bitesTotal = _bitesLeft = 4 + _rng.Next(3);
+        _bitesTotal = _bitesLeft = food.Bites > 0 ? food.Bites : 4 + _rng.Next(3);
         EatHold(1.5 + _rng.NextDouble());
+    }
+
+    private double _lastMealClick = -100;
+
+    /// <summary>
+    /// Яде или пие и го цъкнат два пъти бързо: „Да доям ли бързо?“ (за всяка храна и
+    /// напитка). Да – изяжда/изпива я наведнъж (ситостта и без това вече я е получил).
+    /// </summary>
+    private bool OfferFinishQuick()
+    {
+        bool eating = _eating != null, drinking = _inScene && _scene == Scenes.Drink && _drinkFood != null;
+        if (!eating && !drinking) return false;
+        if (Now - _lastMealClick > 0.45)
+        {
+            _lastMealClick = Now;
+            return false;   // първото цъкане – както досега („Момент, сега ям.“)
+        }
+        _lastMealClick = -100;
+        Ask(new ChatQuestion(drinking ? "Да допия ли бързо?" : "Да доям ли бързо?",
+            new ChatOption(drinking ? "Да, допий го" : "Да, дояж го", p => p.FinishMealQuick()),
+            new ChatOption("Не, спокойно", _ => { })));
+        return true;
+    }
+
+    /// <summary>Дояжда/допива наведнъж.</summary>
+    internal void FinishMealQuick()
+    {
+        if (_eating != null)
+        {
+            Say("*ням-ням-ням* Готово!", 2);
+            _afterAction = null;
+            _bitesLeft = 0;
+            SetIdle();
+            EatDone();
+        }
+        else if (_inScene && _scene == Scenes.Drink && _drinkFood != null)
+        {
+            Say("*глът-глът* Готово!", 2);
+            FinishDrink();
+        }
     }
 
     /// <summary>Пауза: само държи храната (2–6 секунди), после хапва.</summary>
@@ -308,7 +348,10 @@ public sealed partial class PetWindow
     /// </summary>
     private Rect HeldRect(Rect bear)
     {
-        bool on = _anim is "eat" or "eat_hold" && _held.Source != null && _state is BearState.Busy or BearState.Drag or BearState.Falling;
+        // Пие: рисунката на напитката (food_latte…) в лапата, на същата точка _cup.
+        bool drinking = _cup != null && _anim.StartsWith("sit_drinking");
+        if (drinking && _lib.GetProp(_cup!, 16, 16, 0).Image is var cup && !ReferenceEquals(_held.Source, cup)) _held.Source = cup;
+        bool on = drinking || _anim is "eat" or "eat_hold" && _heldWhole != null && _held.Source != null && _state is BearState.Busy or BearState.Drag or BearState.Falling;
         _held.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         if (!on) return Rect.Empty;
         System.Windows.Media.RenderOptions.SetBitmapScalingMode(_held, System.Windows.Media.BitmapScalingMode.NearestNeighbor);

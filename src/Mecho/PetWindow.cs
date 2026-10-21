@@ -1059,6 +1059,7 @@ public sealed partial class PetWindow : Window
         if (TakeHeaterQuestion()) return;
         if (TakeNapQuestion()) return;
         if (StartleFromDoze()) return;
+        if (OfferFinishQuick()) return;   // яде/пие и го цъкнат два пъти: „Да доям ли бързо?“
         if (BusyEating()) return;
 
         // Задрямал по време на мечо-доро или таймер: сънливо надига глава. Второ
@@ -1234,10 +1235,12 @@ public sealed partial class PetWindow : Window
     }
 
     /// <summary>Отваря панела на даден таб. Само това – балончето с въпроса (ако има) си остава.</summary>
-    public void OpenMenu(int tab)
+    /// <summary>Отваря менюто на таба; „Работа“ – на „Задачи“ (workPart: 0 мечо-доро, 1 таймер, 2 задачи).</summary>
+    public void OpenMenu(int tab, int workPart = 2)
     {
         _menu ??= new MenuWindow(this);
         _menu.ShowNear(_bearRect, Area, tab);
+        if (tab == MenuWindow.PomodoroTab) _menu.ShowWorkPart(workPart);
     }
 
     internal void MenuClosed() => _menuClosedAt = Now;

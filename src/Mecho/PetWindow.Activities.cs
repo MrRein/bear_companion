@@ -38,11 +38,11 @@ public sealed partial class PetWindow
     public System.Windows.Media.Imaging.BitmapSource PropImage(string name) => _lib.GetProp(name, 16, 16, 0).Image;
 
     /// <summary>
-    /// Храната в менюто: цялото ястие (food_&lt;id&gt;_menu.png – цяла пица, кофичка пуканки…),
-    /// а сготвена излиза на парчета (food_&lt;id&gt;.png). Без _menu – същата рисунка.
+    /// Храната в менюто: цялото ястие (food/&lt;id&gt;.png – цяла пица, кофичка пуканки…);
+    /// сготвена с Pieces излиза на парчета (food/&lt;id&gt;_piece.png), иначе е същото цяло.
     /// </summary>
     public System.Windows.Media.Imaging.BitmapSource FoodMenuImage(Food f) =>
-        PropImage(_lib.HasProp($"food_{f.ArtId}_menu") ? $"food_{f.ArtId}_menu" : "food_" + f.ArtId);
+        PropImage("food_" + f.ArtId);
 
     /// <summary>Портрет за панела: първият кадър от „стои“, облечен.</summary>
     public System.Windows.Media.Imaging.BitmapSource Portrait => _dresser.Frame(_lib, "idle", 0, EffectiveOutfit);

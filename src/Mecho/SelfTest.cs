@@ -269,7 +269,7 @@ public sealed partial class PetWindow
             _save.Hazelnuts += 100;
             var pot = Kitchen.Upgrades.First(u => u.Id == Kitchen.Pot);
             _save.Owned.Remove(Kitchen.Pot);
-            _save.Owned.Remove(Kitchen.RecipeId(Kitchen.Foods.First(f => f.Id == "soup")));
+            _save.Owned.Remove(Kitchen.RecipeId(Kitchen.Foods.First(f => f.Id == "soup_veg")));
             TodayRec.UpgradesBought = 0;
             Buy(pot);
             if (Kitchen.Owns(_save, Kitchen.Pot)) throw new Exception("тенджерата е отключена преди доставката");
@@ -282,7 +282,7 @@ public sealed partial class PetWindow
         {
             if (_parcel != null) throw new Exception("кашончето остана");
             if (!Kitchen.Owns(_save, Kitchen.Pot) || _save.Ordered.Contains(Kitchen.Pot)) throw new Exception("тенджерата не се отключи");
-            if (!Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "soup"), _save)) throw new Exception("тенджерата дойде без супата");
+            if (!Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "soup_veg"), _save)) throw new Exception("тенджерата дойде без супата");
             _trip = null;
             SetIdle();
         }, 300);
@@ -729,11 +729,30 @@ public sealed partial class PetWindow
         }, 800);
         await step("рисунките по папки (food, kitchen, furniture, skins)", () =>
         {
-            foreach (var name in new[] { "food_pizza", "food_meatballs_2", "food_pizza_menu", "cook_oven", "cook_oven_retro_b",
+            foreach (var name in new[] { "food_pizza_margarita", "food_pizza_margarita_piece", "food_meatballs_piece", "cook_oven", "cook_oven_retro_b",
                                          "couch", "couch_velvet", "plant_cactus_3", "gift_red", "shop_couch" })
                 if (!_lib.HasProp(name)) throw new Exception("не намира рисунката " + name);
-            if (Ui.LoadIcon("food_pizza_menu") == null) throw new Exception("няма иконка food_pizza_menu");
+            if (Ui.LoadIcon("food_pizza_margarita") == null) throw new Exception("няма иконка food_pizza_margarita");
         }, 200);
+        await step("храната: всяко ястие има рисунка; без парчета – едно цяло; бързо доядане", () =>
+        {
+            foreach (var f in Kitchen.Foods)
+            {
+                if (!_lib.HasProp("food_" + f.ArtId)) throw new Exception("няма рисунка food_" + f.ArtId);
+                if (!f.Pieces && f.Count != 1) throw new Exception(f.Id + ": без парчета, а излиза на " + f.Count);
+                if (f.Pieces && !_lib.HasProp($"food_{f.ArtId}_piece")) throw new Exception(f.Id + ": food_pieces, а няма food_" + f.ArtId + "_piece");
+            }
+            if (Kitchen.CookedArt(Kitchen.Foods.First(f => f.Id == "popcorn"), _lib.HasProp) != "food_popcorn") throw new Exception("пуканките още са на парчета");
+            if (Kitchen.Foods.First(f => f.Id == "popcorn").Bites < 10) throw new Exception("пуканките не се ядат дълго");
+            // Яде – цъкаш два пъти: пита; „Да“ – доядва веднага.
+            var meat = Kitchen.Foods.First(f => f.Id == "meatballs");
+            StartEating(meat, _lib.GetProp(Kitchen.CookedArt(meat, _lib.HasProp), 16, 16, 0).Image, last: false);
+            _lastMealClick = -100;
+            if (OfferFinishQuick() || !OfferFinishQuick() || !ChatIsOpen) throw new Exception("двойното цъкане не пита „Да доям ли бързо?“");
+            _chat?.Hide();
+            FinishMealQuick();
+            if (_eating != null) throw new Exception("не доя");
+        }, 300);
         await step("храната се отхапва (пиксели, не смаляване)", () =>
         {
             var food = _lib.GetProp("food_cookies", 16, 16, 0).Image;
@@ -1173,7 +1192,7 @@ public sealed partial class PetWindow
         }, 500);
         await step("сандвич на масата", () =>
         {
-            var sandwich = Kitchen.Foods.First(f => f.Id == "sandwich");
+            var sandwich = Kitchen.Foods.First(f => f.Id == "sandwich_veg");
             if (!Kitchen.CanCook(sandwich, new SaveData())) throw new Exception("сандвичът не е винаги отключен");
             if (Kitchen.CategoryOf(sandwich) == "Напитки") throw new Exception("грешна категория");
             TestCook(sandwich);

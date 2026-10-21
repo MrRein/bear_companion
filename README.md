@@ -251,8 +251,9 @@ Sans / Bold / Mono (GGBotNet, SIL Open Font License) в `src/Mecho/fonts/`.
 (`couch`, `stool`, `mat`) имат `seat` в `props.json`.
 
 Предметите са в `assets/props/`, по папки (`tools/props_layout.py` ги подрежда):
-`food/` – храната (`food/pizza.png`, парчетата `food/pizza_piece_1.png`…, иконката
-`food/pizza_menu.png`), `kitchen/` – уредите за готвене, `furniture/` – мебелите и
+`food/` – храната: `food/pizza_margarita.png` е цялото ястие (в менюто и сготвено);
+ако ястието е с парчета (`Pieces = true` в `Kitchen.cs` – food_pieces), сготвено излиза
+на парчета `food/pizza_margarita_piece.png`, иначе е едно цяло. `kitchen/` – уредите за готвене, `furniture/` – мебелите и
 предметите за слагане (легло, диван, бюро, статив, печица, лампа, радио, хранилка,
 саксия…). Скиновете са в `skins/` във всяка папка (`furniture/skins/couch_velvet.png`).
 Останалото (птички, пеперуди, подаръци, иконките за магазина) е направо в

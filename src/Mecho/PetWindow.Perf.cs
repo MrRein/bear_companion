@@ -161,7 +161,7 @@ public sealed partial class PetWindow
             ("Растение (издърпва, грижи)", () => { CleanForBench(); StartScene(Scenes.Plant, 60); }, 10),
             ("Радио и танц", () => { CleanForBench(); SetRadio(true); DanceByRadio(); }, 8),
             ("Хранилка и птичка", () => { CleanForBench(); SetFeeder(true); _save.FeederFood = 3; _nextBird = 0; }, 8),
-            ("Готвене и ядене", () => { CleanForBench(); TestCook(Kitchen.Foods.First(f => f.Id == "sandwich")); EndCooking(Kitchen.Foods.First(f => f.Id == "sandwich")); }, 8),
+            ("Готвене и ядене", () => { CleanForBench(); TestCook(Kitchen.Foods.First(f => f.Id == "sandwich_veg")); EndCooking(Kitchen.Foods.First(f => f.Id == "sandwich_veg")); }, 8),
             ("Пеперуда", () => { CleanForBench(); StartChase(); }, 6),
             ("Говори и емоции", () => { CleanForBench(); Say("Тест, тест, едно, две, три – балончето с думите.", 5); Emote("heart", 4); }, 5),
         };

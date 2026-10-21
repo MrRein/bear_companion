@@ -73,18 +73,6 @@
       "file": "nut.png",
       "seat": 0
     },
-    "food_berries": {
-      "file": "food/berries.png",
-      "seat": 0
-    },
-    "food_coffee": {
-      "file": "food/coffee.png",
-      "seat": 0
-    },
-    "food_tea": {
-      "file": "food/tea.png",
-      "seat": 0
-    },
     "shop_pot": {
       "file": "shop_pot.png",
       "seat": 0
@@ -119,18 +107,6 @@
     },
     "shop_cookbook": {
       "file": "shop_cookbook.png",
-      "seat": 0
-    },
-    "food_popcorn": {
-      "file": "food/popcorn.png",
-      "seat": 0
-    },
-    "food_meatballs": {
-      "file": "food/meatballs.png",
-      "seat": 0
-    },
-    "food_potatoes": {
-      "file": "food/potatoes.png",
       "seat": 0
     },
     "wardrobe": {
@@ -195,146 +171,6 @@
     },
     "heater_b": {
       "file": "furniture/heater_b.png",
-      "seat": 0
-    },
-    "food_lemonade": {
-      "file": "food/lemonade.png",
-      "seat": 0
-    },
-    "food_soup": {
-      "file": "food/soup.png",
-      "seat": 0
-    },
-    "food_corn": {
-      "file": "food/corn.png",
-      "seat": 0
-    },
-    "food_cocoa": {
-      "file": "food/cocoa.png",
-      "seat": 0
-    },
-    "food_linden_tea": {
-      "file": "food/linden_tea.png",
-      "seat": 0
-    },
-    "food_eggs": {
-      "file": "food/eggs.png",
-      "seat": 0
-    },
-    "food_pancakes": {
-      "file": "food/pancakes.png",
-      "seat": 0
-    },
-    "food_espresso": {
-      "file": "food/espresso.png",
-      "seat": 0
-    },
-    "food_latte": {
-      "file": "food/latte.png",
-      "seat": 0
-    },
-    "food_mocha": {
-      "file": "food/mocha.png",
-      "seat": 0
-    },
-    "food_cappuccino": {
-      "file": "food/cappuccino.png",
-      "seat": 0
-    },
-    "food_iced_coffee": {
-      "file": "food/iced_coffee.png",
-      "seat": 0
-    },
-    "food_cookies": {
-      "file": "food/cookies.png",
-      "seat": 0
-    },
-    "food_muffins": {
-      "file": "food/muffins.png",
-      "seat": 0
-    },
-    "food_pizza": {
-      "file": "food/pizza.png",
-      "seat": 0
-    },
-    "food_smoothie": {
-      "file": "food/smoothie.png",
-      "seat": 0
-    },
-    "food_toast": {
-      "file": "food/toast.png",
-      "seat": 0
-    },
-    "food_sandwich_ham": {
-      "file": "food/sandwich_ham.png",
-      "seat": 0
-    },
-    "food_sandwich_honey": {
-      "file": "food/sandwich_honey.png",
-      "seat": 0
-    },
-    "food_waffle_honey": {
-      "file": "food/waffle_honey.png",
-      "seat": 0
-    },
-    "food_waffle_choco": {
-      "file": "food/waffle_choco.png",
-      "seat": 0
-    },
-    "food_waffle_icecream": {
-      "file": "food/waffle_icecream.png",
-      "seat": 0
-    },
-    "food_icecream_honey": {
-      "file": "food/icecream_honey.png",
-      "seat": 0
-    },
-    "food_icecream_berry": {
-      "file": "food/icecream_berry.png",
-      "seat": 0
-    },
-    "food_skewers": {
-      "file": "food/skewers.png",
-      "seat": 0
-    },
-    "food_veggies": {
-      "file": "food/veggies.png",
-      "seat": 0
-    },
-    "food_grilled_bread": {
-      "file": "food/grilled_bread.png",
-      "seat": 0
-    },
-    "food_sandwich": {
-      "file": "food/sandwich.png",
-      "seat": 0
-    },
-    "food_roast_soup": {
-      "file": "food/roast_soup.png",
-      "seat": 0
-    },
-    "food_pressed_caprese": {
-      "file": "food/pressed_caprese.png",
-      "seat": 0
-    },
-    "food_pressed_veggie": {
-      "file": "food/pressed_veggie.png",
-      "seat": 0
-    },
-    "food_pressed_chicken": {
-      "file": "food/pressed_chicken.png",
-      "seat": 0
-    },
-    "food_pressed_egg": {
-      "file": "food/pressed_egg.png",
-      "seat": 0
-    },
-    "food_pressed_mushroom": {
-      "file": "food/pressed_mushroom.png",
-      "seat": 0
-    },
-    "food_pressed_sandwich": {
-      "file": "food/pressed_sandwich.png",
       "seat": 0
     },
     "cook_table": {
@@ -871,58 +707,6 @@
     },
     "flower_4_blue": {
       "file": "flower_4_blue.png",
-      "seat": 0
-    },
-    "food_popcorn_1": {
-      "file": "food/popcorn_piece_1.png",
-      "seat": 0
-    },
-    "food_meatballs_1": {
-      "file": "food/meatballs_piece_1.png",
-      "seat": 0
-    },
-    "food_popcorn_2": {
-      "file": "food/popcorn_piece_2.png",
-      "seat": 0
-    },
-    "food_meatballs_2": {
-      "file": "food/meatballs_piece_2.png",
-      "seat": 0
-    },
-    "food_popcorn_3": {
-      "file": "food/popcorn_piece_3.png",
-      "seat": 0
-    },
-    "food_meatballs_3": {
-      "file": "food/meatballs_piece_3.png",
-      "seat": 0
-    },
-    "food_popcorn_4": {
-      "file": "food/popcorn_piece_4.png",
-      "seat": 0
-    },
-    "food_meatballs_4": {
-      "file": "food/meatballs_piece_4.png",
-      "seat": 0
-    },
-    "food_potatoes_1": {
-      "file": "food/potatoes_piece_1.png",
-      "seat": 0
-    },
-    "food_potatoes_2": {
-      "file": "food/potatoes_piece_2.png",
-      "seat": 0
-    },
-    "food_potatoes_3": {
-      "file": "food/potatoes_piece_3.png",
-      "seat": 0
-    },
-    "food_juice_orange": {
-      "file": "food/juice_orange.png",
-      "seat": 0
-    },
-    "food_juice_berry": {
-      "file": "food/juice_berry.png",
       "seat": 0
     },
     "mystery": {

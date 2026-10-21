@@ -317,6 +317,8 @@ public sealed class MenuWindow : Window
             index = PomodoroTab;   // задачите са в „Работа“ → „Задачи“
             ShowWorkPart(2);
         }
+        // „Работа“ се отваря на „Задачи“ (мечо-дорото и таймерът са един клик по-нататък).
+        else if (index == PomodoroTab && _tab != PomodoroTab) ShowWorkPart(2);
         _tab = index;
         for (int i = 0; i < _tabs.Length; i++)
         {
@@ -1726,9 +1728,9 @@ public sealed class MenuWindow : Window
     private readonly UniformGrid _workBar = new();   // Мечо-доро | Таймер (скрито, докато се пише нова задача)
     private readonly UIElement[] _workParts = new UIElement[3];
     private readonly Border[] _workChips = new Border[3];
-    private int _workPart;
+    private int _workPart = 2;   // „Задачи“
 
-    private void ShowWorkPart(int index)
+    internal void ShowWorkPart(int index)
     {
         _workPart = index;
         for (int i = 0; i < 3; i++)
@@ -1860,13 +1862,14 @@ public sealed class MenuWindow : Window
     }
 
     /// <summary>„Най-нови / Най-стари“ – подредбата на списъка (закачените са винаги горе).</summary>
+    /// <summary>Подредбата на бележките: само стрелка (▲ най-старите горе, ▼ най-новите горе) – да се събира на реда.</summary>
     private Border SortChip(Func<bool> oldestFirst, Action<bool> set)
     {
         Border chip = null!;
-        chip = Chip(oldestFirst() ? "▲ Най-стари" : "▼ Най-нови", () =>
+        chip = Chip(oldestFirst() ? "▲" : "▼", () =>
         {
             set(!oldestFirst());
-            SetChip(chip, oldestFirst() ? "▲ Най-стари" : "▼ Най-нови");
+            SetChip(chip, oldestFirst() ? "▲" : "▼");
         });
         chip.ToolTip = Tip("Подредба: най-новите или най-старите горе (закачените са винаги най-отгоре)");
         chip.HorizontalAlignment = HorizontalAlignment.Right;
@@ -2062,14 +2065,16 @@ public sealed class MenuWindow : Window
     {
         var root = new StackPanel();
         // Отгоре: Всички | Закачени | Напомняния (отдолу – ➕ Нова, Табло, История, като при задачите).
+        // Трите на един ред, еднакво широки (подредбата е до тях – само стрелка).
         var top = _notesTop;
-        top.Margin = new Thickness(0, 0, 12, 0);   // малко място до подредбата вдясно
+        top.Margin = new Thickness(0, 0, 4, 0);
         _notesChip = Chip("📝 Всички", () => { _notesView = 0; BuildNoteList(); });
         _pinnedChip = Chip("📌 Закачени", () => { _notesView = 1; BuildNoteList(); });
         _remindersChip = Chip("⏰ Напомняния", () => { _notesView = 2; BuildNoteList(); });
         foreach (var c in new[] { _notesChip, _pinnedChip, _remindersChip })
         {
-            c.Margin = new Thickness(0, 0, 6, 4);
+            c.Margin = new Thickness(0, 0, 4, 4);
+            c.Padding = new Thickness(4, 3, 4, 4);
             top.Children.Add(c);
         }
 
@@ -2155,7 +2160,7 @@ public sealed class MenuWindow : Window
     }
 
     private Border _newNoteButton = null!, _noteHistoryButton = null!, _noteSort = null!;
-    private readonly WrapPanel _notesTop = new();
+    private readonly UniformGrid _notesTop = new() { Rows = 1 };
     private readonly DockPanel _notesRow = new() { Margin = new Thickness(0, 10, 0, 0) };
     private readonly UniformGrid _noteActions = new();
     private UniformGrid _notesBottom = null!;

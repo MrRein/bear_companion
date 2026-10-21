@@ -2612,6 +2612,9 @@ def main():
     os.makedirs(PROPS, exist_ok=True)
     props = {"scale": 3, "props": {}}
     for name, (img, seat) in PROP_LIST.items():
+        # Храната е нарисувана от Тут (done_art/food → assets/props/food/): временната не я сменя.
+        if name.startswith("food_"):
+            continue
         img.save(pl.path(name))
         props["props"][name] = {"file": pl.rel(name), "seat": seat}
     with open(os.path.join(PROPS, "props.json"), "w", encoding="utf-8") as fh:

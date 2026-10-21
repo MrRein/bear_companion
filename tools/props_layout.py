@@ -4,8 +4,8 @@
 
 Името на рисунката в програмата (prop) не се сменя – сменя се само къде е файлът:
 
-    food/       храната: food_pizza -> food/pizza.png, парче: food_pizza_2 -> food/pizza_piece_2.png,
-                иконката за менюто: food_pizza_menu -> food/pizza_menu.png
+    food/       храната: food_pizza -> food/pizza.png (цялото – в менюто и сготвено),
+                парчето след готвене (food_pieces): food_pizza_piece -> food/pizza_piece.png
     kitchen/    уредите за готвене (cook_*); скиновете – kitchen/skins/
     furniture/  мебелите и предметите за слагане (легло, диван, бюро, статив, печица,
                 лампа, радио, хранилка, саксия…); скиновете – furniture/skins/
@@ -57,11 +57,7 @@ def _is_skin(base, rest):
 def rel(name):
     """Пътят на файла (спрямо assets/props) за рисунката name."""
     if name.startswith("food_"):
-        rest = name[5:]
-        m = re.fullmatch(r"(.+)_(\d+)", rest)
-        if m:
-            rest = f"{m.group(1)}_piece_{m.group(2)}"
-        return f"food/{rest}.png"
+        return f"food/{name[5:]}.png"
     for folder, bases in (("kitchen", KITCHEN), ("furniture", FURNITURE)):
         base, rest = _split(name, bases)
         if base is not None:
@@ -74,7 +70,7 @@ def name_of(relpath):
     relpath = relpath.replace("\\", "/")
     stem = os.path.splitext(os.path.basename(relpath))[0]
     if relpath.startswith("food/"):
-        return "food_" + re.sub(r"_piece_(\d+)$", r"_\1", stem)
+        return "food_" + stem
     return stem
 
 

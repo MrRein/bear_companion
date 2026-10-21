@@ -146,10 +146,7 @@ public sealed partial class PetWindow
     /// </summary>
     private void SpawnFood(Food food, double fullness, double energy, Point from, bool fromCooker)
     {
-        // Парчетата са в няколко вида (food_popcorn_1, _2…), ако има такива рисунки.
-        int kinds = 0;
-        while (_lib.HasProp($"food_{food.ArtId}_{kinds + 1}")) kinds++;
-        var prop = _lib.GetProp(kinds > 0 ? $"food_{food.ArtId}_{1 + _rng.Next(kinds)}" : "food_" + food.ArtId, 16, 16, 0);
+        var prop = _lib.GetProp(Kitchen.CookedArt(food, _lib.HasProp), 16, 16, 0);
         var w = new FoodWindow(this, food, fullness, energy, prop, PixelSize);
         Companion(w);
         w.Left = from.X - w.Width / 2;

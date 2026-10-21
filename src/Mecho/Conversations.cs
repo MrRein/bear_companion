@@ -21,7 +21,7 @@ public static class Conversations
     /// <summary>„Няма ли да правим нещо?“: мечо-доро, таймер, задача, бележка.</summary>
     public static ChatQuestion WorkOffer(PetWindow pet) => new($"Какво ще правим, {pet.Save.OwnerName}?",
         new ChatOption($"Мечо-доро ({pet.PomodoroMode.Focus} мин)", p => p.StartFocus()),
-        new ChatOption("Таймер", p => p.OpenMenu(MenuWindow.PomodoroTab)),
+        new ChatOption("Таймер", p => p.OpenMenu(MenuWindow.PomodoroTab, workPart: 1)),
         new ChatOption("Ще запиша задача", p => p.OpenMenu(MenuWindow.TasksTab)),
         new ChatOption("Ще запиша бележка", p => p.OpenMenu(MenuWindow.NotesTab)),
         new ChatOption("Не сега", p => p.Cheer("Добре! Тук съм, ако потрябвам.")),

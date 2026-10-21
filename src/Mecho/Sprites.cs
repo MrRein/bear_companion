@@ -156,7 +156,7 @@ public sealed class SpriteLibrary
     /// <summary>
     /// Файлът на рисунката в assets/props. Те са по папки (tools/props_layout.py): food/,
     /// kitchen/, furniture/ и в тях skins/. Името е името на файла, само храната е
-    /// food/pizza.png → food_pizza и food/pizza_piece_2.png → food_pizza_2.
+    /// с „food_“ отпред: food/pizza.png → food_pizza, food/pizza_piece.png → food_pizza_piece.
     /// </summary>
     public static string? PropFile(string name)
     {
@@ -175,9 +175,7 @@ public sealed class SpriteLibrary
     {
         relative = relative.Replace('\\', '/');
         string stem = Path.GetFileNameWithoutExtension(relative);
-        return relative.StartsWith("food/")
-            ? "food_" + System.Text.RegularExpressions.Regex.Replace(stem, @"_piece_(\d+)$", "_$1")
-            : stem;
+        return relative.StartsWith("food/") ? "food_" + stem : stem;
     }
 
     private readonly HashSet<string> _placeholders = new();

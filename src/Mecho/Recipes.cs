@@ -17,8 +17,8 @@ public static class Recipes
     /// <summary>Колко страници иска рецептата.</summary>
     public static int PagesFor(Food f) => f.Id switch
     {
-        "potatoes" or "pizza" => 7,
-        "coffee" or "meatballs" or "latte" or "mocha" or "skewers" => 5,
+        "potatoes" or "pizza_margarita" => 7,
+        "coffee" or "meatballs" or "latte" or "skewers" => 5,
         _ when f.Prep != null => 5,     // в два уреда – средна
         _ => 3,
     };

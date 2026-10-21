@@ -76,10 +76,11 @@ def items():
         for anim in ("sit_drinking", "sit_drinking_sip", "sit_drinking_blow"):
             out.append((d, anim, "cup", os.path.join(CLOTHES, f"drink_{d}.png"), "cup", 1))
     props = pl.all_names()
-    foods = sorted(n for n in props if n.startswith("food_") and not n.endswith("_menu"))
+    # Цялото ястие; ако има парче (food_pieces) – в лапите държи парчето.
+    foods = sorted(n for n in props if n.startswith("food_") and not n.endswith("_piece"))
     for f in foods:
         for anim in ("eat", "eat_hold"):
-            out.append((f[5:], anim, "cup", props[f], "over", 0.8))
+            out.append((f[5:], anim, "cup", props.get(f + "_piece", props[f]), "over", 0.8))
     gifts = sorted(n for n in props if n.startswith("gift") and "_open" not in n)
     for g in gifts:
         for anim in ("hold", "hold_walk"):

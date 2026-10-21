@@ -5,11 +5,11 @@ namespace Mecho;
 
 // Пиене: седи с чашата (sit_drinking се върти 2–4 пъти), после отпива
 // (sit_drinking_sip); при чай и кафе понякога първо духа (sit_drinking_blow).
-// Напитката (чаша чай, кафе, чаша сок) се слага в лапата върху анимацията –
-// същите три анимации стават за всички напитки.
+// Напитката е рисунката ѝ от храната (food/latte.png, food/tea.png…), закачена за лапата
+// (точката _cup от hold_sheet, ръкавите отгоре) – същите три анимации стават за всички напитки.
 public sealed partial class PetWindow
 {
-    private string? _cup;            // какво държи (tea, coffee, juice_orange…), или null
+    private string? _cup;            // рисунката на напитката в лапата (food_latte, food_tea…), или null
     private bool _cupHot;
     private int _sipsLeft = -1;      // колко глътки до края (-1 = докато не стане, при чая на масичката)
     private int _loopsBeforeSip;
@@ -26,13 +26,13 @@ public sealed partial class PetWindow
         _drinkLast = last;
         if (_inScene) LeaveScene();
         StartScene(Scenes.Drink, quiet: true);
-        BeginCup(Kitchen.CupFor(food), sips: 4 + _rng.Next(3), hot: Kitchen.IsHot(food));
+        BeginCup("food_" + food.ArtId, sips: 4 + _rng.Next(3), hot: Kitchen.IsHot(food));
     }
 
     private void BeginCup(string drink, int sips, bool? hot = null)
     {
         _cup = drink;
-        _cupHot = hot ?? drink is "tea" or "coffee";
+        _cupHot = hot ?? drink is "food_tea" or "food_coffee";
         _sipsLeft = sips;
         _loopsBeforeSip = 2 + _rng.Next(3);
         _blewThisSip = false;
@@ -57,9 +57,8 @@ public sealed partial class PetWindow
             if (tool == null) return outfit;
             return new Dictionary<string, string>(outfit) { [Clothes.Tool.Id] = tool };
         }
-        if (_cup == null || !_anim.StartsWith("sit_drinking")) return outfit;
-        var withCup = new Dictionary<string, string>(outfit) { [Clothes.Cup.Id] = _cup };
-        return withCup;
+        // Напитката не е в кадъра: тя е отделна рисунка в лапата (HeldRect).
+        return outfit;
     }
 
     private static readonly string[] CardColors = { "red", "blue", "green", "purple", "yellow" };
@@ -80,6 +79,25 @@ public sealed partial class PetWindow
 
     /// <summary>С коя четка рисува (сменя се всеки път, като седне на статива).</summary>
     private string _brush = "paintbrush_red";
+
+    /// <summary>Изпи го (или „Да допия ли бързо?“ – Да): казва нещо и става.</summary>
+    private void FinishDrink()
+    {
+        if (_drinkFood is not { } drink) Announce(Lines.Pick(Scenes.Drink.End, _save.OwnerName), 3);
+        else
+        {
+            Joy(JoyFed);
+            if (_drinkLast && _food.Count == 0) FinishedAll(drink);
+            else
+            {
+                Say(DoneLine(drink), 3);
+                FulfillWish(drink);
+            }
+        }
+        _drinkFood = null;
+        _sipsLeft = 0;
+        LeaveScene();
+    }
 
     private void UpdateDrinking(double now)
     {
@@ -110,22 +128,7 @@ public sealed partial class PetWindow
             _animTime = 0;
             _loopsBeforeSip = 2 + _rng.Next(3);
             _blewThisSip = false;
-            if (sipped && _sipsLeft > 0 && --_sipsLeft == 0 && _scene == Scenes.Drink)
-            {
-                if (_drinkFood is not { } drink) Announce(Lines.Pick(Scenes.Drink.End, _save.OwnerName), 3);
-                else
-                {
-                    Joy(JoyFed);
-                    if (_drinkLast && _food.Count == 0) FinishedAll(drink);
-                    else
-                    {
-                        Say(DoneLine(drink), 3);
-                        FulfillWish(drink);
-                    }
-                }
-                _drinkFood = null;
-                LeaveScene();
-            }
+            if (sipped && _sipsLeft > 0 && --_sipsLeft == 0 && _scene == Scenes.Drink) FinishDrink();
             else if (sipped && _drinkFood is { } d && _rng.Next(3) == 0)
                 Say(Lines.Pick(FoodTalk.For(d).Chew, _save.OwnerName), 2);
         }
