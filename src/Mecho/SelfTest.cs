@@ -254,7 +254,9 @@ public sealed partial class PetWindow
                 if (done != next || got != need || !Kitchen.HasRecipe(next, t)) throw new Exception($"{next.Id}: грешно отключване");
                 learned++;
             }
-            if (learned != Kitchen.Foods.Count(f => f.Cost > 0 && Kitchen.Regular(f) && !Kitchen.IsDefaultRecipe(f))) throw new Exception("не всички рецепти се научиха");
+            // Сандвичите на масичката са без рецепта (винаги ги има) – не се учат от страници.
+            if (learned != Kitchen.Foods.Count(f => f.Cost > 0 && Kitchen.Regular(f) && !Kitchen.IsDefaultRecipe(f) && f.Tool != Kitchen.Table))
+                throw new Exception("не всички рецепти се научиха");
             // Всеки уред идва със своята първа рецепта.
             foreach (var tool in new[] { Kitchen.Pot, Kitchen.Pan, Kitchen.Oven, Kitchen.CoffeeMachine, Kitchen.Kettle, Kitchen.Jug,
                 Kitchen.Mixer, Kitchen.SandwichMaker, Kitchen.IceCream, Kitchen.Grill })
