@@ -11,6 +11,8 @@ import os
 
 from PIL import Image, ImageDraw
 
+import props_layout as pl  # къде стои всяка рисунка – по папки
+
 SIZE = 32
 OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "bear")
 PROPS = os.path.join(os.path.dirname(__file__), "..", "assets", "props")
@@ -2056,8 +2058,8 @@ def save_gifts():
     for color in GIFT_RECOLOR:
         sfx = "_" + color if color else ""
         closed = recolor_gift(box, color)
-        closed.save(os.path.join(PROPS, f"gift{sfx}.png"))
-        gift_opened(closed).save(os.path.join(PROPS, f"gift{sfx}_open.png"))
+        closed.save(pl.path(f"gift{sfx}"))
+        gift_opened(closed).save(pl.path(f"gift{sfx}_open"))
         if walk is not None and color:
             # Анимацията в цвета на подаръка (дрехите – същите шаблони като walk_gift).
             recolor_gift(walk, color).save(os.path.join(OUT, f"walk_gift{sfx}.png"))
@@ -2076,8 +2078,8 @@ def save_gifts():
         sfx = "_" + color if color else ""
         props["props"].pop(f"gift_hold{sfx}", None)   # в лапите е самата кутия (gift)
         for name in (f"gift{sfx}", f"gift{sfx}_open"):
-            if os.path.exists(os.path.join(PROPS, name + ".png")):
-                props["props"][name] = {"file": name + ".png", "seat": 0}
+            if os.path.exists(pl.path(name)):
+                props["props"][name] = {"file": pl.rel(name), "seat": 0}
     with open(props_path, "w", encoding="utf-8") as fh:
         json.dump(props, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
@@ -2610,8 +2612,8 @@ def main():
     os.makedirs(PROPS, exist_ok=True)
     props = {"scale": 3, "props": {}}
     for name, (img, seat) in PROP_LIST.items():
-        img.save(os.path.join(PROPS, f"{name}.png"))
-        props["props"][name] = {"file": f"{name}.png", "seat": seat}
+        img.save(pl.path(name))
+        props["props"][name] = {"file": pl.rel(name), "seat": seat}
     with open(os.path.join(PROPS, "props.json"), "w", encoding="utf-8") as fh:
         json.dump(props, fh, indent=2, ensure_ascii=False)
         fh.write("\n")

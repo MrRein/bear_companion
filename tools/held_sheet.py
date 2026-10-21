@@ -16,6 +16,9 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
+sys.path.insert(0, os.path.dirname(__file__))
+import props_layout as pl  # noqa: E402  (къде стои всяка рисунка – по папки)
+
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 BEAR = os.path.join(ROOT, "assets", "bear")
 CLOTHES = os.path.join(ROOT, "assets", "clothes")
@@ -72,16 +75,17 @@ def items():
     for d in sorted(f[6:-4] for f in os.listdir(CLOTHES) if f.startswith("drink_") and f.endswith(".png")):
         for anim in ("sit_drinking", "sit_drinking_sip", "sit_drinking_blow"):
             out.append((d, anim, "cup", os.path.join(CLOTHES, f"drink_{d}.png"), "cup", 1))
-    foods = sorted(f[:-4] for f in os.listdir(PROPS) if f.startswith("food_") and f.endswith(".png") and not f.endswith("_menu.png"))
+    props = pl.all_names()
+    foods = sorted(n for n in props if n.startswith("food_") and not n.endswith("_menu"))
     for f in foods:
         for anim in ("eat", "eat_hold"):
-            out.append((f[5:], anim, "cup", os.path.join(PROPS, f + ".png"), "over", 0.8))
-    gifts = sorted(f[:-4] for f in os.listdir(PROPS) if f.startswith("gift") and f.endswith(".png") and "_open" not in f)
+            out.append((f[5:], anim, "cup", props[f], "over", 0.8))
+    gifts = sorted(n for n in props if n.startswith("gift") and "_open" not in n)
     for g in gifts:
         for anim in ("hold", "hold_walk"):
-            out.append((g, anim, "tool", os.path.join(PROPS, g + ".png"), "over", 0.75))
+            out.append((g, anim, "tool", props[g], "over", 0.75))
     for kind in ("sunflower", "monstera", "cactus"):
-        path = os.path.join(PROPS, f"plant_{kind}_9.png")
+        path = pl.path(f"plant_{kind}_9")
         if os.path.exists(path):
             out.append((f"саксия {kind}", "hold_walk", "tool", path, "plant", 1))
     return out

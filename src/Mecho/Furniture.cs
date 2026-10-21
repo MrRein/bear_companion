@@ -19,7 +19,7 @@ public static class Furniture
 {
     public const string Classic = "classic";
 
-    /// <summary>Рисунката на предмета: assets/props/&lt;Base&gt;[_&lt;скин&gt;][кадър].png.</summary>
+    /// <summary>Рисунката на предмета: &lt;Base&gt;[_&lt;скин&gt;][кадър] в assets/props (скиновете – в skins/).</summary>
     public static string Base(string item) => item switch
     {
         Kitchen.Couch or Kitchen.Bed or Kitchen.Heater or Kitchen.Lamp or Kitchen.Desk or Kitchen.Feeder or Kitchen.Radio => item,

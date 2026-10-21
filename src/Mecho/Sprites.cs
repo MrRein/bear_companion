@@ -149,7 +149,36 @@ public sealed class SpriteLibrary
 
     /// <summary>Има ли такава рисунка в assets/props (без placeholder).</summary>
     public bool HasProp(string name) =>
-        (_props.ContainsKey(name) && !_placeholders.Contains(name)) || File.Exists(Path.Combine(PropsFolder, name + ".png"));
+        (_props.ContainsKey(name) && !_placeholders.Contains(name)) || PropFile(name) != null;
+
+    private static Dictionary<string, string>? _propFiles;
+
+    /// <summary>
+    /// Файлът на рисунката в assets/props. Те са по папки (tools/props_layout.py): food/,
+    /// kitchen/, furniture/ и в тях skins/. Името е името на файла, само храната е
+    /// food/pizza.png → food_pizza и food/pizza_piece_2.png → food_pizza_2.
+    /// </summary>
+    public static string? PropFile(string name)
+    {
+        if (_propFiles == null)
+        {
+            var index = new Dictionary<string, string>();
+            if (Directory.Exists(PropsFolder))
+                foreach (var file in Directory.EnumerateFiles(PropsFolder, "*.png", SearchOption.AllDirectories))
+                    index[PropName(Path.GetRelativePath(PropsFolder, file))] = file;
+            _propFiles = index;
+        }
+        return _propFiles.TryGetValue(name, out var path) ? path : null;
+    }
+
+    private static string PropName(string relative)
+    {
+        relative = relative.Replace('\\', '/');
+        string stem = Path.GetFileNameWithoutExtension(relative);
+        return relative.StartsWith("food/")
+            ? "food_" + System.Text.RegularExpressions.Regex.Replace(stem, @"_piece_(\d+)$", "_$1")
+            : stem;
+    }
 
     private readonly HashSet<string> _placeholders = new();
 
@@ -157,8 +186,8 @@ public sealed class SpriteLibrary
     public Prop GetProp(string name, int width, int height, int seat)
     {
         if (_props.TryGetValue(name, out var p)) return p;
-        // Нова рисунка, която още я няма в props.json: просто файлът assets/props/<name>.png.
-        if (LoadPng(Path.Combine(PropsFolder, name + ".png")) is { } img)
+        // Нова рисунка, която още я няма в props.json: просто файлът ѝ (по папките).
+        if (PropFile(name) is { } file && LoadPng(file) is { } img)
         {
             p = new Prop { Image = img, Seat = seat };
             _props[name] = p;

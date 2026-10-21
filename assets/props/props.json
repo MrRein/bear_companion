@@ -2,7 +2,7 @@
   "scale": 3,
   "props": {
     "couch": {
-      "file": "couch.png",
+      "file": "furniture/couch.png",
       "seat": 10
     },
     "butterfly": {
@@ -30,43 +30,43 @@
       "seat": 0
     },
     "stool": {
-      "file": "stool.png",
+      "file": "furniture/stool.png",
       "seat": 7
     },
     "trampoline": {
-      "file": "trampoline.png",
+      "file": "furniture/trampoline.png",
       "seat": 4
     },
     "desk": {
-      "file": "desk.png",
+      "file": "furniture/desk.png",
       "seat": 0
     },
     "computer": {
-      "file": "computer.png",
+      "file": "furniture/computer.png",
       "seat": 0
     },
     "easel": {
-      "file": "easel.png",
+      "file": "furniture/easel.png",
       "seat": 0
     },
     "table_tea": {
-      "file": "table_tea.png",
+      "file": "furniture/table_tea.png",
       "seat": 0
     },
     "table_board": {
-      "file": "table_board.png",
+      "file": "furniture/table_board.png",
       "seat": 0
     },
     "mat": {
-      "file": "mat.png",
+      "file": "furniture/mat.png",
       "seat": 2
     },
     "plant": {
-      "file": "plant.png",
+      "file": "furniture/plant.png",
       "seat": 0
     },
     "radio": {
-      "file": "radio.png",
+      "file": "furniture/radio.png",
       "seat": 0
     },
     "nut": {
@@ -74,15 +74,15 @@
       "seat": 0
     },
     "food_berries": {
-      "file": "food_berries.png",
+      "file": "food/berries.png",
       "seat": 0
     },
     "food_coffee": {
-      "file": "food_coffee.png",
+      "file": "food/coffee.png",
       "seat": 0
     },
     "food_tea": {
-      "file": "food_tea.png",
+      "file": "food/tea.png",
       "seat": 0
     },
     "shop_pot": {
@@ -122,243 +122,243 @@
       "seat": 0
     },
     "food_popcorn": {
-      "file": "food_popcorn.png",
+      "file": "food/popcorn.png",
       "seat": 0
     },
     "food_meatballs": {
-      "file": "food_meatballs.png",
+      "file": "food/meatballs.png",
       "seat": 0
     },
     "food_potatoes": {
-      "file": "food_potatoes.png",
+      "file": "food/potatoes.png",
       "seat": 0
     },
     "wardrobe": {
-      "file": "wardrobe.png",
+      "file": "furniture/wardrobe.png",
       "seat": 0
     },
     "couch_velvet": {
-      "file": "couch_velvet.png",
+      "file": "furniture/skins/couch_velvet.png",
       "seat": 10
     },
     "couch_forest": {
-      "file": "couch_forest.png",
+      "file": "furniture/skins/couch_forest.png",
       "seat": 10
     },
     "couch_dots": {
-      "file": "couch_dots.png",
+      "file": "furniture/skins/couch_dots.png",
       "seat": 10
     },
     "couch_leather": {
-      "file": "couch_leather.png",
+      "file": "furniture/skins/couch_leather.png",
       "seat": 10
     },
     "couch_mint": {
-      "file": "couch_mint.png",
+      "file": "furniture/skins/couch_mint.png",
       "seat": 10
     },
     "couch_honey": {
-      "file": "couch_honey.png",
+      "file": "furniture/skins/couch_honey.png",
       "seat": 10
     },
     "bed": {
-      "file": "bed.png",
+      "file": "furniture/bed.png",
       "seat": 7
     },
     "bed_classic": {
-      "file": "bed_classic.png",
+      "file": "furniture/bed_classic.png",
       "seat": 7
     },
     "bed_stars": {
-      "file": "bed_stars.png",
+      "file": "furniture/skins/bed_stars.png",
       "seat": 7
     },
     "bed_pink": {
-      "file": "bed_pink.png",
+      "file": "furniture/skins/bed_pink.png",
       "seat": 7
     },
     "bed_forest": {
-      "file": "bed_forest.png",
+      "file": "furniture/skins/bed_forest.png",
       "seat": 7
     },
     "bed_honey": {
-      "file": "bed_honey.png",
+      "file": "furniture/skins/bed_honey.png",
       "seat": 7
     },
     "heater_off": {
-      "file": "heater_off.png",
+      "file": "furniture/heater_off.png",
       "seat": 0
     },
     "heater": {
-      "file": "heater.png",
+      "file": "furniture/heater.png",
       "seat": 0
     },
     "heater_b": {
-      "file": "heater_b.png",
+      "file": "furniture/heater_b.png",
       "seat": 0
     },
     "food_lemonade": {
-      "file": "food_lemonade.png",
+      "file": "food/lemonade.png",
       "seat": 0
     },
     "food_soup": {
-      "file": "food_soup.png",
+      "file": "food/soup.png",
       "seat": 0
     },
     "food_corn": {
-      "file": "food_corn.png",
+      "file": "food/corn.png",
       "seat": 0
     },
     "food_cocoa": {
-      "file": "food_cocoa.png",
+      "file": "food/cocoa.png",
       "seat": 0
     },
     "food_linden_tea": {
-      "file": "food_linden_tea.png",
+      "file": "food/linden_tea.png",
       "seat": 0
     },
     "food_eggs": {
-      "file": "food_eggs.png",
+      "file": "food/eggs.png",
       "seat": 0
     },
     "food_pancakes": {
-      "file": "food_pancakes.png",
+      "file": "food/pancakes.png",
       "seat": 0
     },
     "food_espresso": {
-      "file": "food_espresso.png",
+      "file": "food/espresso.png",
       "seat": 0
     },
     "food_latte": {
-      "file": "food_latte.png",
+      "file": "food/latte.png",
       "seat": 0
     },
     "food_mocha": {
-      "file": "food_mocha.png",
+      "file": "food/mocha.png",
       "seat": 0
     },
     "food_cappuccino": {
-      "file": "food_cappuccino.png",
+      "file": "food/cappuccino.png",
       "seat": 0
     },
     "food_iced_coffee": {
-      "file": "food_iced_coffee.png",
+      "file": "food/iced_coffee.png",
       "seat": 0
     },
     "food_cookies": {
-      "file": "food_cookies.png",
+      "file": "food/cookies.png",
       "seat": 0
     },
     "food_muffins": {
-      "file": "food_muffins.png",
+      "file": "food/muffins.png",
       "seat": 0
     },
     "food_pizza": {
-      "file": "food_pizza.png",
+      "file": "food/pizza.png",
       "seat": 0
     },
     "food_smoothie": {
-      "file": "food_smoothie.png",
+      "file": "food/smoothie.png",
       "seat": 0
     },
     "food_toast": {
-      "file": "food_toast.png",
+      "file": "food/toast.png",
       "seat": 0
     },
     "food_sandwich_ham": {
-      "file": "food_sandwich_ham.png",
+      "file": "food/sandwich_ham.png",
       "seat": 0
     },
     "food_sandwich_honey": {
-      "file": "food_sandwich_honey.png",
+      "file": "food/sandwich_honey.png",
       "seat": 0
     },
     "food_waffle_honey": {
-      "file": "food_waffle_honey.png",
+      "file": "food/waffle_honey.png",
       "seat": 0
     },
     "food_waffle_choco": {
-      "file": "food_waffle_choco.png",
+      "file": "food/waffle_choco.png",
       "seat": 0
     },
     "food_waffle_icecream": {
-      "file": "food_waffle_icecream.png",
+      "file": "food/waffle_icecream.png",
       "seat": 0
     },
     "food_icecream_honey": {
-      "file": "food_icecream_honey.png",
+      "file": "food/icecream_honey.png",
       "seat": 0
     },
     "food_icecream_berry": {
-      "file": "food_icecream_berry.png",
+      "file": "food/icecream_berry.png",
       "seat": 0
     },
     "food_skewers": {
-      "file": "food_skewers.png",
+      "file": "food/skewers.png",
       "seat": 0
     },
     "food_veggies": {
-      "file": "food_veggies.png",
+      "file": "food/veggies.png",
       "seat": 0
     },
     "food_grilled_bread": {
-      "file": "food_grilled_bread.png",
+      "file": "food/grilled_bread.png",
       "seat": 0
     },
     "food_sandwich": {
-      "file": "food_sandwich.png",
+      "file": "food/sandwich.png",
       "seat": 0
     },
     "food_roast_soup": {
-      "file": "food_roast_soup.png",
+      "file": "food/roast_soup.png",
       "seat": 0
     },
     "food_pressed_caprese": {
-      "file": "food_pressed_caprese.png",
+      "file": "food/pressed_caprese.png",
       "seat": 0
     },
     "food_pressed_veggie": {
-      "file": "food_pressed_veggie.png",
+      "file": "food/pressed_veggie.png",
       "seat": 0
     },
     "food_pressed_chicken": {
-      "file": "food_pressed_chicken.png",
+      "file": "food/pressed_chicken.png",
       "seat": 0
     },
     "food_pressed_egg": {
-      "file": "food_pressed_egg.png",
+      "file": "food/pressed_egg.png",
       "seat": 0
     },
     "food_pressed_mushroom": {
-      "file": "food_pressed_mushroom.png",
+      "file": "food/pressed_mushroom.png",
       "seat": 0
     },
     "food_pressed_sandwich": {
-      "file": "food_pressed_sandwich.png",
+      "file": "food/pressed_sandwich.png",
       "seat": 0
     },
     "cook_table": {
-      "file": "cook_table.png",
+      "file": "kitchen/cook_table.png",
       "seat": 0
     },
     "cook_table_b": {
-      "file": "cook_table_b.png",
+      "file": "kitchen/cook_table_b.png",
       "seat": 0
     },
     "cook_table_open": {
-      "file": "cook_table_open.png",
+      "file": "kitchen/cook_table_open.png",
       "seat": 0
     },
     "cook_mixer": {
-      "file": "cook_mixer.png",
+      "file": "kitchen/cook_mixer.png",
       "seat": 0
     },
     "cook_mixer_b": {
-      "file": "cook_mixer_b.png",
+      "file": "kitchen/cook_mixer_b.png",
       "seat": 0
     },
     "cook_mixer_open": {
-      "file": "cook_mixer_open.png",
+      "file": "kitchen/cook_mixer_open.png",
       "seat": 0
     },
     "shop_mixer": {
@@ -366,15 +366,15 @@
       "seat": 0
     },
     "cook_sandwich": {
-      "file": "cook_sandwich.png",
+      "file": "kitchen/cook_sandwich.png",
       "seat": 0
     },
     "cook_sandwich_b": {
-      "file": "cook_sandwich_b.png",
+      "file": "kitchen/cook_sandwich_b.png",
       "seat": 0
     },
     "cook_sandwich_open": {
-      "file": "cook_sandwich_open.png",
+      "file": "kitchen/cook_sandwich_open.png",
       "seat": 0
     },
     "shop_sandwich": {
@@ -382,15 +382,15 @@
       "seat": 0
     },
     "cook_icecream": {
-      "file": "cook_icecream.png",
+      "file": "kitchen/cook_icecream.png",
       "seat": 0
     },
     "cook_icecream_b": {
-      "file": "cook_icecream_b.png",
+      "file": "kitchen/cook_icecream_b.png",
       "seat": 0
     },
     "cook_icecream_open": {
-      "file": "cook_icecream_open.png",
+      "file": "kitchen/cook_icecream_open.png",
       "seat": 0
     },
     "shop_icecream": {
@@ -398,15 +398,15 @@
       "seat": 0
     },
     "cook_grill": {
-      "file": "cook_grill.png",
+      "file": "kitchen/cook_grill.png",
       "seat": 0
     },
     "cook_grill_b": {
-      "file": "cook_grill_b.png",
+      "file": "kitchen/cook_grill_b.png",
       "seat": 0
     },
     "cook_grill_open": {
-      "file": "cook_grill_open.png",
+      "file": "kitchen/cook_grill_open.png",
       "seat": 0
     },
     "shop_grill": {
@@ -454,379 +454,379 @@
       "seat": 0
     },
     "cook_pot": {
-      "file": "cook_pot.png",
+      "file": "kitchen/cook_pot.png",
       "seat": 0
     },
     "cook_pot_b": {
-      "file": "cook_pot_b.png",
+      "file": "kitchen/cook_pot_b.png",
       "seat": 0
     },
     "cook_pot_open": {
-      "file": "cook_pot_open.png",
+      "file": "kitchen/cook_pot_open.png",
       "seat": 0
     },
     "cook_pan": {
-      "file": "cook_pan.png",
+      "file": "kitchen/cook_pan.png",
       "seat": 0
     },
     "cook_pan_b": {
-      "file": "cook_pan_b.png",
+      "file": "kitchen/cook_pan_b.png",
       "seat": 0
     },
     "cook_pan_open": {
-      "file": "cook_pan_open.png",
+      "file": "kitchen/cook_pan_open.png",
       "seat": 0
     },
     "cook_oven": {
-      "file": "cook_oven.png",
+      "file": "kitchen/cook_oven.png",
       "seat": 0
     },
     "cook_oven_b": {
-      "file": "cook_oven_b.png",
+      "file": "kitchen/cook_oven_b.png",
       "seat": 0
     },
     "cook_oven_open": {
-      "file": "cook_oven_open.png",
+      "file": "kitchen/cook_oven_open.png",
       "seat": 0
     },
     "cook_coffee_machine": {
-      "file": "cook_coffee_machine.png",
+      "file": "kitchen/cook_coffee_machine.png",
       "seat": 0
     },
     "cook_coffee_machine_b": {
-      "file": "cook_coffee_machine_b.png",
+      "file": "kitchen/cook_coffee_machine_b.png",
       "seat": 0
     },
     "cook_coffee_machine_open": {
-      "file": "cook_coffee_machine_open.png",
+      "file": "kitchen/cook_coffee_machine_open.png",
       "seat": 0
     },
     "cook_kettle": {
-      "file": "cook_kettle.png",
+      "file": "kitchen/cook_kettle.png",
       "seat": 0
     },
     "cook_kettle_b": {
-      "file": "cook_kettle_b.png",
+      "file": "kitchen/cook_kettle_b.png",
       "seat": 0
     },
     "cook_kettle_open": {
-      "file": "cook_kettle_open.png",
+      "file": "kitchen/cook_kettle_open.png",
       "seat": 0
     },
     "cook_jug_orange": {
-      "file": "cook_jug_orange.png",
+      "file": "kitchen/cook_jug_orange.png",
       "seat": 0
     },
     "cook_jug_orange_b": {
-      "file": "cook_jug_orange_b.png",
+      "file": "kitchen/cook_jug_orange_b.png",
       "seat": 0
     },
     "cook_jug_orange_open": {
-      "file": "cook_jug_orange_open.png",
+      "file": "kitchen/cook_jug_orange_open.png",
       "seat": 0
     },
     "cook_jug_berry": {
-      "file": "cook_jug_berry.png",
+      "file": "kitchen/cook_jug_berry.png",
       "seat": 0
     },
     "cook_jug_berry_b": {
-      "file": "cook_jug_berry_b.png",
+      "file": "kitchen/cook_jug_berry_b.png",
       "seat": 0
     },
     "cook_jug_berry_open": {
-      "file": "cook_jug_berry_open.png",
+      "file": "kitchen/cook_jug_berry_open.png",
       "seat": 0
     },
     "cook_pot_enamel": {
-      "file": "cook_pot_enamel.png",
+      "file": "kitchen/skins/cook_pot_enamel.png",
       "seat": 0
     },
     "cook_pot_enamel_b": {
-      "file": "cook_pot_enamel_b.png",
+      "file": "kitchen/skins/cook_pot_enamel_b.png",
       "seat": 0
     },
     "cook_pot_enamel_open": {
-      "file": "cook_pot_enamel_open.png",
+      "file": "kitchen/skins/cook_pot_enamel_open.png",
       "seat": 0
     },
     "cook_pot_copper": {
-      "file": "cook_pot_copper.png",
+      "file": "kitchen/skins/cook_pot_copper.png",
       "seat": 0
     },
     "cook_pot_copper_b": {
-      "file": "cook_pot_copper_b.png",
+      "file": "kitchen/skins/cook_pot_copper_b.png",
       "seat": 0
     },
     "cook_pot_copper_open": {
-      "file": "cook_pot_copper_open.png",
+      "file": "kitchen/skins/cook_pot_copper_open.png",
       "seat": 0
     },
     "cook_pan_cast_iron": {
-      "file": "cook_pan_cast_iron.png",
+      "file": "kitchen/skins/cook_pan_cast_iron.png",
       "seat": 0
     },
     "cook_pan_cast_iron_b": {
-      "file": "cook_pan_cast_iron_b.png",
+      "file": "kitchen/skins/cook_pan_cast_iron_b.png",
       "seat": 0
     },
     "cook_pan_cast_iron_open": {
-      "file": "cook_pan_cast_iron_open.png",
+      "file": "kitchen/skins/cook_pan_cast_iron_open.png",
       "seat": 0
     },
     "cook_pan_pink": {
-      "file": "cook_pan_pink.png",
+      "file": "kitchen/skins/cook_pan_pink.png",
       "seat": 0
     },
     "cook_pan_pink_b": {
-      "file": "cook_pan_pink_b.png",
+      "file": "kitchen/skins/cook_pan_pink_b.png",
       "seat": 0
     },
     "cook_pan_pink_open": {
-      "file": "cook_pan_pink_open.png",
+      "file": "kitchen/skins/cook_pan_pink_open.png",
       "seat": 0
     },
     "cook_oven_retro": {
-      "file": "cook_oven_retro.png",
+      "file": "kitchen/skins/cook_oven_retro.png",
       "seat": 0
     },
     "cook_oven_retro_b": {
-      "file": "cook_oven_retro_b.png",
+      "file": "kitchen/skins/cook_oven_retro_b.png",
       "seat": 0
     },
     "cook_oven_retro_open": {
-      "file": "cook_oven_retro_open.png",
+      "file": "kitchen/skins/cook_oven_retro_open.png",
       "seat": 0
     },
     "cook_oven_wood": {
-      "file": "cook_oven_wood.png",
+      "file": "kitchen/skins/cook_oven_wood.png",
       "seat": 0
     },
     "cook_oven_wood_b": {
-      "file": "cook_oven_wood_b.png",
+      "file": "kitchen/skins/cook_oven_wood_b.png",
       "seat": 0
     },
     "cook_oven_wood_open": {
-      "file": "cook_oven_wood_open.png",
+      "file": "kitchen/skins/cook_oven_wood_open.png",
       "seat": 0
     },
     "cook_coffee_machine_moka": {
-      "file": "cook_coffee_machine_moka.png",
+      "file": "kitchen/skins/cook_coffee_machine_moka.png",
       "seat": 0
     },
     "cook_coffee_machine_moka_b": {
-      "file": "cook_coffee_machine_moka_b.png",
+      "file": "kitchen/skins/cook_coffee_machine_moka_b.png",
       "seat": 0
     },
     "cook_coffee_machine_moka_open": {
-      "file": "cook_coffee_machine_moka_open.png",
+      "file": "kitchen/skins/cook_coffee_machine_moka_open.png",
       "seat": 0
     },
     "cook_coffee_machine_retro": {
-      "file": "cook_coffee_machine_retro.png",
+      "file": "kitchen/skins/cook_coffee_machine_retro.png",
       "seat": 0
     },
     "cook_coffee_machine_retro_b": {
-      "file": "cook_coffee_machine_retro_b.png",
+      "file": "kitchen/skins/cook_coffee_machine_retro_b.png",
       "seat": 0
     },
     "cook_coffee_machine_retro_open": {
-      "file": "cook_coffee_machine_retro_open.png",
+      "file": "kitchen/skins/cook_coffee_machine_retro_open.png",
       "seat": 0
     },
     "cook_kettle_whistle": {
-      "file": "cook_kettle_whistle.png",
+      "file": "kitchen/skins/cook_kettle_whistle.png",
       "seat": 0
     },
     "cook_kettle_whistle_b": {
-      "file": "cook_kettle_whistle_b.png",
+      "file": "kitchen/skins/cook_kettle_whistle_b.png",
       "seat": 0
     },
     "cook_kettle_whistle_open": {
-      "file": "cook_kettle_whistle_open.png",
+      "file": "kitchen/skins/cook_kettle_whistle_open.png",
       "seat": 0
     },
     "cook_kettle_glass": {
-      "file": "cook_kettle_glass.png",
+      "file": "kitchen/skins/cook_kettle_glass.png",
       "seat": 0
     },
     "cook_kettle_glass_b": {
-      "file": "cook_kettle_glass_b.png",
+      "file": "kitchen/skins/cook_kettle_glass_b.png",
       "seat": 0
     },
     "cook_kettle_glass_open": {
-      "file": "cook_kettle_glass_open.png",
+      "file": "kitchen/skins/cook_kettle_glass_open.png",
       "seat": 0
     },
     "cook_mixer_mint": {
-      "file": "cook_mixer_mint.png",
+      "file": "kitchen/skins/cook_mixer_mint.png",
       "seat": 0
     },
     "cook_mixer_mint_b": {
-      "file": "cook_mixer_mint_b.png",
+      "file": "kitchen/skins/cook_mixer_mint_b.png",
       "seat": 0
     },
     "cook_mixer_mint_open": {
-      "file": "cook_mixer_mint_open.png",
+      "file": "kitchen/skins/cook_mixer_mint_open.png",
       "seat": 0
     },
     "cook_mixer_hand": {
-      "file": "cook_mixer_hand.png",
+      "file": "kitchen/skins/cook_mixer_hand.png",
       "seat": 0
     },
     "cook_mixer_hand_b": {
-      "file": "cook_mixer_hand_b.png",
+      "file": "kitchen/skins/cook_mixer_hand_b.png",
       "seat": 0
     },
     "cook_mixer_hand_open": {
-      "file": "cook_mixer_hand_open.png",
+      "file": "kitchen/skins/cook_mixer_hand_open.png",
       "seat": 0
     },
     "cook_sandwich_red": {
-      "file": "cook_sandwich_red.png",
+      "file": "kitchen/skins/cook_sandwich_red.png",
       "seat": 0
     },
     "cook_sandwich_red_b": {
-      "file": "cook_sandwich_red_b.png",
+      "file": "kitchen/skins/cook_sandwich_red_b.png",
       "seat": 0
     },
     "cook_sandwich_red_open": {
-      "file": "cook_sandwich_red_open.png",
+      "file": "kitchen/skins/cook_sandwich_red_open.png",
       "seat": 0
     },
     "cook_sandwich_waffle": {
-      "file": "cook_sandwich_waffle.png",
+      "file": "kitchen/skins/cook_sandwich_waffle.png",
       "seat": 0
     },
     "cook_sandwich_waffle_b": {
-      "file": "cook_sandwich_waffle_b.png",
+      "file": "kitchen/skins/cook_sandwich_waffle_b.png",
       "seat": 0
     },
     "cook_sandwich_waffle_open": {
-      "file": "cook_sandwich_waffle_open.png",
+      "file": "kitchen/skins/cook_sandwich_waffle_open.png",
       "seat": 0
     },
     "cook_icecream_cart": {
-      "file": "cook_icecream_cart.png",
+      "file": "kitchen/skins/cook_icecream_cart.png",
       "seat": 0
     },
     "cook_icecream_cart_b": {
-      "file": "cook_icecream_cart_b.png",
+      "file": "kitchen/skins/cook_icecream_cart_b.png",
       "seat": 0
     },
     "cook_icecream_cart_open": {
-      "file": "cook_icecream_cart_open.png",
+      "file": "kitchen/skins/cook_icecream_cart_open.png",
       "seat": 0
     },
     "cook_icecream_pink": {
-      "file": "cook_icecream_pink.png",
+      "file": "kitchen/skins/cook_icecream_pink.png",
       "seat": 0
     },
     "cook_icecream_pink_b": {
-      "file": "cook_icecream_pink_b.png",
+      "file": "kitchen/skins/cook_icecream_pink_b.png",
       "seat": 0
     },
     "cook_icecream_pink_open": {
-      "file": "cook_icecream_pink_open.png",
+      "file": "kitchen/skins/cook_icecream_pink_open.png",
       "seat": 0
     },
     "cook_grill_kettle": {
-      "file": "cook_grill_kettle.png",
+      "file": "kitchen/skins/cook_grill_kettle.png",
       "seat": 0
     },
     "cook_grill_kettle_b": {
-      "file": "cook_grill_kettle_b.png",
+      "file": "kitchen/skins/cook_grill_kettle_b.png",
       "seat": 0
     },
     "cook_grill_kettle_open": {
-      "file": "cook_grill_kettle_open.png",
+      "file": "kitchen/skins/cook_grill_kettle_open.png",
       "seat": 0
     },
     "cook_grill_camp": {
-      "file": "cook_grill_camp.png",
+      "file": "kitchen/skins/cook_grill_camp.png",
       "seat": 0
     },
     "cook_grill_camp_b": {
-      "file": "cook_grill_camp_b.png",
+      "file": "kitchen/skins/cook_grill_camp_b.png",
       "seat": 0
     },
     "cook_grill_camp_open": {
-      "file": "cook_grill_camp_open.png",
+      "file": "kitchen/skins/cook_grill_camp_open.png",
       "seat": 0
     },
     "heater_fireplace": {
-      "file": "heater_fireplace.png",
+      "file": "furniture/skins/heater_fireplace.png",
       "seat": 0
     },
     "heater_fireplace_b": {
-      "file": "heater_fireplace_b.png",
+      "file": "furniture/skins/heater_fireplace_b.png",
       "seat": 0
     },
     "heater_fireplace_off": {
-      "file": "heater_fireplace_off.png",
+      "file": "furniture/skins/heater_fireplace_off.png",
       "seat": 0
     },
     "heater_tiles": {
-      "file": "heater_tiles.png",
+      "file": "furniture/skins/heater_tiles.png",
       "seat": 0
     },
     "heater_tiles_b": {
-      "file": "heater_tiles_b.png",
+      "file": "furniture/skins/heater_tiles_b.png",
       "seat": 0
     },
     "heater_tiles_off": {
-      "file": "heater_tiles_off.png",
+      "file": "furniture/skins/heater_tiles_off.png",
       "seat": 0
     },
     "heater_retro": {
-      "file": "heater_retro.png",
+      "file": "furniture/skins/heater_retro.png",
       "seat": 0
     },
     "heater_retro_b": {
-      "file": "heater_retro_b.png",
+      "file": "furniture/skins/heater_retro_b.png",
       "seat": 0
     },
     "heater_retro_off": {
-      "file": "heater_retro_off.png",
+      "file": "furniture/skins/heater_retro_off.png",
       "seat": 0
     },
     "heater_cozy": {
-      "file": "heater_cozy.png",
+      "file": "furniture/skins/heater_cozy.png",
       "seat": 0
     },
     "heater_cozy_b": {
-      "file": "heater_cozy_b.png",
+      "file": "furniture/skins/heater_cozy_b.png",
       "seat": 0
     },
     "heater_cozy_off": {
-      "file": "heater_cozy_off.png",
+      "file": "furniture/skins/heater_cozy_off.png",
       "seat": 0
     },
     "lamp": {
-      "file": "lamp.png",
+      "file": "furniture/lamp.png",
       "seat": 0
     },
     "lamp_mushroom": {
-      "file": "lamp_mushroom.png",
+      "file": "furniture/skins/lamp_mushroom.png",
       "seat": 0
     },
     "lamp_lantern": {
-      "file": "lamp_lantern.png",
+      "file": "furniture/skins/lamp_lantern.png",
       "seat": 0
     },
     "lamp_moon": {
-      "file": "lamp_moon.png",
+      "file": "furniture/skins/lamp_moon.png",
       "seat": 0
     },
     "lamp_lava": {
-      "file": "lamp_lava.png",
+      "file": "furniture/skins/lamp_lava.png",
       "seat": 0
     },
     "lamp_candle": {
-      "file": "lamp_candle.png",
+      "file": "furniture/skins/lamp_candle.png",
       "seat": 0
     },
     "yarn_basket": {
-      "file": "yarn_basket.png",
+      "file": "furniture/yarn_basket.png",
       "seat": 0
     },
     "shop_guitar": {
@@ -874,55 +874,55 @@
       "seat": 0
     },
     "food_popcorn_1": {
-      "file": "food_popcorn_1.png",
+      "file": "food/popcorn_piece_1.png",
       "seat": 0
     },
     "food_meatballs_1": {
-      "file": "food_meatballs_1.png",
+      "file": "food/meatballs_piece_1.png",
       "seat": 0
     },
     "food_popcorn_2": {
-      "file": "food_popcorn_2.png",
+      "file": "food/popcorn_piece_2.png",
       "seat": 0
     },
     "food_meatballs_2": {
-      "file": "food_meatballs_2.png",
+      "file": "food/meatballs_piece_2.png",
       "seat": 0
     },
     "food_popcorn_3": {
-      "file": "food_popcorn_3.png",
+      "file": "food/popcorn_piece_3.png",
       "seat": 0
     },
     "food_meatballs_3": {
-      "file": "food_meatballs_3.png",
+      "file": "food/meatballs_piece_3.png",
       "seat": 0
     },
     "food_popcorn_4": {
-      "file": "food_popcorn_4.png",
+      "file": "food/popcorn_piece_4.png",
       "seat": 0
     },
     "food_meatballs_4": {
-      "file": "food_meatballs_4.png",
+      "file": "food/meatballs_piece_4.png",
       "seat": 0
     },
     "food_potatoes_1": {
-      "file": "food_potatoes_1.png",
+      "file": "food/potatoes_piece_1.png",
       "seat": 0
     },
     "food_potatoes_2": {
-      "file": "food_potatoes_2.png",
+      "file": "food/potatoes_piece_2.png",
       "seat": 0
     },
     "food_potatoes_3": {
-      "file": "food_potatoes_3.png",
+      "file": "food/potatoes_piece_3.png",
       "seat": 0
     },
     "food_juice_orange": {
-      "file": "food_juice_orange.png",
+      "file": "food/juice_orange.png",
       "seat": 0
     },
     "food_juice_berry": {
-      "file": "food_juice_berry.png",
+      "file": "food/juice_berry.png",
       "seat": 0
     },
     "mystery": {

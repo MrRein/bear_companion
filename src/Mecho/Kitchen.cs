@@ -7,7 +7,7 @@ namespace Mecho;
 /// <summary>
 /// Храна или напитка, която мечокът готви. Cost е в лешници (0 = безплатна);
 /// Tool е уредът, който трябва да е купен (null = не трябва нищо). Count е на
-/// колко парчета се появява из екрана; рисунката е assets/props/food_{Id}.png.
+/// колко парчета се появява из екрана; рисунката е assets/props/food/{Id}.png.
 /// </summary>
 public sealed record Food(
     string Id, string Name, string Icon, double Fullness, double Energy, int Cost, int Count, string? Tool, string[] Lines)

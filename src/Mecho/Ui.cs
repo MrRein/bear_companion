@@ -208,7 +208,7 @@ public static class Ui
         {
             // Иконките са в assets/ui; храната и предметите от магазина – в assets/props.
             string path = Path.Combine(AppContext.BaseDirectory, "assets", "ui", name + ".png");
-            if (!File.Exists(path)) path = Path.Combine(AppContext.BaseDirectory, "assets", "props", name + ".png");
+            if (!File.Exists(path)) path = SpriteLibrary.PropFile(name) ?? "";
             if (File.Exists(path))
             {
                 var bmp = new BitmapImage();

@@ -1,8 +1,8 @@
 """Картинки за МЕНЮТО на храната, която излиза на парчета.
 
-Парчето (assets/props/food_<id>.png) си остава за екрана; тук се рисува цялото
+Парчето (assets/props/food/<id>.png) си остава за екрана; тук се рисува цялото
 ястие (купичка боровинки, кофа пуканки, цяла пица…) в
-assets/props/food_<id>_menu.png, 16x16, със същите цветове и черен контур.
+assets/props/food/<id>_menu.png, 16x16, със същите цветове и черен контур.
 Пише и преглед art_templates/food_menu_sheet.png (парче | меню, 4x).
 
     python tools/make_food_menu.py
@@ -11,6 +11,8 @@ assets/props/food_<id>_menu.png, 16x16, със същите цветове и ч
 import os
 
 from PIL import Image, ImageDraw, ImageFont
+
+import props_layout as pl  # къде стои всяка рисунка – по папки
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 PROPS = os.path.join(ROOT, "assets", "props")
@@ -302,7 +304,7 @@ def preview(images):
     font = ImageFont.load_default()
     for i, (fid, menu) in enumerate(images.items()):
         cx, cy = (i % cols) * cell_w + 8, (i // cols) * cell_h + 4
-        piece = Image.open(os.path.join(PROPS, f"food_{fid}.png")).convert("RGBA")
+        piece = Image.open(pl.path(f"food_{fid}")).convert("RGBA")
         box = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
         box.alpha_composite(piece, ((16 - piece.width) // 2, (16 - piece.height) // 2))
         for j, im in enumerate((box, menu)):
@@ -318,7 +320,7 @@ def main():
     images = {}
     for fid, draw in MENU.items():
         img = img16(draw)
-        img.save(os.path.join(PROPS, f"food_{fid}_menu.png"))
+        img.save(pl.path(f"food_{fid}_menu"))
         images[fid] = img
     preview(images)
 

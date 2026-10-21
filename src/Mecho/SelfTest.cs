@@ -727,6 +727,13 @@ public sealed partial class PetWindow
             if (CurrentEmote != "think" || _emoteFrames is not { Length: > 1 }) throw new Exception("think не е с кадри");
             UpdateLayoutAndWindow();
         }, 800);
+        await step("рисунките по папки (food, kitchen, furniture, skins)", () =>
+        {
+            foreach (var name in new[] { "food_pizza", "food_meatballs_2", "food_pizza_menu", "cook_oven", "cook_oven_retro_b",
+                                         "couch", "couch_velvet", "plant_cactus_3", "gift_red", "shop_couch" })
+                if (!_lib.HasProp(name)) throw new Exception("не намира рисунката " + name);
+            if (Ui.LoadIcon("food_pizza_menu") == null) throw new Exception("няма иконка food_pizza_menu");
+        }, 200);
         await step("храната се отхапва (пиксели, не смаляване)", () =>
         {
             var food = _lib.GetProp("food_cookies", 16, 16, 0).Image;

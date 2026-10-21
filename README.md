@@ -250,9 +250,13 @@ Sans / Bold / Mono (GGBotNet, SIL Open Font License) в `src/Mecho/fonts/`.
 `table_tea`, `table_board`, `mat` (постелка), `plant`, `radio`, `nut`. Седалките
 (`couch`, `stool`, `mat`) имат `seat` в `props.json`.
 
-Предметите са в `assets/props/`: диванът, пеперудата и храната
-(`food_berries.png`, `food_popcorn.png`, `food_meatballs.png`, `food_potatoes.png`,
-`food_coffee.png`, `food_tea.png`). Те не са ленти, а
+Предметите са в `assets/props/`, по папки (`tools/props_layout.py` ги подрежда):
+`food/` – храната (`food/pizza.png`, парчетата `food/pizza_piece_1.png`…, иконката
+`food/pizza_menu.png`), `kitchen/` – уредите за готвене, `furniture/` – мебелите и
+предметите за слагане (легло, диван, бюро, статив, печица, лампа, радио, хранилка,
+саксия…). Скиновете са в `skins/` във всяка папка (`furniture/skins/couch_velvet.png`).
+Останалото (птички, пеперуди, подаръци, иконките за магазина) е направо в
+`assets/props/`. В програмата името е като преди (`food_pizza`, `couch_velvet`). Те не са ленти, а
 една картинка с какъвто размер искаш. В `props.json` пише и `seat`: на колко
 пиксела от земята е седалката, за да седне мечокът точно на нея. Седналите
 анимации (`read`, `read_sleep`) се рисуват така, сякаш мечокът стои на земята;

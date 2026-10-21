@@ -12,6 +12,8 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
+import props_layout as pl  # къде стои всяка рисунка – по папки
+
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 PROPS = os.path.join(ROOT, "assets", "props")
 CLOTHES = os.path.join(ROOT, "assets", "clothes")
@@ -54,7 +56,7 @@ def main():
         for skin in skins:
             for frame in frames:
                 name = base + skin + frame
-                path = os.path.join(folder, name + ".png")
+                path = pl.path(name) if folder == PROPS else os.path.join(folder, name + ".png")
                 if os.path.exists(path):
                     cells.append((r, Image.open(path).convert("RGBA"), name))
     gap, label_w = 10, 150

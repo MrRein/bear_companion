@@ -16,6 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, os.path.dirname(__file__))
 import make_placeholders as mp  # noqa: E402
+import props_layout as pl  # noqa: E402  (къде стои всяка рисунка – по папки)
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 PROPS = os.path.join(ROOT, "assets", "props")
@@ -66,7 +67,7 @@ def new(w, h):
 
 
 def save(name, img, folder=PROPS, group=""):
-    img.save(os.path.join(folder, name + ".png"))
+    img.save(pl.path(name) if folder == PROPS else os.path.join(folder, name + ".png"))
     OUT[name] = (folder, img, group)
 
 
@@ -314,7 +315,7 @@ PAINTINGS = [painting_mountains, painting_night, painting_flower, painting_bear,
 
 
 def easel_paintings():
-    base = Image.open(os.path.join(PROPS, "easel.png")).convert("RGBA")
+    base = Image.open(pl.path("easel")).convert("RGBA")
     out = []
     for fn in PAINTINGS:
         canvas = Image.new("RGBA", (14, 13), (0, 0, 0, 0))
@@ -775,7 +776,7 @@ def bird(kind, frame):
 
 
 def desk_skin(kind):
-    src = Image.open(os.path.join(PROPS, "desk.png")).convert("RGBA")
+    src = Image.open(pl.path("desk")).convert("RGBA")
     img, d = new(24, 22)
     img.paste(src.crop((0, 0, 24, 12)), (0, 0))          # лаптопът, лампата и чашката остават
     top, light, dark = {"oak": (OAK, (225, 185, 125, 255), OAK_DARK),
