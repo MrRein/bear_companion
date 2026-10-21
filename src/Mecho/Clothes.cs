@@ -62,6 +62,9 @@ public static class Clothes
     public static readonly Slot Cup = new("cup", "Напитка", "tea", "cup", "drink", Anchor.Bottom);
     /// <summary>Предметът в лапата (четка, лейка) в doing*: рисунка tool_&lt;id&gt;.png, дръжката в средата, на точката _tool.</summary>
     public static readonly Slot Tool = new("tool", "Предмет", "pencil", "tool", "tool", Anchor.Center);
+
+    /// <summary>Предмети в лапата, които са над ръкавите и ръкавиците и при item_below_arm.</summary>
+    public static readonly HashSet<string> AboveArm = new() { "wateringcan", "scissors" };
     public static readonly Slot Shirt = new("shirt", "Блузи", "shirt", "shirt");
     public static readonly Slot Pants = new("pants", "Панталони", "pants", "pants");
     public static readonly Slot Shoes = new("shoes", "Обувки", "shoe", "shoes");
@@ -552,7 +555,7 @@ public sealed class Dresser
                 // <anim>_front.png) остава отгоре. Снимката е от преди първия аксесоар.
                 if (slot != Clothes.Cup && slot != Clothes.Tool && !frontDone) under ??= (uint[])px.Clone();
                 // item_below_arm (anim.json): предметът е под ръкавите и ръкавиците – там не се рисува.
-                if ((slot == Clothes.Tool || slot == Clothes.Cup) && lib.Get(anim).ItemBelowArm)
+                if ((slot == Clothes.Tool || slot == Clothes.Cup) && lib.Get(anim).ItemBelowArm && !Clothes.AboveArm.Contains(id))
                 {
                     var beforeItem = (uint[])px.Clone();
                     Blit(px, w, H, Pixels(art), art.PixelWidth, art.PixelHeight, ax - art.PixelWidth / 2, top + HatRoom);

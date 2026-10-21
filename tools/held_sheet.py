@@ -22,6 +22,7 @@ CLOTHES = os.path.join(ROOT, "assets", "clothes")
 LAYERS = os.path.join(CLOTHES, "layers")
 PROPS = os.path.join(ROOT, "assets", "props")
 OUT = os.path.join(ROOT, "art_templates", "held_items.png")
+ABOVE_ARM = {"wateringcan", "scissors"}   # като Clothes.AboveArm
 SIZE, S = 32, 3                       # кадърът и колко пъти е уголемен
 CELL = SIZE * S
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -148,7 +149,8 @@ def main(only=()):
     d.text((8, 8), "Всичко, което мечето държи (без дрехи; ръкави/ръкавици над предмета, където е item_below_arm)",
            fill=(40, 40, 40), font=font(16))
     for k, (title, anim, pl, path, how, scale) in enumerate(rows):
-        below = bool(anims.get(anim, {}).get("item_below_arm"))
+        # Лейката и ножицата са над ръцете (Clothes.AboveArm).
+        below = bool(anims.get(anim, {}).get("item_below_arm")) and title not in ABOVE_ARM
         x0 = (k % per_row) * block_w + gap
         y0 = 40 + (k // per_row) * row_h
         d.text((x0, y0 + CELL // 2 - 16), title, fill=(40, 40, 40), font=font(14))
