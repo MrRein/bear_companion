@@ -157,8 +157,16 @@ public static class Ui
     }
 
     // Преди текстурите: те ги ползват (полетата се правят по реда в файла).
-    private static readonly Brush BevelLight = Frozen(new SolidColorBrush(Color.FromArgb(105, 255, 255, 255)));
-    private static readonly Brush BevelDark = Frozen(new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)));
+    private static readonly Brush BevelLight = Frozen(new SolidColorBrush(Color.FromArgb(115, 255, 255, 255)));
+    private static readonly Brush BevelSoftLight = Frozen(new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)));
+    private static readonly Brush BevelDark = Frozen(new SolidColorBrush(Color.FromArgb(56, 13, 18, 28)));
+    private static readonly Brush BevelSoftDark = Frozen(new SolidColorBrush(Color.FromArgb(30, 13, 18, 28)));
+
+    /// <summary>Твърда пикселна сянка под бутона (без размазване), както под рисунките.</summary>
+    public static System.Windows.Media.Effects.Effect HardShadow(double depth = 3) => new System.Windows.Media.Effects.DropShadowEffect
+    {
+        Color = Color.FromRgb(13, 18, 28), Direction = 270, ShadowDepth = depth, BlurRadius = 0, Opacity = 0.22,
+    };
 
     private static Brush Frozen(Brush b)
     {
@@ -589,6 +597,7 @@ public static class Ui
             Cursor = Cursors.Hand,
             Template = ChunkyTemplate(),
             HorizontalContentAlignment = HorizontalAlignment.Center,
+            Effect = HardShadow(),
         };
         b.Click += (_, _) => onClick();
         return b;
@@ -627,6 +636,7 @@ public static class Ui
             case Control c:
                 c.Background = on ? Honey : PaperDark;
                 c.BorderThickness = on ? Sunken : Raised;
+                c.Effect = on ? null : HardShadow();     // включеното е натиснато навътре – без сянка
                 break;
         }
     }
@@ -683,18 +693,22 @@ public static class Ui
         border.SetBinding(Border.BorderBrushProperty, new Binding(nameof(Control.BorderBrush)) { RelativeSource = RelativeSource.TemplatedParent });
         border.SetBinding(Border.BorderThicknessProperty, new Binding(nameof(Control.BorderThickness)) { RelativeSource = RelativeSource.TemplatedParent });
 
-        // Пикселен релеф: светла ивица горе и тъмна долу (вътре в контура).
+        // Пикселен релеф в три тона (като храната): светло горе и вляво, тъмно долу и вдясно.
         var grid = new FrameworkElementFactory(typeof(Grid));
-        var hi = new FrameworkElementFactory(typeof(Rectangle), "hi");
-        hi.SetValue(Shape.FillProperty, BevelLight);
-        hi.SetValue(FrameworkElement.HeightProperty, 2.0);
-        hi.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top);
-        grid.AppendChild(hi);
-        var lo = new FrameworkElementFactory(typeof(Rectangle), "lo");
-        lo.SetValue(Shape.FillProperty, BevelDark);
-        lo.SetValue(FrameworkElement.HeightProperty, 2.0);
-        lo.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Bottom);
-        grid.AppendChild(lo);
+        void Edge(string name, Brush fill, double? w, double? h, HorizontalAlignment ha, VerticalAlignment va)
+        {
+            var r = new FrameworkElementFactory(typeof(Rectangle), name);
+            r.SetValue(Shape.FillProperty, fill);
+            if (w is double ww) r.SetValue(FrameworkElement.WidthProperty, ww);
+            if (h is double hh) r.SetValue(FrameworkElement.HeightProperty, hh);
+            r.SetValue(FrameworkElement.HorizontalAlignmentProperty, ha);
+            r.SetValue(FrameworkElement.VerticalAlignmentProperty, va);
+            grid.AppendChild(r);
+        }
+        Edge("hl", BevelSoftLight, 2.0, null, HorizontalAlignment.Left, VerticalAlignment.Stretch);
+        Edge("lr", BevelSoftDark, 2.0, null, HorizontalAlignment.Right, VerticalAlignment.Stretch);
+        Edge("hi", BevelLight, null, 2.0, HorizontalAlignment.Stretch, VerticalAlignment.Top);
+        Edge("lo", BevelDark, null, 3.0, HorizontalAlignment.Stretch, VerticalAlignment.Bottom);
 
         var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
         presenter.SetBinding(FrameworkElement.HorizontalAlignmentProperty, new Binding(nameof(Control.HorizontalContentAlignment)) { RelativeSource = RelativeSource.TemplatedParent });
@@ -713,13 +727,25 @@ public static class Ui
         pressed.Setters.Add(new Setter(Border.BorderThicknessProperty, new Thickness(2, 4, 2, 2), "bd"));
         // Натиснат: сянката е горе, светлото изчезва.
         pressed.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hi"));
+        pressed.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hl"));
+        pressed.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "lr"));
         pressed.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top, "lo"));
+        pressed.Setters.Add(new Setter(UIElement.EffectProperty, null));          // натиснат: без сянка
         template.Triggers.Add(pressed);
+        // Включено (SetOn): изглежда натиснато – сянката на релефа е горе.
+        var selected = new Trigger { Property = FrameworkElement.TagProperty, Value = true };
+        foreach (var name in new[] { "hi", "hl", "lr" })
+            selected.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, name));
+        selected.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top, "lo"));
+        template.Triggers.Add(selected);
         var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5));
         disabled.Setters.Add(new Setter(Border.BorderThicknessProperty, Flat, "bd"));      // не изпъква: не се натиска
         disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hi"));
         disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "lo"));
+        disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hl"));
+        disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "lr"));
+        disabled.Setters.Add(new Setter(UIElement.EffectProperty, null));
         template.Triggers.Add(disabled);
         return template;
     }
@@ -730,8 +756,10 @@ public static class Ui
         IsHitTestVisible = false,
         Children =
         {
+            new Rectangle { Fill = BevelSoftLight, Width = 2, HorizontalAlignment = HorizontalAlignment.Left },
+            new Rectangle { Fill = BevelSoftDark, Width = 2, HorizontalAlignment = HorizontalAlignment.Right },
             new Rectangle { Fill = BevelLight, Height = 2, VerticalAlignment = VerticalAlignment.Top },
-            new Rectangle { Fill = BevelDark, Height = 2, VerticalAlignment = VerticalAlignment.Bottom },
+            new Rectangle { Fill = BevelDark, Height = 3, VerticalAlignment = VerticalAlignment.Bottom },
         },
     };
 

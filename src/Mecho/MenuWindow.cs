@@ -789,8 +789,20 @@ public sealed class MenuWindow : Window
             };
             track.Children.Add(segments[i]);
         }
-        Grid.SetColumn(track, 1);
-        grid.Children.Add(track);
+        // Деленцата стоят във вдлъбнат улей (като рисувана лента в игра).
+        var groove = new Border
+        {
+            Background = Muted,
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(2),
+            Padding = new Thickness(2, 2, 0, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = track,
+        };
+        Grid.SetColumn(groove, 1);
+        grid.Children.Add(groove);
 
         // Думата (сит, гладен, бодър…) излиза като подсказка, когато мишката е върху лентата.
         value = new TextBlock { Foreground = Muted, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
