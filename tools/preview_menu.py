@@ -32,6 +32,22 @@ with open(os.path.join(SKIN, "skin.json"), encoding="utf-8") as fh:
     DEFS = json.load(fh)
 
 
+def with_shadow(art):
+    """Като Ui.WithShadow: тънка полупрозрачна черта под долния ред на храната."""
+    w, h = art.size
+    solid = lambda x, y: art.getpixel((x, y))[3] > 128
+    bottom = max((y for y in range(h) for x in range(w) if solid(x, y)), default=-1)
+    if bottom < 0:
+        return art
+    xs = [x for y in range(max(0, bottom - 1), bottom + 1) for x in range(w) if solid(x, y)]
+    out = Image.new("RGBA", (w, max(h, bottom + 2)), (0, 0, 0, 0))
+    out.paste(art, (0, 0))
+    for x in range(min(xs), max(xs) + 1):
+        if out.getpixel((x, bottom + 1))[3] == 0:
+            out.putpixel((x, bottom + 1), (13, 18, 28, 40 if x in (min(xs), max(xs)) else 80))
+    return out
+
+
 def resolve(name):
     while name not in DEFS and "_" in name:
         name = name.rsplit("_", 1)[0]
@@ -82,6 +98,8 @@ class Canvas:
 
     def icon(self, name, x, y, folder=UI, scale=2):
         im = Image.open(os.path.join(folder, name + ".png")).convert("RGBA")
+        if folder == FOOD:
+            im = with_shadow(im)
         im = im.resize((im.width * scale, im.height * scale), Image.NEAREST)
         self.img.alpha_composite(im, (int(x), int(y)))
 

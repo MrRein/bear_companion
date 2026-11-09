@@ -803,6 +803,47 @@ public static class Ui
     /// <summary>Колко физически пиксела на точка за картинките (храна, портрет): big = 2 → „нормално“.</summary>
     public static int ArtScale(int big) => Math.Max(1, _k * big / 2);
 
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<BitmapSource, BitmapSource> Shadows = new();
+
+    /// <summary>
+    /// Храна със сянка: под долния ѝ ред – тънка полупрозрачна черта (в краищата по-бледа),
+    /// колкото е широко дъното. Ако рисунката стига до долу, става с един ред по-висока.
+    /// </summary>
+    public static BitmapSource WithShadow(BitmapSource art)
+    {
+        if (Shadows.TryGetValue(art, out var done)) return done;
+        var conv = new FormatConvertedBitmap(art, PixelFormats.Bgra32, null, 0);
+        int w = conv.PixelWidth, h = conv.PixelHeight, stride = w * 4;
+        var src = new byte[h * stride];
+        conv.CopyPixels(src, stride, 0);
+        bool Solid(int x, int y) => src[y * stride + x * 4 + 3] > 128;
+        int bottom = -1;
+        for (int y = h - 1; y >= 0 && bottom < 0; y--)
+            for (int x = 0; x < w; x++)
+                if (Solid(x, y)) { bottom = y; break; }
+        if (bottom < 0) return art;
+        int x0 = w, x1 = -1;
+        for (int y = Math.Max(0, bottom - 1); y <= bottom; y++)
+            for (int x = 0; x < w; x++)
+                if (Solid(x, y)) { x0 = Math.Min(x0, x); x1 = Math.Max(x1, x); }
+        int nh = bottom + 1 < h ? h : h + 1;
+        var px = new byte[nh * stride];
+        Array.Copy(src, px, src.Length);
+        int sy = bottom + 1;
+        for (int x = x0; x <= x1; x++)
+        {
+            int i = sy * stride + x * 4;
+            if (px[i + 3] != 0) continue;
+            byte a = (byte)(x == x0 || x == x1 ? 40 : 80);
+            // Предварително умножени цветове не трябват: Bgra32 е с обикновена прозрачност.
+            px[i] = 28; px[i + 1] = 18; px[i + 2] = 13; px[i + 3] = a;
+        }
+        var result = BitmapSource.Create(w, nh, 96, 96, PixelFormats.Bgra32, null, px, stride);
+        result.Freeze();
+        Shadows.Add(art, result);
+        return result;
+    }
+
     /// <summary>Пикселна картинка, увеличена без размазване на цели физически пиксели.</summary>
     public static Image Pixel(BitmapSource source, int pixelsPerDot)
     {

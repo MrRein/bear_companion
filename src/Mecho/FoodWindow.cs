@@ -20,6 +20,9 @@ public sealed class FoodWindow : Window
     public Food Food { get; }
     public double Fullness { get; }
     public System.Windows.Media.Imaging.BitmapSource Art { get; }
+
+    /// <summary>Каквото се вижда: рисунката с лека сянка отдолу.</summary>
+    private System.Windows.Media.Imaging.BitmapSource Shown => Ui.WithShadow(Art);
     public double Energy { get; }
     public double VelocityY { get; set; }
     public double VelocityX { get; set; }
@@ -47,7 +50,7 @@ public sealed class FoodWindow : Window
     /// <summary>Нов мащаб: по-голяма/по-малка храна (долният край и средата остават).</summary>
     public void Rescale(double pixelSize)
     {
-        double w = Art.PixelWidth * pixelSize, h = Art.PixelHeight * pixelSize;
+        double w = Shown.PixelWidth * pixelSize, h = Shown.PixelHeight * pixelSize;
         double cx = Left + Width / 2, bottom = Top + Height;
         _image.Width = Width = w;
         _image.Height = Height = h;
@@ -75,9 +78,9 @@ public sealed class FoodWindow : Window
 
         var image = new Image
         {
-            Source = prop.Image,
-            Width = prop.Image.PixelWidth * pixelSize,
-            Height = prop.Image.PixelHeight * pixelSize,
+            Source = Shown,
+            Width = Shown.PixelWidth * pixelSize,
+            Height = Shown.PixelHeight * pixelSize,
             Cursor = Cursors.Hand,
             ToolTip = $"{food.Icon} {food.Name}: занеси ги на мечока",
         };

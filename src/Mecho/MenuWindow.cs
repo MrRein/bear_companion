@@ -946,7 +946,7 @@ public sealed class MenuWindow : Window
                 }
             }
             // Сърчице горе вдясно в картинката: това му се яде.
-            _foodTiles.Children.Add(MakeTile(_pet.FoodMenuImage(f), f.Name, effects, action, locked, why, heart: wishes.Contains(f)));
+            _foodTiles.Children.Add(MakeTile(WithShadow(_pet.FoodMenuImage(f)), f.Name, effects, action, locked, why, heart: wishes.Contains(f)));
         }
         BuildRecipeProgress();
     }
