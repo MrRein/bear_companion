@@ -8,6 +8,8 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Rectangle = System.Windows.Shapes.Rectangle;
+using Shape = System.Windows.Shapes.Shape;
 
 namespace Mecho;
 
@@ -154,6 +156,16 @@ public static class Ui
         return (Style)System.Windows.Markup.XamlReader.Parse(xaml);
     }
 
+    // Преди текстурите: те ги ползват (полетата се правят по реда в файла).
+    private static readonly Brush BevelLight = Frozen(new SolidColorBrush(Color.FromArgb(105, 255, 255, 255)));
+    private static readonly Brush BevelDark = Frozen(new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)));
+
+    private static Brush Frozen(Brush b)
+    {
+        b.Freeze();
+        return b;
+    }
+
     public static readonly Brush PaperTexture = MakePaper();
 
     /// <summary>Дърво с ивици (дъски) за рамката.</summary>
@@ -176,24 +188,42 @@ public static class Ui
     private static GeometryDrawing Box(Brush b, double x, double y, double w, double h) =>
         new(b, null, new RectangleGeometry(new Rect(x, y, w, h)));
 
+    /// <summary>Пунктирната черта под заглавията (по 6 пиксела черта, 3 празно).</summary>
+    public static readonly Brush RibbonDash = MakeDash();
+
     private static Brush MakePaper()
     {
+        // Хартия на пиксели: точици на разминаване и тук-там едно по-светло петънце.
         var g = new DrawingGroup();
-        g.Children.Add(Box(Paper, 0, 0, 10, 10));
+        g.Children.Add(Box(Paper, 0, 0, 12, 12));
         g.Children.Add(Box(PaperDark, 0, 0, 1, 1));
-        g.Children.Add(Box(PaperDark, 5, 5, 1, 1));
-        return Tiled(g, 10, 10);
+        g.Children.Add(Box(PaperDark, 6, 6, 1, 1));
+        g.Children.Add(Box(BevelLight, 9, 2, 1, 1));
+        g.Children.Add(Box(BevelLight, 3, 8, 1, 1));
+        return Tiled(g, 12, 12);
     }
 
     private static Brush MakeWood()
     {
+        // Дъски: светла ивица горе, тъмна фуга долу, жилки и по един гвоздей на дъска.
         var g = new DrawingGroup();
         g.Children.Add(Box(Wood, 0, 0, 60, 14));
+        g.Children.Add(Box(WoodLight, 0, 0, 59, 1));
         g.Children.Add(Box(WoodDark, 0, 13, 60, 1));
-        g.Children.Add(Box(WoodLight, 6, 4, 14, 1));
+        g.Children.Add(Box(WoodLight, 6, 5, 14, 1));
         g.Children.Add(Box(WoodDark, 32, 8, 16, 1));
         g.Children.Add(Box(WoodDark, 59, 0, 1, 13));
+        g.Children.Add(Box(WoodDark, 54, 6, 2, 2));
+        g.Children.Add(Box(WoodLight, 54, 6, 1, 1));
         return Tiled(g, 60, 14);
+    }
+
+    private static Brush MakeDash()
+    {
+        var g = new DrawingGroup();
+        g.Children.Add(Box(Brushes.Transparent, 0, 0, 9, 2));
+        g.Children.Add(Box(WoodLight, 0, 0, 6, 2));
+        return Tiled(g, 9, 2);
     }
 
     // ───────────────────────── Иконки ─────────────────────────
@@ -652,12 +682,27 @@ public static class Ui
         border.SetBinding(Border.BackgroundProperty, new Binding(nameof(Control.Background)) { RelativeSource = RelativeSource.TemplatedParent });
         border.SetBinding(Border.BorderBrushProperty, new Binding(nameof(Control.BorderBrush)) { RelativeSource = RelativeSource.TemplatedParent });
         border.SetBinding(Border.BorderThicknessProperty, new Binding(nameof(Control.BorderThickness)) { RelativeSource = RelativeSource.TemplatedParent });
-        border.SetBinding(Border.PaddingProperty, new Binding(nameof(Control.Padding)) { RelativeSource = RelativeSource.TemplatedParent });
+
+        // Пикселен релеф: светла ивица горе и тъмна долу (вътре в контура).
+        var grid = new FrameworkElementFactory(typeof(Grid));
+        var hi = new FrameworkElementFactory(typeof(Rectangle), "hi");
+        hi.SetValue(Shape.FillProperty, BevelLight);
+        hi.SetValue(FrameworkElement.HeightProperty, 2.0);
+        hi.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top);
+        grid.AppendChild(hi);
+        var lo = new FrameworkElementFactory(typeof(Rectangle), "lo");
+        lo.SetValue(Shape.FillProperty, BevelDark);
+        lo.SetValue(FrameworkElement.HeightProperty, 2.0);
+        lo.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Bottom);
+        grid.AppendChild(lo);
 
         var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
         presenter.SetBinding(FrameworkElement.HorizontalAlignmentProperty, new Binding(nameof(Control.HorizontalContentAlignment)) { RelativeSource = RelativeSource.TemplatedParent });
         presenter.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        border.AppendChild(presenter);
+        // Отстъпът е около текста, а не около релефа (той стига до контура).
+        presenter.SetBinding(FrameworkElement.MarginProperty, new Binding(nameof(Control.Padding)) { RelativeSource = RelativeSource.TemplatedParent });
+        grid.AppendChild(presenter);
+        border.AppendChild(grid);
 
         var template = new ControlTemplate(typeof(Button)) { VisualTree = border };
         var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
@@ -666,13 +711,29 @@ public static class Ui
         template.Triggers.Add(hover);
         var pressed = new Trigger { Property = System.Windows.Controls.Primitives.ButtonBase.IsPressedProperty, Value = true };
         pressed.Setters.Add(new Setter(Border.BorderThicknessProperty, new Thickness(2, 4, 2, 2), "bd"));
+        // Натиснат: сянката е горе, светлото изчезва.
+        pressed.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hi"));
+        pressed.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top, "lo"));
         template.Triggers.Add(pressed);
         var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5));
         disabled.Setters.Add(new Setter(Border.BorderThicknessProperty, Flat, "bd"));      // не изпъква: не се натиска
+        disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hi"));
+        disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "lo"));
         template.Triggers.Add(disabled);
         return template;
     }
+
+    /// <summary>Релефът на деленце/плочка: светло горе, тъмно долу (над цвета, под контура).</summary>
+    public static Grid Bevel() => new()
+    {
+        IsHitTestVisible = false,
+        Children =
+        {
+            new Rectangle { Fill = BevelLight, Height = 2, VerticalAlignment = VerticalAlignment.Top },
+            new Rectangle { Fill = BevelDark, Height = 2, VerticalAlignment = VerticalAlignment.Bottom },
+        },
+    };
 
     // ───────────────────────── Рамки, ленти, подсказки ─────────────────────────
 
@@ -700,7 +761,7 @@ public static class Ui
     public static Border Ribbon(string text, string? icon = null) => new()
     {
         Background = Brushes.Transparent,
-        BorderBrush = WoodLight,
+        BorderBrush = RibbonDash,
         BorderThickness = new Thickness(0, 0, 0, 2),
         Padding = new Thickness(2, 0, 2, 3),
         Margin = new Thickness(0, 12, 0, 8),

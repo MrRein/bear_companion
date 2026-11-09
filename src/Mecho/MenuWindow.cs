@@ -373,7 +373,7 @@ public sealed class MenuWindow : Window
             FontWeight = FontWeights.Bold,
             Foreground = Cream,
             VerticalAlignment = VerticalAlignment.Center,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(59, 36, 20), ShadowDepth = 2, Direction = 315, BlurRadius = 0, Opacity = 1 },
+            Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(13, 18, 28), ShadowDepth = 2, Direction = 315, BlurRadius = 0, Opacity = 1 },
         });
         grid.Children.Add(title);
 
@@ -407,18 +407,17 @@ public sealed class MenuWindow : Window
         for (int i = 0; i < tabs.Length; i++)
         {
             int index = i;
-            var label = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            // Само иконка; името излиза при посочване.
             var icon = Icon(tabs[i].Icon, 2);
             icon.HorizontalAlignment = HorizontalAlignment.Center;
-            label.Children.Add(icon);
-            label.Children.Add(new TextBlock { Text = tabs[i].Name, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 3, 0, 0) });
             var tab = new Border
             {
                 BorderBrush = Ink,
                 CornerRadius = new CornerRadius(6, 6, 0, 0),
-                Padding = new Thickness(2, 5 * U, 2, 5 * U),
+                Padding = new Thickness(2, 7 * U, 2, 7 * U),
                 Cursor = Cursors.Hand,
-                Child = label,
+                Child = icon,
+                ToolTip = Tip(tabs[i].Name),
             };
             tab.MouseEnter += (_, _) => { if (tab.Background != Paper) tab.Background = Hover; };
             tab.MouseLeave += (_, _) => { if (tab.Background == Hover) tab.Background = WoodLight; };
@@ -786,6 +785,7 @@ public sealed class MenuWindow : Window
                 BorderThickness = new Thickness(2),
                 CornerRadius = new CornerRadius(2),
                 Background = Empty,
+                Child = Bevel(),
             };
             track.Children.Add(segments[i]);
         }

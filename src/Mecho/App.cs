@@ -28,6 +28,7 @@ public static class Program
         catch (Exception) { /* няма права – нищо */ }
 
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        PixelLook.Register();
         // Неочаквана грешка: записва се в crash.log и мечокът продължава, вместо да изчезне.
         app.DispatcherUnhandledException += (_, e) =>
         {

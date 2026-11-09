@@ -19,7 +19,7 @@ public sealed class CookerWindow : Window
     private readonly Image _image = new() { Cursor = Cursors.Hand };
     private readonly TextBlock _time = new() { FontWeight = FontWeights.Bold };
     private readonly Border _tag;
-    private static readonly SolidColorBrush DeskHoney = Frozen(Color.FromRgb(255, 209, 102)), DeskInk = Frozen(Color.FromRgb(59, 36, 20));
+    private static readonly SolidColorBrush DeskHoney = Frozen(Color.FromRgb(255, 209, 102)), DeskInk = Frozen(Color.FromRgb(13, 18, 28));
 
     private static SolidColorBrush Frozen(Color c)
     {

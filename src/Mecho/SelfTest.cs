@@ -30,6 +30,7 @@ public static class SelfTest
         File.WriteAllText(LogPath, "");
         var errors = new List<string>();
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        PixelLook.Register();
         app.DispatcherUnhandledException += (_, e) =>
         {
             errors.Add(e.Exception.ToString());
