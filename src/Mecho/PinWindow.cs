@@ -140,7 +140,7 @@ public sealed class PinWindow : Window
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(8 * U),
             Child = bodyPanel,
-        };
+        }.Skinned("card");
 
         var root = new DockPanel();
         DockPanel.SetDock(header, Dock.Top);
@@ -154,7 +154,7 @@ public sealed class PinWindow : Window
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(6, 4, 6, 6),
             Child = root,
-        };
+        }.Skinned("frame");
 
         MouseEnter += (_, _) => Opacity = 1;
         MouseLeave += (_, _) => ApplyFade();

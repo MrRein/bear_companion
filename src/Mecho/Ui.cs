@@ -97,6 +97,7 @@ public static class Ui
         Set(Cream, t.Cream);
         Set(Muted, t.Muted);
         Set(Empty, t.Empty);
+        UiSkin.UseTheme(t);
     }
 
     public static readonly Brush Good = Rgb(120, 180, 80);
@@ -597,6 +598,7 @@ public static class Ui
             HorizontalContentAlignment = HorizontalAlignment.Center,
             Effect = HardShadow(),
         };
+        UiSkin.Set(b, primary ? "button_honey" : "button");
         b.Click += (_, _) => onClick();
         return b;
     }
@@ -638,12 +640,11 @@ public static class Ui
         switch (element)
         {
             case Border b:
-                b.Background = on ? Honey : PaperDark;
-                b.BorderThickness = on ? Sunken : Raised;
+                UiSkin.Set(b, on ? "button_on" : "button");
+                UiSkin.SetState(b, null);
                 break;
             case Control c:
-                c.Background = on ? Honey : PaperDark;
-                c.BorderThickness = on ? Sunken : Raised;
+                UiSkin.Set(c, on ? "button_on" : "button");
                 c.Effect = on ? null : HardShadow();     // включеното е натиснато навътре – без сянка
                 break;
         }
@@ -671,8 +672,9 @@ public static class Ui
             Cursor = Cursors.Hand,
             Child = ChipContent(text),
         };
-        chip.MouseEnter += (_, _) => { if (!IsOn(chip)) chip.Background = Hover; };
-        chip.MouseLeave += (_, _) => { if (!IsOn(chip)) chip.Background = PaperDark; };
+        UiSkin.Set(chip, "button");
+        chip.MouseEnter += (_, _) => { if (!IsOn(chip)) UiSkin.SetState(chip, "hover"); };
+        chip.MouseLeave += (_, _) => UiSkin.SetState(chip, null);
         // Натискането не стига до родителя (например до дръжката за местене на панела).
         chip.MouseLeftButtonDown += (_, e) => e.Handled = true;
         chip.MouseLeftButtonUp += (_, e) =>
@@ -695,80 +697,37 @@ public static class Ui
 
     private static ControlTemplate ChunkyTemplate()
     {
+        // Бутонът е спрайт (Skin): „button“ / „button_honey“ / „button_on“ + състоянието
+        // (hover, down – натиснат, flat – изключен).
         var border = new FrameworkElementFactory(typeof(Border), "bd");
-        border.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        border.SetBinding(Border.BackgroundProperty, new Binding(nameof(Control.Background)) { RelativeSource = RelativeSource.TemplatedParent });
-        border.SetBinding(Border.BorderBrushProperty, new Binding(nameof(Control.BorderBrush)) { RelativeSource = RelativeSource.TemplatedParent });
-        border.SetBinding(Border.BorderThicknessProperty, new Binding(nameof(Control.BorderThickness)) { RelativeSource = RelativeSource.TemplatedParent });
-
-        // Пикселен релеф в три тона (като храната): светло горе, нормално, тъмно долу – по един пиксел (P).
-        var grid = new FrameworkElementFactory(typeof(Grid));
-        void Edge(string name, Brush fill, double? w, double? h, HorizontalAlignment ha, VerticalAlignment va)
-        {
-            var r = new FrameworkElementFactory(typeof(Rectangle), name);
-            r.SetValue(Shape.FillProperty, fill);
-            if (w is double ww) r.SetValue(FrameworkElement.WidthProperty, ww);
-            if (h is double hh) r.SetValue(FrameworkElement.HeightProperty, hh);
-            r.SetValue(FrameworkElement.HorizontalAlignmentProperty, ha);
-            r.SetValue(FrameworkElement.VerticalAlignmentProperty, va);
-            grid.AppendChild(r);
-        }
-        Edge("hi", BevelLight, null, P, HorizontalAlignment.Stretch, VerticalAlignment.Top);
-        Edge("lo", BevelDark, null, P, HorizontalAlignment.Stretch, VerticalAlignment.Bottom);
+        border.SetBinding(UiSkin.SpriteProperty, new Binding { Path = new PropertyPath(UiSkin.SpriteProperty), RelativeSource = RelativeSource.TemplatedParent });
 
         var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
         presenter.SetBinding(FrameworkElement.HorizontalAlignmentProperty, new Binding(nameof(Control.HorizontalContentAlignment)) { RelativeSource = RelativeSource.TemplatedParent });
         presenter.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        // Отстъпът е около текста, а не около релефа (той стига до контура).
         presenter.SetBinding(FrameworkElement.MarginProperty, new Binding(nameof(Control.Padding)) { RelativeSource = RelativeSource.TemplatedParent });
-        grid.AppendChild(presenter);
-        border.AppendChild(grid);
+        border.AppendChild(presenter);
 
         var template = new ControlTemplate(typeof(Button)) { VisualTree = border };
         var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-        // През Binding: иначе шаблонът би замразил четката и скинът не би я сменил.
-        hover.Setters.Add(new Setter(Border.BackgroundProperty, new Binding { Source = Hover }, "bd"));
+        hover.Setters.Add(new Setter(UiSkin.StateProperty, "hover", "bd"));
         template.Triggers.Add(hover);
         var pressed = new Trigger { Property = System.Windows.Controls.Primitives.ButtonBase.IsPressedProperty, Value = true };
-        pressed.Setters.Add(new Setter(Border.BorderThicknessProperty, Sunken, "bd"));
-        // Натиснат: сянката е горе, светлото изчезва.
-        pressed.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hi"));
-        pressed.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top, "lo"));
+        pressed.Setters.Add(new Setter(UiSkin.StateProperty, "down", "bd"));
         pressed.Setters.Add(new Setter(UIElement.EffectProperty, null));          // натиснат: без сянка
         template.Triggers.Add(pressed);
-        // Включено (SetOn): изглежда натиснато – сянката на релефа е горе.
-        var selected = new Trigger { Property = FrameworkElement.TagProperty, Value = true };
-        selected.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hi"));
-        selected.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top, "lo"));
-        template.Triggers.Add(selected);
         var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5));
-        disabled.Setters.Add(new Setter(Border.BorderThicknessProperty, Flat, "bd"));      // не изпъква: не се натиска
-        disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hi"));
-        disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "lo"));
+        disabled.Setters.Add(new Setter(UiSkin.StateProperty, "flat", "bd"));       // не изпъква: не се натиска
         disabled.Setters.Add(new Setter(UIElement.EffectProperty, null));
         template.Triggers.Add(disabled);
         return template;
     }
 
-    /// <summary>Отблясък: горният пиксел на квадратче е по-светъл.</summary>
-    public static Rectangle Shine() => new() { Fill = BevelLight, Height = P, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false };
-
-    /// <summary>Релефът на деленце/плочка: светло горе, тъмно долу (над цвета, под контура).</summary>
-    public static Grid Bevel() => new()
-    {
-        IsHitTestVisible = false,
-        Children =
-        {
-            new Rectangle { Fill = BevelLight, Height = P, VerticalAlignment = VerticalAlignment.Top },
-            new Rectangle { Fill = BevelDark, Height = P, VerticalAlignment = VerticalAlignment.Bottom },
-        },
-    };
-
     // ───────────────────────── Рамки, ленти, подсказки ─────────────────────────
 
     /// <summary>Рамката на прозорец: дърво отвън, хартия отвътре.</summary>
-    public static Border Frame(UIElement child, Thickness padding) => new()
+    public static Border Frame(UIElement child, Thickness padding) => Skinned(new Border
     {
         Background = WoodTexture,
         BorderBrush = Ink,
@@ -783,15 +742,25 @@ public static class Ui
             CornerRadius = new CornerRadius(5),
             Padding = padding,
             Child = child,
-        },
-    };
+        }.Skinned("card"),
+    }, "frame");
+
+    /// <summary>Отблясък: горният пиксел на квадратче е по-светъл.</summary>
+    public static Rectangle Shine() => new() { Fill = BevelLight, Height = P, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false };
+
+    /// <summary>Рамката е спрайт (Skin), ако го има; иначе си остава нарисувана от кода.</summary>
+    public static Border Skinned(this Border b, string sprite)
+    {
+        UiSkin.Set(b, sprite);
+        return b;
+    }
 
     /// <summary>Заглавна лента (като панделка) за раздел.</summary>
     /// Не е бутон: само текст с черта отдолу през цялата ширина.
     public static Border Ribbon(string text, string? icon = null) => new()
     {
         Background = Brushes.Transparent,
-        BorderBrush = MakeDash(),
+        BorderBrush = UiSkin.Line("dash") ?? MakeDash(),
         BorderThickness = new Thickness(0, 0, 0, P),
         Padding = new Thickness(2, 0, 2, 3),
         Margin = new Thickness(0, 12, 0, 8),
@@ -800,7 +769,7 @@ public static class Ui
     };
 
     /// <summary>Табелка с мед (брой лешници и др.).</summary>
-    public static Border Pill(UIElement content) => new()
+    public static Border Pill(UIElement content) => Skinned(new Border
     {
         Background = Honey,
         BorderBrush = Ink,
@@ -809,7 +778,7 @@ public static class Ui
         Padding = new Thickness(8, 2, 10, 3),
         Child = content,
         VerticalAlignment = VerticalAlignment.Center,
-    };
+    }, "pill");
 
     /// <summary>Подсказка (при посочване) в стила на играта.</summary>
     public static ToolTip Tip(string text) => new()

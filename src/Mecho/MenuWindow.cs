@@ -155,7 +155,7 @@ public sealed class MenuWindow : Window
             CornerRadius = new CornerRadius(0, 0, 6, 6),
             Padding = new Thickness(14 * U, 12 * U, 14 * U, 14 * U),
             Child = content,
-        });
+        }.Skinned("panel"));
 
         Content = new Border
         {
@@ -165,7 +165,7 @@ public sealed class MenuWindow : Window
             CornerRadius = new CornerRadius(10),
             Padding = new Thickness(7, 5, 7, 7),
             Child = root,
-        };
+        }.Skinned("frame");
 
         _pet.CareChanged += (_, _) => StateChangedRefresh();
         // Менюто само показва състоянието: всяка промяна в ядрото (лешници, притежавано,
@@ -325,8 +325,13 @@ public sealed class MenuWindow : Window
             bool on = i == index;
             _tabs[i].Visibility = on ? Visibility.Visible : Visibility.Collapsed;
             // Избраният таб е по-висок и слят с хартията отдолу, другите са по-тъмни.
-            _tabButtons[i].Background = on ? Paper : WoodLight;
-            _tabButtons[i].BorderThickness = on ? Px(1, 1, 1, 0) : Flat;
+            if (UiSkin.Has("tab"))
+                UiSkin.Set(_tabButtons[i], on ? "tab_on" : "tab");   // спрайт
+            else
+            {
+                _tabButtons[i].Background = on ? Paper : WoodLight;
+                _tabButtons[i].BorderThickness = on ? Px(1, 1, 1, 0) : Flat;
+            }
             // Всички табове са еднакво големи; избраният само е слят с хартията отдолу.
             _tabButtons[i].Margin = new Thickness(i == 0 ? 0 : P, 0, 0, on ? -P : 0);
         }
@@ -419,8 +424,16 @@ public sealed class MenuWindow : Window
                 Child = icon,
                 ToolTip = Tip(tabs[i].Name),
             };
-            tab.MouseEnter += (_, _) => { if (tab.Background != Paper) tab.Background = Hover; };
-            tab.MouseLeave += (_, _) => { if (tab.Background == Hover) tab.Background = WoodLight; };
+            tab.MouseEnter += (_, _) =>
+            {
+                if (UiSkin.Get(tab) != null) UiSkin.SetState(tab, "hover");
+                else if (tab.Background != Paper) tab.Background = Hover;
+            };
+            tab.MouseLeave += (_, _) =>
+            {
+                if (UiSkin.Get(tab) != null) UiSkin.SetState(tab, null);
+                else if (tab.Background == Hover) tab.Background = WoodLight;
+            };
             tab.MouseLeftButtonDown += (_, e) => e.Handled = true;
             tab.MouseLeftButtonUp += (_, e) =>
             {
@@ -611,7 +624,7 @@ public sealed class MenuWindow : Window
             Margin = new Thickness(0, 2, 0, 6),
             Child = child,
             Visibility = child.Visibility,
-        };
+        }.Skinned("pocket");
         // Само за подменютата, които се строят веднъж (иначе всяко прерисуване оставя слушател завинаги).
         if (follow)
             System.ComponentModel.DependencyPropertyDescriptor.FromProperty(VisibilityProperty, typeof(UIElement))
@@ -787,6 +800,11 @@ public sealed class MenuWindow : Window
                 Background = Empty,
                 Child = Shine(),      // горният пиксел – по-светъл (като на храната)
             };
+            if (UiSkin.Has("cell_empty"))
+            {
+                segments[i].Child = null;
+                UiSkin.Set(segments[i], "cell_empty");
+            }
             track.Children.Add(segments[i]);
         }
         Grid.SetColumn(track, 1);
@@ -804,7 +822,12 @@ public sealed class MenuWindow : Window
     {
         int filled = (int)Math.Ceiling(Math.Clamp(value, 0, 100) / 100 * segments.Length - 0.01);
         var colour = value >= 50 ? Good : value >= 25 ? Okay : Bad;
-        for (int i = 0; i < segments.Length; i++) segments[i].Background = i < filled ? colour : Empty;
+        string cell = value >= 50 ? "cell_good" : value >= 25 ? "cell_okay" : "cell_bad";
+        for (int i = 0; i < segments.Length; i++)
+        {
+            if (UiSkin.Get(segments[i]) != null) UiSkin.Set(segments[i], i < filled ? cell : "cell_empty");
+            else segments[i].Background = i < filled ? colour : Empty;
+        }
         if (text.Text == word) return;
         text.Text = word;
         if (text.Parent is FrameworkElement bar) bar.ToolTip = Tip(char.ToUpper(word[0]) + word[1..]);
@@ -961,7 +984,7 @@ public sealed class MenuWindow : Window
                 BorderBrush = Ink,
                 BorderThickness = Flat,
                 VerticalAlignment = VerticalAlignment.Center,
-            });
+            }.Skinned(i < s.RecipePages ? "cell_honey" : "cell_empty"));
         row.Children.Add(new TextBlock { Text = $"  {s.RecipePages}/{need} страници", VerticalAlignment = VerticalAlignment.Center });
         // Обяснението е само на (?): трябва да задържиш мишката върху него.
         var help = new TextBlock { Text = "  (?)", Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Help, Background = Brushes.Transparent };
@@ -1108,7 +1131,7 @@ public sealed class MenuWindow : Window
                     Width = 4 * P, Height = 4 * P, Margin = new Thickness(0, 0, i < Segments - 1 ? -P : 0, 0),
                     BorderBrush = Ink, BorderThickness = Flat,
                     Background = i < filled ? Good : Empty,
-                });
+                }.Skinned(i < filled ? "cell_good" : "cell_empty"));
             info.Children.Add(track);
             row.Children.Add(info);
             _goalBox.Children.Add(row);
@@ -1192,7 +1215,7 @@ public sealed class MenuWindow : Window
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(8 * U, 6 * U, 8 * U, 8 * U),
             Child = box,
-        });
+        }.Skinned("pocket"));
         box.Children.Add(Ribbon("Оферта на деня", "gift"));
 
         var offer = DailyOffer.Today(s);
@@ -1420,8 +1443,10 @@ public sealed class MenuWindow : Window
             Margin = new Thickness(0, 0, 8 * U, 8 * U),
             Child = dock,
         };
-        tile.MouseEnter += (_, _) => tile.Background = Hover;
-        tile.MouseLeave += (_, _) => tile.Background = Tile;
+        tile.Skinned("tile");
+        artBox.Skinned("tile_art");
+        tile.MouseEnter += (_, _) => UiSkin.SetState(tile, "hover");
+        tile.MouseLeave += (_, _) => UiSkin.SetState(tile, null);
         if (why != null && (dim || !action.IsEnabled))
         {
             // Подсказката излиза и над изключения бутон (само за заключеното).
@@ -3171,7 +3196,7 @@ public sealed class MenuWindow : Window
             // Докато тече, видът не се сменя: копчетата са бледи и не се натискат.
             chip.IsHitTestVisible = !running;
             chip.Opacity = running && id != _pet.PomodoroMode.Id ? 0.5 : 1;
-            chip.BorderThickness = id == _pet.PomodoroMode.Id ? Sunken : running ? Flat : Raised;
+            UiSkin.Set(chip, id == _pet.PomodoroMode.Id ? "button_on" : running ? "button_flat" : "button");
         }
         foreach (var (count, chip) in _pomSeries)
         {
@@ -3179,7 +3204,7 @@ public sealed class MenuWindow : Window
             SetOn(chip, on);
             chip.IsHitTestVisible = !running;
             chip.Opacity = running && !on ? 0.5 : 1;
-            chip.BorderThickness = on ? Sunken : running ? Flat : Raised;
+            UiSkin.Set(chip, on ? "button_on" : running ? "button_flat" : "button");
         }
         _pomTime.Foreground = s.PomodoroPhase == PomodoroPhase.Break ? BreakInk : Ink;
         _pomStop.Visibility = s.PomodoroPhase == PomodoroPhase.Off ? Visibility.Collapsed : Visibility.Visible;
