@@ -25,13 +25,18 @@ def rgba(c, a=255):
     return (c[0], c[1], c[2], a)
 
 
+def mix(a, b, k):
+    return (int(round(a[0] + (b[0] - a[0]) * k)), int(round(a[1] + (b[1] - a[1]) * k)),
+            int(round(a[2] + (b[2] - a[2]) * k)), 255)
+
+
 def tone(hi, mid, lo):
     return (rgba(hi), rgba(mid), rgba(lo))
 
 
-WOOD = tone((214, 150, 92), (170, 104, 58), (118, 68, 40))
-DWOOD = tone((150, 96, 60), (110, 66, 40), (76, 44, 30))
-LWOOD = tone((236, 190, 130), (206, 150, 92), (160, 108, 62))
+WOOD = tone((214, 132, 76), (166, 88, 52), (112, 52, 40))
+DWOOD = tone((150, 82, 54), (112, 56, 42), (78, 36, 34))
+LWOOD = tone((244, 196, 128), (220, 150, 86), (172, 100, 56))
 RED = tone((240, 128, 116), (204, 76, 72), (140, 44, 52))
 WINE = tone((190, 84, 84), (146, 52, 62), (98, 32, 46))
 BLUE = tone((168, 198, 250), (110, 146, 226), (70, 96, 172))
@@ -98,7 +103,10 @@ class Canvas:
                 if dx + dy < cut:
                     continue
                 pix.add((x, y))
-        return self.region(pix, t, outline)
+        inner = self.region(pix, t, outline)
+        if t in (WOOD, DWOOD, LWOOD):
+            self.grain(inner, t, x0 * 3 + y0)
+        return inner
 
     def oval(self, cx, cy, rx, ry, t, outline=True):
         pix = {(x, y) for y in range(self.h) for x in range(self.w)
@@ -110,7 +118,31 @@ class Canvas:
         pix = {(x, y) for y, (a, b) in rows.items() for x in range(a, b + 1)}
         return self.region(pix, t, outline)
 
+    def grain(self, inner, t, seed=0):
+        """Жилки: къси по-тъмни черти по средния тон (дърво)."""
+        for (x, y) in inner:
+            if self.get(x, y) == t[1] and (x * 7 + y * 13 + seed) % 19 == 0:
+                self.px(x, y, mix(t[1], t[2], 0.6))
+                self.px(x + 1, y, mix(t[1], t[2], 0.6)) if (x + 1, y) in inner and self.get(x + 1, y) == t[1] else None
+
+    def selout(self):
+        """Черен контур само по силуета; вътрешните линии – тъмен тон на по-тъмния съсед."""
+        src = self.img.copy()
+        for y in range(self.h):
+            for x in range(self.w):
+                if src.getpixel((x, y)) != O:
+                    continue
+                nb = [src.getpixel((x + a, y + b)) if 0 <= x + a < self.w and 0 <= y + b < self.h else T
+                      for a, b in ((1, 0), (-1, 0), (0, 1), (0, -1))]
+                if any(n[3] == 0 for n in nb):
+                    continue
+                cols = [n for n in nb if n != O and n[3]]
+                if cols:
+                    c = min(cols, key=lambda c: sum(c[:3]))
+                    self.img.putpixel((x, y), mix(c, O, 0.55))
+
     def save(self, name, out):
+        self.selout()
         path = os.path.join(out, name + ".png") if out else pl.path(name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         self.img.save(path)
@@ -122,7 +154,10 @@ def bed(blanket=BLUE, frame=WOOD, pillow=CREAM):
     c = Canvas(46, 16)
     c.box(2, 11, 43, 14, frame)                       # рамка
     c.box(4, 7, 42, 12, CREAM)                        # дюшек
-    c.box(13, 7, 42, 12, blanket)                     # одеяло
+    inner = c.box(13, 7, 42, 12, blanket)             # одеяло
+    for (x, y) in inner:                              # райета
+        if (x - 13) % 6 in (4, 5) and c.get(x, y) == blanket[1]:
+            c.px(x, y, mix(blanket[1], blanket[0], 0.5))
     c.vline(15, 8, 11, blanket[0])                    # прегънатият край
     c.vline(16, 8, 11, blanket[2])
     c.box(5, 3, 14, 8, pillow, cut=1)                 # възглавница
@@ -144,10 +179,15 @@ def couch(fabric=RED, back=WINE, legs=DWOOD):
     for x in (14, 24, 33):                            # капитонаж
         c.px(x, 6, back[2])
         c.px(x, 10, back[2])
-    c.box(6, 13, 24, 21, fabric)                      # възглавници
-    c.box(24, 13, 41, 21, fabric)
+    for x0, x1 in ((6, 24), (24, 41)):                # възглавници: издути
+        c.box(x0, 13, x1, 21, fabric, cut=1)
+        c.hline(x0 + 2, x0 + 6, 15, fabric[0])
+        c.px(x0 + 2, 16, fabric[0])
+        c.hline(x0 + 3, x1 - 3, 19, mix(fabric[1], fabric[2], 0.5))
     c.box(0, 8, 7, 21, fabric, cut=2)                 # облегалки за ръце
     c.box(40, 8, 47, 21, fabric, cut=2)
+    for x in (2, 42):
+        c.vline(x, 11, 13, fabric[0])
     return c
 
 
@@ -165,6 +205,7 @@ def desk(top=WOOD):
     c.box(5, 4, 12, 9, SKY, outline=False)
     c.hline(6, 9, 6, WHITE)
     c.hline(6, 10, 8, rgba((110, 146, 226)))
+    c.px(12, 4, WHITE)
     c.box(3, 9, 15, 11, STEEL)
     # лампичка
     c.box(17, 9, 21, 11, DARK)
@@ -245,7 +286,10 @@ def lamp(shade=HONEY, pole=DARK):
     c.box(5, 9, 8, 27, pole)
     c.box(2, 26, 11, 29, pole, cut=1)
     rows = {y: (4 - (y - 1) // 3, 9 + (y - 1) // 3) for y in range(1, 11)}
-    c.poly(rows, shade)
+    inner = c.poly(rows, shade)
+    for (x, y) in inner:                              # гънки
+        if x % 2 == 0 and y > 2 and c.get(x, y) == shade[1]:
+            c.px(x, y, mix(shade[1], shade[2], 0.45))
     c.hline(4, 9, 10, rgba((255, 244, 190)))           # светлина под абажура
     return c
 
