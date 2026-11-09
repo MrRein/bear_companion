@@ -158,14 +158,12 @@ public static class Ui
 
     // Преди текстурите: те ги ползват (полетата се правят по реда в файла).
     private static readonly Brush BevelLight = Frozen(new SolidColorBrush(Color.FromArgb(115, 255, 255, 255)));
-    private static readonly Brush BevelSoftLight = Frozen(new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)));
     private static readonly Brush BevelDark = Frozen(new SolidColorBrush(Color.FromArgb(56, 13, 18, 28)));
-    private static readonly Brush BevelSoftDark = Frozen(new SolidColorBrush(Color.FromArgb(30, 13, 18, 28)));
 
     /// <summary>Твърда пикселна сянка под бутона (без размазване), както под рисунките.</summary>
-    public static System.Windows.Media.Effects.Effect HardShadow(double depth = 3) => new System.Windows.Media.Effects.DropShadowEffect
+    public static System.Windows.Media.Effects.Effect HardShadow() => new System.Windows.Media.Effects.DropShadowEffect
     {
-        Color = Color.FromRgb(13, 18, 28), Direction = 270, ShadowDepth = depth, BlurRadius = 0, Opacity = 0.22,
+        Color = Color.FromRgb(13, 18, 28), Direction = 270, ShadowDepth = P, BlurRadius = 0, Opacity = 0.22,
     };
 
     private static Brush Frozen(Brush b)
@@ -174,10 +172,13 @@ public static class Ui
         return b;
     }
 
-    public static readonly Brush PaperTexture = MakePaper();
+    // Правят се при първото ползване (след Init): пикселите им са колкото на храната (P).
+    private static Brush? _paper, _wood;
+
+    public static Brush PaperTexture => _paper ??= MakePaper();
 
     /// <summary>Дърво с ивици (дъски) за рамката.</summary>
-    public static readonly Brush WoodTexture = MakeWood();
+    public static Brush WoodTexture => _wood ??= MakeWood();
 
     private static Brush Tiled(DrawingGroup group, double w, double h)
     {
@@ -196,42 +197,39 @@ public static class Ui
     private static GeometryDrawing Box(Brush b, double x, double y, double w, double h) =>
         new(b, null, new RectangleGeometry(new Rect(x, y, w, h)));
 
-    /// <summary>Пунктирната черта под заглавията (по 6 пиксела черта, 3 празно).</summary>
-    public static readonly Brush RibbonDash = MakeDash();
+    /// <summary>Правоъгълник в пиксели на менюто (P).</summary>
+    private static GeometryDrawing PBox(Brush b, double x, double y, double w, double h) => Box(b, x * P, y * P, w * P, h * P);
 
     private static Brush MakePaper()
     {
-        // Хартия на пиксели: точици на разминаване и тук-там едно по-светло петънце.
+        // Хартия на пиксели: по една точица на разминаване.
         var g = new DrawingGroup();
-        g.Children.Add(Box(Paper, 0, 0, 12, 12));
-        g.Children.Add(Box(PaperDark, 0, 0, 1, 1));
-        g.Children.Add(Box(PaperDark, 6, 6, 1, 1));
-        g.Children.Add(Box(BevelLight, 9, 2, 1, 1));
-        g.Children.Add(Box(BevelLight, 3, 8, 1, 1));
-        return Tiled(g, 12, 12);
+        g.Children.Add(PBox(Paper, 0, 0, 8, 8));
+        g.Children.Add(PBox(PaperDark, 0, 0, 1, 1));
+        g.Children.Add(PBox(PaperDark, 4, 4, 1, 1));
+        return Tiled(g, 8 * P, 8 * P);
     }
 
     private static Brush MakeWood()
     {
-        // Дъски: светла ивица горе, тъмна фуга долу, жилки и по един гвоздей на дъска.
+        // Дъски: светла ивица горе, тъмна фуга долу и отстрани, жилки и гвоздейче.
         var g = new DrawingGroup();
-        g.Children.Add(Box(Wood, 0, 0, 60, 14));
-        g.Children.Add(Box(WoodLight, 0, 0, 59, 1));
-        g.Children.Add(Box(WoodDark, 0, 13, 60, 1));
-        g.Children.Add(Box(WoodLight, 6, 5, 14, 1));
-        g.Children.Add(Box(WoodDark, 32, 8, 16, 1));
-        g.Children.Add(Box(WoodDark, 59, 0, 1, 13));
-        g.Children.Add(Box(WoodDark, 54, 6, 2, 2));
-        g.Children.Add(Box(WoodLight, 54, 6, 1, 1));
-        return Tiled(g, 60, 14);
+        g.Children.Add(PBox(Wood, 0, 0, 20, 5));
+        g.Children.Add(PBox(WoodLight, 0, 0, 19, 1));
+        g.Children.Add(PBox(WoodDark, 0, 4, 20, 1));
+        g.Children.Add(PBox(WoodDark, 19, 0, 1, 4));
+        g.Children.Add(PBox(WoodLight, 2, 2, 5, 1));
+        g.Children.Add(PBox(WoodDark, 10, 2, 5, 1));
+        g.Children.Add(PBox(WoodDark, 17, 2, 1, 1));
+        return Tiled(g, 20 * P, 5 * P);
     }
 
     private static Brush MakeDash()
     {
         var g = new DrawingGroup();
-        g.Children.Add(Box(Brushes.Transparent, 0, 0, 9, 2));
-        g.Children.Add(Box(WoodLight, 0, 0, 6, 2));
-        return Tiled(g, 9, 2);
+        g.Children.Add(PBox(Brushes.Transparent, 0, 0, 3, 1));
+        g.Children.Add(PBox(WoodLight, 0, 0, 2, 1));
+        return Tiled(g, 3 * P, P);
     }
 
     // ───────────────────────── Иконки ─────────────────────────
@@ -593,7 +591,7 @@ public static class Ui
             Background = primary ? Honey : PaperDark,
             Foreground = Ink,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(2, 2, 2, 4),
+            BorderThickness = Raised,
             Cursor = Cursors.Hand,
             Template = ChunkyTemplate(),
             HorizontalContentAlignment = HorizontalAlignment.Center,
@@ -619,9 +617,19 @@ public static class Ui
     // * натиска се – изпъкнало: дебел ръб отдолу (Raised), свети при посочване;
     // * избрано (включено) – медено и натиснато навътре: дебел ръб отгоре (Sunken);
     // * не се натиска – заглавие (само текст с черта отдолу) или плоска рамка (Flat).
-    public static readonly Thickness Raised = new(2, 2, 2, 4);
-    public static readonly Thickness Sunken = new(2, 4, 2, 2);
-    public static readonly Thickness Flat = new(2);
+    public static Thickness Raised => Px(1, 1, 1, 2);
+    public static Thickness Sunken => Px(1, 2, 1, 1);
+    public static Thickness Flat => Px(1);
+
+    /// <summary>
+    /// Един „пиксел“ на менюто – колкото е пикселът на храната в плочките (16×16, ArtScale(4)).
+    /// Контурите, релефът, сенките и деленцата са на цели такива пиксели, за да не изглеждат
+    /// по-фини от рисунките.
+    /// </summary>
+    public static double P => ArtScale(4) / _dpi;
+
+    public static Thickness Px(double all) => new(all * P);
+    public static Thickness Px(double l, double t, double r, double b) => new(l * P, t * P, r * P, b * P);
 
     /// <summary>Избрано или не (копче или бутон-превключвател).</summary>
     public static void SetOn(FrameworkElement element, bool on)
@@ -693,7 +701,7 @@ public static class Ui
         border.SetBinding(Border.BorderBrushProperty, new Binding(nameof(Control.BorderBrush)) { RelativeSource = RelativeSource.TemplatedParent });
         border.SetBinding(Border.BorderThicknessProperty, new Binding(nameof(Control.BorderThickness)) { RelativeSource = RelativeSource.TemplatedParent });
 
-        // Пикселен релеф в три тона (като храната): светло горе и вляво, тъмно долу и вдясно.
+        // Пикселен релеф в три тона (като храната): светло горе, нормално, тъмно долу – по един пиксел (P).
         var grid = new FrameworkElementFactory(typeof(Grid));
         void Edge(string name, Brush fill, double? w, double? h, HorizontalAlignment ha, VerticalAlignment va)
         {
@@ -705,10 +713,8 @@ public static class Ui
             r.SetValue(FrameworkElement.VerticalAlignmentProperty, va);
             grid.AppendChild(r);
         }
-        Edge("hl", BevelSoftLight, 2.0, null, HorizontalAlignment.Left, VerticalAlignment.Stretch);
-        Edge("lr", BevelSoftDark, 2.0, null, HorizontalAlignment.Right, VerticalAlignment.Stretch);
-        Edge("hi", BevelLight, null, 2.0, HorizontalAlignment.Stretch, VerticalAlignment.Top);
-        Edge("lo", BevelDark, null, 3.0, HorizontalAlignment.Stretch, VerticalAlignment.Bottom);
+        Edge("hi", BevelLight, null, P, HorizontalAlignment.Stretch, VerticalAlignment.Top);
+        Edge("lo", BevelDark, null, P, HorizontalAlignment.Stretch, VerticalAlignment.Bottom);
 
         var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
         presenter.SetBinding(FrameworkElement.HorizontalAlignmentProperty, new Binding(nameof(Control.HorizontalContentAlignment)) { RelativeSource = RelativeSource.TemplatedParent });
@@ -724,18 +730,15 @@ public static class Ui
         hover.Setters.Add(new Setter(Border.BackgroundProperty, new Binding { Source = Hover }, "bd"));
         template.Triggers.Add(hover);
         var pressed = new Trigger { Property = System.Windows.Controls.Primitives.ButtonBase.IsPressedProperty, Value = true };
-        pressed.Setters.Add(new Setter(Border.BorderThicknessProperty, new Thickness(2, 4, 2, 2), "bd"));
+        pressed.Setters.Add(new Setter(Border.BorderThicknessProperty, Sunken, "bd"));
         // Натиснат: сянката е горе, светлото изчезва.
         pressed.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hi"));
-        pressed.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hl"));
-        pressed.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "lr"));
         pressed.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top, "lo"));
         pressed.Setters.Add(new Setter(UIElement.EffectProperty, null));          // натиснат: без сянка
         template.Triggers.Add(pressed);
         // Включено (SetOn): изглежда натиснато – сянката на релефа е горе.
         var selected = new Trigger { Property = FrameworkElement.TagProperty, Value = true };
-        foreach (var name in new[] { "hi", "hl", "lr" })
-            selected.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, name));
+        selected.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hi"));
         selected.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top, "lo"));
         template.Triggers.Add(selected);
         var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
@@ -743,12 +746,13 @@ public static class Ui
         disabled.Setters.Add(new Setter(Border.BorderThicknessProperty, Flat, "bd"));      // не изпъква: не се натиска
         disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hi"));
         disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "lo"));
-        disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "hl"));
-        disabled.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Hidden, "lr"));
         disabled.Setters.Add(new Setter(UIElement.EffectProperty, null));
         template.Triggers.Add(disabled);
         return template;
     }
+
+    /// <summary>Отблясък: горният пиксел на квадратче е по-светъл.</summary>
+    public static Rectangle Shine() => new() { Fill = BevelLight, Height = P, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false };
 
     /// <summary>Релефът на деленце/плочка: светло горе, тъмно долу (над цвета, под контура).</summary>
     public static Grid Bevel() => new()
@@ -756,10 +760,8 @@ public static class Ui
         IsHitTestVisible = false,
         Children =
         {
-            new Rectangle { Fill = BevelSoftLight, Width = 2, HorizontalAlignment = HorizontalAlignment.Left },
-            new Rectangle { Fill = BevelSoftDark, Width = 2, HorizontalAlignment = HorizontalAlignment.Right },
-            new Rectangle { Fill = BevelLight, Height = 2, VerticalAlignment = VerticalAlignment.Top },
-            new Rectangle { Fill = BevelDark, Height = 3, VerticalAlignment = VerticalAlignment.Bottom },
+            new Rectangle { Fill = BevelLight, Height = P, VerticalAlignment = VerticalAlignment.Top },
+            new Rectangle { Fill = BevelDark, Height = P, VerticalAlignment = VerticalAlignment.Bottom },
         },
     };
 
@@ -770,14 +772,14 @@ public static class Ui
     {
         Background = WoodTexture,
         BorderBrush = Ink,
-        BorderThickness = new Thickness(3),
+        BorderThickness = Flat,
         CornerRadius = new CornerRadius(8),
         Padding = new Thickness(5),
         Child = new Border
         {
             Background = PaperTexture,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(2),
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(5),
             Padding = padding,
             Child = child,
@@ -789,8 +791,8 @@ public static class Ui
     public static Border Ribbon(string text, string? icon = null) => new()
     {
         Background = Brushes.Transparent,
-        BorderBrush = RibbonDash,
-        BorderThickness = new Thickness(0, 0, 0, 2),
+        BorderBrush = MakeDash(),
+        BorderThickness = new Thickness(0, 0, 0, P),
         Padding = new Thickness(2, 0, 2, 3),
         Margin = new Thickness(0, 12, 0, 8),
         HorizontalAlignment = HorizontalAlignment.Stretch,

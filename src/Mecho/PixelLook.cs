@@ -30,7 +30,7 @@ public static class PixelLook
 
     private static void Apply(Border b)
     {
-        if (!ReferenceEquals(b.BorderBrush, Ui.Ink)) return;
+        if (!ReferenceEquals(b.BorderBrush, Ui.Ink) && !ReferenceEquals(b.BorderBrush, Ui.WoodDark)) return;
         if (Corners.TryGetValue(b, out _))
         {
             Clip(b);
@@ -40,12 +40,15 @@ public static class PixelLook
         Corners.Add(b, new StrongBox<CornerRadius>(r));
         // Малка заобленост отвътре: така контурът минава и през вътрешния ъгъл на стъпалото
         // (иначе в ъгъла остава дупка по диагонал); външната част отрязва Clip.
-        double u = Math.Clamp(b.BorderThickness.Left, 1.5, 3);
+        double u = Unit(b);
         double Inner(double radius) => Steps(radius) switch { 2 => u * 2.5, 1 => u * 1.5, _ => 0 };
         b.CornerRadius = new CornerRadius(Inner(r.TopLeft), Inner(r.TopRight), Inner(r.BottomRight), Inner(r.BottomLeft));
         b.SizeChanged += (_, _) => Clip(b);
         Clip(b);
     }
+
+    /// <summary>Един „пиксел“ на стъпалото: колкото контура (обикновено P – пикселът на храната).</summary>
+    private static double Unit(Border b) => Math.Max(1, Math.Min(b.BorderThickness.Left, Ui.P));
 
     private static int Steps(double radius) => radius >= 6 ? 2 : radius > 0 ? 1 : 0;
 
@@ -55,8 +58,7 @@ public static class PixelLook
         if (!Corners.TryGetValue(b, out var box)) return;
         var r = box.Value;
         double w = b.ActualWidth, h = b.ActualHeight;
-        // Един „пиксел“ – колкото контура (поне 1,5, най-много 3).
-        double u = Math.Clamp(b.BorderThickness.Left, 1.5, 3);
+        double u = Unit(b);
         int tl = Steps(r.TopLeft), tr = Steps(r.TopRight), br = Steps(r.BottomRight), bl = Steps(r.BottomLeft);
         if (tl + tr + br + bl == 0 || w < 6 * u || h < 6 * u)
         {

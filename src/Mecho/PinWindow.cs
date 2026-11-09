@@ -136,7 +136,7 @@ public sealed class PinWindow : Window
         {
             Background = PaperTexture,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(2),
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(8 * U),
             Child = bodyPanel,
@@ -150,7 +150,7 @@ public sealed class PinWindow : Window
         {
             Background = WoodTexture,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(3),
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(6, 4, 6, 6),
             Child = root,

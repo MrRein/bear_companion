@@ -151,7 +151,7 @@ public sealed class MenuWindow : Window
         {
             Background = PaperTexture,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(2),
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(0, 0, 6, 6),
             Padding = new Thickness(14 * U, 12 * U, 14 * U, 14 * U),
             Child = content,
@@ -161,7 +161,7 @@ public sealed class MenuWindow : Window
         {
             Background = WoodTexture,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(3),
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(10),
             Padding = new Thickness(7, 5, 7, 7),
             Child = root,
@@ -326,9 +326,9 @@ public sealed class MenuWindow : Window
             _tabs[i].Visibility = on ? Visibility.Visible : Visibility.Collapsed;
             // Избраният таб е по-висок и слят с хартията отдолу, другите са по-тъмни.
             _tabButtons[i].Background = on ? Paper : WoodLight;
-            _tabButtons[i].BorderThickness = on ? new Thickness(2, 2, 2, 0) : new Thickness(2, 2, 2, 2);
+            _tabButtons[i].BorderThickness = on ? Px(1, 1, 1, 0) : Flat;
             // Всички табове са еднакво големи; избраният само е слят с хартията отдолу.
-            _tabButtons[i].Margin = new Thickness(i == 0 ? 0 : 3, 0, 0, on ? -2 : 0);
+            _tabButtons[i].Margin = new Thickness(i == 0 ? 0 : P, 0, 0, on ? -P : 0);
         }
         // Гардеробът стои до мечока, докато е отворен табът.
         if (index == WardrobeTab && IsVisible) _pet.OpenWardrobe();
@@ -605,7 +605,7 @@ public sealed class MenuWindow : Window
         {
             Background = Empty,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(2),
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(6 * U, 6 * U, 6 * U, 2 * U),
             Margin = new Thickness(0, 2, 0, 6),
@@ -776,33 +776,21 @@ public sealed class MenuWindow : Window
         segments = new Border[Segments];
         for (int i = 0; i < Segments; i++)
         {
+            // Деленце от пиксели на храната; съседните делят един контур (отрицателно поле).
             segments[i] = new Border
             {
-                Width = 18 * U,
-                Height = 20 * U,
-                Margin = new Thickness(0, 0, 2, 0),
+                Width = 5 * P,
+                Height = 6 * P,
+                Margin = new Thickness(0, 0, i < Segments - 1 ? -P : 0, 0),
                 BorderBrush = Ink,
-                BorderThickness = new Thickness(2),
-                CornerRadius = new CornerRadius(2),
+                BorderThickness = Flat,
                 Background = Empty,
-                Child = Bevel(),
+                Child = Shine(),      // горният пиксел – по-светъл (като на храната)
             };
             track.Children.Add(segments[i]);
         }
-        // Деленцата стоят във вдлъбнат улей (като рисувана лента в игра).
-        var groove = new Border
-        {
-            Background = Muted,
-            BorderBrush = Ink,
-            BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(2),
-            Padding = new Thickness(2, 2, 0, 2),
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Child = track,
-        };
-        Grid.SetColumn(groove, 1);
-        grid.Children.Add(groove);
+        Grid.SetColumn(track, 1);
+        grid.Children.Add(track);
 
         // Думата (сит, гладен, бодър…) излиза като подсказка, когато мишката е върху лентата.
         value = new TextBlock { Foreground = Muted, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
@@ -966,12 +954,12 @@ public sealed class MenuWindow : Window
         for (int i = 0; i < need; i++)
             row.Children.Add(new Border
             {
-                Width = 10 * U,
-                Height = 14 * U,
-                Margin = new Thickness(0, 0, 3, 0),
+                Width = 3 * P,
+                Height = 4 * P,
+                Margin = new Thickness(0, 0, P, 0),
                 Background = i < s.RecipePages ? Honey : Empty,
                 BorderBrush = Ink,
-                BorderThickness = new Thickness(2),
+                BorderThickness = Flat,
                 VerticalAlignment = VerticalAlignment.Center,
             });
         row.Children.Add(new TextBlock { Text = $"  {s.RecipePages}/{need} страници", VerticalAlignment = VerticalAlignment.Center });
@@ -1000,18 +988,22 @@ public sealed class MenuWindow : Window
         i0.Margin = new Thickness(0, 0, 4, 0);
         i0.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(i0);
+        // Барче в пикселите на храната: черен контур, вътре 10 квадратчета (горният пиксел – по-светъл).
+        var cells = new StackPanel { Orientation = Orientation.Horizontal };
         for (int i = 0; i < segments; i++)
         {
-            row.Children.Add(new Border
-            {
-                Width = 7 * U,
-                Height = 10 * U,
-                Margin = new Thickness(0, 0, 1, 0),
-                Background = i < have ? colour : i < will ? Honey : Empty,
-                BorderBrush = i >= have && i < will ? WoodDark : Brushes.Transparent,
-                BorderThickness = new Thickness(i >= have && i < will ? 1 : 0),
-            });
+            var fill = i < have ? colour : i < will ? Honey : Empty;
+            var cell = new Grid { Width = 2 * P, Height = 2 * P, Background = fill };
+            if (i < will) cell.Children.Add(Shine());
+            cells.Children.Add(cell);
         }
+        row.Children.Add(new Border
+        {
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = cells,
+        });
         int gain = (int)Math.Round(after - now);
         return row;
     }
@@ -1020,7 +1012,7 @@ public sealed class MenuWindow : Window
     {
         Background = Cream,
         BorderBrush = WoodDark,
-        BorderThickness = new Thickness(2),
+        BorderThickness = Flat,
         CornerRadius = new CornerRadius(8),
         Padding = new Thickness(6 * U, 2, 8 * U, 2),
         Margin = new Thickness(2, 0, 2, 0),
@@ -1113,8 +1105,8 @@ public sealed class MenuWindow : Window
             for (int i = 0; i < Segments; i++)
                 track.Children.Add(new Border
                 {
-                    Width = 14 * U, Height = 14 * U, Margin = new Thickness(0, 0, 2, 0),
-                    BorderBrush = Ink, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(2),
+                    Width = 4 * P, Height = 4 * P, Margin = new Thickness(0, 0, i < Segments - 1 ? -P : 0, 0),
+                    BorderBrush = Ink, BorderThickness = Flat,
                     Background = i < filled ? Good : Empty,
                 });
             info.Children.Add(track);
@@ -1196,7 +1188,7 @@ public sealed class MenuWindow : Window
         {
             Background = Empty,
             BorderBrush = Ink,
-            BorderThickness = new Thickness(2),
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(8 * U, 6 * U, 8 * U, 8 * U),
             Child = box,
@@ -1384,7 +1376,7 @@ public sealed class MenuWindow : Window
         {
             Background = TileArt,
             BorderBrush = WoodDark,
-            BorderThickness = new Thickness(2),
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(4),
             MinHeight = 96 * U,
             Child = artGrid,
