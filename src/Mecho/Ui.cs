@@ -300,7 +300,7 @@ public static class Ui
         ["📻"] = "shop_radio", ["🎲"] = "dice", ["🎨"] = "shop_easel", ["🎮"] = "shop_computer", ["🤸"] = "shop_trampoline",
         ["💡"] = "pencil", ["📝"] = "notes", ["📋"] = "tasks", ["🛋"] = "couch", ["🎁"] = "gift", ["🚶"] = "walk", ["🔒"] = "lock",
         ["💤"] = "moon", ["🌙"] = "moon", ["☀"] = "sun", ["❤"] = "heart", ["♪"] = "music",
-        ["🌡"] = "shop_heater", ["🗄"] = "shop_desk", ["🐦"] = "shop_feeder", ["🫓"] = "food_sandwich_veg", ["🫕"] = "food_soup_roast", ["🍅"] = "food_pressed_pizza", ["🫒"] = "food_sandwich_olives",
+        ["🌡"] = "shop_heater", ["🗄"] = "shop_desk", ["🐦"] = "shop_feeder", ["🫓"] = "food_sandwich_veg", ["🫕"] = "food_soup_roast", ["🥙"] = "food_pressed_pizza", ["🍅"] = "honey",   /* 🍅 е мечо-дорото (иконката му е гърнето с мед) */ ["🫒"] = "food_sandwich_olives",
         ["🥯"] = "food_sandwich_egg", ["🥓"] = "food_pressed_ham", ["📌"] = "pin", ["➖"] = "minimize", ["⧉"] = "copy", ["★"] = "star", ["🔄"] = "reroll", ["👁"] = "hide", ["🔊"] = "sound", ["☰"] = "menu", ["🐻"] = "bear", ["🧶"] = "shop_yarn_basket", ["🎸"] = "shop_guitar", ["🪔"] = "shop_lamp",
         ["🥄"] = "shop_mixer", ["🧇"] = "shop_sandwich", ["🍨"] = "shop_icecream", ["♨"] = "shop_grill",
         ["🍋"] = "food_lemonade", ["🥣"] = "food_soup_veg", ["🌽"] = "food_corn", ["🍫"] = "food_cocoa", ["🌼"] = "food_linden_tea",

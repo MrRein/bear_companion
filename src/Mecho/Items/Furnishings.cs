@@ -34,7 +34,15 @@ public sealed partial class PetWindow
         public int H { get; init; } = 20;
         public CookerWindow? Window;
         public string Shown = "";
+        /// <summary>От кога не му трябва (сложена от мечока); -1 – трябва му.</summary>
+        public double UnneededSince = -1;
     }
+
+    /// <summary>
+    /// Колко секунди сложената от мечока мебел остава, след като вече не му трябва – кратко
+    /// прекъсване (вдигнат, колет, гардероб, смяна на заниманието) не я прибира и не мига.
+    /// </summary>
+    private const double FurnitureGrace = 20;
 
     private Furnishing[] _furnishings = Array.Empty<Furnishing>();
 
@@ -122,7 +130,16 @@ public sealed partial class PetWindow
         foreach (var f in _furnishings)
         {
             var p = PlacementOf(f.Kind);
-            if (p.Placed && p.Owner == PlacedBy.Bear && !FurnitureStillNeeded(f)) CoreEngine.Bus.Send(new ReleaseByBear(f.Kind));
+            if (p.Placed && p.Owner == PlacedBy.Bear && !FurnitureStillNeeded(f))
+            {
+                if (f.UnneededSince < 0) f.UnneededSince = Now;
+                else if (Now - f.UnneededSince > FurnitureGrace)
+                {
+                    f.UnneededSince = -1;
+                    CoreEngine.Bus.Send(new ReleaseByBear(f.Kind));
+                }
+            }
+            else f.UnneededSince = -1;
             bool placed = FurniturePlaced(f.Kind);
             if (!placed)
             {

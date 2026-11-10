@@ -1915,6 +1915,10 @@ public sealed partial class PetWindow
         }, 600);
         await step("мебели: сложеното от Тут остава", () =>
         {
+            // Кратко прекъсване не прибира мебелта (да не мига); след FurnitureGrace секунди – да.
+            if (!FurniturePlaced(Kitchen.Computer)) throw new Exception("компютърът изчезна веднага щом стана");
+            if (FurnishingOf(Kitchen.Computer) is { } pc) pc.UnneededSince = Now - FurnitureGrace - 1;
+            UpdateFurnishings();
             if (FurniturePlaced(Kitchen.Computer)) throw new Exception("сам сложеният компютър не се прибра");
             ToggleFromMenu(Kitchen.Couch);
             if (!FurniturePlaced(Kitchen.Couch)) throw new Exception("Тут сложи дивана, а го няма");
