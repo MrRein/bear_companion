@@ -23,7 +23,7 @@ public sealed class SaveData
     public DateTime QuietUntil { get; set; }
     public bool StartWithWindows { get; set; } = true;
     public bool FirstRunDone { get; set; }
-    public bool TutorialDone { get; set; }                       // обиколката „Как се играе?“ е показана
+    public bool TutorialDone { get; set; }                       // обиколката „Как се живее с Мечо?“ е показана
     public DateTime LastSeen { get; set; }
 
     // Грижа (0–100)

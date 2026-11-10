@@ -102,6 +102,14 @@ internal static class NativeMethods
         SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT | WS_EX_LAYERED);
     }
 
+    private const int WS_EX_NOACTIVATE = 0x08000000;
+
+    /// <summary>Цъкането по прозореца не му дава фокус (менюто под него не се затваря).</summary>
+    public static void MakeNoActivate(IntPtr hwnd)
+    {
+        SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
+    }
+
     /// <summary>Скрива прозореца от Alt+Tab.</summary>
     public static void MakeToolWindow(IntPtr hwnd)
     {

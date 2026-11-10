@@ -1021,6 +1021,7 @@ public sealed partial class PetWindow : Window
             _vy = 0;
             SetState(BearState.Falling, _anim);
             Persist();
+            TutorialEvent("dropped");
             return;
         }
         OnLeftClick();
@@ -1241,9 +1242,14 @@ public sealed partial class PetWindow : Window
         _menu ??= new MenuWindow(this);
         _menu.ShowNear(_bearRect, Area, tab);
         if (tab == MenuWindow.PomodoroTab) _menu.ShowWorkPart(workPart);
+        TutorialEvent("menu");
     }
 
-    internal void MenuClosed() => _menuClosedAt = Now;
+    internal void MenuClosed()
+    {
+        _menuClosedAt = Now;
+        TutorialEvent("menuclosed");
+    }
 
     /// <summary>„➕ Нова“ от таблото: менюто – направо на новата задача/бележка.</summary>
     public void OpenNew(string kind)

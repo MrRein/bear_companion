@@ -799,7 +799,7 @@ public static class Ui
         Padding = new Thickness(8, 5, 8, 6),
     };
 
-    private static TextBlock Wrapped(string text, double maxWidth)
+    internal static TextBlock Wrapped(string text, double maxWidth)
     {
         var t = RichText(text);
         t.TextWrapping = TextWrapping.Wrap;

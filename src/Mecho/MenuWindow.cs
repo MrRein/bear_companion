@@ -64,6 +64,18 @@ public sealed class MenuWindow : Window
         return box;
     }
     private Border[] _fullBar = null!, _energyBar = null!;
+    private FrameworkElement? _fullRow, _energyRow;
+
+    /// <summary>За обиколката: къде на екрана е нещото (лентите, таб, цялото меню).</summary>
+    internal Rect? TutorialTarget(string what)
+    {
+        if (what == "menu") return new Rect(Left, Top, ActualWidth, ActualHeight);
+        if (what == "bars")
+            return TutorialOverlay.ScreenRect(_fullRow) is Rect a && TutorialOverlay.ScreenRect(_energyRow) is Rect b ? Rect.Union(a, b) : null;
+        if (what.StartsWith("tab:") && int.TryParse(what[4..], out int i) && i >= 0 && i < _tabButtons.Length)
+            return TutorialOverlay.ScreenRect(_tabButtons[i]);
+        return null;
+    }
     private TextBlock _fullText = null!, _energyText = null!, _mood = null!, _weather = null!;
     private StackPanel _weatherRow = null!;
     private readonly Border _weatherIcon = new() { VerticalAlignment = VerticalAlignment.Center };
@@ -311,6 +323,7 @@ public sealed class MenuWindow : Window
 
     private void SelectTab(int index)
     {
+        _pet.TutorialEvent("tab:" + index);
         bool tasks = index == TasksTab;
         if (tasks)
         {
@@ -469,8 +482,13 @@ public sealed class MenuWindow : Window
         _weatherRow.Children.Add(_weatherIcon);
         _weatherRow.Children.Add(_weather);
         stats.Children.Add(_weatherRow);
-        stats.Children.Add(Bar("honey", "Ситост", out _fullBar, out _fullText));
-        stats.Children.Add(Bar("energy", "Енергия", out _energyBar, out _energyText));
+        _fullRow = (FrameworkElement)Bar("honey", "Ситост", out _fullBar, out _fullText);
+        _energyRow = (FrameworkElement)Bar("energy", "Енергия", out _energyBar, out _energyText);
+        foreach (var row in new[] { _fullRow, _energyRow })
+        {
+            row.MouseEnter += (_, _) => _pet.TutorialEvent("bars");   // обиколката: „посочи лентите“
+            stats.Children.Add(row);
+        }
         Grid.SetColumn(stats, 1);
         top.Children.Add(stats);
         p.Children.Add(top);
@@ -2981,7 +2999,7 @@ public sealed class MenuWindow : Window
             _dev.Show();
             _dev.Activate();
         }, icon: "gear");
-        var tutorial = Button("Как се играе? (обиколка с Мечо)", () =>
+        var tutorial = Button("Как се живее с Мечо?", () =>
         {
             Hide();
             _pet.StartTutorial();

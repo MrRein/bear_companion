@@ -1211,14 +1211,27 @@ public sealed partial class PetWindow
             DeleteTask(t);
             if (_save.Tasks.Any(x => x.Id == t.Id)) throw new Exception("изтритата задача остана в ядрото");
         }, 600);
-        await step("обиколка (tutorial)", () =>
+        await step("обиколка: цъкни ме с десен бутон", () =>
         {
-            for (int i = 0; i < 12; i++)
-            {
-                StartTutorial(i);
-                _chat?.Hide();
-            }
-            if (!_save.TutorialDone) throw new Exception("обиколката не се отбеляза като видяна");
+            StartTutorial();
+            if (_tutorialStep != 0 || _tutorial is not { IsShown: true }) throw new Exception("обиколката не се показа");
+            if (TutorialTarget("bear") == null) throw new Exception("няма квадратче около мечока");
+            OpenMenu(MenuWindow.BearTab);           // „цъкна го“ – менюто се отвори
+        }, 700);
+        await step("обиколка: лентите", () =>
+        {
+            if (_tutorialStep != 1) throw new Exception("не мина напред, след като менюто се отвори (стъпка " + _tutorialStep + ")");
+            if (TutorialTarget("bars") == null) throw new Exception("няма квадратче около лентите");
+            TutorialEvent("tab:" + MenuWindow.FoodTab);   // друго действие – не бива да мине напред
+            TutorialEvent("bars");
+        }, 700);
+        await step("обиколка: табът „Работа“", () =>
+        {
+            if (_tutorialStep != 2) throw new Exception("не мина напред след лентите (стъпка " + _tutorialStep + ")");
+            if (TutorialTarget("tab:" + MenuWindow.PomodoroTab) == null) throw new Exception("няма квадратче около таба „Работа“");
+            StartTutorial(TutorialSteps.Length);    // „Готово“ на последната
+            _menu?.Hide();
+            if (!_save.TutorialDone || _tutorial is { IsShown: true }) throw new Exception("обиколката не се затвори");
         }, 500);
         await step("сандвич на масата", () =>
         {
