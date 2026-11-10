@@ -21,10 +21,11 @@ namespace Mecho;
 /// („button“ + „_hover“ → button_hover; ако го няма – button). Спрайтовете са в
 /// цветовете на класическия скин; другите скинове ги преоцветяват (Recolor), без тези с
 /// "recolor": false (деленцата за ситост/енергия). skin_<скин>.png – нарисуван на ръка скин.
+/// Фонът на рамката (дървото) е отделен файл за всеки скин: frame_<скин>.png (skin.json → file).
 /// </summary>
 public static class UiSkin
 {
-    private sealed record Def(Int32Rect Rect, int L, int T, int R, int B, int PL, int PT, int PR, int PB, bool Recolor);
+    private sealed record Def(Int32Rect Rect, int L, int T, int R, int B, int PL, int PT, int PR, int PB, bool Recolor, string? File);
 
     public static readonly DependencyProperty SpriteProperty = DependencyProperty.RegisterAttached(
         "Sprite", typeof(string), typeof(UiSkin), new PropertyMetadata(null, (d, _) => Changed(d)));
@@ -62,7 +63,8 @@ public static class UiSkin
                     var s = Ints("slice");
                     var pad = Ints("pad");
                     bool recolor = !(p.Value.TryGetProperty("recolor", out var rc) && rc.ValueKind == JsonValueKind.False);
-                    _defs[p.Name] = new Def(new Int32Rect(r[0], r[1], r[2], r[3]), s[0], s[1], s[2], s[3], pad[0], pad[1], pad[2], pad[3], recolor);
+                    string? file = p.Value.TryGetProperty("file", out var f) ? f.GetString() : null;
+                    _defs[p.Name] = new Def(new Int32Rect(r[0], r[1], r[2], r[3]), s[0], s[1], s[2], s[3], pad[0], pad[1], pad[2], pad[3], recolor, file);
                 }
             }
             catch (Exception)
@@ -250,14 +252,38 @@ public static class UiSkin
         return _atlas;
     }
 
-    /// <summary>Един спрайт – изрязан от skin.png по skin.json → rect.</summary>
+    private static BitmapSource? LoadPng(string name)
+    {
+        string path = Path.Combine(Dir, name + ".png");
+        if (!File.Exists(path)) return null;
+        var bmp = new BitmapImage();
+        bmp.BeginInit();
+        bmp.CacheOption = BitmapCacheOption.OnLoad;
+        bmp.UriSource = new Uri(path);
+        bmp.EndInit();
+        bmp.Freeze();
+        return bmp;
+    }
+
+    /// <summary>Един спрайт – изрязан от skin.png (или от своя файл, ако има file) по skin.json → rect.</summary>
     private static BitmapSource? Image(string name)
     {
         if (Images.TryGetValue(name, out var cached)) return cached;
         BitmapSource? image = null;
         try
         {
-            if (Defs.TryGetValue(name, out var def) && Atlas() is { } atlas
+            if (Defs.TryGetValue(name, out var own) && own.File != null)
+            {
+                // Отделен файл за всеки скин (фонът на рамката): frame_<скин>.png, иначе класическият.
+                var file = LoadPng(own.File.Replace("{theme}", _theme.Id)) ?? LoadPng(own.File.Replace("{theme}", UiThemes.All[0].Id));
+                if (file != null && own.Rect.X + own.Rect.Width <= file.PixelWidth && own.Rect.Y + own.Rect.Height <= file.PixelHeight)
+                {
+                    var part = new CroppedBitmap(file, own.Rect);
+                    part.Freeze();
+                    image = part;
+                }
+            }
+            else if (Defs.TryGetValue(name, out var def) && Atlas() is { } atlas
                 && def.Rect.X + def.Rect.Width <= atlas.PixelWidth && def.Rect.Y + def.Rect.Height <= atlas.PixelHeight)
             {
                 var crop = new CroppedBitmap(atlas, def.Rect);

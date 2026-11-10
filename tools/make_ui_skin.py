@@ -4,7 +4,10 @@
     python tools/make_ui_skin.py <папка>    -> само в тази папка (за преглед)
 
 Всички спрайтове са в ЕДИН файл – skin.png (подредени на редове, с 2 празни пиксела
-помежду им). В skin.json за всеки:
+помежду им) – освен фона на рамката (дървото): той е отделен файл за всеки цвят на менюто,
+frame_<скин>.png (classic, birch, grass, stone, sakura, night), нарисуван да отива на скина
+и не се преоцветява. В skin.json за всеки:
+  file  – (само за рамката) от кой файл е; {theme} е скинът;
   rect  – къде е в skin.png (x, y, ширина, височина);
 
 Всеки спрайт се „реже“ на 9 части (9-slice): ъглите стоят както са нарисувани, ръбовете и
@@ -153,30 +156,164 @@ def skin_map(atlas, out, s=8):
     big.save(path)
 
 
-# ───────────────────────── Рамка (дърво) ─────────────────────────
+# ───────────────────────── Рамка (фонът) – отделен файл за всеки скин ─────────────────────────
+#
+# Фонът на рамката (дървото) НЕ е в skin.png и не се преоцветява: за всеки цвят на менюто
+# има свой нарисуван фон – frame_<скин>.png (50×50; ръбът е 5, средата 40×40 се повтаря).
 
-def wood_px(x, y):
-    """Дъски по 5 реда, с фуги и жилки; повтаря се през 20 пиксела."""
+FRAME, FS, PER = 50, 5, 40          # размер, ръб, през колко се повтаря шарката
+
+
+def h(x, y, seed=0):
+    """Псевдослучайно число 0..999 за точка (повтаря се през PER) – за разпръснати шарки."""
+    x, y = x % PER, y % PER
+    v = (x * 73856093) ^ (y * 19349663) ^ (seed * 83492791)
+    v = (v ^ (v >> 13)) * 1274126177
+    return (v ^ (v >> 16)) % 1000
+
+
+def planks(x, y, wood, dark, light, seed=0):
+    """Дъски по 5 реда, дълги по 20, разминати, с фуги и жилки."""
     row = y // 5
     ox = (x + (10 if row % 2 else 0)) % 20
     yy = y % 5
     if yy == 4 or ox == 19:
-        return WOODD
+        return dark
     if yy == 0:
-        return WOODL
-    if yy == 2 and 2 <= ox <= 6:
-        return WOODL
-    if yy == 2 and 10 <= ox <= 14:
-        return WOODD
-    return WOOD
+        return light
+    if yy == 2 and h(x // 4, row, seed) < 450 and ox % 9 < 5:
+        return light if h(x, row, seed + 1) < 500 else dark
+    return wood
 
 
-def frame(out):
-    s = S(30, 30)
-    s.fill(wood_px)
-    s.outline()
-    s.corners(2, 2, 2, 2)
-    save("frame", s, (5, 5, 5, 5), (1, 1, 1, 1), out)
+def frame_oak(x, y):
+    return planks(x, y, (139, 90, 43), (98, 62, 32), (181, 125, 70))
+
+
+def frame_birch(x, y):
+    base, line, mark = (232, 228, 216), (206, 200, 186), (52, 48, 44)
+    if y % 10 == 9:                                  # между дъските от бреза
+        return line
+    n = h(x // 3, y, 3)
+    if n < 70 and y % 10 not in (0, 8):              # черните чертички по кората
+        return mark
+    if n < 120:
+        return (186, 180, 168)
+    if y % 10 == 0:
+        return (248, 246, 238)
+    return base
+
+
+def frame_grass(x, y):
+    dark, mid, light = (52, 96, 36), (90, 146, 58), (142, 196, 92)
+    n = h(x, y, 5)
+    if n < 6:
+        return (255, 236, 120)                       # цветенце
+    if n < 11:
+        return (255, 255, 255)
+    if n < 15:
+        return (246, 160, 190)
+    # листенца: светъл връх и тъмна сянка под него, по диагонал
+    k = (x + 2 * y) % 6
+    j = h(x // 3, y // 2, 7)
+    if k == 0 and j < 650:
+        return light
+    if k == 1 and j < 650:
+        return mid
+    if (x + 2 * y) % 6 == 3 and h(x // 2, y // 3, 9) < 500:
+        return dark
+    return mid if j < 520 else (76, 128, 50)
+
+
+def frame_stone(x, y):
+    mortar, face, lit, shade = (78, 78, 86), (140, 140, 146), (182, 182, 188), (110, 110, 118)
+    row = y // 8
+    bw = 16 if row % 2 == 0 else 20
+    ox = (x + (8 if row % 2 else 0)) % 40
+    bx = ox % bw if ox < 40 - (40 % bw) else ox - (40 - (40 % bw))
+    yy = y % 8
+    if yy == 7 or bx == bw - 1 or ox == 39:
+        return mortar
+    if yy == 0 or bx == 0:
+        return lit
+    if yy == 6 or bx == bw - 2:
+        return shade
+    n = h(x, y, 11)
+    if n < 60:
+        return shade
+    if n < 100:
+        return lit
+    return face
+
+
+def frame_sakura(x, y):
+    c = planks(x, y, (122, 70, 60), (86, 46, 40), (168, 106, 92), seed=4)
+    n = h(x // 2, y // 2, 13)
+    if n < 22:                                       # розово цветче (2×2, със светла точка)
+        return (255, 214, 226) if (x + y) % 2 == 0 else (240, 150, 178)
+    return c
+
+
+def frame_night(x, y):
+    sky, deep = (40, 46, 82), (32, 36, 66)
+    n = h(x, y, 17)
+    if n < 8:
+        return (255, 250, 220)                       # звезда
+    if n < 12:
+        return (180, 190, 240)
+    # няколко по-големи звезди – кръстче
+    for cx, cy in ((7, 9), (27, 23), (16, 34), (34, 4)):
+        dx, dy = (x - cx) % PER, (y - cy) % PER
+        dx = dx - PER if dx > PER // 2 else dx
+        dy = dy - PER if dy > PER // 2 else dy
+        if dx == 0 and dy == 0:
+            return (255, 240, 170)
+        if abs(dx) + abs(dy) == 1:
+            return (150, 160, 220)
+    return deep if h(x // 2, y // 2, 19) < 160 else sky
+
+
+FRAMES = {
+    "classic": frame_oak,
+    "birch": frame_birch,
+    "grass": frame_grass,
+    "stone": frame_stone,
+    "sakura": frame_sakura,
+    "night": frame_night,
+}
+
+
+def frames(out):
+    for theme, fn in FRAMES.items():
+        s = S(FRAME, FRAME)
+        s.fill(fn)
+        s.outline()
+        s.corners(2, 2, 2, 2)
+        s.img.save(os.path.join(out, f"frame_{theme}.png"))
+    DEFS["frame"] = {"file": "frame_{theme}", "rect": [0, 0, FRAME, FRAME], "slice": [FS] * 4, "pad": [1, 1, 1, 1], "recolor": False}
+    frames_map(out)
+
+
+def frames_map(out, s=6):
+    """Всички фонове един до друг (×6), за да се сравнят и прерисуват."""
+    from PIL import ImageDraw, ImageFont
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
+    except OSError:
+        font = ImageFont.load_default()
+    cell = FRAME * s
+    big = Image.new("RGBA", (len(FRAMES) * (cell + 10) + 10, cell + 34), (235, 235, 240, 255))
+    d = ImageDraw.Draw(big)
+    for i, theme in enumerate(FRAMES):
+        img = Image.open(os.path.join(out, f"frame_{theme}.png"))
+        x = 10 + i * (cell + 10)
+        big.alpha_composite(img.resize((cell, cell), Image.NEAREST), (x, 24))
+        for k in (FS, FRAME - FS):
+            d.line([(x + k * s, 24), (x + k * s, 24 + cell)], fill=(60, 120, 230))
+            d.line([(x, 24 + k * s), (x + cell, 24 + k * s)], fill=(60, 120, 230))
+        d.text((x, 4), f"frame_{theme}.png", fill=(220, 40, 120), font=font)
+    path = os.path.join(ROOT, "art_templates", "skin_frames.png") if out == OUT else os.path.join(out, "skin_frames.png")
+    big.save(path)
 
 
 # ───────────────────────── Хартия ─────────────────────────
@@ -292,7 +429,6 @@ def dash(out):
 
 def main(out=OUT):
     os.makedirs(out, exist_ok=True)
-    frame(out)
     panel(out, "panel", (0, 0, 2, 2))
     panel(out, "card", (2, 2, 2, 2))
     tab(out, "tab", WOODL)
@@ -313,12 +449,14 @@ def main(out=OUT):
     pill(out)
     dash(out)
     pack(out)
+    frames(out)
     # Старите отделни файлове (преди всичко да е в skin.png) вече не трябват.
-    for name in SPRITES:
+    for name in list(SPRITES) + ["frame"]:
         old = os.path.join(out, name + ".png")
-        if name != "skin" and os.path.exists(old):
+        if os.path.exists(old):
             os.remove(old)
-    defs = {k: {"rect": v["rect"], "slice": v["slice"], "pad": v["pad"], **({"recolor": False} if v.get("recolor") is False else {})}
+    defs = {k: {**({"file": v["file"]} if "file" in v else {}), "rect": v["rect"], "slice": v["slice"], "pad": v["pad"],
+                **({"recolor": False} if v.get("recolor") is False else {})}
             for k, v in DEFS.items()}
     # По един ред на спрайт – лесно се чете и поправя на ръка.
     lines = [f'  "{k}": {json.dumps(v)}' for k, v in defs.items()]

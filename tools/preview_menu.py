@@ -33,8 +33,14 @@ with open(os.path.join(SKIN, "skin.json"), encoding="utf-8") as fh:
 ATLAS = Image.open(os.path.join(SKIN, "skin.png")).convert("RGBA")   # всички спрайтове в един файл
 
 
+THEME = "classic"
+
+
 def sprite_img(name):
     x, y, w, h = DEFS[name]["rect"]
+    if "file" in DEFS[name]:          # фонът на рамката – отделен файл за всеки скин
+        src = Image.open(os.path.join(SKIN, DEFS[name]["file"].replace("{theme}", THEME) + ".png")).convert("RGBA")
+        return src.crop((x, y, x + w, y + h))
     return ATLAS.crop((x, y, x + w, y + h))
 
 
