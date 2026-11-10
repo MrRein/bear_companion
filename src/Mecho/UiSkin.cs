@@ -19,11 +19,12 @@ namespace Mecho;
 ///
 /// Слага се с Skin.Set(рамка, "button"); състоянието (посочено, натиснато…) – с Skin.SetState
 /// („button“ + „_hover“ → button_hover; ако го няма – button). Спрайтовете са в
-/// цветовете на класическия скин; другите скинове ги преоцветяват (Recolor).
+/// цветовете на класическия скин; другите скинове ги преоцветяват (Recolor), без тези с
+/// "recolor": false (деленцата за ситост/енергия). skin_<скин>.png – нарисуван на ръка скин.
 /// </summary>
 public static class UiSkin
 {
-    private sealed record Def(Int32Rect Rect, int L, int T, int R, int B, int PL, int PT, int PR, int PB);
+    private sealed record Def(Int32Rect Rect, int L, int T, int R, int B, int PL, int PT, int PR, int PB, bool Recolor);
 
     public static readonly DependencyProperty SpriteProperty = DependencyProperty.RegisterAttached(
         "Sprite", typeof(string), typeof(UiSkin), new PropertyMetadata(null, (d, _) => Changed(d)));
@@ -60,7 +61,8 @@ public static class UiSkin
                     var r = Ints("rect");
                     var s = Ints("slice");
                     var pad = Ints("pad");
-                    _defs[p.Name] = new Def(new Int32Rect(r[0], r[1], r[2], r[3]), s[0], s[1], s[2], s[3], pad[0], pad[1], pad[2], pad[3]);
+                    bool recolor = !(p.Value.TryGetProperty("recolor", out var rc) && rc.ValueKind == JsonValueKind.False);
+                    _defs[p.Name] = new Def(new Int32Rect(r[0], r[1], r[2], r[3]), s[0], s[1], s[2], s[3], pad[0], pad[1], pad[2], pad[3], recolor);
                 }
             }
             catch (Exception)
@@ -214,16 +216,22 @@ public static class UiSkin
     }
 
     private static BitmapSource? _atlas;
-    private static bool _atlasLoaded;
+    private static bool _atlasLoaded, _atlasOwn;
 
-    /// <summary>Целият skin.png (в цветовете на сложения скин на менюто).</summary>
+    /// <summary>
+    /// Целият файл със спрайтовете: skin_<скин>.png, ако Тут е нарисувала този скин на ръка
+    /// (ползва се както е), иначе skin.png (класическият; преоцветява се спрайт по спрайт).
+    /// </summary>
     private static BitmapSource? Atlas()
     {
         if (_atlasLoaded) return _atlas;
         _atlasLoaded = true;
+        _atlas = null;
         try
         {
-            string path = Path.Combine(Dir, "skin.png");
+            string own = Path.Combine(Dir, $"skin_{_theme.Id}.png");
+            _atlasOwn = _theme.Id != UiThemes.All[0].Id && File.Exists(own);
+            string path = _atlasOwn ? own : Path.Combine(Dir, "skin.png");
             if (File.Exists(path))
             {
                 var bmp = new BitmapImage();
@@ -232,7 +240,7 @@ public static class UiSkin
                 bmp.UriSource = new Uri(path);
                 bmp.EndInit();
                 bmp.Freeze();
-                _atlas = _theme.Id == UiThemes.All[0].Id ? bmp : Recolor(bmp, UiThemes.All[0], _theme);
+                _atlas = bmp;
             }
         }
         catch (Exception)
@@ -254,7 +262,9 @@ public static class UiSkin
             {
                 var crop = new CroppedBitmap(atlas, def.Rect);
                 crop.Freeze();
-                image = crop;
+                // Преоцветява се само класическият файл и само спрайтовете, които го искат.
+                bool recolor = !_atlasOwn && def.Recolor && _theme.Id != UiThemes.All[0].Id;
+                image = recolor ? Recolor(crop, UiThemes.All[0], _theme) : crop;
             }
         }
         catch (Exception)

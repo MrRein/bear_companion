@@ -376,7 +376,7 @@ public sealed class MenuWindow : Window
             Text = "МЕЧО",
             FontSize = Ui.Title,
             FontWeight = FontWeights.Bold,
-            Foreground = Cream,
+            Foreground = OnWood,
             VerticalAlignment = VerticalAlignment.Center,
             Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(13, 18, 28), ShadowDepth = 2, Direction = 315, BlurRadius = 0, Opacity = 1 },
         });

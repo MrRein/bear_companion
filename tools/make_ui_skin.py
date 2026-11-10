@@ -14,7 +14,9 @@
 Един пиксел на спрайта = един пиксел на храната в менюто.
 
 Нарисувани са в цветовете на класическия скин („Дъб и мед“); другите скинове ги
-преоцветяват сами. Искаш ли да ги прерисуваш на ръка – отвори skin.png и рисувай всеки
+преоцветяват сами (без спрайтовете с "recolor": false – те са еднакви навсякъде). Искаш
+ли някой скин нарисуван на ръка – направи skin_<скин>.png (например skin_birch.png) със
+същата подредба: тогава той се ползва както е, без преоцветяване. Искаш ли да ги прерисуваш на ръка – отвори skin.png и рисувай всеки
 спрайт в неговото квадратче (същия размер); програмата го взима оттам. Коя е всяка и
 къде са ръбовете – виж art_templates/skin_map.png (сините линии делят 9-те части). Не пускай
 скрипта след това – той рисува skin.png наново (скриптът е само първият вариант).
@@ -100,9 +102,11 @@ ATLAS_W = 100        # ширината на skin.png (в пиксели)
 GAP = 2              # празно между спрайтовете
 
 
-def save(name, s, slc, pad, out):
+def save(name, s, slc, pad, out, recolor=True):
     SPRITES[name] = s.img
     DEFS[name] = {"slice": list(slc), "pad": list(pad)}
+    if not recolor:
+        DEFS[name]["recolor"] = False        # остава в своите цветове при всеки скин
 
 
 def pack(out):
@@ -240,7 +244,8 @@ def cell(out, name, base):
     s.rect(1, 1, 3, 1, hi(base))
     s.rect(1, 4, 3, 4, lo(base))
     s.outline()
-    save(name, s, (2, 2, 2, 2), (1, 1, 1, 1), out)
+    # Зелено/оранжево/червено значат „сит/гладен“ – еднакви при всеки цвят на менюто.
+    save(name, s, (2, 2, 2, 2), (1, 1, 1, 1), out, recolor=name not in ("cell_good", "cell_okay", "cell_bad"))
 
 
 # ───────────────────────── Плочки, табелки, джобове ─────────────────────────
@@ -313,7 +318,8 @@ def main(out=OUT):
         old = os.path.join(out, name + ".png")
         if name != "skin" and os.path.exists(old):
             os.remove(old)
-    defs = {k: {"rect": v["rect"], "slice": v["slice"], "pad": v["pad"]} for k, v in DEFS.items()}
+    defs = {k: {"rect": v["rect"], "slice": v["slice"], "pad": v["pad"], **({"recolor": False} if v.get("recolor") is False else {})}
+            for k, v in DEFS.items()}
     # По един ред на спрайт – лесно се чете и поправя на ръка.
     lines = [f'  "{k}": {json.dumps(v)}' for k, v in defs.items()]
     with open(os.path.join(out, "skin.json"), "w", encoding="utf-8") as fh:

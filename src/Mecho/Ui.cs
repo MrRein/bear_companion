@@ -77,6 +77,12 @@ public static class Ui
     public static readonly Brush Hover = Live(Start.Hover);
     public static readonly Brush Honey = Live(Start.Honey);
     public static readonly Brush Cream = Live(Start.Cream);
+
+    /// <summary>Текст върху дървото (заглавието „МЕЧО“): кремав, а при светло дърво – тъмен.</summary>
+    public static readonly Brush OnWood = Live(OnWoodColor(Start));
+
+    private static Color OnWoodColor(UiTheme t) =>
+        0.299 * t.Wood.R + 0.587 * t.Wood.G + 0.114 * t.Wood.B > 150 ? t.Ink : t.Cream;
     public static readonly Brush Muted = Live(Start.Muted);
     public static readonly Brush Empty = Live(Start.Empty);
 
@@ -97,6 +103,7 @@ public static class Ui
         Set(Cream, t.Cream);
         Set(Muted, t.Muted);
         Set(Empty, t.Empty);
+        Set(OnWood, OnWoodColor(t));
         UiSkin.UseTheme(t);
     }
 
