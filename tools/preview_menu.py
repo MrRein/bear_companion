@@ -1,4 +1,4 @@
-"""Как изглежда менюто – сглобено от спрайтовете (assets/ui/skin), иконките и храната.
+"""Как изглежда менюто – сглобено от спрайтовете (assets/ui/skin/skin.png), иконките и храната.
 
     python tools/preview_menu.py [папка]   -> menu_main.png, menu_food.png (уголемени ×2)
 
@@ -30,6 +30,12 @@ fbig = ImageFont.truetype(os.path.join(FONTS, "PixeloidSans-Bold.ttf"), 27)
 
 with open(os.path.join(SKIN, "skin.json"), encoding="utf-8") as fh:
     DEFS = json.load(fh)
+ATLAS = Image.open(os.path.join(SKIN, "skin.png")).convert("RGBA")   # всички спрайтове в един файл
+
+
+def sprite_img(name):
+    x, y, w, h = DEFS[name]["rect"]
+    return ATLAS.crop((x, y, x + w, y + h))
 
 
 def with_shadow(art):
@@ -64,7 +70,7 @@ class Canvas:
         """9-slice: ъглите както са, ръбовете и средата се повтарят. Връща вътрешността (pad)."""
         name = resolve(name)
         d = DEFS[name]
-        src = Image.open(os.path.join(SKIN, name + ".png")).convert("RGBA")
+        src = sprite_img(name)
         L, T, R, B = d["slice"]
         iw, ih = src.size
         sx = [0, L, iw - R, iw]
@@ -164,7 +170,7 @@ def button(c, x, y, w, h, label, icon=None, sprite="button"):
 def ribbon(c, x, y, w, label, icon):
     c.icon(icon, x, y + 2)
     c.text(x + 30, y + 4, label, fb)
-    dash = Image.open(os.path.join(SKIN, "dash.png")).convert("RGBA")
+    dash = sprite_img("dash")
     dash = dash.resize((dash.width * P, dash.height * P), Image.NEAREST)
     for xx in range(x, x + w - dash.width, dash.width):
         c.img.alpha_composite(dash, (xx, y + 32))

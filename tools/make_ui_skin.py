@@ -1,7 +1,11 @@
 """Спрайтовете на менюто (рамка, хартия, табове, бутони, деленца, плочки…) в стила на храната.
 
-    python tools/make_ui_skin.py            -> assets/ui/skin/*.png и skin.json
+    python tools/make_ui_skin.py            -> assets/ui/skin/skin.png и skin.json
     python tools/make_ui_skin.py <папка>    -> само в тази папка (за преглед)
+
+Всички спрайтове са в ЕДИН файл – skin.png (подредени на редове, с 2 празни пиксела
+помежду им). В skin.json за всеки:
+  rect  – къде е в skin.png (x, y, ширина, височина);
 
 Всеки спрайт се „реже“ на 9 части (9-slice): ъглите стоят както са нарисувани, ръбовете и
 средата се повтарят (не се разтягат), за да остават пикселите цели. В skin.json за всеки:
@@ -10,8 +14,10 @@
 Един пиксел на спрайта = един пиксел на храната в менюто.
 
 Нарисувани са в цветовете на класическия скин („Дъб и мед“); другите скинове ги
-преоцветяват сами. Искаш ли да ги прерисуваш на ръка – отвори PNG-то, рисувай в същия
-размер и пусни програмата (скриптът е само първият вариант).
+преоцветяват сами. Искаш ли да ги прерисуваш на ръка – отвори skin.png и рисувай всеки
+спрайт в неговото квадратче (същия размер); програмата го взима оттам. Коя е всяка и
+къде са ръбовете – виж art_templates/skin_map.png (сините линии делят 9-те части). Не пускай
+скрипта след това – той рисува skin.png наново (скриптът е само първият вариант).
 """
 
 import json
@@ -89,11 +95,58 @@ class S:
 
 
 DEFS = {}
+SPRITES = {}
+ATLAS_W = 100        # ширината на skin.png (в пиксели)
+GAP = 2              # празно между спрайтовете
 
 
 def save(name, s, slc, pad, out):
-    s.img.save(os.path.join(out, name + ".png"))
+    SPRITES[name] = s.img
     DEFS[name] = {"slice": list(slc), "pad": list(pad)}
+
+
+def pack(out):
+    """Подрежда спрайтовете на редове (в реда, в който са нарисувани) в един skin.png."""
+    x = y = row = 0
+    places = {}
+    for name, img in SPRITES.items():
+        if x and x + img.width > ATLAS_W:
+            x, y, row = 0, y + row + GAP, 0
+        places[name] = (x, y)
+        DEFS[name]["rect"] = [x, y, img.width, img.height]
+        x += img.width + GAP
+        row = max(row, img.height)
+    atlas = Image.new("RGBA", (ATLAS_W, y + row), (0, 0, 0, 0))
+    for name, img in SPRITES.items():
+        atlas.paste(img, places[name])
+    atlas.save(os.path.join(out, "skin.png"))
+    skin_map(atlas, out)
+
+
+def skin_map(atlas, out, s=8):
+    """Карта за рисуване: skin.png уголемен ×8, всяко квадратче с името си и ръбовете (slice)."""
+    from PIL import ImageDraw, ImageFont
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
+    except OSError:
+        font = ImageFont.load_default()
+    big = Image.new("RGBA", (atlas.width * s, atlas.height * s + 14), (235, 235, 240, 255))
+    big.alpha_composite(atlas.resize((atlas.width * s, atlas.height * s), Image.NEAREST), (0, 14))
+    d = ImageDraw.Draw(big)
+    for name, v in DEFS.items():
+        x, y, w, h = v["rect"]
+        L, T, R, B = v["slice"]
+        x0, y0 = x * s, y * s + 14
+        d.rectangle([x0, y0, x0 + w * s - 1, y0 + h * s - 1], outline=(220, 40, 120))
+        for k in (L, w - R):           # ръбовете, които се повтарят само по дължина
+            if 0 < k < w:
+                d.line([(x0 + k * s, y0), (x0 + k * s, y0 + h * s)], fill=(60, 120, 230))
+        for k in (T, h - B):
+            if 0 < k < h:
+                d.line([(x0, y0 + k * s), (x0 + w * s, y0 + k * s)], fill=(60, 120, 230))
+        d.text((x0 + 2, y0 + 2), name, fill=(220, 40, 120), font=font)
+    path = os.path.join(ROOT, "art_templates", "skin_map.png") if out == OUT else os.path.join(out, "skin_map.png")
+    big.save(path)
 
 
 # ───────────────────────── Рамка (дърво) ─────────────────────────
@@ -254,8 +307,17 @@ def main(out=OUT):
     inset(out, "pocket", EMPTY, O)
     pill(out)
     dash(out)
+    pack(out)
+    # Старите отделни файлове (преди всичко да е в skin.png) вече не трябват.
+    for name in SPRITES:
+        old = os.path.join(out, name + ".png")
+        if name != "skin" and os.path.exists(old):
+            os.remove(old)
+    defs = {k: {"rect": v["rect"], "slice": v["slice"], "pad": v["pad"]} for k, v in DEFS.items()}
+    # По един ред на спрайт – лесно се чете и поправя на ръка.
+    lines = [f'  "{k}": {json.dumps(v)}' for k, v in defs.items()]
     with open(os.path.join(out, "skin.json"), "w", encoding="utf-8") as fh:
-        json.dump(DEFS, fh, indent=1)
+        fh.write("{\n" + ",\n".join(lines) + "\n}\n")
     print("Спрайтове:", len(DEFS), "→", os.path.relpath(out, ROOT) if out == OUT else out)
 
 

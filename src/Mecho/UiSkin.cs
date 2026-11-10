@@ -12,18 +12,18 @@ using System.Windows.Media.Imaging;
 namespace Mecho;
 
 /// <summary>
-/// Менюто от спрайтове (assets/ui/skin): рамката, хартията, табовете, бутоните, деленцата,
-/// плочките… са картинки, които Тут може да прерисува. Всяка се реже на 9 части (skin.json →
-/// slice): ъглите стоят както са, ръбовете и средата се повтарят – пикселите остават цели и
+/// Менюто от спрайтове (assets/ui/skin/skin.png – всички в един файл): рамката, хартията,
+/// табовете, бутоните, деленцата, плочките… са картинки, които Тут може да прерисува. Къде е
+/// всяка в skin.png казва skin.json → rect. Всяка се реже на 9 части (skin.json → slice): ъглите стоят както са, ръбовете и средата се повтарят – пикселите остават цели и
 /// колкото на храната (Ui.P). pad е откъде започва съдържанието.
 ///
 /// Слага се с Skin.Set(рамка, "button"); състоянието (посочено, натиснато…) – с Skin.SetState
-/// („button“ + „_hover“ → button_hover.png; ако го няма – button.png). Спрайтовете са в
+/// („button“ + „_hover“ → button_hover; ако го няма – button). Спрайтовете са в
 /// цветовете на класическия скин; другите скинове ги преоцветяват (Recolor).
 /// </summary>
 public static class UiSkin
 {
-    private sealed record Def(int L, int T, int R, int B, int PL, int PT, int PR, int PB);
+    private sealed record Def(Int32Rect Rect, int L, int T, int R, int B, int PL, int PT, int PR, int PB);
 
     public static readonly DependencyProperty SpriteProperty = DependencyProperty.RegisterAttached(
         "Sprite", typeof(string), typeof(UiSkin), new PropertyMetadata(null, (d, _) => Changed(d)));
@@ -56,9 +56,11 @@ public static class UiSkin
                 using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(Dir, "skin.json")));
                 foreach (var p in doc.RootElement.EnumerateObject())
                 {
-                    var s = p.Value.GetProperty("slice").EnumerateArray().Select(e => e.GetInt32()).ToArray();
-                    var pad = p.Value.GetProperty("pad").EnumerateArray().Select(e => e.GetInt32()).ToArray();
-                    _defs[p.Name] = new Def(s[0], s[1], s[2], s[3], pad[0], pad[1], pad[2], pad[3]);
+                    int[] Ints(string key) => p.Value.GetProperty(key).EnumerateArray().Select(e => e.GetInt32()).ToArray();
+                    var r = Ints("rect");
+                    var s = Ints("slice");
+                    var pad = Ints("pad");
+                    _defs[p.Name] = new Def(new Int32Rect(r[0], r[1], r[2], r[3]), s[0], s[1], s[2], s[3], pad[0], pad[1], pad[2], pad[3]);
                 }
             }
             catch (Exception)
@@ -106,6 +108,8 @@ public static class UiSkin
     public static void UseTheme(UiTheme theme)
     {
         _theme = theme;
+        _atlas = null;
+        _atlasLoaded = false;
         Images.Clear();
         Parts.Clear();
         foreach (var w in Skinned.ToArray())
@@ -209,13 +213,17 @@ public static class UiSkin
         return brush;
     }
 
-    private static BitmapSource? Image(string name)
+    private static BitmapSource? _atlas;
+    private static bool _atlasLoaded;
+
+    /// <summary>Целият skin.png (в цветовете на сложения скин на менюто).</summary>
+    private static BitmapSource? Atlas()
     {
-        if (Images.TryGetValue(name, out var cached)) return cached;
-        BitmapSource? image = null;
+        if (_atlasLoaded) return _atlas;
+        _atlasLoaded = true;
         try
         {
-            string path = Path.Combine(Dir, name + ".png");
+            string path = Path.Combine(Dir, "skin.png");
             if (File.Exists(path))
             {
                 var bmp = new BitmapImage();
@@ -224,7 +232,29 @@ public static class UiSkin
                 bmp.UriSource = new Uri(path);
                 bmp.EndInit();
                 bmp.Freeze();
-                image = _theme.Id == UiThemes.All[0].Id ? bmp : Recolor(bmp, UiThemes.All[0], _theme);
+                _atlas = _theme.Id == UiThemes.All[0].Id ? bmp : Recolor(bmp, UiThemes.All[0], _theme);
+            }
+        }
+        catch (Exception)
+        {
+            _atlas = null;
+        }
+        return _atlas;
+    }
+
+    /// <summary>Един спрайт – изрязан от skin.png по skin.json → rect.</summary>
+    private static BitmapSource? Image(string name)
+    {
+        if (Images.TryGetValue(name, out var cached)) return cached;
+        BitmapSource? image = null;
+        try
+        {
+            if (Defs.TryGetValue(name, out var def) && Atlas() is { } atlas
+                && def.Rect.X + def.Rect.Width <= atlas.PixelWidth && def.Rect.Y + def.Rect.Height <= atlas.PixelHeight)
+            {
+                var crop = new CroppedBitmap(atlas, def.Rect);
+                crop.Freeze();
+                image = crop;
             }
         }
         catch (Exception)
