@@ -1011,22 +1011,25 @@ public sealed class MenuWindow : Window
         i0.Margin = new Thickness(0, 0, 4, 0);
         i0.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(i0);
-        // Барче в пикселите на храната: черен контур, вътре 10 квадратчета (горният пиксел – по-светъл).
-        var cells = new StackPanel { Orientation = Orientation.Horizontal };
+        // Звена (като лентите за ситост/енергия, но по-малки): сегашното в цвят, колкото ще
+        // добави храната – в мед, останалото – празно. Съседните делят един контур.
+        string dot = now >= 50 ? "dot_good" : now >= 25 ? "dot_okay" : "dot_bad";
+        var cells = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         for (int i = 0; i < segments; i++)
         {
-            var fill = i < have ? colour : i < will ? Honey : Empty;
-            var cell = new Grid { Width = 2 * P, Height = 2 * P, Background = fill };
-            if (i < will) cell.Children.Add(Shine());
-            cells.Children.Add(cell);
+            var link = new Border
+            {
+                Width = 4 * P,
+                Height = 4 * P,
+                Margin = new Thickness(0, 0, i < segments - 1 ? -P : 0, 0),
+                BorderBrush = Ink,
+                BorderThickness = Flat,
+                Background = i < have ? colour : i < will ? Honey : Empty,
+            };
+            if (UiSkin.Has("dot_empty")) UiSkin.Set(link, i < have ? dot : i < will ? "dot_honey" : "dot_empty");
+            cells.Children.Add(link);
         }
-        row.Children.Add(new Border
-        {
-            BorderBrush = Ink,
-            BorderThickness = Flat,
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = cells,
-        });
+        row.Children.Add(cells);
         int gain = (int)Math.Round(after - now);
         return row;
     }

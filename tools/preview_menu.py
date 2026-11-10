@@ -14,7 +14,7 @@ import sys
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-SKIN = os.path.join(ROOT, "assets", "ui", "skin")
+SKIN = os.path.join(ROOT, "assets", "ui", "menu", "default")   # комплектът елементи на менюто
 UI = os.path.join(ROOT, "assets", "ui")
 FOOD = os.path.join(ROOT, "assets", "props", "food")
 FONTS = os.path.join(ROOT, "src", "Mecho", "fonts")
@@ -28,20 +28,19 @@ f = ImageFont.truetype(os.path.join(FONTS, "PixeloidSans.ttf"), 18)
 fb = ImageFont.truetype(os.path.join(FONTS, "PixeloidSans-Bold.ttf"), 18)
 fbig = ImageFont.truetype(os.path.join(FONTS, "PixeloidSans-Bold.ttf"), 27)
 
-with open(os.path.join(SKIN, "skin.json"), encoding="utf-8") as fh:
+with open(os.path.join(SKIN, "menu.json"), encoding="utf-8") as fh:
     DEFS = json.load(fh)
-ATLAS = Image.open(os.path.join(SKIN, "skin.png")).convert("RGBA")   # всички спрайтове в един файл
+RECOLOR = None      # функция (име, картинка) → картинка, за да се види друг цвят на менюто
 
 
 THEME = "classic"
 
 
 def sprite_img(name):
-    x, y, w, h = DEFS[name]["rect"]
     if "file" in DEFS[name]:          # фонът на рамката – отделен файл за всеки скин
-        src = Image.open(os.path.join(SKIN, DEFS[name]["file"].replace("{theme}", THEME) + ".png")).convert("RGBA")
-        return src.crop((x, y, x + w, y + h))
-    return ATLAS.crop((x, y, x + w, y + h))
+        return Image.open(os.path.join(SKIN, DEFS[name]["file"].replace("{theme}", THEME) + ".png")).convert("RGBA")
+    img = Image.open(os.path.join(SKIN, name + ".png")).convert("RGBA")
+    return RECOLOR(name, img) if RECOLOR and DEFS[name].get("recolor", True) else img
 
 
 def with_shadow(art):
@@ -257,16 +256,15 @@ def food_tab(out):
         gy = ny + 22 * len(lines) + 8
 
         def gbar(y, ic, now, add, col):
-            bwid = 10 * 2 * P + 2 * P
+            # Звена като в програмата: 10 малки (4×4), съседните делят контура.
+            bwid = 10 * 3 * P + P
             bx = ix + (iw - (28 + bwid)) / 2
             c.icon(ic, bx, y)
             bx = int(bx + 28)
-            c.d.rectangle([bx, y + 4, bx + bwid - 1, y + 4 + 4 * P - 1], fill=INK)
             hv, wl = round(now / 10), min(10, round((now + add) / 10))
+            dot = "dot_good" if now >= 50 else "dot_okay" if now >= 25 else "dot_bad"
             for i in range(10):
-                ci = col if i < hv else HONEY if i < wl else (214, 190, 150)
-                x1 = bx + P + i * 2 * P
-                c.d.rectangle([x1, y + 4 + P, x1 + 2 * P - 1, y + 4 + 3 * P - 1], fill=ci)
+                c.sprite(dot if i < hv else "dot_honey" if i < wl else "dot_empty", bx + i * 3 * P, y + 2, 4 * P, 4 * P)
 
         gbar(gy, "honey", 40, gain, OKAY)
         gy += 26

@@ -12,20 +12,22 @@ using System.Windows.Media.Imaging;
 namespace Mecho;
 
 /// <summary>
-/// Менюто от спрайтове (assets/ui/skin/skin.png – всички в един файл): рамката, хартията,
-/// табовете, бутоните, деленцата, плочките… са картинки, които Тут може да прерисува. Къде е
-/// всяка в skin.png казва skin.json → rect. Всяка се реже на 9 части (skin.json → slice): ъглите стоят както са, ръбовете и средата се повтарят – пикселите остават цели и
+/// Менюто от елементи-картинки, по един файл на елемент: assets/ui/menu/<комплект>/<елемент>.png
+/// (комплектът по подразбиране е default; после christmas и др.). Рамката, хартията, табовете,
+/// бутоните, деленцата, плочките… Тут може да ги прерисува (tools/menu_sheet.py ги събира в
+/// един лист за рисуване и го реже обратно). Всеки елемент се реже на 9 части (menu.json →
+/// slice): ъглите стоят както са, ръбовете и средата се повтарят – пикселите остават цели и
 /// колкото на храната (Ui.P). pad е откъде започва съдържанието.
 ///
-/// Слага се с Skin.Set(рамка, "button"); състоянието (посочено, натиснато…) – с Skin.SetState
-/// („button“ + „_hover“ → button_hover; ако го няма – button). Спрайтовете са в
-/// цветовете на класическия скин; другите скинове ги преоцветяват (Recolor), без тези с
-/// "recolor": false (деленцата за ситост/енергия). skin_<скин>.png – нарисуван на ръка скин.
-/// Фонът на рамката (дървото) е отделен файл за всеки скин: frame_<скин>.png (skin.json → file).
+/// Слага се с UiSkin.Set(рамка, "button"); състоянието (посочено, натиснато…) – с SetState
+/// („button“ + „_hover“ → button_hover; ако го няма – button). Елементите са в цветовете на
+/// класическия скин; другите скинове ги преоцветяват (Recolor), без тези с "recolor": false
+/// (деленцата за ситост/енергия). Фонът на рамката е отделен нарисуван файл за всеки цвят на
+/// менюто: frame_<скин>.png (menu.json → file).
 /// </summary>
 public static class UiSkin
 {
-    private sealed record Def(Int32Rect Rect, int L, int T, int R, int B, int PL, int PT, int PR, int PB, bool Recolor, string? File);
+    private sealed record Def(int L, int T, int R, int B, int PL, int PT, int PR, int PB, bool Recolor, string? File);
 
     public static readonly DependencyProperty SpriteProperty = DependencyProperty.RegisterAttached(
         "Sprite", typeof(string), typeof(UiSkin), new PropertyMetadata(null, (d, _) => Changed(d)));
@@ -45,7 +47,10 @@ public static class UiSkin
     private static readonly List<WeakReference<Border>> Skinned = new();
     private static UiTheme _theme = UiThemes.All[0];
 
-    private static string Dir => Path.Combine(AppContext.BaseDirectory, "assets", "ui", "skin");
+    /// <summary>Комплектът елементи (папка в assets/ui/menu); липсващите се взимат от default.</summary>
+    public static string Kit { get; set; } = "default";
+
+    private static string KitDir(string kit) => Path.Combine(AppContext.BaseDirectory, "assets", "ui", "menu", kit);
 
     private static Dictionary<string, Def> Defs
     {
@@ -55,16 +60,17 @@ public static class UiSkin
             _defs = new Dictionary<string, Def>();
             try
             {
-                using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(Dir, "skin.json")));
+                string json = Path.Combine(KitDir(Kit), "menu.json");
+                if (!File.Exists(json)) json = Path.Combine(KitDir("default"), "menu.json");
+                using var doc = JsonDocument.Parse(File.ReadAllText(json));
                 foreach (var p in doc.RootElement.EnumerateObject())
                 {
                     int[] Ints(string key) => p.Value.GetProperty(key).EnumerateArray().Select(e => e.GetInt32()).ToArray();
-                    var r = Ints("rect");
                     var s = Ints("slice");
                     var pad = Ints("pad");
                     bool recolor = !(p.Value.TryGetProperty("recolor", out var rc) && rc.ValueKind == JsonValueKind.False);
                     string? file = p.Value.TryGetProperty("file", out var f) ? f.GetString() : null;
-                    _defs[p.Name] = new Def(new Int32Rect(r[0], r[1], r[2], r[3]), s[0], s[1], s[2], s[3], pad[0], pad[1], pad[2], pad[3], recolor, file);
+                    _defs[p.Name] = new Def(s[0], s[1], s[2], s[3], pad[0], pad[1], pad[2], pad[3], recolor, file);
                 }
             }
             catch (Exception)
@@ -112,8 +118,6 @@ public static class UiSkin
     public static void UseTheme(UiTheme theme)
     {
         _theme = theme;
-        _atlas = null;
-        _atlasLoaded = false;
         Images.Clear();
         Parts.Clear();
         foreach (var w in Skinned.ToArray())
@@ -217,80 +221,43 @@ public static class UiSkin
         return brush;
     }
 
-    private static BitmapSource? _atlas;
-    private static bool _atlasLoaded, _atlasOwn;
-
-    /// <summary>
-    /// Целият файл със спрайтовете: skin_<скин>.png, ако Тут е нарисувала този скин на ръка
-    /// (ползва се както е), иначе skin.png (класическият; преоцветява се спрайт по спрайт).
-    /// </summary>
-    private static BitmapSource? Atlas()
-    {
-        if (_atlasLoaded) return _atlas;
-        _atlasLoaded = true;
-        _atlas = null;
-        try
-        {
-            string own = Path.Combine(Dir, $"skin_{_theme.Id}.png");
-            _atlasOwn = _theme.Id != UiThemes.All[0].Id && File.Exists(own);
-            string path = _atlasOwn ? own : Path.Combine(Dir, "skin.png");
-            if (File.Exists(path))
-            {
-                var bmp = new BitmapImage();
-                bmp.BeginInit();
-                bmp.CacheOption = BitmapCacheOption.OnLoad;
-                bmp.UriSource = new Uri(path);
-                bmp.EndInit();
-                bmp.Freeze();
-                _atlas = bmp;
-            }
-        }
-        catch (Exception)
-        {
-            _atlas = null;
-        }
-        return _atlas;
-    }
-
+    /// <summary>Картинка от комплекта (или от default, ако в комплекта я няма).</summary>
     private static BitmapSource? LoadPng(string name)
     {
-        string path = Path.Combine(Dir, name + ".png");
-        if (!File.Exists(path)) return null;
-        var bmp = new BitmapImage();
-        bmp.BeginInit();
-        bmp.CacheOption = BitmapCacheOption.OnLoad;
-        bmp.UriSource = new Uri(path);
-        bmp.EndInit();
-        bmp.Freeze();
-        return bmp;
+        foreach (var kit in new[] { Kit, "default" })
+        {
+            string path = Path.Combine(KitDir(kit), name + ".png");
+            if (!File.Exists(path)) continue;
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.UriSource = new Uri(path);
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+        return null;
     }
 
-    /// <summary>Един спрайт – изрязан от skin.png (или от своя файл, ако има file) по skin.json → rect.</summary>
+    /// <summary>Един елемент: своят файл, в цветовете на сложения скин на менюто.</summary>
     private static BitmapSource? Image(string name)
     {
         if (Images.TryGetValue(name, out var cached)) return cached;
         BitmapSource? image = null;
         try
         {
-            if (Defs.TryGetValue(name, out var own) && own.File != null)
+            if (Defs.TryGetValue(name, out var def))
             {
-                // Отделен файл за всеки скин (фонът на рамката): frame_<скин>.png, иначе класическият.
-                var file = LoadPng(own.File.Replace("{theme}", _theme.Id)) ?? LoadPng(own.File.Replace("{theme}", UiThemes.All[0].Id));
-                if (file != null && own.Rect.X + own.Rect.Width <= file.PixelWidth && own.Rect.Y + own.Rect.Height <= file.PixelHeight)
+                if (def.File != null)
                 {
-                    var part = new CroppedBitmap(file, own.Rect);
-                    part.Freeze();
-                    image = part;
+                    // Отделен нарисуван файл за всеки цвят (фонът на рамката); ако го няма – класическият.
+                    image = LoadPng(def.File.Replace("{theme}", _theme.Id)) ?? LoadPng(def.File.Replace("{theme}", UiThemes.All[0].Id));
                 }
-            }
-            else if (Defs.TryGetValue(name, out var def) && Atlas() is { } atlas
-                && def.Rect.X + def.Rect.Width <= atlas.PixelWidth && def.Rect.Y + def.Rect.Height <= atlas.PixelHeight)
-            {
-                var crop = new CroppedBitmap(atlas, def.Rect);
-                crop.Freeze();
-                // Преоцветява се само класическият файл и само спрайтовете, които го искат.
-                bool recolor = !_atlasOwn && def.Recolor && _theme.Id != UiThemes.All[0].Id;
-                image = recolor ? Recolor(crop, UiThemes.All[0], _theme) : crop;
+                else if (LoadPng(name) is { } bmp)
+                {
+                    bool recolor = def.Recolor && _theme.Id != UiThemes.All[0].Id;
+                    image = recolor ? Recolor(bmp, UiThemes.All[0], _theme) : bmp;
+                }
             }
         }
         catch (Exception)

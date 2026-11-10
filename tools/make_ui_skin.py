@@ -1,28 +1,25 @@
-"""Спрайтовете на менюто (рамка, хартия, табове, бутони, деленца, плочки…) в стила на храната.
+"""Елементите на менюто (рамка, хартия, табове, бутони, деленца, плочки…) – първият вариант.
 
-    python tools/make_ui_skin.py            -> assets/ui/skin/skin.png и skin.json
+    python tools/make_ui_skin.py            -> assets/ui/menu/default/ (по един PNG на елемент) и menu.json
     python tools/make_ui_skin.py <папка>    -> само в тази папка (за преглед)
 
-Всички спрайтове са в ЕДИН файл – skin.png (подредени на редове, с 2 празни пиксела
-помежду им) – освен фона на рамката (дървото): той е отделен файл за всеки цвят на менюто,
-frame_<скин>.png (classic, birch, grass, stone, sakura, night), нарисуван да отива на скина
-и не се преоцветява. В skin.json за всеки:
-  file  – (само за рамката) от кой файл е; {theme} е скинът;
-  rect  – къде е в skin.png (x, y, ширина, височина);
+Всеки елемент е ОТДЕЛЕН файл в assets/ui/menu/<комплект>/ (default – сегашните; после
+christmas и др.). За рисуване на всички наведнъж: tools/menu_sheet.py export ги събира в
+един лист, а tools/menu_sheet.py import <лист.png> го реже обратно на отделните файлове.
 
-Всеки спрайт се „реже“ на 9 части (9-slice): ъглите стоят както са нарисувани, ръбовете и
-средата се повтарят (не се разтягат), за да остават пикселите цели. В skin.json за всеки:
-  slice – колко пиксела от всяка страна са ръб (ляво, горе, дясно, долу);
-  pad   – колко навътре започва съдържанието (текстът), в пиксели на спрайта.
-Един пиксел на спрайта = един пиксел на храната в менюто.
+Всеки елемент се „реже“ на 9 части (9-slice): ъглите стоят както са нарисувани, ръбовете и
+средата се повтарят (не се разтягат), за да остават пикселите цели. В menu.json за всеки:
+  slice   – колко пиксела от всяка страна са ръб (ляво, горе, дясно, долу);
+  pad     – колко навътре започва съдържанието (текстът), в пиксели на елемента;
+  recolor – false: не се преоцветява при другите цветове на менюто (деленцата за
+            ситост/енергия, фонът на рамката);
+  file    – (само за фона на рамката) frame_{theme}: отделен нарисуван фон за всеки цвят.
+Един пиксел на елемента = един пиксел на храната в менюто.
 
 Нарисувани са в цветовете на класическия скин („Дъб и мед“); другите скинове ги
-преоцветяват сами (без спрайтовете с "recolor": false – те са еднакви навсякъде). Искаш
-ли някой скин нарисуван на ръка – направи skin_<скин>.png (например skin_birch.png) със
-същата подредба: тогава той се ползва както е, без преоцветяване. Искаш ли да ги прерисуваш на ръка – отвори skin.png и рисувай всеки
-спрайт в неговото квадратче (същия размер); програмата го взима оттам. Коя е всяка и
-къде са ръбовете – виж art_templates/skin_map.png (сините линии делят 9-те части). Не пускай
-скрипта след това – той рисува skin.png наново (скриптът е само първият вариант).
+преоцветяват сами – освен тези с recolor: false. Фонът на рамката е отделен файл за всеки
+цвят на менюто: frame_classic/birch/grass/stone/sakura/night.png.
+Не пускай скрипта, след като си ги прерисувала – той ги рисува наново.
 """
 
 import json
@@ -32,7 +29,7 @@ import sys
 from PIL import Image
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-OUT = os.path.join(ROOT, "assets", "ui", "skin")
+OUT = os.path.join(ROOT, "assets", "ui", "menu", "default")
 
 O = (13, 18, 28)
 INK = O
@@ -100,60 +97,13 @@ class S:
 
 
 DEFS = {}
-SPRITES = {}
-ATLAS_W = 100        # ширината на skin.png (в пиксели)
-GAP = 2              # празно между спрайтовете
 
 
 def save(name, s, slc, pad, out, recolor=True):
-    SPRITES[name] = s.img
+    s.img.save(os.path.join(out, name + ".png"))
     DEFS[name] = {"slice": list(slc), "pad": list(pad)}
     if not recolor:
         DEFS[name]["recolor"] = False        # остава в своите цветове при всеки скин
-
-
-def pack(out):
-    """Подрежда спрайтовете на редове (в реда, в който са нарисувани) в един skin.png."""
-    x = y = row = 0
-    places = {}
-    for name, img in SPRITES.items():
-        if x and x + img.width > ATLAS_W:
-            x, y, row = 0, y + row + GAP, 0
-        places[name] = (x, y)
-        DEFS[name]["rect"] = [x, y, img.width, img.height]
-        x += img.width + GAP
-        row = max(row, img.height)
-    atlas = Image.new("RGBA", (ATLAS_W, y + row), (0, 0, 0, 0))
-    for name, img in SPRITES.items():
-        atlas.paste(img, places[name])
-    atlas.save(os.path.join(out, "skin.png"))
-    skin_map(atlas, out)
-
-
-def skin_map(atlas, out, s=8):
-    """Карта за рисуване: skin.png уголемен ×8, всяко квадратче с името си и ръбовете (slice)."""
-    from PIL import ImageDraw, ImageFont
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
-    except OSError:
-        font = ImageFont.load_default()
-    big = Image.new("RGBA", (atlas.width * s, atlas.height * s + 14), (235, 235, 240, 255))
-    big.alpha_composite(atlas.resize((atlas.width * s, atlas.height * s), Image.NEAREST), (0, 14))
-    d = ImageDraw.Draw(big)
-    for name, v in DEFS.items():
-        x, y, w, h = v["rect"]
-        L, T, R, B = v["slice"]
-        x0, y0 = x * s, y * s + 14
-        d.rectangle([x0, y0, x0 + w * s - 1, y0 + h * s - 1], outline=(220, 40, 120))
-        for k in (L, w - R):           # ръбовете, които се повтарят само по дължина
-            if 0 < k < w:
-                d.line([(x0 + k * s, y0), (x0 + k * s, y0 + h * s)], fill=(60, 120, 230))
-        for k in (T, h - B):
-            if 0 < k < h:
-                d.line([(x0, y0 + k * s), (x0 + w * s, y0 + k * s)], fill=(60, 120, 230))
-        d.text((x0 + 2, y0 + 2), name, fill=(220, 40, 120), font=font)
-    path = os.path.join(ROOT, "art_templates", "skin_map.png") if out == OUT else os.path.join(out, "skin_map.png")
-    big.save(path)
 
 
 # ───────────────────────── Рамка (фонът) – отделен файл за всеки скин ─────────────────────────
@@ -290,30 +240,7 @@ def frames(out):
         s.outline()
         s.corners(2, 2, 2, 2)
         s.img.save(os.path.join(out, f"frame_{theme}.png"))
-    DEFS["frame"] = {"file": "frame_{theme}", "rect": [0, 0, FRAME, FRAME], "slice": [FS] * 4, "pad": [1, 1, 1, 1], "recolor": False}
-    frames_map(out)
-
-
-def frames_map(out, s=6):
-    """Всички фонове един до друг (×6), за да се сравнят и прерисуват."""
-    from PIL import ImageDraw, ImageFont
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
-    except OSError:
-        font = ImageFont.load_default()
-    cell = FRAME * s
-    big = Image.new("RGBA", (len(FRAMES) * (cell + 10) + 10, cell + 34), (235, 235, 240, 255))
-    d = ImageDraw.Draw(big)
-    for i, theme in enumerate(FRAMES):
-        img = Image.open(os.path.join(out, f"frame_{theme}.png"))
-        x = 10 + i * (cell + 10)
-        big.alpha_composite(img.resize((cell, cell), Image.NEAREST), (x, 24))
-        for k in (FS, FRAME - FS):
-            d.line([(x + k * s, 24), (x + k * s, 24 + cell)], fill=(60, 120, 230))
-            d.line([(x, 24 + k * s), (x + cell, 24 + k * s)], fill=(60, 120, 230))
-        d.text((x, 4), f"frame_{theme}.png", fill=(220, 40, 120), font=font)
-    path = os.path.join(ROOT, "art_templates", "skin_frames.png") if out == OUT else os.path.join(out, "skin_frames.png")
-    big.save(path)
+    DEFS["frame"] = {"file": "frame_{theme}", "slice": [FS] * 4, "pad": [1, 1, 1, 1], "recolor": False}
 
 
 # ───────────────────────── Хартия ─────────────────────────
@@ -382,7 +309,17 @@ def cell(out, name, base):
     s.rect(1, 4, 3, 4, lo(base))
     s.outline()
     # Зелено/оранжево/червено значат „сит/гладен“ – еднакви при всеки цвят на менюто.
-    save(name, s, (2, 2, 2, 2), (1, 1, 1, 1), out, recolor=name not in ("cell_good", "cell_okay", "cell_bad"))
+    save(name, s, (2, 2, 2, 2), (1, 1, 1, 1), out, recolor=name == "cell_empty")
+
+
+def dot(out, name, base):
+    """Малко звено (4×4) – за барчетата в плочките с храна: колко ще нахрани / ще даде енергия."""
+    s = S(4, 4)
+    s.fill(base)
+    s.px(1, 1, hi(base))
+    s.px(2, 1, hi(base))
+    s.outline()
+    save(name, s, (1, 1, 1, 1), (1, 1, 1, 1), out, recolor=name == "dot_empty")
 
 
 # ───────────────────────── Плочки, табелки, джобове ─────────────────────────
@@ -442,27 +379,22 @@ def main(out=OUT):
     button(out, "button_on", HONEY, "down")
     for name, base in (("empty", EMPTY), ("good", GOOD), ("okay", OKAY), ("bad", BAD), ("honey", HONEY)):
         cell(out, "cell_" + name, base)
+        dot(out, "dot_" + name, base)
     tile(out, "tile", TILE)
     tile(out, "tile_hover", HOVER)
     inset(out, "tile_art", TILEART, WOODD)
     inset(out, "pocket", EMPTY, O)
     pill(out)
     dash(out)
-    pack(out)
     frames(out)
-    # Старите отделни файлове (преди всичко да е в skin.png) вече не трябват.
-    for name in list(SPRITES) + ["frame"]:
-        old = os.path.join(out, name + ".png")
-        if os.path.exists(old):
-            os.remove(old)
-    defs = {k: {**({"file": v["file"]} if "file" in v else {}), "rect": v["rect"], "slice": v["slice"], "pad": v["pad"],
+    defs = {k: {**({"file": v["file"]} if "file" in v else {}), "slice": v["slice"], "pad": v["pad"],
                 **({"recolor": False} if v.get("recolor") is False else {})}
             for k, v in DEFS.items()}
     # По един ред на спрайт – лесно се чете и поправя на ръка.
     lines = [f'  "{k}": {json.dumps(v)}' for k, v in defs.items()]
-    with open(os.path.join(out, "skin.json"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(out, "menu.json"), "w", encoding="utf-8") as fh:
         fh.write("{\n" + ",\n".join(lines) + "\n}\n")
-    print("Спрайтове:", len(DEFS), "→", os.path.relpath(out, ROOT) if out == OUT else out)
+    print("Елементи:", len(DEFS), "→", os.path.relpath(out, ROOT) if out == OUT else out)
 
 
 if __name__ == "__main__":
