@@ -268,9 +268,11 @@ public static class UiSkin
     }
 
     /// <summary>
-    /// Спрайт от класическия скин в цветовете на друг: всеки пиксел се отнася към най-близкия
-    /// цвят от класическия скин и се мести със същата разлика спрямо цвета на новия скин
-    /// (така светлото и тъмното на релефа се запазват).
+    /// Спрайт от класическия скин в цветовете на друг. Всеки пиксел се разпознава като цвят
+    /// от класическия скин, смесен с бяло (светлото на релефа) или с контура (тъмното):
+    /// пиксел ≈ цвят + (бяло или контур − цвят)·t. Взима се цветът, който го обяснява най-точно,
+    /// и пикселът се прави със същото t от цвета на новия скин. Така тъмната ивица на медния
+    /// бутон си остава тъмен мед (а не „светло дърво“, което при Трева става ярко зелено).
     /// </summary>
     private static BitmapSource Recolor(BitmapSource src, UiTheme from, UiTheme to)
     {
@@ -279,20 +281,34 @@ public static class UiSkin
         int w = conv.PixelWidth, h = conv.PixelHeight, stride = w * 4;
         var px = new byte[h * stride];
         conv.CopyPixels(px, stride, 0);
+        var white = Color.FromRgb(255, 255, 255);
         for (int i = 0; i < px.Length; i += 4)
         {
             if (px[i + 3] == 0) continue;
-            int r = px[i + 2], g = px[i + 1], bl = px[i];
-            int best = 0, bestD = int.MaxValue;
+            double r = px[i + 2], g = px[i + 1], bl = px[i];
+            int bestK = 0;
+            bool bestDark = false;
+            double bestT = 0, bestRes = double.MaxValue;
             for (int k = 0; k < a.Length; k++)
             {
-                int dr = r - a[k].R, dg = g - a[k].G, db = bl - a[k].B;
-                int dist = dr * dr + dg * dg + db * db;
-                if (dist < bestD) { bestD = dist; best = k; }
+                foreach (bool dark in new[] { false, true })
+                {
+                    var target = dark ? from.Ink : white;
+                    double dr = target.R - a[k].R, dg = target.G - a[k].G, db = target.B - a[k].B;
+                    double pr = r - a[k].R, pg = g - a[k].G, pb = bl - a[k].B;
+                    double len = dr * dr + dg * dg + db * db;
+                    double t = len > 0 ? Math.Clamp((pr * dr + pg * dg + pb * db) / len, 0, 1) : 0;
+                    double er = pr - t * dr, eg = pg - t * dg, eb = pb - t * db;
+                    // Малко наказание за силно смесване: при равенство печели по-близкият цвят.
+                    double res = er * er + eg * eg + eb * eb + t * 40;
+                    if (res < bestRes) { bestRes = res; bestK = k; bestDark = dark; bestT = t; }
+                }
             }
-            px[i + 2] = Clamp(b[best].R + r - a[best].R);
-            px[i + 1] = Clamp(b[best].G + g - a[best].G);
-            px[i] = Clamp(b[best].B + bl - a[best].B);
+            var key = b[bestK];
+            var to2 = bestDark ? to.Ink : white;
+            px[i + 2] = Clamp((int)Math.Round(key.R + (to2.R - key.R) * bestT));
+            px[i + 1] = Clamp((int)Math.Round(key.G + (to2.G - key.G) * bestT));
+            px[i] = Clamp((int)Math.Round(key.B + (to2.B - key.B) * bestT));
         }
         var result = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, px, stride);
         result.Freeze();

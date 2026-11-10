@@ -280,8 +280,88 @@ def food_tab(out):
     c.save(os.path.join(out, "menu_food.png"))
 
 
+def themes():
+    """Цветовете на скиновете от UiThemes.cs: {id: (име, [13 цвята като Keys в UiSkin.cs])}."""
+    import re
+    src = open(os.path.join(ROOT, "src", "Mecho", "UiThemes.cs"), encoding="utf-8").read()
+    out = {}
+    for m in re.finditer(r'new\("(\w+)", "([^"]+)", \d+,(.*?)\)\),', src, re.S):
+        out[m.group(1)] = (m.group(2), [tuple(map(int, c)) for c in re.findall(r"C\((\d+), (\d+), (\d+)", m.group(3))])
+    return out
+
+
+def recolor_fn(frm, to):
+    """Като UiSkin.Recolor: пиксел ≈ цвят + (бяло или контур − цвят)·t → същото t от новия цвят."""
+    white = (255, 255, 255)
+
+    def one(p):
+        best = (1e18, 0, False, 0.0)
+        for k, key in enumerate(frm):
+            for dark in (False, True):
+                tgt = frm[0] if dark else white
+                d = [tgt[i] - key[i] for i in range(3)]
+                q = [p[i] - key[i] for i in range(3)]
+                ln = sum(x * x for x in d)
+                t = min(1, max(0, sum(q[i] * d[i] for i in range(3)) / ln)) if ln else 0
+                res = sum((q[i] - t * d[i]) ** 2 for i in range(3)) + t * 40
+                if res < best[0]:
+                    best = (res, k, dark, t)
+        _, k, dark, t = best
+        key, tgt = to[k], (to[0] if dark else white)
+        return tuple(max(0, min(255, round(key[i] + (tgt[i] - key[i]) * t))) for i in range(3))
+
+    def fn(name, img):
+        img = img.copy()
+        px = img.load()
+        cache = {}
+        for y in range(img.height):
+            for x in range(img.width):
+                r, g, b, a = px[x, y]
+                if a:
+                    if (r, g, b) not in cache:
+                        cache[(r, g, b)] = one((r, g, b))
+                    px[x, y] = cache[(r, g, b)] + (a,)
+        return img
+    return fn
+
+
+def use_theme(theme):
+    """Визуализация в цвета на друг скин (фон, преоцветяване, заглавие)."""
+    global THEME, RECOLOR, CREAM
+    all_t = themes()
+    THEME = theme
+    RECOLOR = None if theme == "classic" else recolor_fn(all_t["classic"][1], all_t[theme][1])
+    cols = all_t[theme][1]
+    wood = cols[1]
+    CREAM = cols[0] if 0.299 * wood[0] + 0.587 * wood[1] + 0.114 * wood[2] > 150 else cols[10]
+
+
 if __name__ == "__main__":
+    # python tools/preview_menu.py [папка] [скин | all]
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "art_templates")
+    which = sys.argv[2] if len(sys.argv) > 2 else "classic"
     os.makedirs(out, exist_ok=True)
-    main_tab(out)
-    food_tab(out)
+    if which == "all":
+        shots = []
+        for tid, (name, _) in themes().items():
+            use_theme(tid)
+            main_tab(out)
+            food_tab(out)
+            a = Image.open(os.path.join(out, "menu_main.png"))
+            b = Image.open(os.path.join(out, "menu_food.png"))
+            shots.append((name, a.resize((a.width // 2, a.height // 2)), b.resize((b.width // 2, b.height // 2))))
+        W = shots[0][1].width + shots[0][2].width + 10
+        H = max(shots[0][1].height, shots[0][2].height) + 30
+        sheet = Image.new("RGB", (W * 3 + 40, H * 2 + 20), (255, 255, 255))
+        d = ImageDraw.Draw(sheet)
+        for i, (name, a, b) in enumerate(shots):
+            x, y = 10 + (i % 3) * (W + 10), 10 + (i // 3) * H
+            d.text((x, y), name, fill=(0, 0, 0), font=f)
+            sheet.paste(a, (x, y + 24))
+            sheet.paste(b, (x + a.width + 10, y + 24))
+        sheet.save(os.path.join(out, "menu_all_themes.png"))
+        print(os.path.join(out, "menu_all_themes.png"))
+    else:
+        use_theme(which)
+        main_tab(out)
+        food_tab(out)

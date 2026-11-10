@@ -604,7 +604,7 @@ public sealed class MenuWindow : Window
         }, icon: "heart"));
         sos.Margin = new Thickness(0, 0, 6, 6);
         p.Children.Add(sos);
-        return new ScrollViewer { Content = p, MaxHeight = 600 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        return TabScroll(p, 600 * U);
     }
 
     /// <summary>
@@ -846,7 +846,7 @@ public sealed class MenuWindow : Window
         _foodCats.Margin = new Thickness(0, 0, 0, 8 * U);
         p.Children.Add(_foodCats);
         p.Children.Add(_foodTiles);
-        return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        return TabScroll(p, 560 * U);
     }
 
     private readonly WrapPanel _foodCats = new();
@@ -1000,6 +1000,24 @@ public sealed class MenuWindow : Window
     /// Малко барче от 10 деленца: колкото има сега (в цвят) и колкото ще добави
     /// храната (в мед).
     /// </summary>
+    /// <summary>
+    /// Скролът на таб: стига горе и долу до самия ръб на хартията (над отстъпа ѝ), а отстъпът е
+    /// вътре в него – така съдържанието се плъзга до ръба, вместо да се реже по-ниско и над
+    /// него да остава ивица празна хартия.
+    /// </summary>
+    private static ScrollViewer TabScroll(FrameworkElement content, double maxHeight)
+    {
+        double top = 12 * U, bottom = 14 * U;     // отстъпът на хартията (виж рамката в конструктора)
+        content.Margin = new Thickness(content.Margin.Left, content.Margin.Top + top, content.Margin.Right, content.Margin.Bottom + bottom);
+        return new ScrollViewer
+        {
+            Content = content,
+            MaxHeight = maxHeight + top + bottom,
+            Margin = new Thickness(0, -top, 0, -bottom),
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        };
+    }
+
     private static UIElement GainBar(string icon, double now, double after, string what, string? note = null)
     {
         const int segments = 10;
@@ -1053,7 +1071,7 @@ public sealed class MenuWindow : Window
         _shopInfo = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 10) };
         p.Children.Add(_shopInfo);
         p.Children.Add(_shopTiles);
-        return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        return TabScroll(p, 560 * U);
     }
 
     /// <summary>Самопроверка: строи магазина (целта и офертата).</summary>
@@ -1504,7 +1522,7 @@ public sealed class MenuWindow : Window
         go.HorizontalAlignment = HorizontalAlignment.Center;
         _wardrobeLock.Children.Add(go);
         p.Children.Add(_wardrobeLock);
-        return new ScrollViewer { Content = p, MaxHeight = 560 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        return TabScroll(p, 560 * U);
     }
 
     private Border _pajamaChip = null!;
