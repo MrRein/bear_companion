@@ -49,6 +49,11 @@ jobs:
       - name: Zip
         shell: pwsh
         run: |
+          # files.txt: всички файлове на версията – при следващото обновяване мечокът трие
+          # тези, които новата версия вече няма (виж Updater.cs).
+          $root = (Resolve-Path publish/Mecho).Path
+          $list = Get-ChildItem -Path publish/Mecho -Recurse -File | ForEach-Object { $_.FullName.Substring($root.Length + 1).Replace('\', '/') }
+          @($list) + 'files.txt' | Sort-Object | Set-Content -Encoding utf8 publish/Mecho/files.txt
           Compress-Archive -Path publish/Mecho -DestinationPath publish/Mecho.zip
           # Отпечатък на архива: мечокът го проверява, преди да се обнови.
           (Get-FileHash publish/Mecho.zip -Algorithm SHA256).Hash.ToLower() | Set-Content -NoNewline publish/Mecho.zip.sha256

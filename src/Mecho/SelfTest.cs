@@ -86,6 +86,33 @@ public static class SelfTest
         var pet = new PetWindow(save);
         pet.Show();
         await Step("старт", () => { }, 1500);
+        // Обновяването трие само файловете от старата версия, които новата няма.
+        await Step("обновяване: стари файлове", () =>
+        {
+            string root = Path.Combine(Path.GetTempPath(), "MechoUpdateTest");
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+            string app = Path.Combine(root, "app"), fresh = Path.Combine(root, "new");
+            void Put(string dir, params string[] files)
+            {
+                foreach (var f in files)
+                {
+                    string path = Path.Combine(dir, f);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                    File.WriteAllText(path, "x");
+                }
+            }
+            Put(fresh, "Mecho.exe", "assets/ui/menu/default/tab.png");
+            File.WriteAllLines(Path.Combine(fresh, "files.txt"), new[] { "Mecho.exe", "assets/ui/menu/default/tab.png", "files.txt" });
+            // По-стара версия без files.txt: трие се само ненужното в assets.
+            Put(app, "Mecho.exe", "notes.txt", "assets/ui/skin/tab.png", "assets/ui/menu/default/tab.png");
+            var gone = Updater.Obsolete(app, fresh).Select(x => x.Replace('\\', '/')).ToArray();
+            if (gone.Length != 1 || gone[0] != "assets/ui/skin/tab.png") throw new Exception("без списък: " + string.Join(", ", gone));
+            // Със стар files.txt: трие се каквото е било там, а го няма в новата; нищо извън папката.
+            File.WriteAllLines(Path.Combine(app, "files.txt"), new[] { "Mecho.exe", "old.dll", "assets/ui/skin/tab.png", "../outside.txt", "files.txt" });
+            gone = Updater.Obsolete(app, fresh).Select(x => x.Replace('\\', '/')).OrderBy(x => x).ToArray();
+            if (string.Join("|", gone) != "assets/ui/skin/tab.png|old.dll") throw new Exception("със списък: " + string.Join(", ", gone));
+            Directory.Delete(root, true);
+        }, 100);
         await pet.SelfTestSteps(Step);
 
         async Task Step(string name, Action action, int waitMs)

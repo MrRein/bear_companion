@@ -12,6 +12,10 @@ namespace Mecho;
 
 /// <summary>
 /// Проверява в GitHub Releases за нова версия, сваля Mecho.zip и сменя файловете.
+/// Всяка версия носи files.txt – списък на своите файлове. След копирането се трият
+/// файловете, които са били в старата версия, а в новата ги няма (стари рисунки, папки…);
+/// ако старата версия няма такъв списък – само ненужното в assets. Записът е в
+/// %AppData%\Mecho и никога не се пипа.
 /// Версия N е GitHub release с таг "vN"; текущата е третото число от версията на програмата.
 /// </summary>
 public sealed class Updater
@@ -124,6 +128,9 @@ public sealed class Updater
                 : Directory.GetDirectories(extracted).First(d => File.Exists(Path.Combine(d, "Mecho.exe")));
 
             string appDir = Path.GetDirectoryName(exe)!;
+            // Какво да се изтрие след копирането (по реда: файлове, после празни папки).
+            string deleteList = Path.Combine(work, "delete.txt");
+            File.WriteAllLines(deleteList, Obsolete(appDir, source));
             string script = Path.Combine(work, "install.ps1");
             File.WriteAllText(script, $$"""
                 $ErrorActionPreference = 'Stop'
@@ -132,6 +139,17 @@ public sealed class Updater
                 for ($i = 0; $i -lt 10; $i++) {
                     try { Copy-Item -Path '{{Escape(source)}}\*' -Destination '{{Escape(appDir)}}' -Recurse -Force; break }
                     catch { Start-Sleep -Seconds 1 }
+                }
+                # Старите файлове, които новата версия вече не ползва.
+                foreach ($rel in Get-Content -LiteralPath '{{Escape(deleteList)}}') {
+                    if ($rel) { Remove-Item -LiteralPath (Join-Path '{{Escape(appDir)}}' $rel) -Force -ErrorAction SilentlyContinue }
+                }
+                # Празните папки в assets (останали след изтриването).
+                $assets = Join-Path '{{Escape(appDir)}}' 'assets'
+                if (Test-Path -LiteralPath $assets) {
+                    Get-ChildItem -LiteralPath $assets -Directory -Recurse | Sort-Object { $_.FullName.Length } -Descending |
+                        Where-Object { -not (Get-ChildItem -LiteralPath $_.FullName -Force) } |
+                        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }
                 }
                 Start-Process -FilePath '{{Escape(exe)}}'
                 """);
@@ -156,4 +174,36 @@ public sealed class Updater
     }
 
     private static string Escape(string path) => path.Replace("'", "''");
+
+    /// <summary>Списъкът files.txt на една версия (пътищата – относителни, с „/“).</summary>
+    private static string[]? Manifest(string dir)
+    {
+        string path = Path.Combine(dir, "files.txt");
+        return File.Exists(path)
+            ? File.ReadAllLines(path).Select(l => l.Trim().Replace('\\', '/')).Where(l => l.Length > 0).ToArray()
+            : null;
+    }
+
+    /// <summary>
+    /// Кои файлове от старата версия да се изтрият: бяха в стария files.txt, а ги няма в
+    /// новия. Без стар списък (по-стара версия) – само файловете в assets, които ги няма в
+    /// новата. Никога не излиза от папката на програмата.
+    /// </summary>
+    internal static string[] Obsolete(string appDir, string newDir)
+    {
+        var keep = new System.Collections.Generic.HashSet<string>(
+            Manifest(newDir) ?? Directory.GetFiles(newDir, "*", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(newDir, f).Replace('\\', '/')),
+            StringComparer.OrdinalIgnoreCase);
+        var old = Manifest(appDir) ?? (Directory.Exists(Path.Combine(appDir, "assets"))
+            ? Directory.GetFiles(Path.Combine(appDir, "assets"), "*", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(appDir, f).Replace('\\', '/')).ToArray()
+            : Array.Empty<string>());
+        string root = Path.GetFullPath(appDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        return old
+            .Where(rel => !keep.Contains(rel))
+            .Where(rel => !Path.IsPathRooted(rel) && Path.GetFullPath(Path.Combine(appDir, rel)).StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            .Select(rel => rel.Replace('/', Path.DirectorySeparatorChar))
+            .ToArray();
+    }
 }
