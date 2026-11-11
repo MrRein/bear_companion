@@ -213,6 +213,22 @@ public sealed partial class PetWindow
             for (int i = 0; i < a.Frames.Length; i++) { _dresser.Frame(_lib, anim, i, EffectiveOutfit); frames++; }
         }
         report.AppendLine($"КАДРИ С ДРЕХИТЕ: {frames} кадъра за {compose.Elapsed.TotalMilliseconds:0} мс (вече сглобените са от паметта)");
+        // Cold: a fresh dresser composes every frame from scratch (what a first show costs).
+        var cold = new Dresser { Book = _dresser.Book };
+        double worst = 0;
+        string worstWhat = "";
+        var coldAll = Stopwatch.StartNew();
+        foreach (var anim in _lib.AnimationNames)
+        {
+            var a = _lib.Get(anim);
+            for (int i = 0; i < a.Frames.Length; i++)
+            {
+                var one = Stopwatch.StartNew();
+                cold.Frame(_lib, anim, i, EffectiveOutfit);
+                if (one.Elapsed.TotalMilliseconds > worst) { worst = one.Elapsed.TotalMilliseconds; worstWhat = $"{anim} #{i}"; }
+            }
+        }
+        report.AppendLine($"  от нулата: {coldAll.Elapsed.TotalMilliseconds:0} мс за {frames} кадъра, средно {coldAll.Elapsed.TotalMilliseconds / Math.Max(1, frames):0.00} мс, най-бавно {worst:0.0} мс ({worstWhat})");
 
         // Записът.
         var save = Stopwatch.StartNew();

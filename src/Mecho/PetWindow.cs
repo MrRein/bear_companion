@@ -51,7 +51,7 @@ public sealed partial class PetWindow : Window
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly Updater _updater = new();
     private SpriteLibrary _lib;
-    private readonly Dresser _dresser = new();
+    private readonly Dresser _dresser = new() { WarmAhead = true };
 
     // Положение в екранни DIP: x е средата на мечока, y е под стъпалата.
     private double _x, _y, _vy, _fallFrom;

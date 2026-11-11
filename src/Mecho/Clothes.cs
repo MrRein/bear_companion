@@ -341,9 +341,82 @@ public sealed class Dresser
         }
         if (_cache.TryGetValue((anim, index), out var done)) return done;
         done = Dress(lib, anim, index, outfit, Book);
-        if (_cache.Count > 400) _cache.Clear();
+        // All animations together have ~400 frames; the old limit (400) wiped the whole
+        // cache right when it filled up, and every frame was composed again on screen.
+        if (_cache.Count > MaxCachedFrames) _cache.Clear();
         _cache[(anim, index)] = done;
+        if (WarmAhead) QueueWarm(lib, anim, outfit);
         return done;
+    }
+
+    private const int MaxCachedFrames = 1024;
+
+    // ── Warm-up: the rest of an animation is composed ahead, while the app is idle ──
+
+    /// <summary>
+    /// Only for the bear's own dresser: when a frame is composed on screen, the other
+    /// frames of the same animation (and, after an outfit change, the most common
+    /// animations) are composed in idle time – so they are ready before they are shown.
+    /// </summary>
+    public bool WarmAhead { get; init; }
+
+    /// <summary>Animations the bear shows most; composed first after an outfit change.</summary>
+    private static readonly string[] Common = { "idle", "walk", "drag", "happy" };
+
+    private readonly Queue<(string Anim, int Index)> _warm = new();
+    private readonly HashSet<string> _warmedAnims = new();
+    private string _warmKey = "";
+    private IReadOnlyDictionary<string, string>? _warmOutfit;
+    private bool _warmScheduled;
+
+    private void QueueWarm(SpriteLibrary lib, string anim, IReadOnlyDictionary<string, string> outfit)
+    {
+        if (_warmKey != _key)
+        {
+            // New outfit: whatever was waiting is for the old one.
+            _warm.Clear();
+            _warmedAnims.Clear();
+            _warmKey = _key;
+            _warmOutfit = new Dictionary<string, string>(outfit);
+            foreach (var common in Common)
+                if (lib.Has(common)) Enqueue(lib, common);
+        }
+        Enqueue(lib, anim);
+        if (_warm.Count > 0 && !_warmScheduled)
+        {
+            _warmScheduled = true;
+            System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle, new Action(WarmStep));
+        }
+    }
+
+    private void Enqueue(SpriteLibrary lib, string anim)
+    {
+        if (!_warmedAnims.Add(anim)) return;
+        int count = lib.Get(anim).Frames.Length;
+        for (int i = 0; i < count; i++)
+            if (!_cache.ContainsKey((anim, i))) _warm.Enqueue((anim, i));
+    }
+
+    /// <summary>Composes queued frames for at most ~4 ms, then yields until the app is idle again.</summary>
+    private void WarmStep()
+    {
+        _warmScheduled = false;
+        if (_lib == null || _warmOutfit == null || _warmKey != _key) return;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        while (_warm.Count > 0 && watch.Elapsed.TotalMilliseconds < 4)
+        {
+            var (anim, index) = _warm.Dequeue();
+            if (_cache.ContainsKey((anim, index))) continue;
+            if (_cache.Count > MaxCachedFrames) return;
+            _cache[(anim, index)] = Dress(_lib, anim, index, _warmOutfit, Book);
+        }
+        if (_warm.Count > 0)
+        {
+            _warmScheduled = true;
+            System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle, new Action(WarmStep));
+        }
     }
 
     private string?[] _lastValues = Array.Empty<string?>();
@@ -587,7 +660,7 @@ public sealed class Dresser
             }
             var mask = Pick(lib.Layer(anim, slot.Layer), index);
             if (mask == null) continue;
-            var maskPx = Pixels(mask);
+            var maskPx = (uint[])Pixels(mask).Clone();   // changed below (long sleeves)
             // Дълъг ръкав: и ръкавите (тъмночервеното от картата) са в цвета на блузата.
             if (g.LongSleeves && Pick(lib.Layer(anim, "sleeves"), index) is { } sleeves)
             {
@@ -707,7 +780,22 @@ public sealed class Dresser
         }
     }
 
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<BitmapSource, uint[]> PixelCache = new();
+
+    /// <summary>
+    /// The pixels of a picture (BGRA). Frozen pictures (all layers and frames are) are read
+    /// only once and the same array is returned – callers must not change it (clone first).
+    /// </summary>
     private static uint[] Pixels(BitmapSource src)
+    {
+        if (!src.IsFrozen) return ReadPixels(src);
+        if (PixelCache.TryGetValue(src, out var cached)) return cached;
+        var px = ReadPixels(src);
+        PixelCache.AddOrUpdate(src, px);
+        return px;
+    }
+
+    private static uint[] ReadPixels(BitmapSource src)
     {
         var bgra = src.Format == PixelFormats.Bgra32 ? src : new FormatConvertedBitmap(src, PixelFormats.Bgra32, null, 0);
         var px = new uint[bgra.PixelWidth * bgra.PixelHeight];
