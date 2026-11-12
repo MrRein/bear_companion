@@ -349,8 +349,9 @@ public sealed partial class PetWindow : Window
         CoreEngine.Update(dt);
         P("ядро (модули)");
         UpdateWalkAway();
-        CheckIntegrity(now);
         P("разходка");
+        CheckIntegrity(now);
+        P("проверка на състоянието");
         // На разходка (няма го): нищо не се случва – без подаръци, гости, пеперуди.
         if (!OnWalk)
         {
@@ -368,12 +369,17 @@ public sealed partial class PetWindow : Window
             P("спомени");
         }
         UpdateWeather(now);
+        P("времето навън");
         UpdatePlacedPlant();
+        P("саксията на земята");
         UpdateFurnishings();
+        P("мебели (прозорци)");
         UpdateHand(now);
+        P("носи предмет в лапите");
         UpdateApps(now);
+        P("програми (коментари)");
         UpdateReminders(now);
-        P("времето, печица, лампа, радио");
+        P("напомняния");
         UpdatePajamas();
         P("пижами");
 
