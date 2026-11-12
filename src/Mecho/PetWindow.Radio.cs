@@ -12,6 +12,28 @@ namespace Mecho;
 public sealed partial class PetWindow
 {
     private CookerWindow? _radioWindow;
+
+    /// <summary>A new radio window with its clicks and drops wired (once per window).</summary>
+    private CookerWindow NewRadioWindow()
+    {
+        var w = new CookerWindow("Радио");
+        Companion(w, Kitchen.Radio);
+        w.SetTime(null);
+        w.Hint = "Радиото.";
+        w.Clicked += () => Ask(new ChatQuestion(RadioPlaying ? "Да спра ли музиката?" : "Да пусна ли музика?",
+            new ChatOption(RadioPlaying ? "Изключи" : "Включи", p => { p.SetRadioOn(!p.Save.RadioOn); p.Say(R.Pick(p.Save.RadioOn ? "radio.on" : "radio.off", p.Save.OwnerName), 3); }),
+            new ChatOption("Махни", p => p.SetRadio(false)),
+            new ChatOption("Остави", _ => { })));
+        w.Dropped += (cx, _) =>
+        {
+            var a = AreaAt(cx, w.Top + w.ActualHeight / 2);
+            double nx = Math.Clamp(cx, a.Left + 30, a.Right - 30);
+            w.FallTo(nx, a.Bottom);
+            _save.RadioX = nx;
+            Persist();
+        };
+        return w;
+    }
     private OverlayWindow? _notesWindow;
     private readonly Canvas _notesCanvas = new() { Width = 60, Height = 60, IsHitTestVisible = false };
     private readonly Image[] _notes = new Image[3];
@@ -43,8 +65,7 @@ public sealed partial class PetWindow
     {
         if (!RadioPlaced)
         {
-            _radioWindow?.Close();
-            _radioWindow = null;
+            Park(ref _radioWindow);   // hidden and kept, not closed
             _notesWindow?.Conceal();
             return;
         }
@@ -53,22 +74,7 @@ public sealed partial class PetWindow
             var area = Area;
             double x = double.IsNaN(_save.RadioX) ? _x + (_x > area.Left + area.Width / 2 ? -1 : 1) * SpriteWidth * 1.8 : _save.RadioX;
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
-            _radioWindow = new CookerWindow("Радио");
-            Companion(_radioWindow, Kitchen.Radio);
-            _radioWindow.SetTime(null);
-            _radioWindow.Hint = "Радиото.";
-            _radioWindow.Clicked += () => Ask(new ChatQuestion(RadioPlaying ? "Да спра ли музиката?" : "Да пусна ли музика?",
-                new ChatOption(RadioPlaying ? "Изключи" : "Включи", p => { p.SetRadioOn(!p.Save.RadioOn); p.Say(R.Pick(p.Save.RadioOn ? "radio.on" : "radio.off", p.Save.OwnerName), 3); }),
-                new ChatOption("Махни", p => p.SetRadio(false)),
-                new ChatOption("Остави", _ => { })));
-            _radioWindow.Dropped += (cx, _) =>
-            {
-                var a = AreaAt(cx, _radioWindow!.Top + _radioWindow.ActualHeight / 2);
-                double nx = Math.Clamp(cx, a.Left + 30, a.Right - 30);
-                _radioWindow.FallTo(nx, a.Bottom);
-                _save.RadioX = nx;
-                Persist();
-            };
+            _radioWindow = Unpark("Радио") ?? NewRadioWindow();
             _radioWindow.SetAway(!IsVisible);
             _radioWindow.Place(RadioArt, PixelSize, x, area.Bottom);
             _save.RadioX = x;

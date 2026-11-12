@@ -112,8 +112,7 @@ public sealed partial class PetWindow
             double x = _x + side * (SpriteWidth * 0.6 + 8 * PixelSize);
             if (x < area.Left + 30 || x > area.Right - 30) x = _x - side * (SpriteWidth * 0.6 + 8 * PixelSize);
             x = Math.Clamp(x, area.Left + 30, area.Right - 30);
-            _radioWindow?.Close();
-            _radioWindow = null;
+            Park(ref _radioWindow);   // placed again below, at the new spot
             bus.Send(new Mecho.Core.MoveItem(Kitchen.Radio, x));
             bus.Send(new Mecho.Core.PlaceItem(Kitchen.Radio, Mecho.Core.PlacedBy.Bear, x));
             bus.Send(new Mecho.Core.SwitchItem(Kitchen.Radio, true, ByBear: true));
@@ -243,11 +242,12 @@ public sealed partial class PetWindow
     /// </summary>
     private void CloseDuplicatePlaceables()
     {
-        var keep = new Window?[] { _heaterWindow, _lampWindow, _radioWindow, _feederWindow, _potWindow }.Concat(_furnishings.Select(f => f.Window)).ToArray();
+        var keep = new Window?[] { _heaterWindow, _lampWindow, _radioWindow, _feederWindow, _potWindow }.Concat(_furnishings.Select(f => f.Window))
+            .Concat(SpareWindows).ToArray();
         foreach (string title in new[] { "Печица", "Лампа", "Радио", "Хранилка", "Растение" }.Concat(_furnishings.Select(f => f.Title)))
         {
-            var mine = keep.FirstOrDefault(w => w?.Title == title);
-            foreach (var w in Application.Current.Windows.OfType<CookerWindow>().Where(w => w.Title == title && !ReferenceEquals(w, mine)).ToList())
+            // Every window of ours stays (the one in use and the hidden spare); only strays go.
+            foreach (var w in Application.Current.Windows.OfType<CookerWindow>().Where(w => w.Title == title && !keep.Contains(w)).ToList())
                 w.Close();
         }
     }

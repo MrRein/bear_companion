@@ -145,8 +145,7 @@ public sealed partial class PetWindow
             {
                 if (f.Window != null)
                 {
-                    f.Window.Close();
-                    f.Window = null;
+                    Park(ref f.Window);   // hidden and kept, not closed (see PetWindow.SpareWindows)
                     f.Shown = "";
                 }
                 continue;
@@ -159,23 +158,8 @@ public sealed partial class PetWindow
                 double x = double.IsNaN(PlacementOf(f.Kind).X) ? NearBear(half * 2) : PlacementOf(f.Kind).X;
                 var area = AreaAt(x, _y - 1);
                 x = Math.Clamp(x, area.Left + half, Math.Max(area.Left + half, area.Right - half));
-                var w = new CookerWindow(f.Title);
+                var w = Unpark(f.Title) ?? NewFurnitureWindow(f);
                 f.Window = w;
-                Companion(w, f.Kind);   // диванът и стативът са зад мечока (Behaviour.BehindBear)
-                w.SetTime(null);
-                w.Hint = f.Title + ".";
-                var furn = f;
-                w.Clicked += () => FurnitureClicked(furn);
-                w.Dropped += (cx, _) =>
-                {
-                    var a = AreaAt(cx, w.Top + w.ActualHeight / 2);
-                    double hw = w.ActualWidth / 2;
-                    double nx = Math.Clamp(cx, a.Left + hw, Math.Max(a.Left + hw, a.Right - hw));
-                    w.FallTo(nx, a.Bottom);
-                    CoreEngine.Bus.Send(new MoveItem(furn.Kind, nx));
-                    Persist();
-                    KeepBearInFront();   // преместен диван/статив: мечокът пак е пред него
-                };
                 w.SetAway(!IsVisible || FurnitureUnderBear(f));
                 w.Place(img, PixelSize, x, area.Bottom);
                 f.Shown = art;
@@ -189,6 +173,28 @@ public sealed partial class PetWindow
             f.Window.SetAway(!IsVisible || FurnitureUnderBear(f));
             f.Window.Step(0.033);
         }
+    }
+
+    /// <summary>A new window for a piece of furniture, with its clicks and drops wired (once per window).</summary>
+    private CookerWindow NewFurnitureWindow(Furnishing f)
+    {
+        var w = new CookerWindow(f.Title);
+        Companion(w, f.Kind);   // диванът и стативът са зад мечока (Behaviour.BehindBear)
+        w.SetTime(null);
+        w.Hint = f.Title + ".";
+        var furn = f;
+        w.Clicked += () => FurnitureClicked(furn);
+        w.Dropped += (cx, _) =>
+        {
+            var a = AreaAt(cx, w.Top + w.ActualHeight / 2);
+            double hw = w.ActualWidth / 2;
+            double nx = Math.Clamp(cx, a.Left + hw, Math.Max(a.Left + hw, a.Right - hw));
+            w.FallTo(nx, a.Bottom);
+            CoreEngine.Bus.Send(new MoveItem(furn.Kind, nx));
+            Persist();
+            KeepBearInFront();   // преместен диван/статив: мечокът пак е пред него
+        };
+        return w;
     }
 
     /// <summary>Цъкна мебелта: да я прибере ли.</summary>

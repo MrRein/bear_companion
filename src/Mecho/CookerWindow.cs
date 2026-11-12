@@ -207,6 +207,44 @@ public sealed class CookerWindow : Window
         return !_falling;
     }
 
+    /// <summary>
+    /// Put away without closing: hidden and reset, kept for the next time the same thing is
+    /// placed. Opening a transparent topmost window costs 20–150 ms; showing a hidden one is cheap.
+    /// </summary>
+    public void Park()
+    {
+        _pressed = _dragging = _falling = false;
+        _shake = 0;
+        _away = false;
+        if (IsVisible) Hide();
+    }
+
+    /// <summary>
+    /// Pays the cost of the first show ahead (window handle and first render, off screen),
+    /// so that the first real Place is quick. The window stays hidden.
+    /// </summary>
+    public void Warm()
+    {
+        new WindowInteropHelper(this).EnsureHandle();
+        double opacity = Opacity;
+        Opacity = 0;
+        Left = -32000;
+        Top = -32000;
+        Show();
+        UpdateLayout();
+        Hide();
+        Opacity = opacity;
+    }
+
+    /// <summary>Closed for good (a closed window cannot be shown again).</summary>
+    public bool IsClosed { get; private set; }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        IsClosed = true;
+        base.OnClosed(e);
+    }
+
     public double CenterX => _centerX;
 
     /// <summary>Къде е предметът (в DIP), дори да е скрит: средата, дъното и размерът на рисунката.</summary>

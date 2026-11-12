@@ -288,6 +288,7 @@ public sealed partial class PetWindow : Window
         }
         UpdateLayoutAndWindow();
         MaybeStartTutorial();
+        Later(30, WarmSpareWindows);   // furniture/radio windows made ahead, in idle time
         _timer.Start();
     }
 

@@ -1946,6 +1946,20 @@ public sealed partial class PetWindow
             LeaveScene();
             SetIdle();
         }, 600);
+        await step("мебели: прозорецът се пази (скрит), не се затваря", () =>
+        {
+            // A warmed spare window is handed out again, and parking keeps it instead of closing.
+            var w = NewRadioWindow();
+            w.Warm();
+            if (w.IsVisible) throw new Exception("затопленият прозорец се вижда");
+            _spareWindows[w.Title] = w;
+            var again = Unpark("Радио");
+            if (!ReferenceEquals(again, w)) throw new Exception("не взе пазения прозорец");
+            CookerWindow? held = again;
+            Park(ref held);
+            if (held != null || !_spareWindows.ContainsKey("Радио")) throw new Exception("не го запази при прибиране");
+            Unpark("Радио")?.Close();
+        }, 300);
         await step("мебели: прибиране – веднага", () =>
         {
             if (!FurniturePlaced(Kitchen.Couch)) throw new Exception("диванът на Тут изчезна след четенето");
