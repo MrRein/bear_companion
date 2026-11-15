@@ -576,34 +576,25 @@ public sealed class WorkView : Border
         if (sig == _filtersShown) return;
         _filtersShown = sig;
         _filters.Children.Clear();
-        var all = Chip("Всички", () => SetFilter("", false));
-        SetOn(all, _filter.Length == 0 && !_starOnly);
-        all.ToolTip = Tip("Всички задачи");
-        _filters.Children.Add(all);
-        foreach (var tag in TaskTags.All)
-        {
-            var key = tag.Key;
-            var chip = Chip("", () => SetFilter(_filter == key ? "" : key, _starOnly));
-            // Само цветното квадратче (името – при посочване); избраният етикет показва и името си.
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            var swatch = TaskTags.Swatch(key);
-            row.Children.Add(swatch);
-            if (_filter == key) row.Children.Add(new TextBlock { Text = tag.Name, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
-            else swatch.Margin = new Thickness(0);
-            chip.Child = row;
-            chip.ToolTip = Tip($"Само „{tag.Name}“ (новите задачи също ще са с този етикет)");
-            SetOn(chip, _filter == key);
-            _filters.Children.Add(chip);
-        }
-        // Своите етикети: нов, преименувай, смени цвета, махни.
-        Border edit = null!;
-        edit = Chip("", () => PixelPopup.Show(edit, "Етикети", () => new[]
-        {
-            new PixelPopup.Entry("", null, null, Custom: _ => TagEditor.Manager(_pet)),
-        }));
-        edit.Child = Icon("gear");
-        edit.ToolTip = Tip("Етикетите: нов, име, цвят");
-        _filters.Children.Add(edit);
+        // Етикетът – едно копче (етикетите са свои и може да са много): изскача списък.
+        var current = TaskTags.Find(_filter);
+        Border tagChip = null!;
+        tagChip = Chip("", () => PixelPopup.Show(tagChip, "Покажи само", () =>
+            TaskTags.All.Select(tag => new PixelPopup.Entry(tag.Name, null, () => SetFilter(_filter == tag.Key ? "" : tag.Key, _starOnly),
+                    On: _filter == tag.Key, Swatch: tag.Key))
+                .Prepend(new PixelPopup.Entry("Всички етикети", null, () => SetFilter("", _starOnly), On: _filter.Length == 0))
+                .Append(new PixelPopup.Entry("Етикети…", "gear", null, Sub: () => new[]
+                {
+                    new PixelPopup.Entry("", null, null, Custom: _ => TagEditor.Manager(_pet)),
+                }))));
+        var tagRow = new StackPanel { Orientation = Orientation.Horizontal };
+        if (current != null) tagRow.Children.Add(TaskTags.Swatch(current.Key));
+        var tagText = new TextBlock { Text = (current?.Name ?? "Етикет") + " ▾", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 110 * U };
+        tagRow.Children.Add(tagText);
+        tagChip.Child = tagRow;
+        tagChip.ToolTip = Tip(current != null ? $"Само „{current.Name}“ (новите задачи също ще са с този етикет)" : "Покажи само един етикет; оттук – и своите етикети");
+        SetOn(tagChip, current != null);
+        _filters.Children.Add(tagChip);
         var star = Chip("", () => SetFilter(_filter, !_starOnly));
         star.Child = Icon("star");
         star.ToolTip = Tip("Само важните");
@@ -706,7 +697,9 @@ public sealed class WorkView : Border
         }
         sub.Children.Add(new TextBlock
         {
-            Text = day is { } d1 ? d1.ToString(d1.Year == today.Year ? "d MMMM" : "d MMMM yyyy", Bg) : "без ден",
+            // Късият месец („15 ноем.“) – събира се и до „днес“ и „2/5“; целият – при посочване.
+            Text = day is { } d1 ? d1.ToString(d1.Year == today.Year ? "d MMM" : "d MMM yy", Bg) : "без ден",
+            ToolTip = day is { } d3 ? Tip(d3.ToString("d MMMM yyyy", Bg)) : null,
             Foreground = Muted,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -2097,26 +2090,30 @@ public sealed class WorkView : Border
         check.Margin = new Thickness(0, 2, 6 * U, 0);
         DockPanel.SetDock(check, Dock.Left);
         row.Children.Add(check);
-        var chips = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
-        foreach (var (text, tip, click) in buttons)
-        {
-            var chip = Chip(text, Act(click));
-            chip.Padding = new Thickness(5, 0, 5, 1);
-            chip.Margin = new Thickness(3, 0, 0, 0);
-            chip.ToolTip = Tip(tip);
-            chips.Children.Add(chip);
-        }
-        DockPanel.SetDock(chips, Dock.Right);
-        row.Children.Add(chips);
-        row.Children.Add(new TextBlock
+        // Името, а под него копчетата (в тесния панел не излизат вдясно).
+        var body = new StackPanel();
+        body.Children.Add(new TextBlock
         {
             Text = t.Title,
             TextWrapping = TextWrapping.Wrap,
             TextDecorations = t.Done ? TextDecorations.Strikethrough : null,
             Foreground = t.Done ? Muted : Ink,
-            VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(0, 1, 4, 0),
         });
+        if (buttons.Length > 0)
+        {
+            var chips = new WrapPanel { Margin = new Thickness(0, 3 * U, 0, 0) };
+            foreach (var (text, tip, click) in buttons)
+            {
+                var chip = Chip(text, Act(click));
+                chip.Padding = new Thickness(5, 0, 5, 1);
+                chip.Margin = new Thickness(0, 0, 4, 2);
+                chip.ToolTip = Tip(tip);
+                chips.Children.Add(chip);
+            }
+            body.Children.Add(chips);
+        }
+        row.Children.Add(body);
         return row;
     }
 

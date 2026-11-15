@@ -789,7 +789,7 @@ public sealed class MenuWindow : Window
             FontWeight = FontWeights.Bold,
             TextAlignment = TextAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.Wrap,   // „Почивай си“ в тясна плочка – на два реда
             FontSize = size >= 4 ? Ui.Title : Ui.Body,
         };
         stack.Children.Add(t.IconHost);
