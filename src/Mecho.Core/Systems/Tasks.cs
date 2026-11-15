@@ -28,8 +28,8 @@ namespace Mecho.Core;
 /// Day – денят, за който е (само датата; null – „Някога“), Tag – етикетът (ключ, "" – без),
 /// Star – важна, Minutes – колко време ще отнеме (0 – не е казано), Rolled – колко пъти е
 /// пренасяна от ден за ден.
-/// Steps – стъпките (подзадачите), Repeat – повтаря се (TaskRepeat), Series – общото на
-/// повторенията, Spent – колко минути е работено по нея (мечо-доро, таймер), Created – кога е написана.
+/// Steps – стъпките (подзадачите), Repeat/Series – от версия 1.0.119 (повторенията вече ги
+/// няма, полетата остават само за старите записи), Spent – колко минути е работено по нея (мечо-доро, таймер), Created – кога е написана.
 /// </summary>
 public sealed record TaskEntry(Guid Id, string Title, string Description, int Size, bool Done, DateTime? DoneAt, bool PageRolled,
     DateTime? Day = null, string Tag = "", bool Star = false, int Minutes = 0, int Rolled = 0,
@@ -60,26 +60,6 @@ public sealed record TaskEntry(Guid Id, string Title, string Description, int Si
 /// <summary>Стъпка от задача (подзадача).</summary>
 public sealed record TaskStep(Guid Id, string Title, bool Done);
 
-/// <summary>Как се повтаря задача: "" – не, всеки ден, делнични, всяка седмица, всеки месец.</summary>
-public static class TaskRepeat
-{
-    public const string None = "", Daily = "daily", Weekdays = "weekdays", Weekly = "weekly", Monthly = "monthly";
-
-    public static readonly string[] All = { None, Daily, Weekdays, Weekly, Monthly };
-
-    public static bool IsValid(string? r) => r != null && All.Contains(r);
-
-    /// <summary>Пада ли се на този ден (anchor – първият ден на поредицата).</summary>
-    public static bool Due(string repeat, DateTime anchor, DateTime day) => repeat switch
-    {
-        Daily => true,
-        Weekdays => day.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday),
-        Weekly => day.DayOfWeek == anchor.DayOfWeek,
-        Monthly => day.Day == Math.Min(anchor.Day, DateTime.DaysInMonth(day.Year, day.Month)),
-        _ => false,
-    };
-}
-
 /// <summary>Open – днешните (и несвършените), History – свършените от минали дни, Focus – текущата.</summary>
 public sealed record TasksState(ImmutableList<TaskEntry> Open, ImmutableList<TaskEntry> History, int DoneTotal, Guid? Focus) : IStateSlice
 {
@@ -104,14 +84,12 @@ public sealed record TasksState(ImmutableList<TaskEntry> Open, ImmutableList<Tas
 // ── Команди ──
 /// <summary>Нова задача. Без Day – за днес; Someday – за „Някога“ (без ден).</summary>
 public sealed record AddTask(string Title, int Size, string? Description = null, DateTime? Day = null, bool Someday = false,
-    string? Tag = null, bool Star = false, int Minutes = 0, Guid? Before = null, string? Repeat = null) : IGameCommand;
+    string? Tag = null, bool Star = false, int Minutes = 0, Guid? Before = null) : IGameCommand;
 /// <summary>Нова стъпка (подзадача) накрая.</summary>
 public sealed record AddTaskStep(Guid TaskId, string Title) : IGameCommand;
 public sealed record SetTaskStepDone(Guid TaskId, Guid StepId, bool Done) : IGameCommand;
 public sealed record RenameTaskStep(Guid TaskId, Guid StepId, string Title) : IGameCommand;
 public sealed record DeleteTaskStep(Guid TaskId, Guid StepId) : IGameCommand;
-/// <summary>Повтаря се (TaskRepeat; "" – спира). Задача без ден става за днес.</summary>
-public sealed record SetTaskRepeat(Guid Id, string Repeat) : IGameCommand;
 /// <summary>Още минути работа по задачата (мечо-доро или таймер по нея).</summary>
 public sealed record AddTaskTime(Guid Id, int Minutes) : IGameCommand;
 /// <summary>Копие (несвършено, без повторение) точно след нея.</summary>
@@ -172,11 +150,10 @@ public sealed class TasksModule : GameModule
             if (title.Length == 0) return CommandResult.Rejected("задачата няма име");
             if (title.Length > MaxTitle) title = title[..MaxTitle];
             DateTime? day = c.Someday ? null : (c.Day ?? Clock.Today()).Date;
-            string repeat = TaskRepeat.IsValid(c.Repeat) && day != null ? c.Repeat! : TaskRepeat.None;
             var id = Guid.NewGuid();
             var t = new TaskEntry(id, title, (c.Description ?? "").Trim(), Math.Clamp(c.Size, 1, 3), false, null, false,
                 day, CleanTag(c.Tag), c.Star, Math.Clamp(c.Minutes, 0, MaxMinutes),
-                Repeat: repeat, Series: repeat.Length > 0 ? id : null, Created: Clock.Now);
+                Created: Clock.Now);
             Store.Update<TasksState>(s =>
             {
                 int at = c.Before is { } b ? s.Open.FindIndex(x => x.Id == b) : -1;
@@ -283,16 +260,6 @@ public sealed class TasksModule : GameModule
         });
         Handle<DeleteTaskStep>(c => Change(c.TaskId, t =>
             t.StepList.FirstOrDefault(x => x.Id == c.StepId) is { } step ? t with { Steps = t.StepList.Remove(step) } : null));
-        Handle<SetTaskRepeat>(c =>
-        {
-            if (!TaskRepeat.IsValid(c.Repeat)) return CommandResult.Rejected("непознато повторение");
-            return Change(c.Id, t => t with
-            {
-                Repeat = c.Repeat,
-                Series = t.Series ?? (c.Repeat.Length > 0 ? t.Id : null),
-                Day = c.Repeat.Length > 0 ? t.Day ?? Clock.Today() : t.Day,
-            });
-        });
         Handle<AddTaskTime>(c =>
         {
             if (c.Minutes <= 0) return CommandResult.Rejected("няма минути");
@@ -305,7 +272,7 @@ public sealed class TasksModule : GameModule
             var copy = t with
             {
                 Id = Guid.NewGuid(), Done = false, DoneAt = null, PageRolled = false, Rolled = 0, Spent = 0,
-                Repeat = TaskRepeat.None, Series = null, Created = Clock.Now,
+                Repeat = "", Series = null, Created = Clock.Now,
                 Steps = t.StepList.Count == 0 ? null : t.StepList.Select(x => x with { Id = Guid.NewGuid(), Done = false }).ToImmutableList(),
                 Title = t.Title.Length + 7 <= MaxTitle ? t.Title + " (копие)" : t.Title,
             };
@@ -362,7 +329,6 @@ public sealed class TasksModule : GameModule
     private void NewDay()
     {
         Archive();
-        Repeats();
         RollOver();
     }
 
@@ -379,37 +345,6 @@ public sealed class TasksModule : GameModule
 
     private CommandResult ChangeStep(Guid taskId, Guid stepId, Func<TaskStep, TaskStep> change) => Change(taskId, t =>
         t.StepList.FirstOrDefault(x => x.Id == stepId) is { } step ? t with { Steps = t.StepList.Replace(step, change(step)) } : null);
-
-    /// <summary>
-    /// Повтарящите се: ако днес им е ден и още няма задача за днес – нова (несвършена, със
-    /// стъпките отначало). Старите несвършени от същата поредица се махат – днешната е вместо тях.
-    /// </summary>
-    private void Repeats()
-    {
-        var s = State<TasksState>();
-        var today = Clock.Today();
-        var open = s.Open;
-        bool changed = false;
-        foreach (var series in s.Open.Concat(s.History).Where(t => t.Series != null).GroupBy(t => t.Series))
-        {
-            var all = series.ToList();
-            var latest = all.OrderBy(t => t.Day ?? t.DoneAt?.Date ?? DateTime.MinValue).Last();
-            if (latest.Repeat.Length == 0 || latest.Day is not { } last || last >= today) continue;
-            var anchor = all.Min(t => t.Day ?? last);
-            if (!TaskRepeat.Due(latest.Repeat, anchor, today)) continue;
-            var next = latest with
-            {
-                Id = Guid.NewGuid(), Day = today, Done = false, DoneAt = null, PageRolled = false, Rolled = 0, Spent = 0, Created = Clock.Now,
-                Steps = latest.Steps?.Select(x => x with { Done = false }).ToImmutableList(),
-            };
-            var stale = open.Where(t => t.Series == series.Key && !t.Done && t.Day < today).ToList();
-            int at = stale.Count > 0 ? open.IndexOf(stale[0]) : open.Count;
-            open = open.RemoveRange(stale);
-            open = open.Insert(Math.Min(at, open.Count), next);
-            changed = true;
-        }
-        if (changed) Store.Set(s with { Open = open });
-    }
 
     private static string CleanTag(string? tag)
     {

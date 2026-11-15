@@ -233,6 +233,8 @@ public sealed class PinWindow : Window
             e.Handled = true;
         };
         Content = State.Collapsed ? _iconView : _full;
+        _zoom = 1;
+        ApplyZoom();
 
         MouseEnter += (_, _) => Opacity = 1;
         MouseLeave += (_, _) => ApplyFade();
@@ -247,6 +249,31 @@ public sealed class PinWindow : Window
         ApplyCollapse();
         ApplyFade();
         Refresh();
+    }
+
+    private double _zoom = 1;
+
+    /// <summary>Мащабът от „Още“ → Размер (и таблото, и иконката).</summary>
+    public void ApplyZoom()
+    {
+        double z = _pet.Save.UiZoom is >= 0.75 and <= 2 ? _pet.Save.UiZoom : 1;
+        var t = Math.Abs(z - 1) < 0.01 ? Transform.Identity : new ScaleTransform(z, z);
+        _full.LayoutTransform = t;
+        _iconView.LayoutTransform = t;
+        // Отначало (без запомнен размер) – началният размер по мащаба.
+        if (!IsLoaded && State.W <= 0 && !State.Collapsed)
+        {
+            Width *= z;
+            Height *= z;
+        }
+        else if (Math.Abs(z - _zoom) > 0.001 && !State.Collapsed && IsLoaded)
+        {
+            Width = Width / _zoom * z;
+            Height = Height / _zoom * z;
+        }
+        MinWidth = 220 * U * z;
+        MinHeight = State.Collapsed ? 0 : 90 * U * z;
+        _zoom = z;
     }
 
     private void Remember()
@@ -320,8 +347,8 @@ public sealed class PinWindow : Window
             Content = _full;
             SizeToContent = SizeToContent.Manual;
             ResizeMode = ResizeMode.CanResizeWithGrip;
-            MinWidth = 220 * U;
-            MinHeight = 90 * U;
+            MinWidth = 220 * U * _zoom;
+            MinHeight = 90 * U * _zoom;
             Width = width;
             Height = height;
             // Разгъва се от иконката (горният ѝ десен ъгъл), без да излиза от екрана.
@@ -409,7 +436,6 @@ public sealed class PinWindow : Window
     private void DropTask(Guid id, Guid? before)
     {
         if (_pet.Save.Tasks.FirstOrDefault(t => t.Id == id) is not { } task) return;
-        if (_pet.TasksSort != PetWindow.ManualSort) _pet.SetTasksSort(PetWindow.ManualSort);   // нареди ги сама – значи „моят ред“
         if (!_pet.TaskOnBoard(task)) _pet.SetTaskOnBoard(task, true);
         _pet.MoveTask(task, _pet.TaskToday, before);
     }

@@ -171,16 +171,7 @@ internal static class TaskCards
         return item;
     }
 
-    public static string RepeatName(string repeat) => repeat switch
-    {
-        Mecho.Core.TaskRepeat.Daily => "всеки ден",
-        Mecho.Core.TaskRepeat.Weekdays => "делнични дни",
-        Mecho.Core.TaskRepeat.Weekly => "всяка седмица",
-        Mecho.Core.TaskRepeat.Monthly => "всеки месец",
-        _ => "не се повтаря",
-    };
-
-    /// <summary>Редът под името: етикет, големина, стъпки, време (работено/планирано), повторение, пренасяна.</summary>
+    /// <summary>Редът под името: етикет, големина, стъпки, време (работено/планирано), пренасяна.</summary>
     public static FrameworkElement? Meta(TaskItem t)
     {
         var row = new WrapPanel { Margin = new Thickness(0, 3 * U, 0, 0) };
@@ -194,8 +185,6 @@ internal static class TaskCards
                 $"Работено {Duration(t.Spent)}" + (t.Minutes > 0 ? $" от планираните {Duration(t.Minutes)}" : "")));
         else if (t.Minutes > 0)
             row.Children.Add(MetaItem("clock", Duration(t.Minutes), $"Ще отнеме около {Duration(t.Minutes)}"));
-        if (t.Repeat.Length > 0)
-            row.Children.Add(MetaItem("reroll", "", "Повтаря се " + RepeatName(t.Repeat)));
         if (t.Rolled > 0 && !t.Done)
             row.Children.Add(MetaItem("history", t.Rolled.ToString(), t.Rolled == 1
                 ? "Пренесена от вчера."
@@ -439,14 +428,6 @@ internal static class TaskCards
                 move.Items.Add(Item("Някога", () => pet.MoveTask(Now(), null), cur.Day == null));
                 menu.Items.Add(move);
 
-                var repeat = Item("Повтаряй", null);
-                foreach (var r in Mecho.Core.TaskRepeat.All)
-                {
-                    var rr = r;
-                    repeat.Items.Add(Item(r.Length == 0 ? "Не" : char.ToUpper(RepeatName(r)[0]) + RepeatName(r)[1..], () => pet.SetTaskRepeat(Now(), rr), cur.Repeat == r));
-                }
-                menu.Items.Add(repeat);
-
                 bool onBoard = pet.TaskOnBoard(cur);
                 menu.Items.Add(Item(onBoard ? "Махни от таблото" : "Сложи в таблото", () => pet.SetTaskOnBoard(Now(), !onBoard)));
                 menu.Items.Add(Item("Направи копие", () => pet.DuplicateTask(Now())));
@@ -668,59 +649,5 @@ internal sealed class DragGhost
     public void Close()
     {
         try { _window.Close(); } catch (InvalidOperationException) { }
-    }
-}
-
-/// <summary>
-/// Бързо писане на задача: „Скица #работа 30м !“ → име „Скица“, етикет „Работа“, 30 минути,
-/// важна. Етикетът е по име или ключ (стига началото: #раб), времето – 15м, 1ч, 1ч30, 2h, 45m.
-/// </summary>
-internal static class TaskQuick
-{
-    public sealed record Parsed(string Title, string? Tag, bool Star, int Minutes);
-
-    private static readonly System.Text.RegularExpressions.Regex Time =
-        new(@"^(?:(\d{1,2})\s*(?:ч|h)\s*(?:(\d{1,2})\s*(?:м|m|мин)?)?|(\d{1,3})\s*(?:м|m|мин))$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-    public static Parsed Parse(string text)
-    {
-        string? tag = null;
-        bool star = false;
-        int minutes = 0;
-        var keep = new List<string>();
-        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (word == "!" || word == "!!")
-            {
-                star = true;
-                continue;
-            }
-            if (word.Length > 1 && word[0] == '#' && FindTag(word[1..]) is { } found)
-            {
-                tag = found;
-                continue;
-            }
-            var m = Time.Match(word);
-            if (m.Success && minutes == 0)
-            {
-                minutes = m.Groups[3].Success
-                    ? int.Parse(m.Groups[3].Value)
-                    : int.Parse(m.Groups[1].Value) * 60 + (m.Groups[2].Success ? int.Parse(m.Groups[2].Value) : 0);
-                if (minutes is > 0 and <= 12 * 60) continue;
-                minutes = 0;
-            }
-            keep.Add(word);
-        }
-        string title = string.Join(" ", keep);
-        // Само маркировки, без име – значи не е било маркировка, а името.
-        if (title.Length == 0) return new Parsed(text.Trim(), null, false, 0);
-        return new Parsed(title, tag, star, minutes);
-    }
-
-    private static string? FindTag(string word)
-    {
-        word = word.ToLowerInvariant();
-        if (word.Length == 0) return null;
-        return TaskTags.All.FirstOrDefault(t => t.Key == word || t.Name.ToLowerInvariant().StartsWith(word))?.Key;
     }
 }

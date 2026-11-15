@@ -47,6 +47,13 @@ public sealed partial class PetWindow
 
     public void ClosePlanner() => _planner?.Close();
 
+    /// <summary>Мащабът е сменен („Още“ → Размер): и „Работа“, и таблата.</summary>
+    public void ZoomChanged()
+    {
+        _planner?.ApplyZoom();
+        foreach (var p in _pins.Values) p.ApplyZoom();
+    }
+
     /// <summary>Мести задачата в ден (null – „Някога“), преди before (или накрая на деня).</summary>
     public void MoveTask(TaskItem task, DateTime? day, Guid? before = null)
     {
@@ -83,9 +90,6 @@ public sealed partial class PetWindow
     public void RenameTaskStep(TaskItem task, Guid step, string title) => TaskCommand(new RenameTaskStep(task.Id, step, title));
 
     public void DeleteTaskStep(TaskItem task, Guid step) => TaskCommand(new DeleteTaskStep(task.Id, step));
-
-    /// <summary>Повтаря се: TaskRepeat.Daily, Weekdays, Weekly, Monthly ("" – не).</summary>
-    public void SetTaskRepeat(TaskItem task, string repeat) => TaskCommand(new SetTaskRepeat(task.Id, repeat));
 
     public void DuplicateTask(TaskItem task) => TaskCommand(new DuplicateTask(task.Id));
 
@@ -129,6 +133,80 @@ public sealed partial class PetWindow
         {
             var (done, _, _) = TodayLoad();
             Say(R.Text(done > 0 ? "tasks.shutdown" : "tasks.shutdown.none", _save.OwnerName, ("брой", done.ToString())), 6);
+            React(done > 0 ? "dance" : "happy", done > 0 ? 2 : 0);
+        }
+        NotifyCare();
+        Persist();
+    }
+
+    // ── Прегледът на седмицата ──
+
+    public const int MaxWeekGoals = 5;
+
+    private static string WeekKey(DateTime monday) => monday.ToString("yyyy-MM-dd");
+
+    /// <summary>Прегледът на седмицата, която почва в този понеделник (празен, ако го няма).</summary>
+    public WeekReview WeekReviewFor(DateTime monday) =>
+        _save.WeekReviews.TryGetValue(WeekKey(monday), out var r) ? r : new WeekReview();
+
+    private WeekReview EnsureWeekReview(DateTime monday)
+    {
+        string key = WeekKey(monday);
+        if (!_save.WeekReviews.TryGetValue(key, out var r)) _save.WeekReviews[key] = r = new WeekReview();
+        return r;
+    }
+
+    public void SetWeekThoughts(DateTime monday, string good, string better)
+    {
+        var r = EnsureWeekReview(monday);
+        r.Good = Clip(good, 2000);
+        r.Better = Clip(better, 2000);
+        Persist();
+    }
+
+    private static string Clip(string text, int max)
+    {
+        text = (text ?? "").Trim();
+        return text.Length > max ? text[..max] : text;
+    }
+
+    public bool AddWeekGoal(DateTime monday, string text)
+    {
+        text = Clip(text, 120);
+        var r = EnsureWeekReview(monday);
+        if (text.Length == 0 || r.Goals.Count >= MaxWeekGoals) return false;
+        r.Goals.Add(new WeekGoal { Text = text });
+        NotifyCare();
+        Persist();
+        return true;
+    }
+
+    public void SetWeekGoalDone(DateTime monday, Guid id, bool done)
+    {
+        if (EnsureWeekReview(monday).Goals.FirstOrDefault(g => g.Id == id) is not { } g || g.Done == done) return;
+        g.Done = done;
+        if (done) Emote("sparkle", 1);
+        NotifyCare();
+        Persist();
+    }
+
+    public void DeleteWeekGoal(DateTime monday, Guid id)
+    {
+        EnsureWeekReview(monday).Goals.RemoveAll(g => g.Id == id);
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>Прегледът е направен: мечокът казва нещо хубаво (веднъж на седмица).</summary>
+    public void FinishWeekReview(DateTime monday)
+    {
+        var r = EnsureWeekReview(monday);
+        bool first = !r.Done;
+        r.Done = true;
+        if (first)
+        {
+            int done = Enumerable.Range(0, 7).SelectMany(i => TaskState.OnDay(monday.AddDays(i))).Count(t => t.Done);
+            Say(R.Text(done > 0 ? "week.reviewed" : "week.reviewed.none", _save.OwnerName, ("брой", done.ToString())), 6);
             React(done > 0 ? "dance" : "happy", done > 0 ? 2 : 0);
         }
         NotifyCare();

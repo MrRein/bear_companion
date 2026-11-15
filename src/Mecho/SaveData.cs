@@ -17,6 +17,9 @@ public sealed class SaveData
     // Къде Тут е преместила панела „Мечо“ (NaN = до мечока)
     public double MenuLeft { get; set; } = double.NaN;
     public double MenuTop { get; set; } = double.NaN;
+    public double MenuW { get; set; }                            // размерът на менюто при мащаб 100% (0 – началният)
+    public double MenuH { get; set; }
+    public double UiZoom { get; set; } = 1;                      // мащаб: менюто, „Работа“, таблата (1 – 100%)
     public bool SleepingByChoice { get; set; }
     public bool StayPut { get; set; }
     public string StayScene { get; set; } = "reading";   // кое кътче е избрала Тут („Почивай си“)
@@ -131,6 +134,8 @@ public sealed class SaveData
     public string PlannedDay { get; set; } = "";                // кой ден е планиран („План за деня“)
     public string ShutdownDay { get; set; } = "";               // кой ден е приключен („Край на деня“)
     public Dictionary<string, string> DayNotes { get; set; } = new();   // „Как мина денят?“ по дни (yyyy-MM-dd)
+    public Dictionary<string, WeekReview> WeekReviews { get; set; } = new();   // прегледът на седмицата (ключ – понеделникът, yyyy-MM-dd)
+    public int WorkView { get; set; }                            // „Работа“: 0 Днес, 1 Седмица, 2 Преглед
     public Dictionary<string, SurveyAnswer> Answers { get; set; } = new();   // въпросникът: id → какво отговори Тут
     /// <summary>
     /// Броячи „колко пъти днес“ (въпросник, спомени, нови желания…) – сами се нулират на
@@ -997,4 +1002,21 @@ public sealed class NoteItem
             return t.Length > 120 ? t[..120] + "…" : t;
         }
     }
+}
+
+/// <summary>Прегледът на една седмица: какво мина добре, какво да е различно, целите ѝ.</summary>
+public sealed class WeekReview
+{
+    public string Good { get; set; } = "";
+    public string Better { get; set; } = "";
+    public List<WeekGoal> Goals { get; set; } = new();
+    public bool Done { get; set; }
+}
+
+/// <summary>Цел за седмицата (до 5).</summary>
+public sealed class WeekGoal
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Text { get; set; } = "";
+    public bool Done { get; set; }
 }

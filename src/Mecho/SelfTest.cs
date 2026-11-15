@@ -176,7 +176,7 @@ public sealed partial class PetWindow
             if (w.Content is not FrameworkElement root) return;
             var lines = new List<string> { $"== {name}: {root.ActualWidth:0}×{root.ActualHeight:0}" };
             double dpi = VisualTreeHelper.GetDpi(w).PixelsPerDip;
-            int cut = 0, outside = 0, texts = 0;
+            int cut = 0, outside = 0, texts = 0, clipped = 0;
             var seen = new Dictionary<string, int>();
             void Walk(DependencyObject d)
             {
@@ -201,7 +201,19 @@ public sealed partial class PetWindow
                         var r = f.TransformToAncestor(root).TransformBounds(new Rect(0, 0, f.ActualWidth, f.ActualHeight));
                         bool insideScroll = false;
                         for (var a = VisualTreeHelper.GetParent(f); a != null; a = VisualTreeHelper.GetParent(a))
-                            if (a is System.Windows.Controls.ScrollViewer) { insideScroll = true; break; }
+                            if (a is System.Windows.Controls.ScrollViewer sv)
+                            {
+                                insideScroll = true;
+                                // Страница без хоризонтален скрол: копче, което излиза вдясно, просто изчезва.
+                                if (f.Cursor == System.Windows.Input.Cursors.Hand && sv.HorizontalScrollBarVisibility == System.Windows.Controls.ScrollBarVisibility.Disabled
+                                    && sv.ViewportWidth > 0 && sv.IsVisible)
+                                {
+                                    var inSv = f.TransformToAncestor(sv).TransformBounds(new Rect(0, 0, f.ActualWidth, f.ActualHeight));
+                                    if (inSv.Right > sv.ViewportWidth + 2 && clipped++ < 15)
+                                        lines.Add($"  копче излиза вдясно ({inSv.Right:0} > {sv.ViewportWidth:0}): {Describe(f)}");
+                                }
+                                break;
+                            }
                         if (!insideScroll && (r.Right > root.ActualWidth + 2 || r.Bottom > root.ActualHeight + 2) && outside++ < 15)
                             lines.Add($"  излиза навън: {f.GetType().Name} {r.Left:0},{r.Top:0} {r.Width:0}×{r.Height:0}" +
                                 (f is System.Windows.Controls.TextBlock t2 ? $" „{Ui.Shorten(t2.Text, 40)}“" : ""));
@@ -212,13 +224,27 @@ public sealed partial class PetWindow
             }
             Walk(root);
             foreach (var (line, n) in seen.Take(40)) lines.Add(n > 1 ? $"{line}  ×{n}" : line);
-            lines.Add($"  текстове {texts}, режат се {cut}, излизат {outside}");
+            lines.Add($"  текстове {texts}, режат се {cut}, излизат {outside}, копчета вдясно {clipped}");
             File.AppendAllLines(Path.Combine(SaveData.Folder, "layout.txt"), lines);
         }
         catch (Exception ex)
         {
             SelfTest.Log("подредба " + name + ": " + ex.Message);
         }
+    }
+
+    /// <summary>Какво е това (за доклада): текстът вътре, ако има.</summary>
+    private static string Describe(FrameworkElement f)
+    {
+        var text = new List<string>();
+        void Find(DependencyObject d)
+        {
+            if (text.Count > 2) return;
+            if (d is System.Windows.Controls.TextBlock tb && !string.IsNullOrWhiteSpace(tb.Text)) text.Add(tb.Text);
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) Find(VisualTreeHelper.GetChild(d, i));
+        }
+        Find(f);
+        return f.GetType().Name + (text.Count > 0 ? " „" + Ui.Shorten(string.Join(" ", text), 40) + "“" : "");
     }
 
     internal async Task SelfTestSteps(Func<string, Action, int, Task> step)
@@ -1344,7 +1370,8 @@ public sealed partial class PetWindow
             var a2 = _save.Tasks.Single(x => x.Id == a.Id);
             if (!a2.Star || a2.Tag != "art") throw new Exception("не се маркира");
             OpenPlanner();
-            _planner!.UpdateLayout();
+            _planner!.SetView(PlannerWindow.View.Week);
+            _planner.UpdateLayout();
             if (!PlannerIsOpen) throw new Exception("седмицата не се отвори");
             // Пак отворена – същата (не втора).
             var first = _planner;
@@ -1398,10 +1425,9 @@ public sealed partial class PetWindow
             AddTaskStep(a, "Втора стъпка с много дълго име, което трябва да се пренесе на следващия ред, без да се реже");
             var st = _save.Tasks.Single(x => x.Id == a.Id).StepList;
             SetTaskStepDone(a, st[0].Id, true);
-            SetTaskRepeat(a, Mecho.Core.TaskRepeat.Weekdays);
             MarkTask(a, minutes: 45);
             var a2 = _save.Tasks.Single(x => x.Id == a.Id);
-            if (a2.StepList.Count != 2 || !a2.StepList[0].Done || a2.Repeat != Mecho.Core.TaskRepeat.Weekdays) throw new Exception("стъпки/повторение");
+            if (a2.StepList.Count != 2 || !a2.StepList[0].Done ) throw new Exception("стъпки");
             AddTask("Дълго име: Подготовка на презентацията за клиента с всички графики и бележки към тях преди срещата", 3,
                 "Описание, което също е доста дълго и трябва да се съкрати красиво на картичката.", tag: "people", minutes: 90, quiet: true);
             NotifyCare();
@@ -1448,20 +1474,59 @@ public sealed partial class PetWindow
             p.TestSide("");
             HideBubble();
         }, 600);
+        await step("работа: днес и сега", () =>
+        {
+            var p = _planner!;
+            p.SetView(PlannerWindow.View.Today);
+            p.UpdateLayout();
+            if (p.CurrentView != PlannerWindow.View.Today || p.SideShown != "None") throw new Exception("„Днес“ не се отвори: " + p.SideShown);
+            if (p.TodayCards < 2) throw new Exception($"в „Днес“ се виждат {p.TodayCards} задачи");
+            Shot(p, "work_today");
+            LayoutReport(p, "work_today");
+            var a = _save.Tasks.Single(x => x.Title == "Тест седмица А");
+            StartFocusOn(a);
+            p.UpdateLayout();
+            Shot(p, "work_today_focus");
+            LayoutReport(p, "work_today_focus");
+            StopPomodoro();
+        }, 600);
+        await step("работа: преглед на седмицата", () =>
+        {
+            var p = _planner!;
+            p.SetView(PlannerWindow.View.Review);
+            p.UpdateLayout();
+            var monday = PlannerWindow.WeekOf(TaskToday);
+            if (!AddWeekGoal(monday.AddDays(7), "Тестова цел")) throw new Exception("целта не се добави");
+            SetWeekThoughts(monday, "добре", "по-рано");
+            FinishWeekReview(monday);
+            if (!WeekReviewFor(monday).Done || WeekReviewFor(monday.AddDays(7)).Goals.Count != 1) throw new Exception("прегледът не се запази");
+            p.UpdateLayout();
+            Shot(p, "work_review");
+            LayoutReport(p, "work_review");
+            _save.WeekReviews.Clear();
+            HideBubble();
+            p.SetView(PlannerWindow.View.Week);
+        }, 600);
         await step("задачи: бързо писане и затваряне", () =>
         {
-            var q = TaskQuick.Parse("Скица #рис 1ч30 !");
-            if (q.Title != "Скица" || q.Tag != "art" || q.Minutes != 90 || !q.Star) throw new Exception($"бързо писане: {q}");
-            var q2 = TaskQuick.Parse("Купи 2 хляба 15м");
-            if (q2.Title != "Купи 2 хляба" || q2.Minutes != 15) throw new Exception($"бързо писане 2: {q2}");
-            if (TaskQuick.Parse("#работа").Title != "#работа") throw new Exception("само маркировка изяде името");
             SetPinned(PinWindow.Tasks, true);
             _pins[PinWindow.Tasks].UpdateLayout();
             Shot(_pins[PinWindow.Tasks], "board_tasks");
             LayoutReport(_pins[PinWindow.Tasks], "board_tasks");
-            OpenMenu(MenuWindow.TasksTab);
-            _menu!.UpdateLayout();
-            LayoutReport(_menu, "menu_tasks");
+            // Всяка страница на менюто – при началния и при най-малкия размер: нищо да не се реже и да не изчезва.
+            OpenMenu(MenuWindow.BearTab);
+            foreach (var small in new[] { false, true })
+            {
+                _menu!.SelfTestSize(small);
+                foreach (var (tab, name) in new[] { (MenuWindow.BearTab, "bear"), (MenuWindow.FoodTab, "food"), (MenuWindow.PomodoroTab, "work"),
+                    (MenuWindow.NotesTab, "notes"), (MenuWindow.ShopTab, "shop"), (MenuWindow.MoreTab, "more") })
+                {
+                    _menu.SelfTestTab(tab);
+                    _menu.UpdateLayout();
+                    LayoutReport(_menu, $"menu_{name}{(small ? "_small" : "")}");
+                }
+            }
+            _menu!.SelfTestSize(null);
             _menu.Hide();
             SetPinned(PinWindow.Tasks, false);
             ClosePlanner();
@@ -2417,21 +2482,10 @@ public sealed partial class PetWindow
             EditTask(task, "Тест: поправена", 3, "описание");
             var edited = _save.Tasks.First(x => x.Id == task.Id);
             if (edited.Title != "Тест: поправена" || edited.Size != 3 || edited.Description != "описание") throw new Exception("задачата не се поправи");
-            SetTasksOldestFirst(false);
-            var newest = OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).ToList();
-            if (newest.First().Title != "Тест: нова") throw new Exception("най-новата задача не е горе");
-            SetTasksOldestFirst(true);
-            if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Title != "Тест: поправена") throw new Exception("най-старата задача не е горе");
-            SetTasksSort(2);   // големите горе (поправената е голяма)
-            if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Size != 3) throw new Exception("„по големина“ не слага голямата горе");
-            SetTasksSort(3);
-            if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Size != 1) throw new Exception("„по големина ▲“ не слага малката горе");
-            // „Моят ред“: както са наредени (влачене = MoveTask преди друга).
-            SetTasksSort(ManualSort);
+            // Редът е този, в който са наредени (влаченето = MoveTask преди друга).
             var nova = _save.Tasks.First(x => x.Title == "Тест: нова");
             MoveTask(nova, TaskToday, before: task.Id);
-            if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Id != nova.Id) throw new Exception("„моят ред“ не следва влаченето");
-            SetTasksOldestFirst(false);
+            if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Id != nova.Id) throw new Exception("редът не следва влаченето");
             foreach (var x in _save.Tasks.Where(x => x.Title.StartsWith("Тест:")).ToList()) DeleteTask(x);
             var n = AddNote("Тест", "текст", pinned: false, quiet: true)!;
             EditNote(n, "Тест: поправена", "нов текст", pinned: true);

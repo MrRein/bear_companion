@@ -250,46 +250,6 @@ public class TasksTests
         Assert.Equal("оцветяване", Assert.Single(Last(e).StepList).Title);
     }
 
-    [Fact]
-    public void Daily_repeat_makes_a_new_task_each_day_and_replaces_the_unfinished_one()
-    {
-        var (e, clock, _) = Started(new DateTime(2026, 11, 16, 23, 59, 0));
-        e.Bus.Send(new AddTask("разходка", 1, Repeat: TaskRepeat.Daily));
-        var first = Last(e);
-        e.Bus.Send(new AddTaskStep(first.Id, "обуй се"));
-        e.Bus.Send(new SetTaskStepDone(first.Id, Last(e).StepList[0].Id, true));
-        Next(e, clock);   // 17-и: вчерашната не е свършена – днешната е вместо нея (не се пренася)
-        var s = e.Store.Get<TasksState>();
-        var t = Assert.Single(s.Open);
-        Assert.NotEqual(first.Id, t.Id);
-        Assert.Equal((new DateTime(2026, 11, 17), 0, first.Id), (t.Day, t.Rolled, t.Series));
-        Assert.False(t.StepList[0].Done);
-        e.Bus.Send(new SetTaskDone(t.Id, true));
-        clock.Advance(24 * 3600 - 120);
-        Next(e, clock);   // 18-и: вчерашната е свършена – в историята, днес нова
-        s = e.Store.Get<TasksState>();
-        Assert.Equal(new DateTime(2026, 11, 18), Assert.Single(s.Open).Day);
-        Assert.Single(s.History);
-    }
-
-    [Fact]
-    public void Weekly_and_weekday_repeats_skip_other_days()
-    {
-        Assert.True(TaskRepeat.Due(TaskRepeat.Weekly, new DateTime(2026, 11, 16), new DateTime(2026, 11, 23)));
-        Assert.False(TaskRepeat.Due(TaskRepeat.Weekly, new DateTime(2026, 11, 16), new DateTime(2026, 11, 24)));
-        Assert.False(TaskRepeat.Due(TaskRepeat.Weekdays, new DateTime(2026, 11, 16), new DateTime(2026, 11, 21)));
-        Assert.True(TaskRepeat.Due(TaskRepeat.Monthly, new DateTime(2026, 1, 31), new DateTime(2026, 2, 28)));
-
-        var (e, clock, _) = Started(new DateTime(2026, 11, 16, 23, 59, 0));   // понеделник
-        e.Bus.Send(new AddTask("отчет", 1, Repeat: TaskRepeat.Weekly));
-        var id = Last(e).Id;
-        e.Bus.Send(new SetTaskDone(id, true));
-        Next(e, clock);   // вторник – не е ден за нея
-        Assert.Empty(e.Store.Get<TasksState>().Open);
-        Assert.False(e.Bus.Send(new SetTaskRepeat(Guid.NewGuid(), TaskRepeat.Daily)).Ok);
-        Assert.False(e.Bus.Send(new SetTaskRepeat(id, "веднъж")).Ok);
-    }
-
     private static void Next(GameEngine e, ManualClock clock)
     {
         for (int i = 0; i < 120; i++)
