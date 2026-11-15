@@ -38,7 +38,7 @@ public sealed class WorkView : Border
     private readonly TextBox _search;
     private readonly Border _todayChip;
     private readonly Border _toast;
-    private readonly TextBlock _toastText = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 420 };
+    private readonly TextBlock _toastText = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 260 };
     private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(7) };
     private readonly DispatcherTimer _scrollTimer = new() { Interval = TimeSpan.FromMilliseconds(15) };
     private readonly Dictionary<DateTime, (string Sig, Border Column)> _columns = new();
@@ -143,6 +143,8 @@ public sealed class WorkView : Border
         _scrollTimer.Tick += (_, _) => ScrollStep();
 
         _side = new Border { Width = 320 * U, Margin = new Thickness(10 * U, 0, 0, 0), Visibility = Visibility.Collapsed };
+        // Тясно (малко меню) – панелът вдясно е по-тесен, задачите да не се смачкват.
+        SizeChanged += (_, _) => _side.Width = Math.Clamp(ActualWidth * 0.42, 200 * U, 320 * U);
         _someday.Width = ColumnWidth;
         _someday.Margin = new Thickness(0, 0, 10 * U, 0);
 
@@ -653,6 +655,7 @@ public sealed class WorkView : Border
         var head = new StackPanel { Margin = new Thickness(2 * U, 0, 2 * U, 6 * U), Background = Brushes.Transparent };
         var line = new DockPanel();
         int done = tasks.Count(t => t.Done), all = tasks.Count;
+        TextBlock? countBox = null;   // „2/5“ – на реда с датата (името на деня да се събира)
         if (all > 0)
         {
             var count = new TextBlock
@@ -665,7 +668,7 @@ public sealed class WorkView : Border
                 ToolTip = Tip("Свършени от всички"),
             };
             DockPanel.SetDock(count, Dock.Right);
-            line.Children.Add(count);
+            countBox = count;
         }
         string name = day is { } d0 ? Capital(d0.ToString("dddd", Bg)) : "Някога";
         // „···“ – малко меню за деня (нова задача, всички недовършени – за днес, утре, „Някога“).
@@ -677,6 +680,7 @@ public sealed class WorkView : Border
         head.Children.Add(line);
 
         var sub = new DockPanel { Margin = new Thickness(0, 2 * U, 0, 0) };
+        if (countBox != null) sub.Children.Add(countBox);
         if (isToday || day == today.AddDays(1) || day == today.AddDays(-1))
         {
             var pill = new Border

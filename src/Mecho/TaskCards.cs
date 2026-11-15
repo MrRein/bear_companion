@@ -158,7 +158,7 @@ internal static class TaskCards
             Padding = new Thickness(5 * U, 0, 5 * U, 1),
             Margin = new Thickness(0, 0, 8 * U, 2),
             VerticalAlignment = VerticalAlignment.Center,
-            Child = new TextBlock { Text = info?.Name ?? key, Foreground = Ink },
+            Child = new TextBlock { Text = info?.Name ?? key, Foreground = Ink, TextTrimming = TextTrimming.CharacterEllipsis },
         };
         return pill;
     }

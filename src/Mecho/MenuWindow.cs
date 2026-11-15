@@ -800,6 +800,22 @@ public sealed class MenuWindow : Window
         cards.ColumnDefinitions.Add(new ColumnDefinition());
         var foodCard = HomeCard("food", "Храна", "Цялата храна", () => ShowPage(PageFood), _foodPreview);
         cards.Children.Add(foodCard);
+        // Тясно – картите една под друга (иначе имената на ястията се режат).
+        cards.SizeChanged += (_, _) =>
+        {
+            bool stack = cards.ActualWidth < 520 * U;
+            cards.ColumnDefinitions[1].Width = new GridLength(stack ? 0 : 10 * U);
+            cards.ColumnDefinitions[2].Width = stack ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+            if (cards.RowDefinitions.Count == 0)
+            {
+                cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            }
+            Grid.SetColumn(_wardrobeCard, stack ? 0 : 2);
+            Grid.SetRow(_wardrobeCard, stack ? 1 : 0);
+            _wardrobeCard.Margin = new Thickness(0, stack ? 10 * U : 0, 0, 0);
+            if (stack) cards.ColumnDefinitions[2].Width = new GridLength(0);
+        };
         _tabButtons[FoodTab] = foodCard;   // обиколката: „отвори Храна“ сочи картата
         _wardrobeCard = HomeCard("wardrobe", "Гардероб", "Облечи", () => ShowPage(PageWardrobe), _wardrobePreview);
         Grid.SetColumn(_wardrobeCard, 2);
