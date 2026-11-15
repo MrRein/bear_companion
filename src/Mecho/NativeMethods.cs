@@ -35,6 +35,69 @@ internal static class NativeMethods
         return (pid, text.ToString());
     }
 
+    // ── Full screen (video, game, presentation) ──
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor, rcWork;
+        public uint dwFlags;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetShellWindow();
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetDesktopWindow();
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder name, int max);
+
+    [DllImport("shell32.dll")]
+    private static extern int SHQueryUserNotificationState(out int state);
+
+    private const uint MONITOR_DEFAULTTONEAREST = 2;
+    private const int QUNS_BUSY = 2, QUNS_RUNNING_D3D_FULL_SCREEN = 3, QUNS_PRESENTATION_MODE = 4;
+
+    /// <summary>
+    /// Is something else full screen on the same monitor as this window (video, game,
+    /// presentation)? Windows itself must say a full-screen app runs (the same check it uses
+    /// to hold back notifications – so a maximized window, even with an auto-hidden taskbar,
+    /// does not count), and the window in front must cover that whole monitor.
+    /// </summary>
+    public static bool FullscreenOnMonitorOf(IntPtr mine)
+    {
+        try
+        {
+            if (SHQueryUserNotificationState(out int state) != 0
+                || state is not (QUNS_BUSY or QUNS_RUNNING_D3D_FULL_SCREEN or QUNS_PRESENTATION_MODE)) return false;
+            var front = GetForegroundWindow();
+            if (front == IntPtr.Zero || front == GetShellWindow() || front == GetDesktopWindow()) return false;
+            GetWindowThreadProcessId(front, out uint pid);
+            if (pid == (uint)Environment.ProcessId) return false;
+            var name = new System.Text.StringBuilder(64);
+            GetClassName(front, name, name.Capacity);
+            if (name.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd") return false;   // the desktop, the taskbar
+            var monitor = MonitorFromWindow(front, MONITOR_DEFAULTTONEAREST);
+            if (mine != IntPtr.Zero && monitor != MonitorFromWindow(mine, MONITOR_DEFAULTTONEAREST)) return false;
+            var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfo(monitor, ref info) || !GetWindowRect(front, out var r)) return false;
+            var m = info.rcMonitor;
+            return r.Left <= m.Left && r.Top <= m.Top && r.Right >= m.Right && r.Bottom >= m.Bottom;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     [DllImport("user32.dll")]
     private static extern int GetWindowLong(IntPtr hWnd, int index);
 

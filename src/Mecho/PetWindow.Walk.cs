@@ -19,8 +19,8 @@ public sealed partial class PetWindow
 
     public void GoForWalk(double minutes) => GoForWalk(minutes, solo: false);
 
-    /// <summary>Тръгва на разходка; solo – сам се е сетил (без „Разходи се“ от менюто).</summary>
-    private void GoForWalk(double minutes, bool solo)
+    /// <summary>Тръгва на разходка; solo – сам се е сетил (без „Разходи се“ от менюто); fullscreen – нещо е на цял екран.</summary>
+    private void GoForWalk(double minutes, bool solo, bool fullscreen = false)
     {
         if (minutes <= 0 || OnWalk) return;
         if (IsAsleep)
@@ -40,11 +40,12 @@ public sealed partial class PetWindow
         _walkingOut = true;
         _save.WalkUntil = DateTime.Now.AddMinutes(minutes);
         // Вечер и много му се спи: ще посънча навън – разходката се брои за сън.
-        _save.WalkNap = !solo && (LateForBed || DateTime.Now.Hour >= 19) && _save.Energy < TiredBelow;
+        _save.WalkNap = !solo && !fullscreen && (LateForBed || DateTime.Now.Hour >= 19) && _save.Energy < TiredBelow;
         _save.WalkSolo = solo;
+        _save.WalkFullscreen = fullscreen;
         Persist();
         // Работим (мечо-доро или работен таймер): „Добре, ти работи, аз ще се разходя.“
-        string leave = _save.WalkNap ? "walk.leave.nap" : solo ? "walk.leave.solo" : InFocus ? "walk.leave.work" : "walk.leave";
+        string leave = fullscreen ? "walk.leave.fullscreen" : _save.WalkNap ? "walk.leave.nap" : solo ? "walk.leave.solo" : InFocus ? "walk.leave.work" : "walk.leave";
         Say(R.Pick(leave, _save.OwnerName), 3);
         if (_state is BearState.Busy or BearState.Couch) SetIdle();
         WalkOutToEdge();
@@ -102,9 +103,12 @@ public sealed partial class PetWindow
     {
         if (_save.WalkUntil == DateTime.MinValue && !_walkingOut) return;
         _walkingOut = false;
-        bool napped = _save.WalkNap, solo = _save.WalkSolo;
+        bool napped = _save.WalkNap, solo = _save.WalkSolo, fullscreen = _save.WalkFullscreen;
+        // Called back while something is still full screen: he stays until it ends.
+        if (called && fullscreen) _fullscreenStay = true;
         _save.WalkNap = false;
         _save.WalkSolo = false;
+        _save.WalkFullscreen = false;
         _save.WalkUntil = DateTime.MinValue;
         Persist();
         // Влиза отстрани, откъдето е по-близо до мястото, където беше.
@@ -131,7 +135,7 @@ public sealed partial class PetWindow
                 arrived();
                 return;
             }
-            Say(R.Pick(called ? "walk.called" : napped ? "walk.back.nap" : solo ? "walk.back.solo" : "walk.back", _save.OwnerName), 5);
+            Say(R.Pick(called ? "walk.called" : fullscreen ? "walk.back.fullscreen" : napped ? "walk.back.nap" : solo ? "walk.back.solo" : "walk.back", _save.OwnerName), 5);
             Emote(called ? "question" : "happy");
             React("happy");
         });

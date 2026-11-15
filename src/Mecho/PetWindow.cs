@@ -97,6 +97,7 @@ public sealed partial class PetWindow : Window
     public PetWindow(SaveData save)
     {
         _save = save;
+        FullscreenNow = DetectFullscreen;   // the self-test replaces it
         // Ядрото (шина, състояние, модули) – първо, защото всичко след това чете и пише
         // данните през него (виж Engine/CoreSetup.cs и ARCHITECTURE.md).
         CoreEngine = Engine.CoreSetup.Build(this, save, a => Dispatcher.BeginInvoke(a));
@@ -350,6 +351,7 @@ public sealed partial class PetWindow : Window
         CoreEngine.Update(dt);
         P("ядро (модули)");
         UpdateWalkAway();
+        UpdateFullscreen(now);
         P("разходка");
         CheckIntegrity(now);
         P("проверка на състоянието");

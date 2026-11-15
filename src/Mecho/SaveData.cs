@@ -37,6 +37,7 @@ public sealed class SaveData
     public bool SoundOn { get; set; } = true;                    // „динг“ в края на мечо-доро и таймер
     public double SoundVolume { get; set; } = 0.6;
     public DateTime WalkUntil { get; set; } = DateTime.MinValue;
+    public bool WalkFullscreen { get; set; }                     // went out because something was full screen (comes back when it ends)
     public bool WalkSolo { get; set; }                           // тръгна сам (никой не му каза какво да прави)
     public bool WalkNap { get; set; }                            // вечерна разходка-дрямка: брои се за сън  // на разходка извън екрана до (виж PetWindow.Walk.cs)            // скинът на менюто (виж UiThemes)             // коя пижама облича вечер (виж Clothes.PajamaSets)
     public bool ShowTimers { get; set; } = true;                 // табелката с таймерите до часовника, докато мечокът е скрит

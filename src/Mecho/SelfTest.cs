@@ -1172,6 +1172,31 @@ public sealed partial class PetWindow
             if (OnWalk || _save.WalkSolo || !IsVisible) throw new Exception("не се върна от самостоятелната разходка");
             if (!R.Has("walk.leave.solo") || !R.Has("walk.back.solo") || !R.Has("wish.nuts") || !R.Has("wish.page")) throw new Exception("няма реплики за самостоятелна разходка");
         }, 3000);
+        await step("цял екран: излиза", () =>
+        {
+            SetIdle();
+            FullscreenNow = () => true;
+            _nextFullscreenCheck = 0;
+            UpdateFullscreen(Now);                          // the count starts
+            if (OnWalk) throw new Exception("излезе веднага, без да изчака");
+            _fullscreenSince = Now - FullscreenLeaveAfter - 1;
+            _nextFullscreenCheck = 0;
+            UpdateFullscreen(Now);
+            if (!OnWalk || !_save.WalkFullscreen) throw new Exception("не излезе при цял екран");
+            if (!R.Has("walk.leave.fullscreen") || !R.Has("walk.back.fullscreen")) throw new Exception("няма реплики за цял екран");
+        }, 4000);
+        await step("цял екран: връща се, като свърши", () =>
+        {
+            FullscreenNow = () => false;
+            _nextFullscreenCheck = 0;
+            UpdateFullscreen(Now);
+            if (!_save.WalkFullscreen) throw new Exception("върна се веднага – трябва да изчака няколко минути");
+            _fullscreenOffSince = Now - FullscreenBackAfter - 1;
+            _nextFullscreenCheck = 0;
+            UpdateFullscreen(Now);
+            if (OnWalk || _save.WalkFullscreen) throw new Exception("не се върна, след като цял екран свърши");
+            FullscreenNow = DetectFullscreen;
+        }, 3000);
         await step("желание: връща услугата", () =>
         {
             if (Wishes().Length == 0) SpawnWish(DateTime.Now, announce: false);
