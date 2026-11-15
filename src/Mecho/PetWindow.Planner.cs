@@ -63,6 +63,44 @@ public sealed partial class PetWindow
         Persist();
     }
 
+    // ── Етикетите (свои имена и цветове) ──
+
+    /// <summary>Нов етикет; връща ключа му (null – празно име или са твърде много).</summary>
+    public string? AddTaskTag(string name, System.Windows.Media.Color color)
+    {
+        var key = TaskTags.Add(name, color);
+        if (key != null) TagsChanged();
+        return key;
+    }
+
+    public void RenameTaskTag(string key, string name)
+    {
+        TaskTags.Rename(key, name);
+        TagsChanged();
+    }
+
+    public void RecolorTaskTag(string key, System.Windows.Media.Color color)
+    {
+        TaskTags.Recolor(key, color);
+        TagsChanged();
+    }
+
+    /// <summary>Маха етикета; задачите с него остават без етикет.</summary>
+    public void DeleteTaskTag(string key)
+    {
+        foreach (var t in TaskState.Open.Where(t => t.Tag == key).ToList())
+            CoreEngine.Bus.Send(new MarkTask(t.Id, "", null, null, null));
+        TaskTags.Remove(key);
+        TagsChanged();
+    }
+
+    private void TagsChanged()
+    {
+        NotifyCare();
+        _menu?.Work.Refresh(true);
+        Persist();
+    }
+
     /// <summary>Праща команда за задачите; ако мине – опреснява и записва.</summary>
     private bool TaskCommand(IGameCommand command)
     {

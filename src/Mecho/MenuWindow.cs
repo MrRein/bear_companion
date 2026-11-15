@@ -27,7 +27,7 @@ public sealed class MenuWindow : Window
 
     private readonly PetWindow _pet;
     private readonly DispatcherTimer _refresh;
-    private readonly Border[] _tabButtons = new Border[8];
+    private readonly FrameworkElement[] _tabButtons = new FrameworkElement[8];
     private readonly UIElement[] _tabs = new UIElement[9];
 
     /// <summary>Мерна единица: всичко е пропорционално на големината на шрифта.</summary>
@@ -81,7 +81,6 @@ public sealed class MenuWindow : Window
     private StackPanel _weatherRow = null!;
     private readonly Border _weatherIcon = new() { VerticalAlignment = VerticalAlignment.Center };
     private string? _weatherIconName;
-    private Button _sleepButton = null!, _couchButton = null!, _quietButton = null!;
     // Мрежа по 3: всички плочки в един ред са еднакво високи, бутоните са на една линия.
     private readonly UniformGrid _foodTiles = new() { Columns = 3 };
     private readonly StackPanel _shopTiles = new();   // раздели: кухня, за почивка, подобрения
@@ -766,97 +765,132 @@ public sealed class MenuWindow : Window
         _heroBack.Visibility = _page is PageFood or PageWardrobe ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    // ── Плочките в „Мечо“ ──
+
+    /// <summary>Плочка: голяма иконка, име (и ред отдолу); „!“ в ъгъла, когато му трябва.</summary>
+    private sealed class HomeTile
+    {
+        public Button Button = null!;
+        public Border IconHost = null!;
+        public TextBlock Label = null!;
+        public TextBlock? Sub;
+        public Border Badge = null!;
+        public int Size;
+        public string Key = "";
+    }
+
+    private HomeTile MakeTile(string icon, string label, Action click, int size = 3, string? sub = null, string? tip = null)
+    {
+        var t = new HomeTile { Size = size };
+        var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        t.IconHost = new Border { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2 * U, 0, 5 * U) };
+        t.Label = new TextBlock
+        {
+            FontWeight = FontWeights.Bold,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            FontSize = size >= 4 ? Ui.Title : Ui.Body,
+        };
+        stack.Children.Add(t.IconHost);
+        stack.Children.Add(t.Label);
+        if (sub != null)
+        {
+            t.Sub = new TextBlock { Text = sub, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 2 * U, 0, 0) };
+            stack.Children.Add(t.Sub);
+        }
+        t.Badge = new Border
+        {
+            Background = Bad,
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(5 * U, 0, 5 * U, 1 * U),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            IsHitTestVisible = false,
+            Visibility = Visibility.Collapsed,
+            Child = new TextBlock { Text = "!", Foreground = Cream, FontWeight = FontWeights.Bold },
+        };
+        var grid = new Grid();
+        grid.Children.Add(stack);
+        grid.Children.Add(t.Badge);
+        var b = Button("", click);
+        b.Content = grid;
+        b.Padding = new Thickness(6 * U, (size >= 4 ? 12 : 8) * U, 6 * U, (size >= 4 ? 12 : 8) * U);
+        b.HorizontalAlignment = HorizontalAlignment.Stretch;
+        b.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        b.VerticalAlignment = VerticalAlignment.Stretch;
+        b.Margin = new Thickness(0, 0, 8 * U, 8 * U);
+        if (tip != null) b.ToolTip = Tip(tip);
+        t.Button = b;
+        SetTile(t, label, icon);
+        return t;
+    }
+
+    /// <summary>Сменя името и иконката (само ако са други – менюто се опреснява всяка секунда).</summary>
+    private static void SetTile(HomeTile t, string label, string icon, string? sub = null)
+    {
+        if (sub != null && t.Sub != null && t.Sub.Text != sub) t.Sub.Text = sub;
+        string key = icon + "\u0001" + label;
+        if (t.Key == key) return;
+        t.Key = key;
+        t.Label.Text = label;
+        t.IconHost.Child = Icon(icon, t.Size);
+    }
+
+    /// <summary>Натисната (включено/отворено) или „трябва му“ (медена, с „!“).</summary>
+    private static void TileState(HomeTile t, bool on, bool need = false)
+    {
+        bool honey = need && !on;
+        string state = on ? "on" : honey ? "honey" : "";
+        if (t.Button.Tag as string != state)
+        {
+            SetOn(t.Button, on);
+            if (honey) UiSkin.Set(t.Button, "button_honey");
+            t.Button.Tag = state;
+        }
+        t.Badge.Visibility = need ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private HomeTile _foodTile = null!, _wardrobeTile = null!, _sleepTile = null!, _petTile = null!, _walkTile = null!;
+    private HomeTile _relaxTile = null!, _workTile = null!, _drawTile = null!, _quietTile = null!, _placeTile = null!, _stopTile = null!;
+    private Grid _bigTiles = null!;
+
+    /// <summary>
+    /// „Мечо“: мечокът е горе (портрет, настроение, ленти); тук – две големи плочки Храна и
+    /// Гардероб (единственото място, откъдето се отваря храната) и под тях всичко, което
+    /// можете да правите заедно – плочки с иконки, без групи. Каквото му трябва сега (гладен,
+    /// уморен) свети в мед и има „!“. Изборите (колко да спи, разходка…) се отварят под плочките.
+    /// </summary>
     private UIElement BuildBearTab()
     {
-        var p = new StackPanel();
+        var p = new StackPanel { Margin = new Thickness(0, 4 * U, 0, 0) };
 
-        // Какво му трябва сега – едно голямо копче (гладен → нахрани, уморен → приспи…).
-        _suggestText = new TextBlock { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.Bold };
-        _suggestButton = Button("", () => _suggestAction?.Invoke(), primary: true);
-        _suggestButton.Margin = new Thickness(10 * U, 0, 0, 0);
-        _suggestButton.VerticalAlignment = VerticalAlignment.Center;
-        var suggestRow = new DockPanel();
-        DockPanel.SetDock(_suggestButton, Dock.Right);
-        suggestRow.Children.Add(_suggestButton);
-        suggestRow.Children.Add(_suggestText);
-        _suggest = new Border
-        {
-            Background = Cream,
-            BorderBrush = Honey,
-            BorderThickness = Px(1),
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(12 * U, 8 * U, 8 * U, 8 * U),
-            Margin = new Thickness(0, 12 * U, 0, 0),
-            Child = suggestRow,
-            Visibility = Visibility.Collapsed,
-        };
-        p.Children.Add(_suggest);
+        _bigTiles = new Grid();
+        _bigTiles.ColumnDefinitions.Add(new ColumnDefinition());
+        _bigTiles.ColumnDefinitions.Add(new ColumnDefinition());
+        _foodTile = MakeTile("food", "Храна", () => ShowPage(PageFood), 4, "Сготви нещо", "Храната: готви, хапва и пие");
+        _wardrobeTile = MakeTile("wardrobe", "Гардероб", () => ShowPage(PageWardrobe), 4, "Облечи го", "Дрехите на Мечо");
+        Grid.SetColumn(_wardrobeTile.Button, 1);
+        _bigTiles.Children.Add(_foodTile.Button);
+        _bigTiles.Children.Add(_wardrobeTile.Button);
+        _tabButtons[FoodTab] = _foodTile.Button;          // обиколката: „отвори Храна“
+        _tabButtons[WardrobeTab] = _wardrobeTile.Button;
+        p.Children.Add(_bigTiles);
 
-        // Храна и Гардероб – две карти една до друга: какво може да хапне сега (цъкнеш ли
-        // ястие – готви се) и какво носи; „→“ отваря цялата страница (мечокът остава горе).
-        var cards = new Grid { Margin = new Thickness(0, 12 * U, 0, 0) };
-        cards.ColumnDefinitions.Add(new ColumnDefinition());
-        cards.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10 * U) });
-        cards.ColumnDefinitions.Add(new ColumnDefinition());
-        var foodCard = HomeCard("food", "Храна", "Цялата храна", () => ShowPage(PageFood), _foodPreview);
-        cards.Children.Add(foodCard);
-        // Тясно – картите една под друга (иначе имената на ястията се режат).
-        cards.SizeChanged += (_, _) =>
-        {
-            bool stack = cards.ActualWidth < 520 * U;
-            cards.ColumnDefinitions[1].Width = new GridLength(stack ? 0 : 10 * U);
-            cards.ColumnDefinitions[2].Width = stack ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
-            if (cards.RowDefinitions.Count == 0)
-            {
-                cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            }
-            Grid.SetColumn(_wardrobeCard, stack ? 0 : 2);
-            Grid.SetRow(_wardrobeCard, stack ? 1 : 0);
-            _wardrobeCard.Margin = new Thickness(0, stack ? 10 * U : 0, 0, 0);
-            if (stack) cards.ColumnDefinitions[2].Width = new GridLength(0);
-        };
-        _tabButtons[FoodTab] = foodCard;   // обиколката: „отвори Храна“ сочи картата
-        _wardrobeCard = HomeCard("wardrobe", "Гардероб", "Облечи", () => ShowPage(PageWardrobe), _wardrobePreview);
-        Grid.SetColumn(_wardrobeCard, 2);
-        _tabButtons[WardrobeTab] = _wardrobeCard;
-        cards.Children.Add(_wardrobeCard);
-        p.Children.Add(cards);
-
-        // Действията – на три групи: грижа, заедно, още.
-        var care = ActionGroup(p, "Грижа");
-        var together = ActionGroup(null, "Заедно");
-        var more = ActionGroup(null, "Още");
-        var actions = care;
-        actions.Children.Add(Wide(Button("Нахрани", () => ShowPage(PageFood), icon: "food")));
-        // Приспи: отваря избор колко да спи (вечер – и „Лягай за деня“). Спи ли – буди го.
-        _sleepButton = Wide(Button("", () =>
+        // Приспи: избор колко да спи (вечер – и „Лягай за деня“). Спи ли – буди го.
+        _sleepTile = MakeTile("moon", "Приспи", () =>
         {
             if (_pet.IsAsleep) _pet.WakeUp();
             else _sleepOpen = !_sleepOpen;
-            _quietOpen = false;
+            _quietOpen = _walkOpen = _placeOpen = false;
             Refresh(false);
-        }));
-        actions.Children.Add(_sleepButton);
-        actions.Children.Add(Wide(Button("Погали", _pet.Pet, icon: "heart")));
-        // Колко да спи: 3 готови + свое число (минути); вечер отпред – „Лягай за деня“.
-        _sleepOptions.Margin = new Thickness(0);
-        p.Children.Add(Pocket(_sleepOptions));
-        actions = more;
-        // Тихо: избор за колко (30 мин, 1 ч, 2 ч). Тих ли е – пак говори.
-        _quietButton = Wide(Button("", () =>
+        });
+        _petTile = MakeTile("heart", "Погали", _pet.Pet);
+        // Разходи се: излиза от екрана за 10 мин, 30 мин, 1 ч или колкото напишеш. Навън ли е – „Повикай“.
+        _walkTile = MakeTile("walk", "Разходка", () =>
         {
-            if (_pet.IsQuiet) _pet.SetQuietFor(0);
-            else _quietOpen = !_quietOpen;
-            _sleepOpen = false;
-            Refresh(false);
-        }));
-        actions.Children.Add(_quietButton);
-        actions = together;
-        // Разходи се: излиза от екрана за 10 мин, 30 мин, 1 ч или колкото напишеш.
-        _walkButton = Wide(Button("Разходи се", () =>
-        {
-            // На разходка: бутонът е „Повикай“ (натиснат) – връща се.
             if (_pet.OnWalk)
             {
                 _pet.ReturnFromWalk(called: true);
@@ -865,62 +899,56 @@ public sealed class MenuWindow : Window
                 return;
             }
             _walkOpen = !_walkOpen;
-            _sleepOpen = _quietOpen = false;
+            _sleepOpen = _quietOpen = _placeOpen = false;
             Refresh(false);
-        }, icon: "walk"));
-        actions.Children.Add(_walkButton);
+        });
         // „Почивай си“ / „Работи си“: мечокът сам сменя заниманията, докато не спре.
-        _relaxButton = Wide(Button("Почивай си", () =>
+        _relaxTile = MakeTile("relax", "Почивай си", () =>
         {
             if (_pet.RelaxesRandomly) _pet.GetUp();
             else _pet.RelaxRandom();
             Refresh(true);
-        }, icon: "relax"));
-        actions.Children.Add(_relaxButton);
-        _workButton = Wide(Button("Работи си", () =>
+        }, tip: "Сам си избира какво да прави за почивка");
+        _workTile = MakeTile("tasks", "Работи си", () =>
         {
             if (_pet.WorksRandomly) _pet.GetUp();
             else _pet.WorkRandom();
             Refresh(true);
-        }, icon: "tasks"));
-        actions.Children.Add(_workButton);
+        }, tip: "Работи до теб (бюро, книги…)");
         // Рисувай – само със статива.
-        _drawButton = Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil"));
-        actions.Children.Add(_drawButton);
-        p.Children.Add(TitledGroup("Заедно", together));
-        actions = more;
-        // Спри: спира каквото прави (кътче, батут, разходка) – таймерите си текат.
-        _couchButton = Wide(Button("Спри", () =>
+        _drawTile = MakeTile("pencil", "Рисувай", () => { Hide(); _pet.OpenDrawing(); });
+        // Тихо: за колко (30 мин, 1 ч, 2 ч). Тих ли е – пак говори.
+        _quietTile = MakeTile("quiet", "Тихо", () =>
         {
-            _pet.StopDoing();
-            Refresh(true);
-        }, icon: "stop"));
-        actions.Children.Add(_couchButton);
-        // Неща на Мечо: уредите (печица, лампа, радио…) и мебелите (бюро, диван, легло…),
-        // които Тут слага на земята (мечокът ги носи) и прибира.
-        _placeButton = Wide(Button("Неща на Мечо", () =>
+            if (_pet.IsQuiet) _pet.SetQuietFor(0);
+            else _quietOpen = !_quietOpen;
+            _sleepOpen = _walkOpen = _placeOpen = false;
+            Refresh(false);
+        }, tip: "Да не говори известно време");
+        // Неща на Мечо: уредите (печица, лампа, радио…) и мебелите, които слага и прибира.
+        _placeTile = MakeTile("couch", "Неща", () =>
         {
             _placeOpen = !_placeOpen;
             _sleepOpen = _quietOpen = _walkOpen = false;
             Refresh(false);
-        }, icon: "couch"));
-        actions.Children.Add(_placeButton);
-        var walkPocketAt = p.Children.Count;   // разходката – под „Заедно“
-        p.Children.Add(TitledGroup("Още", more));
-        _quietOptions.Margin = new Thickness(0);
-        foreach (var (label, minutes) in new[] { ("30 мин", 30), ("1 ч", 60), ("2 ч", 120) })
+        }, tip: "Уредите и мебелите на Мечо: сложи или прибери");
+        // Спри: спира каквото прави (кътче, батут, разходка) – таймерите си текат.
+        _stopTile = MakeTile("stop", "Спри", () =>
         {
-            int m = minutes;
-            var chip = Chip(label, () =>
-            {
-                _pet.SetQuietFor(m);
-                _quietOpen = false;
-                Refresh(false);
-            });
-            chip.Margin = new Thickness(0, 0, 6, 4);
-            _quietOptions.Children.Add(chip);
-        }
-        p.Children.Add(Pocket(_quietOptions));
+            _pet.StopDoing();
+            Refresh(true);
+        }, tip: "Спира каквото прави сега");
+
+        var actions = new UniformGrid { Columns = 4, Margin = new Thickness(0, 4 * U, 0, 0) };
+        foreach (var t in new[] { _sleepTile, _petTile, _walkTile, _relaxTile, _workTile, _drawTile, _quietTile, _placeTile, _stopTile })
+            actions.Children.Add(t.Button);
+        // Тясно – три на ред.
+        actions.SizeChanged += (_, _) => actions.Columns = actions.ActualWidth < 480 * U ? 3 : 4;
+        p.Children.Add(actions);
+
+        // Изборите под плочките (отворен е най-много един).
+        _sleepOptions.Margin = new Thickness(0);
+        p.Children.Add(Pocket(_sleepOptions));
         _walkOptions.Margin = new Thickness(0);
         foreach (var (label, minutes) in new[] { ("10 мин", 10), ("30 мин", 30), ("1 ч", 60) })
         {
@@ -947,171 +975,67 @@ public sealed class MenuWindow : Window
         });
         walkGo.Margin = new Thickness(0, 0, 6, 4);
         _walkOptions.Children.Add(walkGo);
-        p.Children.Insert(walkPocketAt, Pocket(_walkOptions));
+        p.Children.Add(Pocket(_walkOptions));
+        _quietOptions.Margin = new Thickness(0);
+        foreach (var (label, minutes) in new[] { ("30 мин", 30), ("1 ч", 60), ("2 ч", 120) })
+        {
+            int m = minutes;
+            var chip = Chip(label, () =>
+            {
+                _pet.SetQuietFor(m);
+                _quietOpen = false;
+                Refresh(false);
+            });
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            _quietOptions.Children.Add(chip);
+        }
+        p.Children.Add(Pocket(_quietOptions));
         _placeOptions.Margin = new Thickness(0);
         p.Children.Add(Pocket(_placeOptions));
 
         // SOS: мечокът дава нещо за мотивация (листът е motivation.md в GitHub).
-        var sos = Wide(Button("SOS: мотивация", () =>
+        var sos = Chip("", () =>
         {
             Hide();
             _pet.Sos();
-        }, icon: "heart"));
-        sos.Margin = new Thickness(0, 14 * U, 0, 0);
+        });
+        sos.Child = IconText("heart", "SOS: мотивация", bold: true);
+        sos.Margin = new Thickness(0, 10 * U, 0, 0);
         sos.HorizontalAlignment = HorizontalAlignment.Left;
         sos.ToolTip = Tip("Нещо мило за кураж, когато ти е трудно");
         p.Children.Add(sos);
         return TabScroll(p, 600 * U);
     }
 
-    private readonly StackPanel _foodPreview = new(), _wardrobePreview = new();
-    private Border _wardrobeCard = null!;
-    private string _previewKey = "";
-
-    /// <summary>Карта в „Мечо“: заглавие, съдържание и „… →“ долу; цялата се цъка.</summary>
-    private Border HomeCard(string icon, string title, string more, Action open, UIElement body)
+    /// <summary>Плочките в „Мечо“ според това какво прави и от какво има нужда.</summary>
+    private void UpdateBearTiles(SaveData s)
     {
-        var dock = new DockPanel();
-        var head = IconText(icon, title, bold: true);
-        head.Margin = new Thickness(0, 0, 0, 6 * U);
-        DockPanel.SetDock(head, Dock.Top);
-        dock.Children.Add(head);
-        var go = Chip(more + "  →", open);
-        go.HorizontalAlignment = HorizontalAlignment.Right;
-        go.Margin = new Thickness(0, 6 * U, 0, 0);
-        DockPanel.SetDock(go, Dock.Bottom);
-        dock.Children.Add(go);
-        dock.Children.Add(body);
-        var card = new Border
-        {
-            Background = Tile,
-            BorderBrush = WoodDark,
-            BorderThickness = Flat,
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(10 * U, 8 * U, 8 * U, 8 * U),
-            Child = dock,
-        };
-        return card;
-    }
+        bool hungry = s.Fullness < 35;
+        SetTile(_foodTile, "Храна", "food", hungry ? "Гладен е!" : "Сготви нещо");
+        TileState(_foodTile, false, hungry && !_pet.IsAsleep && !_pet.OnWalk);
+        bool wardrobe = DailyOffer.HasWardrobe(s);
+        _wardrobeTile.Button.Visibility = wardrobe ? Visibility.Visible : Visibility.Collapsed;
+        Grid.SetColumnSpan(_foodTile.Button, wardrobe ? 1 : 2);
+        int worn = Clothes.Shelves.Count(slot => Clothes.Worn(s, slot) != null);
+        SetTile(_wardrobeTile, "Гардероб", "wardrobe", worn == 0 ? "Облечи го" : "Облечени: " + worn);
+        TileState(_wardrobeTile, false);
 
-    /// <summary>Картите в „Мечо“: до 3 ястия за веднага (желанията първо) и какво носи.</summary>
-    private void BuildHomeCards()
-    {
-        var s = _pet.Save;
-        var wishes = _pet.Wishes();
-        var ready = Kitchen.Foods.Where(f => Kitchen.HasRecipe(f, s) && Kitchen.CanCook(f, s)).ToList();
-        var pick = wishes.Where(ready.Contains)
-            .Concat(ready.OrderByDescending(f => s.Fullness < 50 ? Kitchen.FullnessOf(f, s) : f.Energy).ThenBy(f => Kitchen.CostOf(f, s)))
-            .Distinct().Take(3).ToList();
-        var worn = Clothes.Shelves.Select(slot => (slot, Clothes.Worn(s, slot))).Where(x => x.Item2 != null).ToList();
-        string key = string.Join(",", pick.Select(f => f.Id + Kitchen.CostOf(f, s))) + s.Hazelnuts + Kitchen.BerriesIn(s) + "|"
-            + string.Join(",", worn.Select(x => x.Item2!.Name)) + s.UiTheme + DailyOffer.HasWardrobe(s);
-        if (key == _previewKey) return;
-        _previewKey = key;
+        if (_pet.IsAsleep) SetTile(_sleepTile, "Събуди", "sun");
+        else SetTile(_sleepTile, "Приспи", "moon");
+        _sleepTile.Button.IsEnabled = _pet.CanSleep || _pet.IsAsleep;
+        TileState(_sleepTile, _sleepOpen, !_pet.IsAsleep && s.Energy < PetWindow.TiredBelow && _pet.CanSleep);
 
-        _foodPreview.Children.Clear();
-        if (pick.Count == 0) _foodPreview.Children.Add(MutedText("Нищо за готвене сега."));
-        foreach (var food in pick)
-        {
-            var f = food;
-            int cost = Kitchen.CostOf(f, s);
-            bool berriesWait = cost == 0 && Kitchen.BerriesIn(s) > 0;
-            bool can = s.Hazelnuts >= cost && !berriesWait;
-            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 4 * U) };
-            var img = Pixel(_pet.FoodMenuImage(f), ArtScale(2));
-            img.Margin = new Thickness(0, 0, 8 * U, 0);
-            img.VerticalAlignment = VerticalAlignment.Center;
-            DockPanel.SetDock(img, Dock.Left);
-            row.Children.Add(img);
-            var cook = Chip(cost == 0 ? "Набери" : $"{cost} 🌰", () =>
-            {
-                _pet.Cook(f);
-                Hide();
-            });
-            cook.VerticalAlignment = VerticalAlignment.Center;
-            cook.IsEnabled = can;
-            cook.Opacity = can ? 1 : 0.5;
-            cook.ToolTip = Tip(can ? (cost == 0 ? "Набери (безплатно)" : $"Сготви за {cost} лешника") : berriesWait ? $"Пак след {Kitchen.BerriesIn(s)} мин." : $"Трябват {cost} лешника.");
-            DockPanel.SetDock(cook, Dock.Right);
-            row.Children.Add(cook);
-            row.Children.Add(new TextBlock
-            {
-                Text = (wishes.Contains(f) ? "❤ " : "") + f.Name,
-                FontWeight = FontWeights.Bold,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                Margin = new Thickness(0, 0, 6, 0),
-            });
-            _foodPreview.Children.Add(row);
-        }
-
-        _wardrobeCard.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
-        _wardrobePreview.Children.Clear();
-        if (worn.Count == 0) _wardrobePreview.Children.Add(MutedText("Нищо не носи. Облечи го!"));
-        foreach (var (slot, g) in worn.Take(4))
-        {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 3 * U) };
-            var icon = Icon(slot.Icon);
-            icon.Margin = new Thickness(0, 0, 8 * U, 0);
-            icon.VerticalAlignment = VerticalAlignment.Center;
-            row.Children.Add(icon);
-            row.Children.Add(new TextBlock { Text = g!.Name, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-            _wardrobePreview.Children.Add(row);
-        }
-        if (worn.Count > 4) _wardrobePreview.Children.Add(MutedText($"… и още {worn.Count - 4}"));
-    }
-
-    private Border _suggest = null!;
-    private TextBlock _suggestText = null!;
-    private Button _suggestButton = null!;
-    private Action? _suggestAction;
-
-    /// <summary>Група копчета (по три на ред); с p – заглавието и групата се слагат веднага.</summary>
-    private UniformGrid ActionGroup(StackPanel? p, string title)
-    {
-        var grid = new UniformGrid { Columns = 3 };
-        if (p != null) p.Children.Add(TitledGroup(title, grid));
-        return grid;
-    }
-
-    private static StackPanel TitledGroup(string title, UIElement grid)
-    {
-        var box = new StackPanel { Margin = new Thickness(0, 12 * U, 0, 0) };
-        box.Children.Add(new TextBlock { Text = title, Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(2 * U, 0, 0, 5 * U) });
-        box.Children.Add(grid);
-        return box;
-    }
-
-    /// <summary>Какво му трябва сега (на страница „Мечо“): едно ясно копче.</summary>
-    private void UpdateSuggestion(SaveData s)
-    {
-        string text = "", button = "", icon = "";
-        Action? act = null;
-        if (_pet.OnWalk)
-        {
-            (text, button, icon) = ("На разходка е.", "Повикай", "walk");
-            act = () => { _pet.ReturnFromWalk(called: true); Refresh(false); };
-        }
-        else if (_pet.IsAsleep)
-        {
-            (text, button, icon) = ("Спи сладко.", "Събуди", "sun");
-            act = () => { _pet.WakeUp(); Refresh(false); };
-        }
-        else if (s.Fullness < 35)
-        {
-            (text, button, icon) = ("Гладен е – нахрани го.", "Нахрани", "food");
-            act = () => ShowPage(PageFood);
-        }
-        else if (s.Energy < PetWindow.TiredBelow && _pet.CanSleep)
-        {
-            (text, button, icon) = ("Уморен е – приспи го.", "Приспи", "moon");
-            act = () => { _sleepOpen = true; Refresh(false); };
-        }
-        _suggestAction = act;
-        _suggest.Visibility = act == null ? Visibility.Collapsed : Visibility.Visible;
-        if (act == null) return;
-        _suggestText.Text = text;
-        SetButton(_suggestButton, button, icon);
+        SetTile(_walkTile, _pet.OnWalk ? "Повикай" : "Разходка", "walk");
+        TileState(_walkTile, _walkOpen || _pet.OnWalk);
+        TileState(_relaxTile, _pet.RelaxesRandomly);
+        TileState(_workTile, _pet.WorksRandomly);
+        _drawTile.Button.Visibility = Kitchen.Owns(s, Kitchen.Easel) ? Visibility.Visible : Visibility.Collapsed;
+        if (_pet.IsQuiet) SetTile(_quietTile, "Говори", "bell");
+        else SetTile(_quietTile, "Тихо", "quiet");
+        TileState(_quietTile, _quietOpen);
+        TileState(_placeTile, _placeOpen);
+        TileState(_petTile, false);
+        TileState(_stopTile, false);
     }
 
     /// <summary>
@@ -1142,7 +1066,6 @@ public sealed class MenuWindow : Window
     private readonly WrapPanel _sleepOptions = new(), _quietOptions = new(), _walkOptions = new();
     private bool _sleepOpen, _quietOpen, _walkOpen, _placeOpen;
     private readonly WrapPanel _placeOptions = new();
-    private Button _placeButton = null!;
 
     /// <summary>Уредите за слагане (печица, лампа…), по ред.</summary>
     private static readonly string[] Devices = { Kitchen.Heater, Kitchen.Lamp, Kitchen.Radio, Kitchen.Feeder, Kitchen.PlantPot };
@@ -1177,7 +1100,6 @@ public sealed class MenuWindow : Window
         Add(Kitchen.YogaMat, "Постелка", _pet.FurniturePlaced(Kitchen.YogaMat));
         Add(Kitchen.Bed, "Легло", _pet.FurniturePlaced(Kitchen.Bed));
     }
-    private Button _walkButton = null!;
 
     private void GoForWalk(double minutes)
     {
@@ -1185,7 +1107,6 @@ public sealed class MenuWindow : Window
         Hide();
         _pet.GoForWalk(minutes);
     }
-    private Button _drawButton = null!;
     private string _sleepOptionsKey = "";
 
     /// <summary>Изборът колко да спи (строи се наново, когато вечерта дойде).</summary>
@@ -1238,18 +1159,14 @@ public sealed class MenuWindow : Window
 
     private readonly UniformGrid _relaxGrid = new() { Columns = 2 };
     private readonly UniformGrid _workGrid = new() { Columns = 2 };
-    private Button _relaxButton = null!, _workButton = null!;
     private bool _relaxOpen, _workOpen;
 
     private void BuildRelaxButtons()
     {
         var s = _pet.Save;
         var chosen = _pet.CurrentFun;
-        bool auto = _pet.AutoMode;
         bool random = _pet.RelaxesRandomly;
-        SetOn(_relaxButton, random);
         bool working = _pet.WorksRandomly;
-        SetOn(_workButton, working);
         FillSceneGrid(_relaxGrid, _relaxOpen, Scenes.Fun, chosen, random);
         FillSceneGrid(_workGrid, _workOpen, Scenes.Work, chosen, working);
     }
@@ -2010,10 +1927,12 @@ public sealed class MenuWindow : Window
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         top.ColumnDefinitions.Add(new ColumnDefinition());
 
-        // Мечокът в цял ръст с облеклото, като в огледало.
-        top.Children.Add(PortraitBox(out _model, out _modelBg));
+        // Мечокът с облеклото се вижда горе (общият портрет) – тук няма второ „огледало“.
+        var mirror = PortraitBox(out _model, out _modelBg);
+        mirror.Visibility = Visibility.Collapsed;
+        top.Children.Add(mirror);
 
-        var right = new StackPanel { Margin = new Thickness(16 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var right = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         right.Children.Add(new TextBlock { Text = "Облечено", FontSize = Ui.Title, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6 * U) });
         right.Children.Add(_wornList);
         _pajamaChip = Chip("", () => _pet.SetPajamas(!_pet.Save.PajamasAtNight));
@@ -2987,42 +2906,13 @@ public sealed class MenuWindow : Window
         return b;
     }   // зелени цифри в почивката
 
-    private readonly WrapPanel _focusTasks = new();
-    private string _focusTasksKey = "";
-
-    /// <summary>„Работим по“: днешните задачи като копчета (избраната – натисната) и „Без задача“.</summary>
-    private void BuildFocusTasks()
-    {
-        var tasks = _pet.OrderedTasks().Take(8).ToList();
-        var current = _pet.FocusTask;
-        string key = string.Join("|", tasks.Select(t => t.Id + t.Title)) + "#" + current?.Id + _pet.Save.UiTheme;
-        if (key == _focusTasksKey) return;
-        _focusTasksKey = key;
-        _focusTasks.Children.Clear();
-        var none = Chip("Без задача", () => _pet.SetFocusTask(null));
-        SetOn(none, current == null);
-        none.Margin = new Thickness(0, 0, 6, 4);
-        _focusTasks.Children.Add(none);
-        foreach (var task in tasks)
-        {
-            var t = task;
-            var chip = Chip(Shorten(t.Title, 28), () => _pet.SetFocusTask(t));
-            chip.ToolTip = Tip(t.Title);
-            chip.Margin = new Thickness(0, 0, 6, 4);
-            SetOn(chip, current?.Id == t.Id);
-            _focusTasks.Children.Add(chip);
-        }
-        if (tasks.Count == 0) _focusTasks.Children.Add(MutedText("Няма задачи за днес – работим и без задача."));
-    }
-
     private UIElement BuildPomodoroTab()
     {
         var p = new StackPanel();
-        // „Работим по“: коя задача (от днешните) – времето се записва към нея. Оттук се пуска
-        // мечо-дорото (и таймерът) по задача.
-        p.Children.Add(new TextBlock { Text = "Работим по", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
-        _focusTasks.Margin = new Thickness(0, 0, 0, 12);
-        p.Children.Add(_focusTasks);
+        // Мечо-доро: заглавие като на „Таймер“ по-долу.
+        var pomRibbon = Ribbon("Мечо-доро", "honey");
+        pomRibbon.Margin = new Thickness(0, 0, 0, 8);
+        p.Children.Add(pomRibbon);
         // Вид мечо-доро: 25/5, 52/17, 90/20 (сменя се, докато не тече).
         var modes = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
         foreach (var mode in PetWindow.PomodoroModes)
@@ -3424,32 +3314,19 @@ public sealed class MenuWindow : Window
                 _weatherRow.ToolTip = tip;
             }
         }
-        UpdateSuggestion(s);
-        if (_tab == BearTab) BuildHomeCards();
-        if (_tab == PomodoroTab) BuildFocusTasks();
         bool canPlace = Devices.Concat(PetWindow.FurnitureKinds).Any(i => Kitchen.Owns(s, i));
-        _placeButton.Visibility = canPlace ? Visibility.Visible : Visibility.Collapsed;
+        _placeTile.Button.Visibility = canPlace ? Visibility.Visible : Visibility.Collapsed;
         if (!canPlace) _placeOpen = false;
-        SetOn(_placeButton, _placeOpen);
         BuildPlaceOptions();
         _placeOptions.Visibility = _placeOpen ? Visibility.Visible : Visibility.Collapsed;
-        if (_pet.IsAsleep) SetButton(_sleepButton, "Събуди", "sun");
-        else SetButton(_sleepButton, "Приспи", "moon");
-        _sleepButton.IsEnabled = _pet.CanSleep;
         if (_pet.IsAsleep) _sleepOpen = false;
         if (_pet.IsQuiet) _quietOpen = false;
+        if (_pet.OnWalk) _walkOpen = false;
         BuildSleepOptions();
-        SetOn(_sleepButton, _sleepOpen);
-        SetOn(_quietButton, _quietOpen);
         _sleepOptions.Visibility = _sleepOpen ? Visibility.Visible : Visibility.Collapsed;
         _quietOptions.Visibility = _quietOpen ? Visibility.Visible : Visibility.Collapsed;
-        if (_pet.OnWalk) _walkOpen = false;
-        SetButton(_walkButton, _pet.OnWalk ? "Повикай" : "Разходи се", "walk");
-        SetOn(_walkButton, _walkOpen || _pet.OnWalk);
         _walkOptions.Visibility = _walkOpen ? Visibility.Visible : Visibility.Collapsed;
-        _drawButton.Visibility = Kitchen.Owns(s, Kitchen.Easel) ? Visibility.Visible : Visibility.Collapsed;
-        if (_pet.IsQuiet) SetButton(_quietButton, "Говори", "bell");
-        else SetButton(_quietButton, "Тихо", "quiet");
+        UpdateBearTiles(s);
 
         // Храна и магазин
         _foodInfo.Visibility = Visibility.Collapsed;
@@ -3556,7 +3433,11 @@ public sealed class MenuWindow : Window
             TextWrapping = TextWrapping.NoWrap,
         };
         if (box.AcceptsReturn) text.Margin = new Thickness(box.BorderThickness.Left + box.Padding.Left + 2, box.BorderThickness.Top + box.Padding.Top + 1, 0, 0);
-        box.TextChanged += (_, _) => text.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        // И ако вече има написано (описанието на отворена задача) – подсказката не се вижда.
+        void Sync() => text.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        box.TextChanged += (_, _) => Sync();
+        box.Loaded += (_, _) => Sync();
+        Sync();
         var grid = new Grid();
         grid.Children.Add(box);
         grid.Children.Add(text);

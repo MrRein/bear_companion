@@ -42,7 +42,7 @@ public sealed class WorkView : Border
     private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(7) };
     private readonly DispatcherTimer _scrollTimer = new() { Interval = TimeSpan.FromMilliseconds(15) };
     private readonly Dictionary<DateTime, (string Sig, Border Column)> _columns = new();
-    private readonly Dictionary<string, TextBox> _addBoxes = new();
+    private readonly Dictionary<string, FrameworkElement> _addBoxes = new();
     private string _somedaySig = "";
 
     private DateTime _from;          // първият ден в лентата
@@ -85,10 +85,9 @@ public sealed class WorkView : Border
 
         // ── Под него (само в „Седмица“): ◀ Днес ▶, кои дни се виждат, търсене, етикети … обобщение ──
         var weekNav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
-        var prev = HeaderChip("◀", () => ScrollBy(-7), "Седмица назад (←: ден назад)");
-        _todayChip = HeaderChip("Днес", () => ScrollToDay(Today), "Към днес (T)");
-        var next = HeaderChip("▶", () => ScrollBy(7), "Седмица напред (→: ден напред)");
-        foreach (var b in new[] { prev, _todayChip, next })
+        // Само „Днес“ – дните се местят с колелцето, влачене и ←/→.
+        _todayChip = HeaderChip("Днес", () => ScrollToDay(Today), "Към днес (T) · ←/→: ден назад/напред");
+        foreach (var b in new[] { _todayChip })
         {
             b.Margin = new Thickness(0, 0, 4, 0);
             weekNav.Children.Add(b);
@@ -573,7 +572,7 @@ public sealed class WorkView : Border
 
     private void BuildFilters()
     {
-        string sig = $"{_filter}#{_starOnly}#{_pet.Save.PlannerHideDone}#{_pet.Save.UiTheme}";
+        string sig = $"{_filter}#{_starOnly}#{_pet.Save.PlannerHideDone}#{_pet.Save.UiTheme}#{TaskTags.Version}";
         if (sig == _filtersShown) return;
         _filtersShown = sig;
         _filters.Children.Clear();
@@ -596,6 +595,15 @@ public sealed class WorkView : Border
             SetOn(chip, _filter == key);
             _filters.Children.Add(chip);
         }
+        // Своите етикети: нов, преименувай, смени цвета, махни.
+        Border edit = null!;
+        edit = Chip("", () => PixelPopup.Show(edit, "Етикети", () => new[]
+        {
+            new PixelPopup.Entry("", null, null, Custom: _ => TagEditor.Manager(_pet)),
+        }));
+        edit.Child = Icon("gear");
+        edit.ToolTip = Tip("Етикетите: нов, име, цвят");
+        _filters.Children.Add(edit);
         var star = Chip("", () => SetFilter(_filter, !_starOnly));
         star.Child = Icon("star");
         star.ToolTip = Tip("Само важните");
@@ -728,31 +736,9 @@ public sealed class WorkView : Border
         DockPanel.SetDock(head, Dock.Top);
         dock.Children.Add(head);
 
-        // ── Нова задача (Enter): най-отгоре в деня ──
-        var add = MenuWindow.NewTextInput();
-        add.Padding = new Thickness(6, 4, 6, 4);
-        add.MaxLength = TasksModule.MaxTitle + 40;
-        string boxKey = BoxKey(day);
-        _addBoxes[boxKey] = add;
-        add.KeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Escape)
-            {
-                add.Clear();
-                Keyboard.ClearFocus();
-                e.Handled = true;
-                return;
-            }
-            if (e.Key != Key.Enter || string.IsNullOrWhiteSpace(add.Text)) return;
-            e.Handled = true;
-            string text = add.Text;
-            add.Clear();
-            _refocus = (true, day);
-            var first = _pet.TaskState.Open.FirstOrDefault(t => t.Day == day && !t.Done);
-            _pet.AddTask(text, 1, null, day, someday: day == null, tag: _filter.Length > 0 ? _filter : null,
-                star: _starOnly, quiet: true, before: first?.Id);
-        };
-        var addBox = WithPlus(add, day == null ? "Някога…" : "Задача…");
+        // ── Нова задача: „+ Задача“ отваря картата (име, ден, време, етикет, сложност) ──
+        var addBox = AddRow(day == null ? "Някога…" : "Задача", day);
+        _addBoxes[BoxKey(day)] = addBox;
         if (past) addBox.Opacity = 0.7;
         addBox.Margin = new Thickness(0, 0, 0, 6 * U);
         DockPanel.SetDock(addBox, Dock.Top);
@@ -947,17 +933,39 @@ public sealed class WorkView : Border
         string boxKey = BoxKey(day);
         Dispatcher.BeginInvoke(() =>
         {
-            if (_addBoxes.TryGetValue(boxKey, out var box)) box.Focus();
+            if (_addBoxes.TryGetValue(boxKey, out var box) && box.IsVisible) OpenForm(day, box);
         }, DispatcherPriority.Input);
     }
 
+    /// <summary>„+ Задача“: цъкаш – изскача картата за нова задача (за този ден).</summary>
+    private Border AddRow(string text, DateTime? day)
+    {
+        var content = IconText("plus", text, bold: true);
+        content.Opacity = 0.7;
+        foreach (var tb in content.Children.OfType<TextBlock>()) tb.TextTrimming = TextTrimming.CharacterEllipsis;
+        var row = new Border
+        {
+            Background = Brushes.Transparent,
+            BorderBrush = WoodDark,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8, 5, 8, 6),
+            Cursor = Cursors.Hand,
+            Child = content,
+            ToolTip = Tip("Нова задача: име, ден, време, етикет, сложност (N)"),
+        };
+        row.MouseEnter += (_, _) => { row.Background = Hover; content.Opacity = 1; };
+        row.MouseLeave += (_, _) => { row.Background = Brushes.Transparent; content.Opacity = 0.7; };
+        TaskCards.Clickable(row, () => OpenForm(day, row));
+        return row;
+    }
+
+    private void OpenForm(DateTime? day, FrameworkElement anchor) =>
+        TaskForm.Show(_pet, anchor, day, _filter.Length > 0 ? _filter : null, _starOnly);
+
     private void RestoreFocus()
     {
-        if (!_refocus.Has) return;
-        var day = _refocus.Day;
         _refocus = (false, null);
-        if (_addBoxes.TryGetValue(BoxKey(day), out var box) && !box.IsKeyboardFocused)
-            Dispatcher.BeginInvoke(() => box.Focus(), DispatcherPriority.Input);
     }
 
     // ───────────────────────── Отмени ─────────────────────────
@@ -1143,7 +1151,7 @@ public sealed class WorkView : Border
         {
             Side.Details => t!.Signature + _pet.TaskOnBoard(t) + _pet.InFocus + _pet.FocusTask?.Id,
             _ => string.Join("|", _pet.TaskState.Open.Select(x => x.Signature)) + _pet.Save.PlannerHours + Today.ToString("yyyyMMdd") + _pet.Save.PlannedDay + _pet.Save.ShutdownDay,
-        } + _sideMode + _pet.Save.UiTheme;
+        } + _sideMode + _pet.Save.UiTheme + TaskTags.Version;
         if (sig == _sideShown) return;
         // Докато се пише в полетата – не се строи наново (ще се изгуби написаното).
         if (_sideDirty && _side.IsKeyboardFocusWithin) return;
@@ -1256,29 +1264,9 @@ public sealed class WorkView : Border
                 SetView(View.Review);
             }));
 
-        // Нова задача за днес (Enter) – най-отгоре.
-        var add = MenuWindow.NewTextInput();
-        add.Padding = new Thickness(8, 6, 8, 6);
-        add.MaxLength = TasksModule.MaxTitle;
-        _addBoxes[BoxKey(today)] = add;
-        add.KeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Escape)
-            {
-                add.Clear();
-                Keyboard.ClearFocus();
-                e.Handled = true;
-                return;
-            }
-            if (e.Key != Key.Enter || string.IsNullOrWhiteSpace(add.Text)) return;
-            e.Handled = true;
-            string text = add.Text;
-            add.Clear();
-            _refocus = (true, today);
-            var first = _pet.TaskState.Open.FirstOrDefault(t => t.Day == today && !t.Done);
-            _pet.AddTask(text, 1, null, today, quiet: true, before: first?.Id);
-        };
-        var addBox = WithPlus(add, "Нова задача за днес…  (Enter)");
+        // Нова задача за днес: картата с всичко (най-отгоре в деня).
+        var addBox = AddRow("Нова задача за днес", today);
+        _addBoxes[BoxKey(today)] = addBox;
         addBox.Margin = new Thickness(0, 14 * U, 0, 8 * U);
         p.Children.Add(addBox);
 
@@ -1984,6 +1972,27 @@ public sealed class WorkView : Border
                 SetOn(chip, t.Tag == key);
                 tags.Children.Add(chip);
             }
+            // „+“: нов етикет (и веднага на задачата); зъбчето – всички етикети.
+            Border newTag = null!;
+            newTag = Small("", () => PixelPopup.Show(newTag, "Нов етикет", () => new[]
+            {
+                new PixelPopup.Entry("", null, null, Custom: close => TagEditor.NewTag(_pet, key =>
+                {
+                    close();
+                    _pet.MarkTask(t, tag: key);
+                })),
+            }));
+            newTag.Child = Icon("plus");
+            newTag.ToolTip = Tip("Нов етикет");
+            tags.Children.Add(newTag);
+            Border editTags = null!;
+            editTags = Small("", () => PixelPopup.Show(editTags, "Етикети", () => new[]
+            {
+                new PixelPopup.Entry("", null, null, Custom: _ => TagEditor.Manager(_pet)),
+            }));
+            editTags.Child = Icon("gear");
+            editTags.ToolTip = Tip("Етикетите: име, цвят, махни");
+            tags.Children.Add(editTags);
             p.Children.Add(tags);
 
             // Важна и големина – на един ред.

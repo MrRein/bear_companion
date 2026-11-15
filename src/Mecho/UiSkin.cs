@@ -120,6 +120,8 @@ public static class UiSkin
         _theme = theme;
         Images.Clear();
         Parts.Clear();
+        Composed.Clear();
+        PartPixels.Clear();
         foreach (var w in Skinned.ToArray())
         {
             if (w.TryGetTarget(out var b)) Render(b);
@@ -159,49 +161,74 @@ public static class UiSkin
         b.Background = NineSlice(name, img, def, w, h, p);
     }
 
+    private static readonly Dictionary<(string, int, int), BitmapSource> Composed = new();
+    private static readonly Dictionary<(string, int, int, int, int), int[]> PartPixels = new();
+
+    /// <summary>
+    /// 9 части, сглобени в ЕДНА картинка (в пикселите на елемента), която после се разпъва цяла.
+    /// Преди всяка част беше отделна повтаряща се четка – при мащаб (Размер) и дробни DPI
+    /// краищата на плочките не падаха на цял пиксел и по рамката се виждаха вертикални ивици.
+    /// </summary>
     private static Brush NineSlice(string name, BitmapSource img, Def d, double w, double h, double p)
     {
         int iw = img.PixelWidth, ih = img.PixelHeight;
-        int[] sx = { 0, d.L, iw - d.R, iw };
-        int[] sy = { 0, d.T, ih - d.B, ih };
-        // Ъглите – в цели пиксели; ако нещото е по-малко от ръбовете, средата е 0.
-        double l = Math.Min(d.L * p, w / 2), r = Math.Min(d.R * p, w / 2);
-        double t = Math.Min(d.T * p, h / 2), bt = Math.Min(d.B * p, h / 2);
-        double[] tx = { 0, l, w - r, w };
-        double[] ty = { 0, t, h - bt, h };
-        var g = new DrawingGroup();
-        RenderOptions.SetBitmapScalingMode(g, BitmapScalingMode.NearestNeighbor);
-        for (int row = 0; row < 3; row++)
+        int W = Math.Max(1, (int)Math.Round(w / p)), H = Math.Max(1, (int)Math.Round(h / p));
+        var key = (name, W, H);
+        if (!Composed.TryGetValue(key, out var bmp))
         {
-            for (int col = 0; col < 3; col++)
-            {
-                int pw = sx[col + 1] - sx[col], ph = sy[row + 1] - sy[row];
-                double rw = tx[col + 1] - tx[col], rh = ty[row + 1] - ty[row];
-                if (pw <= 0 || ph <= 0 || rw <= 0 || rh <= 0) continue;
-                var part = Part(name, img, sx[col], sy[row], pw, ph);
-                // Плочката започва от началото на своята част (ъгълът отдолу/вдясно – от края).
-                double ox = col == 2 ? tx[3] - pw * p : tx[col];
-                double oy = row == 2 ? ty[3] - ph * p : ty[row];
-                var tile = part.Clone();
-                tile.Viewport = new Rect(ox, oy, pw * p, ph * p);
-                tile.Freeze();
-                g.Children.Add(new GeometryDrawing(tile, null, new RectangleGeometry(new Rect(tx[col], ty[row], rw, rh))));
-            }
+            int[] sx = { 0, d.L, iw - d.R, iw };
+            int[] sy = { 0, d.T, ih - d.B, ih };
+            // Ъглите – цели; ако нещото е по-малко от ръбовете, средата е 0.
+            int l = Math.Min(d.L, W / 2), r = Math.Min(d.R, W - l);
+            int t = Math.Min(d.T, H / 2), bt = Math.Min(d.B, H - t);
+            int[] tx = { 0, l, W - r, W };
+            int[] ty = { 0, t, H - bt, H };
+            var px = new int[W * H];
+            for (int row = 0; row < 3; row++)
+                for (int col = 0; col < 3; col++)
+                {
+                    int pw = sx[col + 1] - sx[col], ph = sy[row + 1] - sy[row];
+                    if (pw <= 0 || ph <= 0 || tx[col + 1] <= tx[col] || ty[row + 1] <= ty[row]) continue;
+                    var part = PartPx(name, img, sx[col], sy[row], pw, ph);
+                    for (int Y = ty[row]; Y < ty[row + 1]; Y++)
+                    {
+                        // Ъгълът/ръбът отдолу/вдясно – броен от края; средата се повтаря от началото си.
+                        int py = row == 2 ? ph - (ty[3] - Y) : (Y - ty[row]) % ph;
+                        if (py < 0) py = ((py % ph) + ph) % ph;
+                        for (int X = tx[col]; X < tx[col + 1]; X++)
+                        {
+                            int qx = col == 2 ? pw - (tx[3] - X) : (X - tx[col]) % pw;
+                            if (qx < 0) qx = ((qx % pw) + pw) % pw;
+                            px[Y * W + X] = part[py * pw + qx];
+                        }
+                    }
+                }
+            bmp = BitmapSource.Create(W, H, 96, 96, PixelFormats.Bgra32, null, px, W * 4);
+            bmp.Freeze();
+            if (Composed.Count > 400) Composed.Clear();
+            Composed[key] = bmp;
         }
-        g.Freeze();
-        var brush = new DrawingBrush(g)
+        // Цялата картинка – точно върху елемента (без плочки, значи без шевове).
+        var brush = new ImageBrush(bmp)
         {
-            Stretch = Stretch.None,
-            AlignmentX = AlignmentX.Left,
-            AlignmentY = AlignmentY.Top,
-            ViewboxUnits = BrushMappingMode.Absolute,
-            Viewbox = new Rect(0, 0, w, h),
+            Stretch = Stretch.Fill,
             ViewportUnits = BrushMappingMode.Absolute,
             Viewport = new Rect(0, 0, w, h),
         };
         RenderOptions.SetBitmapScalingMode(brush, BitmapScalingMode.NearestNeighbor);
         brush.Freeze();
         return brush;
+    }
+
+    private static int[] PartPx(string name, BitmapSource img, int x, int y, int w, int h)
+    {
+        var key = (name, x, y, w, h);
+        if (PartPixels.TryGetValue(key, out var px)) return px;
+        var src = Part(name, img, x, y, w, h).ImageSource as BitmapSource;
+        px = new int[w * h];
+        new FormatConvertedBitmap(src, PixelFormats.Bgra32, null, 0).CopyPixels(px, w * 4, 0);
+        PartPixels[key] = px;
+        return px;
     }
 
     private static ImageBrush Part(string name, BitmapSource img, int x, int y, int w, int h)

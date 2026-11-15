@@ -97,6 +97,7 @@ public sealed partial class PetWindow : Window
     public PetWindow(SaveData save)
     {
         _save = save;
+        TaskTags.Use(save);   // етикетите на задачите – свои имена и цветове
         FullscreenNow = DetectFullscreen;   // the self-test replaces it
         // Ядрото (шина, състояние, модули) – първо, защото всичко след това чете и пише
         // данните през него (виж Engine/CoreSetup.cs и ARCHITECTURE.md).

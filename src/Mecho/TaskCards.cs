@@ -10,22 +10,107 @@ using static Mecho.Ui;
 
 namespace Mecho;
 
-/// <summary>Етикетите на задачите: ключът се пази в задачата, името и цветът – тук.</summary>
+/// <summary>
+/// Етикетите на задачите: ключът се пази в задачата, името и цветът – в записа (SaveData.TaskTags).
+/// Тут си ги пише сама и си избира цвета; първия път са шестте готови.
+/// </summary>
 internal static class TaskTags
 {
     public sealed record Info(string Key, string Name, Color Color);
 
-    public static readonly Info[] All =
+    /// <summary>Цветовете за избор (големи квадратчета, без рамки).</summary>
+    public static readonly Color[] Palette =
     {
-        new("work", "Работа", Color.FromRgb(84, 132, 204)),
-        new("art", "Рисуване", Color.FromRgb(214, 104, 146)),
-        new("study", "Учене", Color.FromRgb(146, 108, 196)),
-        new("home", "Вкъщи", Color.FromRgb(222, 150, 54)),
-        new("health", "Здраве", Color.FromRgb(98, 168, 82)),
-        new("people", "Хора", Color.FromRgb(58, 164, 164)),
+        Color.FromRgb(84, 132, 204), Color.FromRgb(58, 164, 164), Color.FromRgb(98, 168, 82), Color.FromRgb(170, 196, 72),
+        Color.FromRgb(230, 192, 56), Color.FromRgb(222, 150, 54), Color.FromRgb(220, 90, 80), Color.FromRgb(214, 104, 146),
+        Color.FromRgb(146, 108, 196), Color.FromRgb(70, 92, 150), Color.FromRgb(150, 104, 72), Color.FromRgb(128, 128, 136),
     };
 
+    private static readonly (string Key, string Name, Color Color)[] Defaults =
+    {
+        ("work", "Работа", Color.FromRgb(84, 132, 204)),
+        ("art", "Рисуване", Color.FromRgb(214, 104, 146)),
+        ("study", "Учене", Color.FromRgb(146, 108, 196)),
+        ("home", "Вкъщи", Color.FromRgb(222, 150, 54)),
+        ("health", "Здраве", Color.FromRgb(98, 168, 82)),
+        ("people", "Хора", Color.FromRgb(58, 164, 164)),
+    };
+
+    public const int MaxTags = 24, MaxName = 24;
+
+    private static List<TaskTagDef> _defs = new();
+    private static Info[]? _all;
+
+    /// <summary>Вика се при пускане: етикетите от записа (първия път – готовите).</summary>
+    public static void Use(SaveData save)
+    {
+        save.TaskTags ??= Defaults.Select(d => new TaskTagDef { Key = d.Key, Name = d.Name, Color = Hex(d.Color) }).ToList();
+        _defs = save.TaskTags;
+        Changed();
+    }
+
+    public static Info[] All => _all ??= _defs.Select(d => new Info(d.Key, d.Name, Parse(d.Color))).ToArray();
+
     public static Info? Find(string? key) => string.IsNullOrEmpty(key) ? null : All.FirstOrDefault(t => t.Key == key);
+
+    public static string Hex(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+
+    private static Color Parse(string hex)
+    {
+        try { return (Color)ColorConverter.ConvertFromString(hex); }
+        catch (Exception) { return Palette[0]; }
+    }
+
+    /// <summary>Нов етикет (празно име или вече има такъв – null; с такова име – връща него).</summary>
+    public static string? Add(string name, Color color)
+    {
+        name = name.Trim();
+        if (name.Length > MaxName) name = name[..MaxName];
+        if (name.Length == 0) return null;
+        if (All.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.CurrentCultureIgnoreCase)) is { } same) return same.Key;
+        if (_defs.Count >= MaxTags) return null;
+        string key;
+        do key = "t" + Guid.NewGuid().ToString("N")[..6]; while (_defs.Any(d => d.Key == key));
+        _defs.Add(new TaskTagDef { Key = key, Name = name, Color = Hex(color) });
+        Changed();
+        return key;
+    }
+
+    public static void Rename(string key, string name)
+    {
+        name = name.Trim();
+        if (name.Length > MaxName) name = name[..MaxName];
+        if (name.Length == 0 || _defs.FirstOrDefault(d => d.Key == key) is not { } d || d.Name == name) return;
+        d.Name = name;
+        Changed();
+    }
+
+    public static void Recolor(string key, Color color)
+    {
+        if (_defs.FirstOrDefault(d => d.Key == key) is not { } d) return;
+        d.Color = Hex(color);
+        Changed();
+    }
+
+    /// <summary>Маха етикета (задачите с него остават без етикет – виж PetWindow.DeleteTaskTag).</summary>
+    public static void Remove(string key)
+    {
+        if (_defs.RemoveAll(d => d.Key == key) > 0) Changed();
+    }
+
+    /// <summary>Цвят, който още не е взет (за нов етикет).</summary>
+    public static Color NextColor() =>
+        Palette.FirstOrDefault(c => All.All(t => t.Color != c), Palette[_defs.Count % Palette.Length]);
+
+    /// <summary>Сменя се при всяка промяна (за да се пречертаят филтрите и т.н.).</summary>
+    public static int Version { get; private set; }
+
+    private static void Changed()
+    {
+        Version++;
+        _all = null;
+        Brushes.Clear();
+    }
 
     private static readonly Dictionary<string, Brush> Brushes = new();
 
@@ -39,16 +124,17 @@ internal static class TaskTags
         return Brushes[id] = brush;
     }
 
-    /// <summary>Квадратче в цвета на етикета (в копчетата за избор).</summary>
-    public static Border Swatch(string key) => new()
+    /// <summary>Квадратче в цвета на етикета – само цвят, без рамка.</summary>
+    public static Border Swatch(string key) => ColorSquare(Find(key)?.Color ?? Colors.Transparent);
+
+    public static Border ColorSquare(Color c, double size = 4) => new()
     {
-        Width = 3 * P,
-        Height = 3 * P,
-        Background = BrushOf(key),
-        BorderBrush = Ink,
-        BorderThickness = Px(1),
+        Width = size * P,
+        Height = size * P,
+        Background = new SolidColorBrush(c),
+        CornerRadius = new CornerRadius(2),
         VerticalAlignment = VerticalAlignment.Center,
-        Margin = new Thickness(0, 0, 5, 0),
+        Margin = new Thickness(0, 0, 6, 0),
     };
 }
 
@@ -378,7 +464,19 @@ internal static class TaskCards
     public static Func<IEnumerable<PixelPopup.Entry>> TagEntries(PetWindow pet, TaskItem t) => () =>
         TaskTags.All.Select(tag => new PixelPopup.Entry(tag.Name, null, () => pet.MarkTask(Fresh(pet, t), tag: Fresh(pet, t).Tag == tag.Key ? "" : tag.Key),
                 On: Fresh(pet, t).Tag == tag.Key, Swatch: tag.Key))
-            .Append(new PixelPopup.Entry("Без етикет", null, () => pet.MarkTask(Fresh(pet, t), tag: ""), On: Fresh(pet, t).Tag.Length == 0));
+            .Append(new PixelPopup.Entry("Без етикет", null, () => pet.MarkTask(Fresh(pet, t), tag: ""), On: Fresh(pet, t).Tag.Length == 0))
+            .Append(new PixelPopup.Entry("Нов етикет", "plus", null, Sub: () => new[]
+            {
+                new PixelPopup.Entry("", null, null, Custom: close => TagEditor.NewTag(pet, key =>
+                {
+                    close();
+                    pet.MarkTask(Fresh(pet, t), tag: key);
+                })),
+            }))
+            .Append(new PixelPopup.Entry("Етикети…", "gear", null, Sub: () => new[]
+            {
+                new PixelPopup.Entry("", null, null, Custom: _ => TagEditor.Manager(pet)),
+            }));
 
     public static Func<IEnumerable<PixelPopup.Entry>> TimeEntries(PetWindow pet, TaskItem t) => () =>
         Estimates.Select(m => new PixelPopup.Entry(Duration(m), null, () => pet.MarkTask(Fresh(pet, t), minutes: m), On: Fresh(pet, t).Minutes == m))
@@ -729,7 +827,11 @@ internal sealed class DragGhost
 internal static class PixelPopup
 {
     public sealed record Entry(string Text, string? Icon, Action? Click, bool On = false, Func<IEnumerable<Entry>>? Sub = null,
-        bool Danger = false, string? Swatch = null);
+        bool Danger = false, string? Swatch = null, Func<Action, FrameworkElement>? Custom = null);
+
+    /// <summary>Изскачащо меню със свое съдържание (build получава „затвори“).</summary>
+    public static void ShowCustom(FrameworkElement anchor, Func<Action, FrameworkElement> build, bool atMouse = false) =>
+        Show(anchor, null, () => new[] { new Entry("", null, null, Custom: build) }, atMouse);
 
     private static double U => Ui.Body / 18;
 
@@ -786,6 +888,11 @@ internal static class PixelPopup
             foreach (var entry in make())
             {
                 var en = entry;
+                if (en.Custom != null)
+                {
+                    list.Children.Add(en.Custom(() => popup.IsOpen = false));
+                    continue;
+                }
                 var row = new DockPanel();
                 if (en.Swatch != null)
                 {

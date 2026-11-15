@@ -141,6 +141,7 @@ public sealed class SaveData
     public Dictionary<string, string> DayNotes { get; set; } = new();   // „Как мина денят?“ по дни (yyyy-MM-dd)
     public Dictionary<string, WeekReview> WeekReviews { get; set; } = new();   // прегледът на седмицата (ключ – понеделникът, yyyy-MM-dd)
     public int WorkView { get; set; }                            // „Работа“: 0 Днес, 1 Седмица, 2 Преглед
+    public List<TaskTagDef>? TaskTags { get; set; }              // етикетите на задачите (свои име и цвят); null – още не са правени
     public Dictionary<string, SurveyAnswer> Answers { get; set; } = new();   // въпросникът: id → какво отговори Тут
     /// <summary>
     /// Броячи „колко пъти днес“ (въпросник, спомени, нови желания…) – сами се нулират на
@@ -1016,6 +1017,14 @@ public sealed class WeekReview
     public string Better { get; set; } = "";
     public List<WeekGoal> Goals { get; set; } = new();
     public bool Done { get; set; }
+}
+
+/// <summary>Етикет за задачите: ключът стои в задачата; името и цветът (#RRGGBB) се сменят.</summary>
+public sealed class TaskTagDef
+{
+    public string Key { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Color { get; set; } = "#5484CC";
 }
 
 /// <summary>Цел за седмицата (до 5).</summary>
