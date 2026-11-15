@@ -4,53 +4,45 @@ using Mecho.Core;
 
 namespace Mecho;
 
-// Задачите по дни: седмицата (PlannerWindow), местене от ден в ден, етикети, важни, време,
+// Задачите по дни: „Работа“ в менюто (WorkView), местене от ден в ден, етикети, важни, време,
 // и пренасянето на недовършените за днес.
 public sealed partial class PetWindow
 {
-    private PlannerWindow? _planner;
-
     /// <summary>Днешният ден за задачите (по часовника на ядрото – Developer може да го мести).</summary>
     public DateTime TaskToday => CoreEngine.Clock.Today();
 
     public TasksState TaskState => CoreEngine.Store.Get<TasksState>();
 
-    public bool PlannerIsOpen => _planner != null;
+    /// <summary>„Работа“ (в менюто): отворена ли е сега.</summary>
+    public bool PlannerIsOpen => _menu is { IsOpen: true } m && m.IsWorkPage;
 
-    /// <summary>Отваря седмицата (или я вдига отпред, ако е отворена).</summary>
+    /// <summary>Отваря „Работа“ на „Днес“.</summary>
     public void OpenPlanner() => OpenPlanner("");
 
-    /// <summary>Отваря задачите; side: "plan" – „План за деня“, "shutdown" – „Край на деня“.</summary>
-    public void OpenPlanner(string side)
+    /// <summary>
+    /// Отваря „Работа“ (менюто става голямо): "" – Днес, "plan" – План за деня, "shutdown" – Край
+    /// на деня, "week" – Седмица, "review" – Преглед на седмицата.
+    /// </summary>
+    public void OpenPlanner(string side) => OpenMenuPage(side switch
     {
-        if (_menu is { IsOpen: true }) _menu.Hide();
-        if (_planner == null)
-        {
-            _planner = new PlannerWindow(this);
-            _planner.Closed += (_, _) =>
-            {
-                _planner = null;
-                _save.Planner.Open = false;
-                Persist();
-            };
-            _save.Planner.Open = true;
-            _planner.Show();
-        }
-        else
-        {
-            if (_planner.WindowState == System.Windows.WindowState.Minimized) _planner.WindowState = System.Windows.WindowState.Normal;
-            _planner.Activate();
-        }
-        if (side.Length > 0) _planner.OpenSide(side);
-        Persist();
+        "plan" => MenuWindow.PagePlan,
+        "shutdown" => MenuWindow.PageShutdown,
+        "week" => MenuWindow.PageWeek,
+        "review" => MenuWindow.PageReview,
+        _ => MenuWindow.PageToday,
+    });
+
+    public void ClosePlanner()
+    {
+        if (PlannerIsOpen) _menu!.Hide();
     }
 
-    public void ClosePlanner() => _planner?.Close();
+    /// <summary>Самопроверката: „Работа“ (в менюто).</summary>
+    internal WorkView? Work => _menu?.Work;
 
-    /// <summary>Мащабът е сменен („Още“ → Размер): и „Работа“, и таблата.</summary>
+    /// <summary>Мащабът е сменен („Още“ → Размер): и таблата.</summary>
     public void ZoomChanged()
     {
-        _planner?.ApplyZoom();
         foreach (var p in _pins.Values) p.ApplyZoom();
     }
 
@@ -229,11 +221,6 @@ public sealed partial class PetWindow
         TaskCards.DragEnded += () => NotifyCare();
     }
 
-    /// <summary>При пускане: седмицата беше отворена – пак се показва.</summary>
-    private void RestorePlanner()
-    {
-        if (_save.Planner.Open && !SelfTest.Running) OpenPlanner();
-    }
 
     /// <summary>Менюто е отворено или току-що се затвори (цъкането другаде го затваря, преди копчето да разбере).</summary>
     public bool MenuOpenOrJustClosed => MenuIsOpen || Now - _menuClosedAt < 0.3;
@@ -249,11 +236,11 @@ public sealed partial class PetWindow
         OpenMenu(tab);
     }
 
-    /// <summary>„Редактирай…“ от таблото: менюто, направо на задачата.</summary>
+    /// <summary>„Редактирай…“ от таблото: „Работа“, с подробностите на задачата.</summary>
     public void EditTaskInMenu(TaskItem task)
     {
-        OpenMenu(MenuWindow.TasksTab);
-        _menu!.ShowNewTask(true, task);
+        OpenMenuPage(task.Day == TaskToday ? MenuWindow.PageToday : MenuWindow.PageWeek);
+        _menu!.Work.SelectTask(task.Id);
     }
 
     /// <summary>Колко задачи са за днес и колко са свършени, и колко време са (за обобщенията).</summary>

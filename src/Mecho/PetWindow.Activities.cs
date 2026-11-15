@@ -47,6 +47,24 @@ public sealed partial class PetWindow
     /// <summary>Портрет за панела: първият кадър от „стои“, облечен.</summary>
     public System.Windows.Media.Imaging.BitmapSource Portrait => _dresser.Frame(_lib, "idle", 0, EffectiveOutfit);
 
+    /// <summary>
+    /// Портретът в менюто с изражение по това как е: спи, гладен (тъжен), уморен, щастлив
+    /// (сит и бодър) или обикновен.
+    /// </summary>
+    public System.Windows.Media.Imaging.BitmapSource MoodPortrait
+    {
+        get
+        {
+            string anim = IsAsleep ? "sleep"
+                : _save.Fullness < 35 ? "sad"
+                : _save.Energy < TiredBelow ? "tired"
+                : _save.Fullness >= 70 && _save.Energy >= 60 ? "happy"
+                : "idle";
+            try { return _dresser.Frame(_lib, anim, 0, EffectiveOutfit); }
+            catch (Exception) { return Portrait; }
+        }
+    }
+
     /// <summary>Свърши едно нещо: застава и прави каквото е обещал след него.</summary>
     private void FinishThen()
     {
