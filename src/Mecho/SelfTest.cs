@@ -1404,6 +1404,9 @@ public sealed partial class PetWindow
             var first = Work;
             OpenPlanner();
             if (Work != first) throw new Exception("отвори втора седмица");
+            // Пак отворена „Работа“ е на „Днес“; тестовете по-долу са за „Седмица“.
+            if (Work!.CurrentView != WorkView.View.Today) throw new Exception("„Работа“ не се отвори на „Днес“");
+            Work.SetView(WorkView.View.Week);
             NotifyCare();
             Work.UpdateLayout();
             Shot(_menu!, "planner_1_open");
