@@ -177,6 +177,7 @@ public sealed partial class PetWindow
             var lines = new List<string> { $"== {name}: {root.ActualWidth:0}×{root.ActualHeight:0}" };
             double dpi = VisualTreeHelper.GetDpi(w).PixelsPerDip;
             int cut = 0, outside = 0, texts = 0;
+            var seen = new Dictionary<string, int>();
             void Walk(DependencyObject d)
             {
                 if (d is UIElement { IsVisible: false }) return;
@@ -186,8 +187,12 @@ public sealed partial class PetWindow
                     var ft = new FormattedText(tb.Text, System.Globalization.CultureInfo.CurrentCulture, tb.FlowDirection,
                         new Typeface(tb.FontFamily, tb.FontStyle, tb.FontWeight, tb.FontStretch), tb.FontSize, Brushes.Black, dpi);
                     double need = ft.WidthIncludingTrailingWhitespace + tb.Padding.Left + tb.Padding.Right;
-                    if (tb.TextWrapping == TextWrapping.NoWrap && need > tb.ActualWidth + 1.5 && cut++ < 40)
-                        lines.Add($"  реже се ({tb.ActualWidth:0} < {need:0}{(tb.TextTrimming != TextTrimming.None ? ", с …" : "")}): „{Ui.Shorten(tb.Text, 50)}“");
+                    if (tb.TextWrapping == TextWrapping.NoWrap && need > tb.ActualWidth + 1.5)
+                    {
+                        cut++;
+                        string line = $"  реже се ({tb.ActualWidth:0} < {need:0}{(tb.TextTrimming != TextTrimming.None ? ", с …" : "")}): „{Ui.Shorten(tb.Text, 50)}“";
+                        seen[line] = seen.TryGetValue(line, out int n) ? n + 1 : 1;
+                    }
                 }
                 if (d is FrameworkElement f && f != root && f.ActualWidth > 0 && f.IsVisible)
                 {
@@ -206,6 +211,7 @@ public sealed partial class PetWindow
                 for (int i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) Walk(VisualTreeHelper.GetChild(d, i));
             }
             Walk(root);
+            foreach (var (line, n) in seen.Take(40)) lines.Add(n > 1 ? $"{line}  ×{n}" : line);
             lines.Add($"  текстове {texts}, режат се {cut}, излизат {outside}");
             File.AppendAllLines(Path.Combine(SaveData.Folder, "layout.txt"), lines);
         }

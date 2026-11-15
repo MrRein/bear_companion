@@ -149,7 +149,7 @@ public sealed class PinWindow : Window
                 _pet.AddTask(text, 1, quiet: true);
                 e.Handled = true;
             };
-            bottom.Children.Add(MenuWindow.WithHint(quick, "Задача за днес… (Enter)"));
+            bottom.Children.Add(MenuWindow.WithHint(quick, "Задача за днес…"));
             var week = Button("Седмица", _pet.OpenPlanner, icon: "tasks");
             week.ToolTip = Tip("Задачите по дни: влачи ги от ден в ден, маркирай ги, планирай седмицата");
             var add = Button("Нова", () => _pet.OpenNew(kind), primary: true, icon: "plus");

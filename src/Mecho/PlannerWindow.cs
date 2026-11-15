@@ -124,9 +124,9 @@ public sealed class PlannerWindow : Window
         ToolTipService.SetShowDuration(help, 60000);
         ToolTipService.SetInitialShowDelay(help, 100);
         _shutdownChip = HeaderChip("", () => ShowSide(_sideMode == Side.Shutdown ? Side.None : Side.Shutdown), "Край на деня: какво стана, какво остава за утре, как мина денят");
-        _shutdownChip.Child = IconText("moon", "Край на деня", bold: true);
+        _shutdownChip.Child = IconText("moon", "Край", bold: true);
         _planChip = HeaderChip("", () => ShowSide(_sideMode == Side.Plan ? Side.None : Side.Plan), "План за деня: вчерашните, колко време имаш, какво от „Някога“");
-        _planChip.Child = IconText("sun", "План за деня", bold: true);
+        _planChip.Child = IconText("sun", "План", bold: true);
         foreach (var b in new[] { close, minimize, help, _shutdownChip, _planChip })
         {
             DockPanel.SetDock(b, Dock.Right);
@@ -176,7 +176,7 @@ public sealed class PlannerWindow : Window
             Keyboard.ClearFocus();
             e.Handled = true;
         };
-        var searchBox = new Border { Width = 190 * U, Margin = new Thickness(0, 0, 8, 0), Child = MenuWindow.WithHint(_search, "Търси…  (Ctrl+F)") };
+        var searchBox = new Border { Width = 170 * U, Margin = new Thickness(0, 0, 8, 0), Child = MenuWindow.WithHint(_search, "Търси…") };
         DockPanel.SetDock(searchBox, Dock.Left);
         bar.Children.Add(searchBox);
         DockPanel.SetDock(_filters, Dock.Left);
@@ -578,16 +578,19 @@ public sealed class PlannerWindow : Window
         {
             var key = tag.Key;
             var chip = Chip("", () => SetFilter(_filter == key ? "" : key, _starOnly));
+            // Само цветното квадратче (името – при посочване); избраният етикет показва и името си.
             var row = new StackPanel { Orientation = Orientation.Horizontal };
-            row.Children.Add(TaskTags.Swatch(key));
-            row.Children.Add(new TextBlock { Text = tag.Name, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
+            var swatch = TaskTags.Swatch(key);
+            row.Children.Add(swatch);
+            if (_filter == key) row.Children.Add(new TextBlock { Text = tag.Name, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
+            else swatch.Margin = new Thickness(0);
             chip.Child = row;
             chip.ToolTip = Tip($"Само „{tag.Name}“ (новите задачи също ще са с този етикет)");
             SetOn(chip, _filter == key);
             _filters.Children.Add(chip);
         }
         var star = Chip("", () => SetFilter(_filter, !_starOnly));
-        star.Child = IconText("star", "Важни", bold: true);
+        star.Child = Icon("star");
         star.ToolTip = Tip("Само важните");
         SetOn(star, _starOnly);
         _filters.Children.Add(star);
@@ -597,8 +600,8 @@ public sealed class PlannerWindow : Window
             _pet.Persist();
             Refresh(true);
         });
-        hideDone.Child = IconText("check", "Скрий свършените", bold: true);
-        hideDone.ToolTip = Tip("Свършените задачи не се показват в дните");
+        hideDone.Child = IconText("check", _pet.Save.PlannerHideDone ? "скрити" : "", bold: true);
+        hideDone.ToolTip = Tip(_pet.Save.PlannerHideDone ? "Свършените са скрити – цъкни, за да се виждат" : "Скрий свършените задачи");
         SetOn(hideDone, _pet.Save.PlannerHideDone);
         _filters.Children.Add(hideDone);
         foreach (FrameworkElement c in _filters.Children)
@@ -622,7 +625,7 @@ public sealed class PlannerWindow : Window
         int done = tasks.Count(t => t.Done);
         int spent = tasks.Sum(t => t.Spent);
         var parts = new List<string>();
-        if (tasks.Count > 0) parts.Add($"Тази седмица: {done} от {tasks.Count}");
+        if (tasks.Count > 0) parts.Add($"седмицата: {done}/{tasks.Count}");
         if (spent > 0) parts.Add($"работено {TaskCards.Duration(spent)}");
         int someday = state.Someday.Count();
         if (someday > 0) parts.Add($"някога {someday}");
@@ -876,7 +879,7 @@ public sealed class PlannerWindow : Window
         panel.Children.Add(new Border { BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)), Child = bar });
         panel.Children.Add(new TextBlock
         {
-            Text = planned == 0 ? $"свободно · {capacity / 60}ч за деня" : $"~{TaskCards.Duration(planned)} от {capacity / 60}ч" + (over ? " – много е!" : ""),
+            Text = planned == 0 ? $"свободно ({capacity / 60}ч)" : $"~{TaskCards.Duration(planned)} от {capacity / 60}ч" + (over ? " – много!" : ""),
             Foreground = over ? Bad : Muted,
             FontWeight = over ? FontWeights.Bold : FontWeights.Normal,
             Margin = new Thickness(0, 2 * U, 0, 0),
