@@ -118,6 +118,13 @@ public sealed class WorkView : Border
         var searchBox = new Border { Width = 150 * U, Margin = new Thickness(0, 0, 8, 0), Child = MenuWindow.WithHint(_search, "Търси…") };
         DockPanel.SetDock(searchBox, Dock.Left);
         bar.Children.Add(searchBox);
+        // Тясно (малко меню): търсенето и надписът с дните – по-тесни, филтрите да се събират.
+        bar.SizeChanged += (_, _) =>
+        {
+            bool narrow = bar.ActualWidth < 600 * U;
+            searchBox.Width = (narrow ? 90 : 150) * U;
+            _rangeLabel.MinWidth = (narrow ? 0 : 120) * U;
+        };
         DockPanel.SetDock(_filters, Dock.Left);
         bar.Children.Add(_filters);
         // Обобщението на седмицата е в „Преглед“ (тук редът е тесен).
