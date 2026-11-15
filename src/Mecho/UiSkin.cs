@@ -208,7 +208,11 @@ public static class UiSkin
     {
         var key = (name, x, y, w, h);
         if (Parts.TryGetValue(key, out var brush)) return brush;
-        var crop = new CroppedBitmap(img, new Int32Rect(x, y, w, h));
+        BitmapSource crop = new CroppedBitmap(img, new Int32Rect(x, y, w, h));
+        // Частите, които се повтарят (ръбовете и средата), се режат от картинката насред шарката:
+        // дребните украси (листенцата на сакурата, петната на брезата) по срязаното излизаха на
+        // половинки. Там, където е рязано, украсите стават на цвета на дървото до тях.
+        if (w > 4 && h > 4) crop = CleanCutEdges(img, crop, x, y, w, h);
         crop.Freeze();
         brush = new ImageBrush(crop)
         {
@@ -219,6 +223,48 @@ public static class UiSkin
         RenderOptions.SetBitmapScalingMode(brush, BitmapScalingMode.NearestNeighbor);
         Parts[key] = brush;
         return brush;
+    }
+
+    /// <summary>
+    /// Украсите (рядко срещани цветове – под 4% от картинката) на 2 пиксела от срязаните страни
+    /// се заменят с най-близкия обикновен цвят навътре по реда/колоната. Външните страни на
+    /// картинката (рамката) не се пипат.
+    /// </summary>
+    private static BitmapSource CleanCutEdges(BitmapSource img, BitmapSource crop, int x, int y, int w, int h)
+    {
+        var full = new FormatConvertedBitmap(img, PixelFormats.Bgra32, null, 0);
+        int iw = full.PixelWidth, ih = full.PixelHeight;
+        var all = new int[iw * ih];
+        full.CopyPixels(all, iw * 4, 0);
+        var count = new Dictionary<int, int>();
+        foreach (int c in all) if ((c >> 24 & 0xFF) > 0) count[c] = count.TryGetValue(c, out int n) ? n + 1 : 1;
+        int total = count.Values.Sum();
+        bool Accent(int c) => (c >> 24 & 0xFF) > 0 && count.TryGetValue(c, out int n) && n < total * 0.04;
+
+        var px = new int[w * h];
+        new FormatConvertedBitmap(crop, PixelFormats.Bgra32, null, 0).CopyPixels(px, w * 4, 0);
+        bool cutLeft = x > 0, cutRight = x + w < iw, cutTop = y > 0, cutBottom = y + h < ih;
+        bool changed = false;
+        for (int yy = 0; yy < h; yy++)
+            for (int xx = 0; xx < w; xx++)
+            {
+                bool nearCut = (cutLeft && xx < 2) || (cutRight && xx >= w - 2) || (cutTop && yy < 2) || (cutBottom && yy >= h - 2);
+                if (!nearCut || !Accent(px[yy * w + xx])) continue;
+                // Най-близкият обикновен цвят навътре (първо по реда, после по колоната).
+                int dx = xx < w / 2 ? 1 : -1, dy = yy < h / 2 ? 1 : -1;
+                int found = 0;
+                for (int k = 1; k < Math.Max(w, h) && found == 0; k++)
+                {
+                    int nx = xx + dx * k, ny = yy + dy * k;
+                    if (nx >= 0 && nx < w && !Accent(px[yy * w + nx])) found = px[yy * w + nx];
+                    else if (ny >= 0 && ny < h && !Accent(px[ny * w + xx])) found = px[ny * w + xx];
+                }
+                if (found == 0) continue;
+                px[yy * w + xx] = found;
+                changed = true;
+            }
+        if (!changed) return crop;
+        return BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, px, w * 4);
     }
 
     /// <summary>Картинка от комплекта (или от default, ако в комплекта я няма).</summary>

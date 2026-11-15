@@ -423,7 +423,7 @@ internal static class TaskCards
                 if (cur.Day is { } d0 && d0 >= today)
                     move.Items.Add(Item("Ден напред", () => pet.MoveTask(Now(), (Now().Day ?? today).AddDays(1))));
                 move.Items.Add(Item("Утре", () => pet.MoveTask(Now(), today.AddDays(1)), cur.Day == today.AddDays(1)));
-                var monday = PlannerWindow.WeekOf(today).AddDays(7);
+                var monday = WorkView.WeekOf(today).AddDays(7);
                 move.Items.Add(Item("Следващата седмица", () => pet.MoveTask(Now(), monday), cur.Day == monday));
                 move.Items.Add(Item("Някога", () => pet.MoveTask(Now(), null), cur.Day == null));
                 menu.Items.Add(move);

@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -27,7 +28,7 @@ public sealed class MenuWindow : Window
     private readonly PetWindow _pet;
     private readonly DispatcherTimer _refresh;
     private readonly Border[] _tabButtons = new Border[8];
-    private readonly UIElement[] _tabs = new UIElement[8];
+    private readonly UIElement[] _tabs = new UIElement[9];
 
     /// <summary>Мерна единица: всичко е пропорционално на големината на шрифта.</summary>
     private static double U => Body / 18;
@@ -144,35 +145,28 @@ public sealed class MenuWindow : Window
         _tabs[FoodTab] = BuildFoodTab();
         _tabs[ShopTab] = BuildShopTab();
         _tabs[WardrobeTab] = BuildWardrobeTab();
-        // Задачите са в таба „Работа“ (вдясно); TasksTab води там.
-        var tasksPanel = BuildTasksTab();
-        _tabs[TasksTab] = new Border();
+        _tabs[TasksTab] = new Border();          // старият индекс (задачите са в „Работа“ → Днес)
         _tabs[NotesTab] = BuildNotesTab();
-        _tabs[PomodoroTab] = BuildWorkTab(BuildPomodoroTab(), tasksPanel);
+        _tabs[PomodoroTab] = BuildPomodoroTab(); // „Фокус“: мечо-доро и таймер
         _tabs[MoreTab] = BuildMoreTab();
+        Work = new WorkView(_pet);
+        _tabs[WorkPage] = Work;
 
         // Всяка страница се превърта сама: колкото и малък да е прозорецът, нищо не изчезва.
         var content = new Grid();
         for (int i = 0; i < _tabs.Length; i++)
         {
-            if (_tabs[i] is not ScrollViewer && _tabs[i] is FrameworkElement page && i != TasksTab) _tabs[i] = TabScroll(page, 0);
+            if (_tabs[i] is not ScrollViewer && _tabs[i] is FrameworkElement page && i != TasksTab && i != WorkPage) _tabs[i] = TabScroll(page, 0);
             content.Children.Add(_tabs[i]);
         }
 
+        // Без заглавна лента: вляво – навигацията (като в Sunsama), за нея се мести прозорецът;
+        // лешниците са долу в нея. Затваря се с Esc, с цъкане встрани или с цъкане по мечока.
         var root = new DockPanel();
-        var header = BuildHeader();
-        DockPanel.SetDock(header, Dock.Top);
-        root.Children.Add(header);
-        // Лентата вляво се превърта, ако прозорецът е нисък (плъзгачът е скрит – колелцето стига).
-        _nav = new ScrollViewer
-        {
-            Content = BuildTabs(),
-            VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-        };
+        _nav = BuildNav();
         DockPanel.SetDock(_nav, Dock.Left);
         root.Children.Add(_nav);
-        root.Children.Add(new Border
+        _paper = new Border
         {
             Background = PaperTexture,
             BorderBrush = Ink,
@@ -180,7 +174,8 @@ public sealed class MenuWindow : Window
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(14 * U, 12 * U, 14 * U, 14 * U),
             Child = content,
-        }.Skinned("panel"));
+        }.Skinned("panel");
+        root.Children.Add(_paper);
 
         _frame = new Border
         {
@@ -188,12 +183,13 @@ public sealed class MenuWindow : Window
             BorderBrush = Ink,
             BorderThickness = Flat,
             CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(7, 5, 7, 7),
+            Padding = new Thickness(7, 7, 7, 7),
             Child = root,
         }.Skinned("frame");
         Content = _frame;
         ApplyZoom();
         SizeChanged += (_, _) => RememberSize();
+        LocationChanged += (_, _) => RememberPlace();
 
         _pet.CareChanged += (_, _) => StateChangedRefresh();
         // Менюто само показва състоянието: всяка промяна в ядрото (лешници, притежавано,
@@ -202,11 +198,19 @@ public sealed class MenuWindow : Window
         bus.Subscribe<Mecho.Core.StateChanged<Mecho.Core.WalletState>>(this, _ => StateChangedRefresh());
         bus.Subscribe<Mecho.Core.StateChanged<Mecho.Core.InventoryState>>(this, _ => StateChangedRefresh());
         bus.Subscribe<Mecho.Core.StateChanged<Mecho.Core.PlacementState>>(this, _ => StateChangedRefresh());
-        Closed += (_, _) => bus.Unsubscribe(this);
+        Closed += (_, _) =>
+        {
+            bus.Unsubscribe(this);
+            Work.Dispose();
+        };
         _refresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _refresh.Tick += (_, _) => Refresh(rebuild: false);
 
-        Deactivated += (_, _) => Hide();
+        // Малкото меню (Мечо, Храна…) се скрива, щом цъкнеш другаде; „Работа“ стои като прозорец.
+        Deactivated += (_, _) =>
+        {
+            if (!_workMode) Hide();
+        };
         IsVisibleChanged += (_, _) =>
         {
             if (IsVisible) _refresh.Start();
@@ -219,39 +223,186 @@ public sealed class MenuWindow : Window
         };
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.Escape) Hide();
+            if (_workMode && _tab == WorkPage)
+            {
+                Work.OnKey(this, e);
+                if (e.Handled || e.Key != Key.Escape || Keyboard.FocusedElement is TextBox) return;
+            }
+            if (e.Key == Key.Escape)
+            {
+                Hide();
+                e.Handled = true;
+            }
         };
+        SourceInitialized += (_, _) => HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndProc);
 
-        SelectTab(BearTab);
+        ShowPage(PageBear);
+    }
+
+    /// <summary>„Работа“ (Днес, Седмица, Преглед) – вътре в менюто.</summary>
+    public WorkView Work { get; private set; } = null!;
+
+    /// <summary>Тъчпадът встрани (WM_MOUSEHWHEEL) – към седмицата.</summary>
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int WM_MOUSEHWHEEL = 0x020E;
+        if (msg == WM_MOUSEHWHEEL && _workMode)
+        {
+            Work.HorizontalWheel((short)((wParam.ToInt64() >> 16) & 0xFFFF));
+            handled = true;
+        }
+        return IntPtr.Zero;
+    }
+
+    // ───────────────────────── Страници ─────────────────────────
+
+    public const int WorkPage = 8;
+
+    public const string PageBear = "bear", PageFood = "food", PageWardrobe = "wardrobe", PageShop = "shop",
+        PageToday = "today", PageFocus = "focus", PageNotes = "notes", PagePlan = "plan", PageShutdown = "shutdown",
+        PageWeek = "week", PageReview = "review", PageMore = "more";
+
+    /// <summary>Страница: иконка, име, раздел в лентата, кой таб показва, голяма ли е („Работа“).</summary>
+    private sealed record PageInfo(string Id, string Icon, string Name, string Section, int Tab, bool Work);
+
+    private static readonly PageInfo[] Pages =
+    {
+        new(PageBear, "bear", "Мечо", "МЕЧО", BearTab, false),
+        new(PageFood, "food", "Храна", "МЕЧО", FoodTab, false),
+        new(PageWardrobe, "wardrobe", "Гардероб", "МЕЧО", WardrobeTab, false),
+        new(PageShop, "shop", "Магазин", "МЕЧО", ShopTab, false),
+        new(PageToday, "tasks", "Днес", "РАБОТА", WorkPage, true),
+        new(PageFocus, "honey", "Фокус", "РАБОТА", PomodoroTab, true),
+        new(PageNotes, "notes", "Бележки", "РАБОТА", NotesTab, false),
+        new(PagePlan, "sun", "План за деня", "ДЕН", WorkPage, true),
+        new(PageShutdown, "moon", "Край на деня", "ДЕН", WorkPage, true),
+        new(PageWeek, "board", "Седмица", "СЕДМИЦА", WorkPage, true),
+        new(PageReview, "book", "Преглед", "СЕДМИЦА", WorkPage, true),
+        new(PageMore, "gear", "Още", "", MoreTab, false),
+    };
+
+    public static bool IsPage(string? id) => Pages.Any(p => p.Id == id);
+
+    /// <summary>Стар таб (и част на „Работа“) → страница.</summary>
+    public static string PageForTab(int tab, int workPart = 2) => tab switch
+    {
+        TasksTab => PageToday,
+        PomodoroTab => workPart == 2 ? PageToday : PageFocus,
+        _ => Pages.FirstOrDefault(p => p.Tab == tab && !p.Work)?.Id ?? PageBear,
+    };
+
+    private string _page = PageBear;
+    private bool _workMode;
+
+    /// <summary>Сега – на голяма страница („Работа“).</summary>
+    public bool IsWorkPage => _workMode;
+
+    public string CurrentPage => _page;
+
+    /// <summary>Отваря страница: таба ѝ и (за „Работа“) изгледа; менюто става голямо или малко.</summary>
+    public void ShowPage(string id)
+    {
+        var page = Pages.FirstOrDefault(p => p.Id == id) ?? Pages[0];
+        if (page.Tab == WardrobeTab && !DailyOffer.HasWardrobe(_pet.Save)) page = Pages[0];
+        _page = page.Id;
+        _pet.Save.MenuPage = page.Id;
+        SetMode(page.Work);
+        SelectTab(page.Tab);
+        switch (page.Id)
+        {
+            case PageToday: Work.SetView(WorkView.View.Today); break;
+            case PageWeek: Work.SetView(WorkView.View.Week); break;
+            case PageReview: Work.SetView(WorkView.View.Review); break;
+            case PagePlan: Work.OpenSide("plan"); break;
+            case PageShutdown: Work.OpenSide("shutdown"); break;
+        }
+        UpdateNavSelection();
+        if (page.Work) _pet.TutorialEvent("tab:" + PomodoroTab);   // обиколката: „отвори Работа“
+    }
+
+    private void SelectTab(int index)
+    {
+        _pet.TutorialEvent("tab:" + index);
+        if (index == TasksTab) index = WorkPage;
+        _tab = index;
+        for (int i = 0; i < _tabs.Length; i++)
+            _tabs[i].Visibility = i == index ? Visibility.Visible : Visibility.Collapsed;
+        // Гардеробът стои до мечока, докато е отворен табът.
+        if (index == WardrobeTab && IsVisible) _pet.OpenWardrobe();
+        else if (index != WardrobeTab) _pet.CloseWardrobe();
+        Refresh(rebuild: false);
+        BuildTab(index);
+        if (index == NotesTab && _notesView == 3) Dispatcher.BeginInvoke(() => _noteTitle.Focus(), DispatcherPriority.Input);
     }
 
     /// <summary>
-    /// Показва панела там, където Тут го е оставила, или до мечока (вдясно или
-    /// вляво, където има място), за да се вижда балончето над него.
+    /// Показва менюто на страница: малкото – там, където Тут го е оставила, или до мечока
+    /// (вдясно или вляво, където има място); голямото („Работа“) – където е било (отначало в средата).
     /// </summary>
-    public void ShowNear(Rect bear, Rect area, int tab)
+    public void ShowNear(Rect bear, Rect area, string page)
     {
         _hideToken++;            // отваря се пак, докато се скриваше: не го крий
         _hiding = false;
         Opacity = 1;
         // Windows може да го е „свил“ (Win+D, „покажи работния плот“): винаги нормален размер.
         if (WindowState != WindowState.Normal) WindowState = WindowState.Normal;
-        _dirty[tab] = true;      // винаги свежо (офертата може да е сменена от Developer)
-        SelectTab(tab);
-        // Размерът е запомненият (или началният); мястото се смята преди показването, за да не подскача.
-        ApplyZoom();
-        FitToArea(area);
-        PlaceNear(bear, area, new Size(Width, Height));
+        _bear = bear;
+        _area = area;
+        var info = Pages.FirstOrDefault(p => p.Id == page) ?? Pages[0];
+        _dirty[info.Tab] = true;   // винаги свежо (офертата може да е сменена от Developer)
+        _placed = false;
+        ShowPage(page);
         Show();
-        if (tab == WardrobeTab) _pet.OpenWardrobe();
+        if (_tab == WardrobeTab) _pet.OpenWardrobe();
         UpdateLayout();
-        PlaceNear(bear, area, new Size(ActualWidth, ActualHeight));
+        Place();
         Activate();
+    }
+
+    private Rect _bear, _area = SystemParameters.WorkArea;
+    private bool _placed, _placing;
+
+    /// <summary>Малко или голямо (Работа): размер, място, отгоре ли е, в лентата ли е.</summary>
+    private void SetMode(bool work)
+    {
+        if (work == _workMode && _placed) return;
+        bool changed = work != _workMode;
+        _workMode = work;
+        Topmost = !work;                 // „Работа“ е обикновен прозорец (другите програми могат да са отгоре)
+        if (ShowInTaskbar != work) ShowInTaskbar = work;
+        ApplyZoom();
+        if (changed && IsVisible) Place();
+    }
+
+    /// <summary>Мястото за режима: малкото – до мечока или където е оставено; голямото – запомненото.</summary>
+    private void Place()
+    {
+        var area = _area;
+        FitToArea(area);
+        _placing = true;
+        var s = _pet.Save;
+        double w = Width, h = Height;
+        if (_workMode)
+        {
+            if (!double.IsNaN(s.WorkLeft) && !double.IsNaN(s.WorkTop) && _pet.AreaAt(s.WorkLeft + 40, s.WorkTop + 20) is var home
+                && home.Contains(new Point(s.WorkLeft + 40, s.WorkTop + 20)))
+            {
+                Left = Math.Clamp(s.WorkLeft, home.Left, Math.Max(home.Left, home.Right - w));
+                Top = Math.Clamp(s.WorkTop, home.Top, Math.Max(home.Top, home.Bottom - h));
+            }
+            else
+            {
+                Left = area.Left + (area.Width - w) / 2;
+                Top = area.Top + Math.Max(0, (area.Height - h) / 2);
+            }
+        }
+        else PlaceNear(_bear, area, new Size(w, h));
+        _placing = false;
+        _placed = true;
     }
 
     private void PlaceNear(Rect bear, Rect area, Size size)
     {
-
         var s = _pet.Save;
         if (!double.IsNaN(s.MenuLeft) && !double.IsNaN(s.MenuTop))
         {
@@ -270,6 +421,17 @@ public sealed class MenuWindow : Window
         Top = Math.Max(area.Top + 4, area.Bottom - size.Height - 4);
     }
 
+    /// <summary>Местено с мишката: мястото се запомня за режима.</summary>
+    private void RememberPlace()
+    {
+        if (_placing || _sizing || !IsVisible || !_placed) return;
+        if (_workMode)
+        {
+            _pet.Save.WorkLeft = Left;
+            _pet.Save.WorkTop = Top;
+        }
+    }
+
     private bool _hiding;
     private int _hideToken;
 
@@ -286,7 +448,7 @@ public sealed class MenuWindow : Window
         if (!IsVisible || _hiding) return;
         _hiding = true;
         _pet.MenuClosed();   // цъкане по мечока точно сега не бива да го отвори пак
-        _pet.Persist();      // размерът (ако е местен с дръжката)
+        _pet.Persist();      // размерът и страницата
         Opacity = 0;
         int token = ++_hideToken;
         _ = System.Threading.Tasks.Task.Delay(40).ContinueWith(_ => Dispatcher.BeginInvoke(() =>
@@ -299,7 +461,7 @@ public sealed class MenuWindow : Window
     }
 
     private int _tab;
-    private readonly bool[] _dirty = Enumerable.Repeat(true, 8).ToArray();
+    private readonly bool[] _dirty = Enumerable.Repeat(true, 9).ToArray();
 
     private void BuildTab(int index)
     {
@@ -311,98 +473,69 @@ public sealed class MenuWindow : Window
             case FoodTab: BuildFoodTiles(); break;
             case ShopTab: BuildShopTiles(); break;
             case WardrobeTab: BuildWardrobe(); break;
-            case TasksTab: BuildTaskList(); break;
             case NotesTab: BuildNoteList(); break;
-            case PomodoroTab: BuildTaskList(); break;
         }
     }
 
     /// <summary>Тест за скорост: колко мс строи всеки таб (наново) и подрежда менюто.</summary>
     internal List<(string Tab, double Ms)> BenchTabs()
     {
-        var names = new[] { "Мечо", "Храна", "Магазин", "Гардероб", "Задачи", "Бележки", "Работа", "Още" };
         var result = new List<(string, double)>();
-        for (int i = 0; i < names.Length; i++)
+        foreach (var page in Pages)
         {
-            if (i == TasksTab) continue;
-            _dirty[i] = true;
+            if (page.Tab < _dirty.Length) _dirty[page.Tab] = true;
             _foodKey = null;
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            SelectTab(i);
+            ShowPage(page.Id);
             RefreshNow(false);
             UpdateLayout();
-            result.Add((names[i], watch.Elapsed.TotalMilliseconds));
+            result.Add((page.Name, watch.Elapsed.TotalMilliseconds));
         }
-        SelectTab(BearTab);
+        ShowPage(PageBear);
         return result;
     }
 
-    private void SelectTab(int index)
+    // ───────────────────────── Навигацията вляво ─────────────────────────
+
+    private FrameworkElement _nav = null!;
+    private Border _paper = null!;
+    private readonly Dictionary<string, (Border Item, TextBlock Name)> _navItems = new();
+    private readonly List<TextBlock> _navSections = new();
+    private readonly TextBlock _workBadgeText = new() { FontWeight = FontWeights.Bold, Foreground = Ink };
+    private Border _workBadge = null!;
+    private bool _navCompact;
+
+    /// <summary>
+    /// Лентата вляво, като в Sunsama: разделите (МЕЧО, РАБОТА, ДЕН, СЕДМИЦА) с по няколко страници;
+    /// избраната е светла. Долу – лешниците (цъкнеш ли ги – магазинът) и „Още“. Тесен прозорец –
+    /// само иконките. За празното място по нея прозорецът се мести.
+    /// </summary>
+    private FrameworkElement BuildNav()
     {
-        _pet.TutorialEvent("tab:" + index);
-        bool tasks = index == TasksTab;
-        if (tasks)
+        var list = new StackPanel { Margin = new Thickness(2 * U, 4 * U, 8 * U, 4 * U) };
+        string section = "-";
+        foreach (var page in Pages.Where(p => p.Id != PageMore))
         {
-            index = PomodoroTab;   // задачите са в „Работа“ → „Задачи“
-            ShowWorkPart(2);
+            if (page.Section != section)
+            {
+                section = page.Section;
+                var head = new TextBlock
+                {
+                    Text = section,
+                    Foreground = OnWood,
+                    Opacity = 0.65,
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(8 * U, list.Children.Count == 0 ? 2 * U : 12 * U, 0, 4 * U),
+                };
+                _navSections.Add(head);
+                list.Children.Add(head);
+            }
+            list.Children.Add(NavItem(page));
         }
-        // „Работа“ се отваря на „Задачи“ (мечо-дорото и таймерът са един клик по-нататък).
-        else if (index == PomodoroTab && _tab != PomodoroTab) ShowWorkPart(2);
-        _tab = index;
-        for (int i = 0; i < _tabs.Length; i++)
-        {
-            bool on = i == index;
-            _tabs[i].Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-            // Избраният в лентата вляво е натиснат (меден), другите – обикновени копчета.
-            SetOn(_tabButtons[i], on);
-        }
-        // Гардеробът стои до мечока, докато е отворен табът.
-        if (index == WardrobeTab && IsVisible) _pet.OpenWardrobe();
-        else if (index != WardrobeTab) _pet.CloseWardrobe();
-        Refresh(rebuild: false);
-        BuildTab(index);
-        if (tasks && _taskNew) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
-        if (index == NotesTab && _notesView == 3) Dispatcher.BeginInvoke(() => _noteTitle.Focus(), DispatcherPriority.Input);
-    }
 
-    // ───────────────────────── Рамка: заглавие и табове ─────────────────────────
-
-    private UIElement BuildHeader()
-    {
-        // Заглавието е дръжка: за него панелът се мести, а мястото се запомня.
-        var grid = new Grid
-        {
-            Margin = new Thickness(4, 0, 0, 6),
-            Background = Brushes.Transparent,
-            Cursor = Cursors.SizeAll,
-        };
-        grid.MouseLeftButtonDown += (_, e) =>
-        {
-            try { DragMove(); }
-            catch (InvalidOperationException) { return; }
-            _pet.Save.MenuLeft = Left;
-            _pet.Save.MenuTop = Top;
-            _pet.Persist();
-        };
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-        var title = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        var bear = Icon("bear", 2);
-        bear.Margin = new Thickness(0, 0, 8, 0);
-        title.Children.Add(bear);
-        title.Children.Add(new TextBlock
-        {
-            Text = "МЕЧО",
-            FontSize = Ui.Title,
-            FontWeight = FontWeights.Bold,
-            Foreground = OnWood,
-            VerticalAlignment = VerticalAlignment.Center,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(13, 18, 28), ShadowDepth = 2, Direction = 315, BlurRadius = 0, Opacity = 1 },
-        });
-        grid.Children.Add(title);
-
+        // Долу: лешниците и „Още“.
+        var bottom = new StackPanel { Margin = new Thickness(2 * U, 6 * U, 8 * U, 4 * U) };
+        bottom.Children.Add(NavItem(Pages.First(p => p.Id == PageMore)));
         var nutRow = new StackPanel { Orientation = Orientation.Horizontal };
         var nut = Icon("nut");
         nut.Margin = new Thickness(0, 0, 6, 0);
@@ -410,86 +543,139 @@ public sealed class MenuWindow : Window
         _nuts.VerticalAlignment = VerticalAlignment.Center;
         nutRow.Children.Add(_nuts);
         var nuts = Pill(nutRow);
-        nuts.Margin = new Thickness(0, 0, 8, 0);
-        Grid.SetColumn(nuts, 1);
-        grid.Children.Add(nuts);
-
-        var close = Chip("✕", Hide);
-        // Червеното ✕ е пикселна иконка; фонът е светъл, за да се вижда.
-        close.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(close, 2);
-        grid.Children.Add(close);
-        return grid;
-    }
-
-    private FrameworkElement _nav = null!;
-    private readonly TextBlock[] _navNames = new TextBlock[8];
-    private readonly Border _workBadge = new()
-    {
-        Background = Honey,
-        BorderBrush = Ink,
-        BorderThickness = new Thickness(1),
-        CornerRadius = new CornerRadius(3),
-        Padding = new Thickness(4, 0, 4, 1),
-        VerticalAlignment = VerticalAlignment.Center,
-        Margin = new Thickness(6, 0, 0, 0),
-        Visibility = Visibility.Collapsed,
-    };
-    private bool _navCompact;
-
-    /// <summary>
-    /// Лентата вляво: иконка и име за всяка страница (като истинско приложение). Когато
-    /// прозорецът е тесен – само иконките (имената излизат при посочване). До „Работа“ –
-    /// колко задачи остават за днес.
-    /// </summary>
-    private FrameworkElement BuildTabs()
-    {
-        var list = new StackPanel { Margin = new Thickness(0, 0, 7, 0) };
-        (int Index, string Icon, string Name)[] items =
+        nuts.Margin = new Thickness(6 * U, 8 * U, 0, 0);
+        nuts.HorizontalAlignment = HorizontalAlignment.Left;
+        nuts.Cursor = Cursors.Hand;
+        nuts.ToolTip = Tip("Лешници – за храна, уреди и мебели (цъкни – магазинът)");
+        nuts.MouseLeftButtonUp += (_, e) =>
         {
-            (BearTab, "bear", "Мечо"), (FoodTab, "food", "Храна"), (PomodoroTab, "tasks", "Работа"), (NotesTab, "notes", "Бележки"),
-            (ShopTab, "shop", "Магазин"), (WardrobeTab, "wardrobe", "Гардероб"), (MoreTab, "gear", "Още"),
+            ShowPage(PageShop);
+            e.Handled = true;
         };
-        foreach (var (index, iconName, name) in items)
+        nuts.MouseLeftButtonDown += (_, e) => e.Handled = true;
+        bottom.Children.Add(nuts);
+
+        var dock = new DockPanel { Background = Brushes.Transparent, LastChildFill = true };
+        DockPanel.SetDock(bottom, Dock.Bottom);
+        dock.Children.Add(bottom);
+        dock.Children.Add(new ScrollViewer
         {
-            int i = index;
-            var icon = Icon(iconName, 2);
-            icon.VerticalAlignment = VerticalAlignment.Center;
-            var label = new TextBlock { Text = name, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8 * U, 0, 0, 0) };
-            _navNames[i] = label;
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            row.Children.Add(icon);
-            row.Children.Add(label);
-            if (i == PomodoroTab) row.Children.Add(_workBadge);
-            var item = Chip("", () => SelectTab(i));
-            item.Child = row;
-            item.Padding = new Thickness(8 * U, 5 * U, 10 * U, 6 * U);
-            item.Margin = new Thickness(0, 0, 0, 5 * U);
-            item.HorizontalAlignment = HorizontalAlignment.Stretch;
-            item.ToolTip = Tip(name);
-            ToolTipService.SetIsEnabled(item, false);
-            list.Children.Add(item);
-            _tabButtons[i] = item;
-        }
-        // „Задачи“ вече е част от „Работа“ – копче няма (индексът остава за старите връзки).
-        _tabButtons[TasksTab] = new Border();
-        return list;
+            Content = list,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        });
+        // Мести се за празното място в лентата.
+        dock.MouseLeftButtonDown += (_, e) =>
+        {
+            if (e.Handled) return;
+            try { DragMove(); }
+            catch (InvalidOperationException) { return; }
+            if (!_workMode)
+            {
+                _pet.Save.MenuLeft = Left;
+                _pet.Save.MenuTop = Top;
+            }
+            _pet.Persist();
+        };
+        dock.Cursor = Cursors.SizeAll;
+        return dock;
     }
 
-    /// <summary>Тесен прозорец – в лентата само иконки.</summary>
+    private Border NavItem(PageInfo page)
+    {
+        var icon = Icon(page.Icon);
+        icon.VerticalAlignment = VerticalAlignment.Center;
+        var name = new TextBlock
+        {
+            Text = page.Name,
+            FontWeight = FontWeights.Bold,
+            Foreground = OnWood,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8 * U, 0, 0, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        var row = new DockPanel();
+        if (page.Id == PageToday)
+        {
+            _workBadge = new Border
+            {
+                Background = Honey,
+                BorderBrush = Ink,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(4, 0, 4, 1),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(6, 0, 0, 0),
+                Child = _workBadgeText,
+                Visibility = Visibility.Collapsed,
+            };
+            DockPanel.SetDock(_workBadge, Dock.Right);
+            row.Children.Add(_workBadge);
+        }
+        DockPanel.SetDock(icon, Dock.Left);
+        row.Children.Add(icon);
+        row.Children.Add(name);
+        var item = new Border
+        {
+            Child = row,
+            Padding = new Thickness(8 * U, 5 * U, 8 * U, 5 * U),
+            Margin = new Thickness(0, 0, 0, 2 * U),
+            CornerRadius = new CornerRadius(4),
+            Background = Brushes.Transparent,
+            Cursor = Cursors.Hand,
+            ToolTip = Tip(page.Name),
+        };
+        ToolTipService.SetIsEnabled(item, false);
+        item.MouseEnter += (_, _) => { if (_page != page.Id) item.Background = HoverOnWood; };
+        item.MouseLeave += (_, _) => { if (_page != page.Id) item.Background = Brushes.Transparent; };
+        item.MouseLeftButtonDown += (_, e) => e.Handled = true;
+        item.MouseLeftButtonUp += (_, e) =>
+        {
+            ShowPage(page.Id);
+            e.Handled = true;
+        };
+        _navItems[page.Id] = (item, name);
+        // За обиколката: „Работа“ е „Днес“.
+        if (page.Id == PageToday) _tabButtons[PomodoroTab] = item;
+        else if (page.Tab < _tabButtons.Length && !page.Work) _tabButtons[page.Tab] = item;
+        return item;
+    }
+
+    private static readonly Brush HoverOnWood = MakeHover();
+
+    private static Brush MakeHover()
+    {
+        var b = new SolidColorBrush(Color.FromArgb(50, 255, 255, 255));
+        b.Freeze();
+        return b;
+    }
+
+    /// <summary>Избраната страница – светла (хартия, тъмни букви); другите – на дървото.</summary>
+    private void UpdateNavSelection()
+    {
+        foreach (var (id, (item, name)) in _navItems)
+        {
+            bool on = id == _page;
+            item.Background = on ? Paper : Brushes.Transparent;
+            name.Foreground = on ? Ink : OnWood;
+        }
+    }
+
+    /// <summary>Тесен прозорец – в лентата само иконки (без разделите).</summary>
     private void UpdateNav()
     {
         double zoom = Zoom;
         double width = ActualWidth > 0 ? ActualWidth : Width;
-        bool compact = !double.IsNaN(width) && width / zoom < 800 * U;
+        bool compact = !double.IsNaN(width) && width / zoom < 780 * U;
         if (compact == _navCompact) return;
         _navCompact = compact;
-        foreach (var (name, i) in _navNames.Select((n, i) => (n, i)))
+        foreach (var (item, name) in _navItems.Values)
         {
-            if (name == null) continue;
             name.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-            ToolTipService.SetIsEnabled(_tabButtons[i], compact);
+            ToolTipService.SetIsEnabled(item, compact);
         }
+        foreach (var head in _navSections) head.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        if (_workBadge != null) _workBadge.Visibility = compact ? Visibility.Collapsed : _workBadge.Visibility;
     }
 
     // ───────────────────────── Размер и мащаб ─────────────────────────
@@ -500,20 +686,23 @@ public sealed class MenuWindow : Window
     /// <summary>Мащабът на менюто (1 – 100%).</summary>
     private double Zoom => _pet.Save.UiZoom is >= 0.75 and <= 2 ? _pet.Save.UiZoom : 1;
 
-    /// <summary>Началният размер (при мащаб 100%): колкото беше менюто досега и лентата вляво.</summary>
-    private static Size DefaultSize => new(900 * U, 690 * U);
+    /// <summary>Началният размер (при мащаб 100%): малкото меню – колкото досега; „Работа“ – голямо.</summary>
+    private Size DefaultSize => _workMode
+        ? new(Math.Min(1180 * U, SystemParameters.WorkArea.Width / Zoom - 40), Math.Min(760 * U, SystemParameters.WorkArea.Height / Zoom - 40))
+        : new(860 * U, 690 * U);
 
-    /// <summary>Мащабът и запомненият размер (в единици при 100%).</summary>
+    /// <summary>Мащабът и запомненият размер за режима (в единици при 100%).</summary>
     internal void ApplyZoom()
     {
         double z = Zoom;
         _frame.LayoutTransform = Math.Abs(z - 1) < 0.01 ? Transform.Identity : new ScaleTransform(z, z);
         RenderOptions.SetBitmapScalingMode(_frame, BitmapScalingMode.NearestNeighbor);
         var s = _pet.Save;
-        double w = s.MenuW > 0 ? s.MenuW : DefaultSize.Width, h = s.MenuH > 0 ? s.MenuH : DefaultSize.Height;
+        double sw = _workMode ? s.WorkW : s.MenuW, sh = _workMode ? s.WorkH : s.MenuH;
+        double w = sw > 0 ? sw : DefaultSize.Width, h = sh > 0 ? sh : DefaultSize.Height;
         _sizing = true;
-        MinWidth = 600 * U * z;
-        MinHeight = 500 * U * z;
+        MinWidth = (_workMode ? 760 : 600) * U * z;
+        MinHeight = 520 * U * z;
         Width = Math.Max(MinWidth, w * z);
         Height = Math.Max(MinHeight, h * z);
         _sizing = false;
@@ -534,15 +723,23 @@ public sealed class MenuWindow : Window
         UpdateNav();
         if (_sizing || !IsVisible || ActualWidth <= 0) return;
         double z = Zoom;
-        _pet.Save.MenuW = ActualWidth / z;
-        _pet.Save.MenuH = ActualHeight / z;
+        if (_workMode)
+        {
+            _pet.Save.WorkW = ActualWidth / z;
+            _pet.Save.WorkH = ActualHeight / z;
+        }
+        else
+        {
+            _pet.Save.MenuW = ActualWidth / z;
+            _pet.Save.MenuH = ActualHeight / z;
+        }
     }
 
     /// <summary>„Още“ → размер: мащаб и обратно към началния размер.</summary>
     private void SetZoom(double zoom, bool resetSize = false)
     {
         _pet.Save.UiZoom = zoom;
-        if (resetSize) _pet.Save.MenuW = _pet.Save.MenuH = 0;
+        if (resetSize) _pet.Save.MenuW = _pet.Save.MenuH = _pet.Save.WorkW = _pet.Save.WorkH = 0;
         ApplyZoom();
         _pet.ZoomChanged();
         _pet.Persist();
@@ -581,9 +778,34 @@ public sealed class MenuWindow : Window
         top.Children.Add(stats);
         p.Children.Add(top);
 
-        p.Children.Add(Ribbon("Какво да правим?"));
-        var actions = new UniformGrid { Columns = 3 };
-        actions.Children.Add(Wide(Button("Нахрани", () => SelectTab(FoodTab), icon: "food")));
+        // Какво му трябва сега – едно голямо копче (гладен → нахрани, уморен → приспи…).
+        _suggestText = new TextBlock { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.Bold };
+        _suggestButton = Button("", () => _suggestAction?.Invoke(), primary: true);
+        _suggestButton.Margin = new Thickness(10 * U, 0, 0, 0);
+        _suggestButton.VerticalAlignment = VerticalAlignment.Center;
+        var suggestRow = new DockPanel();
+        DockPanel.SetDock(_suggestButton, Dock.Right);
+        suggestRow.Children.Add(_suggestButton);
+        suggestRow.Children.Add(_suggestText);
+        _suggest = new Border
+        {
+            Background = Cream,
+            BorderBrush = Honey,
+            BorderThickness = Px(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(12 * U, 8 * U, 8 * U, 8 * U),
+            Margin = new Thickness(0, 12 * U, 0, 0),
+            Child = suggestRow,
+            Visibility = Visibility.Collapsed,
+        };
+        p.Children.Add(_suggest);
+
+        // Действията – на три групи: грижа, заедно, още.
+        var care = ActionGroup(p, "Грижа");
+        var together = ActionGroup(null, "Заедно");
+        var more = ActionGroup(null, "Още");
+        var actions = care;
+        actions.Children.Add(Wide(Button("Нахрани", () => ShowPage(PageFood), icon: "food")));
         // Приспи: отваря избор колко да спи (вечер – и „Лягай за деня“). Спи ли – буди го.
         _sleepButton = Wide(Button("", () =>
         {
@@ -594,6 +816,10 @@ public sealed class MenuWindow : Window
         }));
         actions.Children.Add(_sleepButton);
         actions.Children.Add(Wide(Button("Погали", _pet.Pet, icon: "heart")));
+        // Колко да спи: 3 готови + свое число (минути); вечер отпред – „Лягай за деня“.
+        _sleepOptions.Margin = new Thickness(0);
+        p.Children.Add(Pocket(_sleepOptions));
+        actions = more;
         // Тихо: избор за колко (30 мин, 1 ч, 2 ч). Тих ли е – пак говори.
         _quietButton = Wide(Button("", () =>
         {
@@ -603,6 +829,7 @@ public sealed class MenuWindow : Window
             Refresh(false);
         }));
         actions.Children.Add(_quietButton);
+        actions = together;
         // Разходи се: излиза от екрана за 10 мин, 30 мин, 1 ч или колкото напишеш.
         _walkButton = Wide(Button("Разходи се", () =>
         {
@@ -634,6 +861,11 @@ public sealed class MenuWindow : Window
             Refresh(true);
         }, icon: "tasks"));
         actions.Children.Add(_workButton);
+        // Рисувай – само със статива.
+        _drawButton = Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil"));
+        actions.Children.Add(_drawButton);
+        p.Children.Add(TitledGroup("Заедно", together));
+        actions = more;
         // Спри: спира каквото прави (кътче, батут, разходка) – таймерите си текат.
         _couchButton = Wide(Button("Спри", () =>
         {
@@ -650,14 +882,8 @@ public sealed class MenuWindow : Window
             Refresh(false);
         }, icon: "couch"));
         actions.Children.Add(_placeButton);
-        // Рисувай – само със статива.
-        _drawButton = Wide(Button("Рисувай", () => { Hide(); _pet.OpenDrawing(); }, icon: "pencil"));
-        actions.Children.Add(_drawButton);
-        p.Children.Add(actions);
-
-        // Колко да спи: 3 готови + свое число (минути); вечер отпред – „Лягай за деня“.
-        _sleepOptions.Margin = new Thickness(0);
-        p.Children.Add(Pocket(_sleepOptions));
+        var walkPocketAt = p.Children.Count;   // разходката – под „Заедно“
+        p.Children.Add(TitledGroup("Още", more));
         _quietOptions.Margin = new Thickness(0);
         foreach (var (label, minutes) in new[] { ("30 мин", 30), ("1 ч", 60), ("2 ч", 120) })
         {
@@ -698,7 +924,7 @@ public sealed class MenuWindow : Window
         });
         walkGo.Margin = new Thickness(0, 0, 6, 4);
         _walkOptions.Children.Add(walkGo);
-        p.Children.Add(Pocket(_walkOptions));
+        p.Children.Insert(walkPocketAt, Pocket(_walkOptions));
         _placeOptions.Margin = new Thickness(0);
         p.Children.Add(Pocket(_placeOptions));
 
@@ -708,9 +934,64 @@ public sealed class MenuWindow : Window
             Hide();
             _pet.Sos();
         }, icon: "heart"));
-        sos.Margin = new Thickness(0, 0, 6, 6);
+        sos.Margin = new Thickness(0, 14 * U, 0, 0);
+        sos.HorizontalAlignment = HorizontalAlignment.Left;
+        sos.ToolTip = Tip("Нещо мило за кураж, когато ти е трудно");
         p.Children.Add(sos);
         return TabScroll(p, 600 * U);
+    }
+
+    private Border _suggest = null!;
+    private TextBlock _suggestText = null!;
+    private Button _suggestButton = null!;
+    private Action? _suggestAction;
+
+    /// <summary>Група копчета (по три на ред); с p – заглавието и групата се слагат веднага.</summary>
+    private UniformGrid ActionGroup(StackPanel? p, string title)
+    {
+        var grid = new UniformGrid { Columns = 3 };
+        if (p != null) p.Children.Add(TitledGroup(title, grid));
+        return grid;
+    }
+
+    private static StackPanel TitledGroup(string title, UIElement grid)
+    {
+        var box = new StackPanel { Margin = new Thickness(0, 12 * U, 0, 0) };
+        box.Children.Add(new TextBlock { Text = title, Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(2 * U, 0, 0, 5 * U) });
+        box.Children.Add(grid);
+        return box;
+    }
+
+    /// <summary>Какво му трябва сега (на страница „Мечо“): едно ясно копче.</summary>
+    private void UpdateSuggestion(SaveData s)
+    {
+        string text = "", button = "", icon = "";
+        Action? act = null;
+        if (_pet.OnWalk)
+        {
+            (text, button, icon) = ("На разходка е.", "Повикай", "walk");
+            act = () => { _pet.ReturnFromWalk(called: true); Refresh(false); };
+        }
+        else if (_pet.IsAsleep)
+        {
+            (text, button, icon) = ("Спи сладко.", "Събуди", "sun");
+            act = () => { _pet.WakeUp(); Refresh(false); };
+        }
+        else if (s.Fullness < 35)
+        {
+            (text, button, icon) = ("Гладен е – нахрани го.", "Нахрани", "food");
+            act = () => ShowPage(PageFood);
+        }
+        else if (s.Energy < PetWindow.TiredBelow && _pet.CanSleep)
+        {
+            (text, button, icon) = ("Уморен е – приспи го.", "Приспи", "moon");
+            act = () => { _sleepOpen = true; Refresh(false); };
+        }
+        _suggestAction = act;
+        _suggest.Visibility = act == null ? Visibility.Collapsed : Visibility.Visible;
+        if (act == null) return;
+        _suggestText.Text = text;
+        SetButton(_suggestButton, button, icon);
     }
 
     /// <summary>
@@ -1184,7 +1465,7 @@ public sealed class MenuWindow : Window
     /// <summary>Самопроверка: строи магазина (целта и офертата).</summary>
     internal void SelfTestShop()
     {
-        SelectTab(ShopTab);
+        ShowPage(PageShop);
         _goalKey = "";
         BuildShopTiles();
         UpdateLayout();
@@ -1210,23 +1491,15 @@ public sealed class MenuWindow : Window
         UpdateNav();
     }
 
-    internal void SelfTestTab(int tab)
+    internal void SelfTestPage(string page)
     {
-        _dirty[tab] = true;
-        SelectTab(tab);
+        if (Pages.FirstOrDefault(p => p.Id == page) is { } info) _dirty[info.Tab] = true;
+        ShowPage(page);
         RefreshNow(true);
-    }
-
-    /// <summary>Самопроверка: списъкът със задачите за днес.</summary>
-    internal void SelfTestHistory()
-    {
-        SelectTab(TasksTab);
-        RefreshNow(true);
-        UpdateLayout();
     }
 
     /// <summary>Отваря магазина (например от гардероба или от заключена храна).</summary>
-    private void OpenShop() => SelectTab(ShopTab);
+    private void OpenShop() => ShowPage(PageShop);
 
     // Магазинът е от две части: „Събираме за…“ (избор от 3 неща, лентата се пълни
     // с лешниците) и офертата на деня (дрехи, тапети, скинове – след гардероба).
@@ -1425,7 +1698,7 @@ public sealed class MenuWindow : Window
         bool owned = Clothes.Owns(_pet.Save, g);
         string? why = null;
         Button action = owned
-            ? Button("В гардероба", () => SelectTab(WardrobeTab), icon: "wardrobe")
+            ? Button("В гардероба", () => ShowPage(PageWardrobe), icon: "wardrobe")
             : BuyButton(g.Price, () => _pet.BuyGarment(g), out why);
         if (owned) why = "Вече е в гардероба.";
         var art = _pet.GarmentPreview(g);
@@ -1437,7 +1710,7 @@ public sealed class MenuWindow : Window
     private Button ToWardrobe(string section, out string? why)
     {
         why = "Вече е в гардероба.";
-        return Button("В гардероба", () => { _wardrobeSection = section; SelectTab(WardrobeTab); }, icon: "wardrobe");
+        return Button("В гардероба", () => { _wardrobeSection = section; ShowPage(PageWardrobe); }, icon: "wardrobe");
     }
 
     private Border BackdropTile(Backdrop b)
@@ -1851,7 +2124,7 @@ public sealed class MenuWindow : Window
     /// <summary>Самопроверка: гардеробът с дрехите и фоновете.</summary>
     internal void SelfTestWardrobe()
     {
-        SelectTab(WardrobeTab);
+        ShowPage(PageWardrobe);
         BuildWardrobe();
         UpdateLayout();
     }
@@ -1862,273 +2135,6 @@ public sealed class MenuWindow : Window
     /// „Работа“: отгоре три копчета – Мечо-доро | Таймер | Задачи – и под тях само
     /// избраната част, на цялата ширина (вместо три неща, натъпкани едно до друго).
     /// </summary>
-    private UIElement BuildWorkTab(UIElement timers, UIElement tasks)
-    {
-        // BuildPomodoroTab строи мечо-дорото и таймера заедно: делим ги при лентата „Таймер“.
-        var all = (StackPanel)timers;
-        var pomodoro = new StackPanel();
-        var timer = new StackPanel();
-        bool inTimer = false;
-        foreach (var child in all.Children.Cast<UIElement>().ToList())
-        {
-            if (child == _timerRibbon) inTimer = true;
-            all.Children.Remove(child);
-            if (child == _timerRibbon) continue;
-            (inTimer ? timer : pomodoro).Children.Add(child);
-        }
-        // „Работя по:“ стои най-отгоре и важи и за мечо-дорото, и за работния таймер.
-        _workParts[0] = pomodoro;
-        _workParts[1] = timer;
-        _workParts[2] = tasks;
-
-        // Отгоре – дълъг бутон „Задачи“, под него един до друг „Мечо-доро“ и „Таймер“.
-        var root = new StackPanel();
-        (string Icon, string Name)[] parts = { ("honey", "Мечо-доро"), ("clock", "Таймер"), ("tasks", "Днес") };
-        for (int i = 0; i < parts.Length; i++)
-        {
-            int index = i;
-            var chip = Chip("", () => ShowWorkPart(index));
-            chip.Child = IconText(parts[i].Icon, parts[i].Name);
-            ((FrameworkElement)chip.Child).HorizontalAlignment = HorizontalAlignment.Center;
-            _workChips[i] = chip;
-        }
-        // Един ред, три еднакви: Днес | Мечо-доро | Таймер.
-        var bar = _workBar;
-        bar.Rows = 1;
-        bar.Margin = new Thickness(0, 0, 0, 10 * U);
-        _workChips[0].Margin = new Thickness(6, 0, 6, 0);
-        bar.Children.Add(_workChips[2]);
-        bar.Children.Add(_workChips[0]);
-        bar.Children.Add(_workChips[1]);
-        root.Children.Add(bar);
-        foreach (var part in _workParts) root.Children.Add(part);
-        ShowWorkPart(_workPart);
-        return root;
-    }
-
-    private readonly UniformGrid _workBar = new();   // Мечо-доро | Таймер (скрито, докато се пише нова задача)
-    private readonly UIElement[] _workParts = new UIElement[3];
-    private readonly Border[] _workChips = new Border[3];
-    private int _workPart = 2;   // „Задачи“
-
-    internal void ShowWorkPart(int index)
-    {
-        _workPart = index;
-        for (int i = 0; i < 3; i++)
-        {
-            _workParts[i].Visibility = i == index ? Visibility.Visible : Visibility.Collapsed;
-            SetOn(_workChips[i], i == index);
-        }
-        if (index == 2 && _taskNew && IsVisible) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
-    }
-
-    private UIElement BuildTasksTab()
-    {
-        var root = new StackPanel();
-        // Нова задача (след „➕ Нова“, отделно от списъка): име, какво включва, колко е трудна.
-        var p = _taskEditor;
-        _taskInput = NewTextInput();
-        _taskInput.KeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Enter) AddTask();
-        };
-        p.Children.Add(WithHint(_taskInput, "Име на задачата…"));
-        // Какво точно е (по избор): в закачения прозорец излиза при посочване на задачата.
-        _taskText = NewTextInput();
-        _taskText.AcceptsReturn = true;
-        _taskText.TextWrapping = TextWrapping.Wrap;
-        _taskText.MaxHeight = 90 * U;
-        _taskText.Margin = new Thickness(0, 6, 0, 0);
-        _taskText.PreviewKeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Enter && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
-            {
-                AddTask();
-                e.Handled = true;
-            }
-        };
-        p.Children.Add(WithHint(_taskText, "Какво включва? (по избор)"));
-
-        p.Children.Add(new TextBlock { Text = "Каква е задачата?", Foreground = Muted, Margin = new Thickness(0, 8, 0, 3) });
-        var sizes = new WrapPanel();
-        string[] labels = { "малка", "средна", "голяма" };
-        for (int i = 0; i < 3; i++)
-        {
-            int size = i + 1;
-            _sizeButtons[i] = Chip(labels[i], () =>
-            {
-                _taskSize = size;
-                UpdateSizeButtons();
-            });
-            _sizeButtons[i].Margin = new Thickness(0, 0, 6, 0);
-            _sizeButtons[i].VerticalAlignment = VerticalAlignment.Center;
-            sizes.Children.Add(_sizeButtons[i]);
-        }
-        p.Children.Add(sizes);
-
-        // Кога, етикет, важна, време – по избор (отначало: за днес, без етикет).
-        p.Children.Add(new TextBlock { Text = "За кога?", Foreground = Muted, Margin = new Thickness(0, 8, 0, 3) });
-        var days = new WrapPanel();
-        string[] dayNames = { "Днес", "Утре", "Някога" };
-        for (int i = 0; i < 3; i++)
-        {
-            int d = i;
-            _dayButtons[i] = Chip(dayNames[i], () => { _taskDay = d; UpdateSizeButtons(); });
-            _dayButtons[i].Margin = new Thickness(0, 0, 6, 4);
-            days.Children.Add(_dayButtons[i]);
-        }
-        _taskStarChip = Chip("", () => { _taskStar = !_taskStar; UpdateSizeButtons(); });
-        _taskStarChip.Child = IconText("star", "Важна", bold: true);
-        _taskStarChip.Margin = new Thickness(0, 0, 6, 4);
-        days.Children.Add(_taskStarChip);
-        p.Children.Add(days);
-        p.Children.Add(new TextBlock { Text = "Етикет", Foreground = Muted, Margin = new Thickness(0, 6, 0, 3) });
-        var tags = new WrapPanel();
-        for (int i = 0; i < TaskTags.All.Length; i++)
-        {
-            var key = TaskTags.All[i].Key;
-            var chip = Chip("", () => { _taskTag = _taskTag == key ? "" : key; UpdateSizeButtons(); });
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            row.Children.Add(TaskTags.Swatch(key));
-            row.Children.Add(new TextBlock { Text = TaskTags.All[i].Name, FontWeight = FontWeights.Bold });
-            chip.Child = row;
-            chip.Margin = new Thickness(0, 0, 6, 4);
-            _tagButtons[i] = chip;
-            tags.Children.Add(chip);
-        }
-        p.Children.Add(tags);
-        p.Children.Add(new TextBlock { Text = "Колко време?", Foreground = Muted, Margin = new Thickness(0, 6, 0, 3) });
-        var times = new WrapPanel();
-        var estimates = TaskCards.Estimates.Prepend(0).ToArray();
-        _timeButtons = new Border[estimates.Length];
-        for (int i = 0; i < estimates.Length; i++)
-        {
-            int m = estimates[i];
-            var chip = Chip(m == 0 ? "—" : TaskCards.Duration(m), () => { _taskMinutes = m; UpdateSizeButtons(); });
-            chip.Margin = new Thickness(0, 0, 6, 4);
-            chip.Tag = false;
-            _timeButtons[i] = chip;
-            times.Children.Add(chip);
-        }
-        p.Children.Add(times);
-        // Под трудността: Добави (Запази при поправка) и Отказ – еднакво големи.
-        _addTaskButton = Button("Добави", AddTask, primary: true, icon: "plus");
-        var cancel = Button("Отказ", () => ShowNewTask(false), icon: "close");
-        _deleteTaskButton = Button("Изтрий", () =>
-        {
-            if (_editTask != null) _pet.DeleteTask(_editTask);
-            ShowNewTask(false);
-        }, icon: "close");
-        _addTaskButton.Margin = new Thickness(0, 0, 3, 0);   // еднакво големи
-        cancel.Margin = new Thickness(3, 0, 0, 0);
-        _deleteTaskButton.Margin = new Thickness(3, 0, 0, 0);
-        p.Children.Add(new UniformGrid { Rows = 1, Margin = new Thickness(0, 10, 0, 0), Children = { _addTaskButton, cancel, _deleteTaskButton } });
-        UpdateSizeButtons();
-        root.Children.Add(p);
-
-        // Отгоре: колко е за днес; бърза нова задача (Enter) и „…“ – с всичко за нея.
-        _taskSummary = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6 * U) };
-        var quickRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
-        var more = Chip("", () => ShowNewTask(true));
-        more.Child = Icon("pencil");
-        more.ToolTip = Tip("Нова задача с всичко за нея (описание, ден, етикет, време…)");
-        more.Margin = new Thickness(6, 0, 0, 0);
-        DockPanel.SetDock(more, Dock.Right);
-        quickRow.Children.Add(more);
-        _quickTask = NewTextInput();
-        _quickTask.MaxLength = Mecho.Core.TasksModule.MaxTitle;
-        _quickTask.KeyDown += (_, e) =>
-        {
-            if (e.Key != Key.Enter || string.IsNullOrWhiteSpace(_quickTask.Text)) return;
-            string text = _quickTask.Text;
-            _quickTask.Clear();
-            _pet.AddTask(text, 1, quiet: true);
-            e.Handled = true;
-        };
-        quickRow.Children.Add(WithHint(_quickTask, "Нова задача за днес…  (Enter)"));
-        _taskTop = new StackPanel { Children = { _taskSummary, quickRow } };
-        root.Children.Add(_taskTop);
-        root.Children.Add(_taskScroll = new ScrollViewer
-        {
-            Content = _taskList,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Background = Brushes.Transparent,
-        });
-        // Задачите се нареждат с влачене.
-        TaskCards.DropTarget(_taskScroll, _taskList, (id, before) =>
-        {
-            if (_pet.Save.Tasks.FirstOrDefault(t => t.Id == id) is not { } task) return;
-            _pet.MoveTask(task, _pet.TaskToday, before);
-        }, _taskScroll);
-
-        // Отдолу: „Работа“ (всичко по дни, план, преглед) и закаченото табло.
-        _taskBottom = new UniformGrid { Rows = 1, Margin = new Thickness(0, 10 * U, 0, 0) };
-        var open = Button("Отвори „Работа“", () => _pet.OpenPlanner(), primary: true, icon: "tasks");
-        open.ToolTip = Tip("Днес, седмицата по дни, преглед на седмицата – в голям прозорец");
-        open.Margin = new Thickness(0, 0, 3, 0);
-        _pinTasks = Chip("", () => _pet.SetPinned(PinWindow.Tasks, !_pet.IsPinned(PinWindow.Tasks)));
-        _pinTasks.Child = IconText("pin", "Табло", bold: true);
-        ((FrameworkElement)_pinTasks.Child).HorizontalAlignment = HorizontalAlignment.Center;
-        _pinTasks.ToolTip = Tip("Днешните задачи в малко табло, което стои на екрана");
-        _pinTasks.Margin = new Thickness(3, 0, 0, 0);
-        _pinTasks.VerticalAlignment = VerticalAlignment.Stretch;
-        _taskBottom.Children.Add(open);
-        _taskBottom.Children.Add(_pinTasks);
-        root.Children.Add(_taskBottom);
-        _taskEditor.Visibility = Visibility.Collapsed;   // отначало – списъкът
-        return root;
-    }
-
-    private readonly StackPanel _taskEditor = new();
-    private readonly Border[] _dayButtons = new Border[3];
-    private readonly Border[] _tagButtons = new Border[TaskTags.All.Length];
-    private Border[] _timeButtons = Array.Empty<Border>();
-    private Border _taskStarChip = null!;
-    private FrameworkElement _taskTop = null!;
-    private TextBox _quickTask = null!;
-    private Button _deleteTaskButton = null!;
-    private int _taskDay;          // 0 днес, 1 утре, 2 някога (друг ден – при поправка остава)
-    private DateTime? _taskEditDay;
-    private string _taskTag = "";
-    private bool _taskStar;
-    private int _taskMinutes;
-    private ScrollViewer _taskScroll = null!;
-
-    private UniformGrid _taskBottom = null!;
-    private Button _addTaskButton = null!;
-    private bool _taskNew;
-    private TaskItem? _editTask;   // поправя се (✏) – иначе е нова
-
-    /// <summary>
-    /// „➕ Нова“ (или ✏ на задача): само полетата (без списъка, мечо-дорото, таймера и
-    /// долните бутони); след „Добави“/„Запази“ или „Отказ“ – пак списъкът.
-    /// </summary>
-    internal void ShowNewTask(bool on, TaskItem? edit = null)
-    {
-        _taskNew = on;
-        _editTask = on ? edit : null;
-        _taskInput.Text = edit?.Title ?? "";
-        _taskText.Text = edit?.Description ?? "";
-        if (edit != null) _taskSize = edit.Size;
-        var today = _pet.TaskToday;
-        _taskEditDay = edit?.Day;
-        _taskDay = edit == null ? 0 : edit.Day == null ? 2 : edit.Day == today.AddDays(1) ? 1 : edit.Day == today ? 0 : -1;
-        _taskTag = edit?.Tag ?? "";
-        _taskStar = edit?.Star ?? false;
-        _taskMinutes = edit?.Minutes ?? 0;
-        UpdateSizeButtons();
-        SetButton(_addTaskButton, edit != null ? "Запази" : "Добави", edit != null ? "check" : "plus");
-        _deleteTaskButton.Visibility = edit != null ? Visibility.Visible : Visibility.Collapsed;
-        var list = on ? Visibility.Collapsed : Visibility.Visible;
-        _taskEditor.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-        _taskScroll.Visibility = list;
-        _taskTop.Visibility = list;
-        _taskBottom.Visibility = list;
-        _workBar.Visibility = list;
-        Refresh(true);
-        if (on && IsVisible) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
-    }
-
     /// <summary>„Най-нови / Най-стари“ – подредбата на списъка (закачените са винаги горе).</summary>
     /// <summary>Подредбата на бележките: само стрелка (▲ най-старите горе, ▼ най-новите горе) – да се събира на реда.</summary>
     private Border SortChip(Func<bool> oldestFirst, Action<bool> set)
@@ -2171,33 +2177,7 @@ public sealed class MenuWindow : Window
         return bar;
     }
 
-    private Border _pinTasks = null!, _pinNotes = null!;
-
-    private void BuildTaskList()
-    {
-        if (TaskCards.Dragging) return;   // по време на влачене – не (картичката, която се влачи, ще изчезне)
-        _taskList.Children.Clear();
-        SetOn(_pinTasks, _pet.IsPinned(PinWindow.Tasks));
-        SetOn(_pinNotes, _pet.IsPinned(PinWindow.Notes));
-        // Днешните: несвършените в реда си (влачат се), отдолу – свършените днес.
-        var today = _pet.TaskToday;
-        var open = _pet.OrderedTasks();
-        var done = _pet.Save.Tasks.Where(t => t.Done && t.Day == today).OrderBy(t => t.DoneAt).ToList();
-        if (open.Count == 0)
-            _taskList.Children.Add(MutedText(done.Count > 0 ? "Всичко за днес е свършено! 🍯"
-                : _pet.TaskState.Open.Any(t => !t.Done) ? "Нищо за днес. В „Работа“ са задачите за другите дни."
-                : "Нищо за днес. Напиши задача отгоре."));
-        foreach (var t in open.Concat(done))
-            _taskList.Children.Add(TaskCards.Build(_pet, t, new TaskCardOptions
-            {
-                Description = 90,
-                Edit = x => ShowNewTask(true, x),
-                Open = x => ShowNewTask(true, x),
-            }));
-
-        var (doneToday, allToday, minutes) = _pet.TodayLoad();
-        _taskSummary.Text = allToday == 0 ? "Днес" : $"Днес: свършени {doneToday} от {allToday}" + (minutes > 0 ? $"  ·  остават ~{TaskCards.Duration(minutes)}" : "");
-    }
+    private Border _pinNotes = null!;
 
     /// <summary>Четири места две по две (празно място – null) – копчетата до задача/бележка.</summary>
     private static UniformGrid TwoByTwo(FrameworkElement? a, FrameworkElement? b, FrameworkElement? c, FrameworkElement? d)
@@ -2215,38 +2195,6 @@ public sealed class MenuWindow : Window
         }
         Grid.SetColumn(grid, 1);
         return grid;
-    }
-
-    private void AddTask()
-    {
-        if (string.IsNullOrWhiteSpace(_taskInput.Text)) return;
-        var today = _pet.TaskToday;
-        DateTime? day = _taskDay switch { 0 => today, 1 => today.AddDays(1), 2 => null, _ => _taskEditDay };
-        if (_editTask != null)
-        {
-            _pet.EditTask(_editTask, _taskInput.Text, _taskSize, _taskText.Text);
-            _pet.MarkTask(_editTask, tag: _taskTag, star: _taskStar, minutes: _taskMinutes);
-            if (day != _editTask.Day) _pet.MoveTask(_editTask, day);
-            ShowNewTask(false);
-            return;
-        }
-        _pet.AddTask(_taskInput.Text, _taskSize, _taskText.Text, day, someday: day == null, tag: _taskTag, star: _taskStar, minutes: _taskMinutes);
-        _taskInput.Clear();
-        _taskText.Clear();
-        ShowNewTask(false);   // добавена – обратно към списъка
-    }
-
-    private void UpdateSizeButtons()
-    {
-        for (int i = 0; i < 3; i++)
-            SetOn(_sizeButtons[i], i + 1 == _taskSize);
-        for (int i = 0; i < 3; i++)
-            if (_dayButtons[i] != null) SetOn(_dayButtons[i], i == _taskDay);
-        for (int i = 0; i < _tagButtons.Length; i++)
-            if (_tagButtons[i] != null) SetOn(_tagButtons[i], TaskTags.All[i].Key == _taskTag);
-        if (_taskStarChip != null) SetOn(_taskStarChip, _taskStar);
-        var estimates = TaskCards.Estimates.Prepend(0).ToArray();
-        for (int i = 0; i < _timeButtons.Length; i++) SetOn(_timeButtons[i], estimates[i] == _taskMinutes);
     }
 
     // ───────────────────────── Бележки ─────────────────────────
@@ -3271,15 +3219,14 @@ public sealed class MenuWindow : Window
     {
         var s = _pet.Save;
         _nuts.Text = s.Hazelnuts.ToString();
-        // Скрити табове: „Задачи“ (те са в „Работа“) и гардеробът, докато не е купен.
-        _tabButtons[TasksTab].Visibility = Visibility.Collapsed;
+        // Гардеробът се вижда в лентата, щом е купен; до „Днес“ – колко задачи остават.
         var (_, allToday, _) = _pet.TodayLoad();
         int leftToday = _pet.OrderedTasks().Count;
-        _workBadge.Child ??= new TextBlock { FontWeight = FontWeights.Bold, Foreground = Ink };
-        ((TextBlock)_workBadge.Child).Text = leftToday.ToString();
-        _workBadge.Visibility = leftToday > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _workBadgeText.Text = leftToday.ToString();
+        _workBadge.Visibility = leftToday > 0 && !_navCompact ? Visibility.Visible : Visibility.Collapsed;
         _workBadge.ToolTip = Tip($"Остават {leftToday} от {allToday} задачи за днес");
-        _tabButtons[WardrobeTab].Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
+        if (_navItems.TryGetValue(PageWardrobe, out var wardrobe))
+            wardrobe.Item.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
 
         // Мечо
         _portrait.Source = _pet.Portrait;
@@ -3324,6 +3271,7 @@ public sealed class MenuWindow : Window
                 _weatherRow.ToolTip = tip;
             }
         }
+        UpdateSuggestion(s);
         bool canPlace = Devices.Concat(PetWindow.FurnitureKinds).Any(i => Kitchen.Owns(s, i));
         _placeButton.Visibility = canPlace ? Visibility.Visible : Visibility.Collapsed;
         if (!canPlace) _placeOpen = false;

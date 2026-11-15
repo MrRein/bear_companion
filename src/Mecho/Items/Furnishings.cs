@@ -130,10 +130,14 @@ public sealed partial class PetWindow
         foreach (var f in _furnishings)
         {
             var p = PlacementOf(f.Kind);
-            if (p.Placed && p.Owner == PlacedBy.Bear && !FurnitureStillNeeded(f))
+            // Мечокът го няма (разходка, цял екран, скрит): сложеното от него се прибира веднага –
+            // иначе, като се върне с ходене, мебелта стои под него и той минава по нея. (Леглото,
+            // докато спи, остава.)
+            bool away = !IsVisible && f.Kind != Kitchen.Bed && !_inScene;
+            if (p.Placed && p.Owner == PlacedBy.Bear && (away || !FurnitureStillNeeded(f)))
             {
-                if (f.UnneededSince < 0) f.UnneededSince = Now;
-                else if (Now - f.UnneededSince > FurnitureGrace)
+                if (f.UnneededSince < 0 && !away) f.UnneededSince = Now;
+                else if (away || Now - f.UnneededSince > FurnitureGrace)
                 {
                     f.UnneededSince = -1;
                     CoreEngine.Bus.Send(new ReleaseByBear(f.Kind));

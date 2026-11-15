@@ -193,6 +193,32 @@ public sealed partial class PetWindow
                         string line = $"  реже се ({tb.ActualWidth:0} < {need:0}{(tb.TextTrimming != TextTrimming.None ? ", с …" : "")}): „{Ui.Shorten(tb.Text, 50)}“";
                         seen[line] = seen.TryGetValue(line, out int n) ? n + 1 : 1;
                     }
+                    // Текстът е цял, но копчето около него е по-тясно (рамката го реже) – „Мечо-доро“ → „Мечс“.
+                    else
+                    {
+                        FrameworkElement? box = null;
+                        var a = VisualTreeHelper.GetParent(tb);
+                        for (int k = 0; a != null && k < 8; k++, a = VisualTreeHelper.GetParent(a))
+                            if (a is System.Windows.Controls.Primitives.ButtonBase or System.Windows.Controls.Border { Cursor: { } } && a is FrameworkElement fe && fe.Cursor == System.Windows.Input.Cursors.Hand)
+                            {
+                                box = (FrameworkElement)a;
+                                break;
+                            }
+                        if (box != null && box.ActualWidth > 0)
+                        {
+                            try
+                            {
+                                var r = tb.TransformToAncestor(box).TransformBounds(new Rect(0, 0, Math.Min(tb.ActualWidth, need), tb.ActualHeight));
+                                if (r.Right > box.ActualWidth + 1 || r.Left < -1)
+                                {
+                                    cut++;
+                                    string line = $"  реже се в копчето ({box.ActualWidth:0} < {r.Right:0}): „{Ui.Shorten(tb.Text, 50)}“";
+                                    seen[line] = seen.TryGetValue(line, out int n) ? n + 1 : 1;
+                                }
+                            }
+                            catch (InvalidOperationException) { }
+                        }
+                    }
                 }
                 if (d is FrameworkElement f && f != root && f.ActualWidth > 0 && f.IsVisible)
                 {
@@ -484,7 +510,8 @@ public sealed partial class PetWindow
             SetTaskDone(_save.Tasks[^1], true);
             // Вълна 4б: наградата и броячът са от ядрото (TasksModule).
             if (_save.Hazelnuts != nuts + 3 || _save.TasksDoneTotal != total + 1) throw new Exception("задачата не плати през ядрото");
-            _menu!.SelfTestHistory();
+            OpenMenuPage(MenuWindow.PageToday);
+            if (!PlannerIsOpen) throw new Exception("„Днес“ не се отвори");
         }, 400);
         await step("затвори менюто", () => _menu!.Hide(), 300);
 
@@ -1370,23 +1397,23 @@ public sealed partial class PetWindow
             var a2 = _save.Tasks.Single(x => x.Id == a.Id);
             if (!a2.Star || a2.Tag != "art") throw new Exception("не се маркира");
             OpenPlanner();
-            _planner!.SetView(PlannerWindow.View.Week);
-            _planner.UpdateLayout();
+            Work!.SetView(WorkView.View.Week);
+            Work.UpdateLayout();
             if (!PlannerIsOpen) throw new Exception("седмицата не се отвори");
             // Пак отворена – същата (не втора).
-            var first = _planner;
+            var first = Work;
             OpenPlanner();
-            if (_planner != first) throw new Exception("отвори втора седмица");
+            if (Work != first) throw new Exception("отвори втора седмица");
             NotifyCare();
-            _planner.UpdateLayout();
-            Shot(_planner, "planner_1_open");
-            LayoutReport(_planner, "planner_1_open");
+            Work.UpdateLayout();
+            Shot(_menu!, "planner_1_open");
+            LayoutReport(_menu!, "planner_1_open");
         }, 800);
         DateTime stripFirst = default;
         int stripCount = 0;
         await step("задачи: лентата с дните – назад", () =>
         {
-            var p = _planner!;
+            var p = Work!;
             p.UpdateLayout();
             if (!p.Ready) throw new Exception("лентата не застана на днес");
             if (p.ColumnsShown != p.DayCount) throw new Exception($"колони {p.ColumnsShown}, дни {p.DayCount}");
@@ -1397,7 +1424,7 @@ public sealed partial class PetWindow
         }, 700);
         await step("задачи: лентата с дните – напред", () =>
         {
-            var p = _planner!;
+            var p = Work!;
             if (p.FirstDay >= stripFirst || p.DayCount <= stripCount) throw new Exception("назад не се добавиха дни");
             if (p.DayCount > 120) throw new Exception($"лентата расте без край: {p.DayCount} дни");
             if (p.Offset < 1) throw new Exception("след добавянето назад лентата не е на същото място");
@@ -1407,7 +1434,7 @@ public sealed partial class PetWindow
         }, 700);
         await step("задачи: лентата с дните – днес", () =>
         {
-            var p = _planner!;
+            var p = Work!;
             if (p.DayCount <= stripCount) throw new Exception("напред не се добавиха дни");
             if (p.DayCount > 140) throw new Exception($"лентата расте без край: {p.DayCount} дни");
             p.TestScrollToDay(TaskToday);
@@ -1417,7 +1444,7 @@ public sealed partial class PetWindow
         }, 600);
         await step("задачи: подробности, стъпки, повторение, копие", () =>
         {
-            var p = _planner!;
+            var p = Work!;
             var a = _save.Tasks.Single(x => x.Title == "Тест седмица А");
             p.TestSelect(a.Id);
             if (p.SideShown != "Details") throw new Exception("подробностите не се отвориха: " + p.SideShown);
@@ -1432,14 +1459,14 @@ public sealed partial class PetWindow
                 "Описание, което също е доста дълго и трябва да се съкрати красиво на картичката.", tag: "people", minutes: 90, quiet: true);
             NotifyCare();
             p.UpdateLayout();
-            Shot(p, "planner_2_details");
-            LayoutReport(p, "planner_2_details");
+            Shot(_menu!, "planner_2_details");
+            LayoutReport(_menu!, "planner_2_details");
             DuplicateTask(a2);
             if (_save.Tasks.Count(x => x.Title.StartsWith("Тест седмица А")) != 2) throw new Exception("няма копие");
         }, 600);
         await step("задачи: изтрий и отмени, търсене", () =>
         {
-            var p = _planner!;
+            var p = Work!;
             var copy = _save.Tasks.Single(x => x.Title == "Тест седмица А (копие)");
             DeleteTask(copy);
             if (!p.ToastShown) throw new Exception("няма „Отмени“");
@@ -1454,19 +1481,19 @@ public sealed partial class PetWindow
         }, 500);
         await step("задачи: план за деня и край на деня", () =>
         {
-            var p = _planner!;
+            var p = Work!;
             p.TestSide("plan");
             p.UpdateLayout();
             if (p.SideShown != "Plan") throw new Exception("планът не се отвори");
-            Shot(p, "planner_3_plan");
-            LayoutReport(p, "planner_3_plan");
+            Shot(_menu!, "planner_3_plan");
+            LayoutReport(_menu!, "planner_3_plan");
             PlannedToday();
             if (_save.PlannedDay != TaskToday.ToString("yyyy-MM-dd")) throw new Exception("денят не е планиран");
             p.TestSide("shutdown");
             p.UpdateLayout();
             if (p.SideShown != "Shutdown") throw new Exception("краят на деня не се отвори");
-            Shot(p, "planner_4_shutdown");
-            LayoutReport(p, "planner_4_shutdown");
+            Shot(_menu!, "planner_4_shutdown");
+            LayoutReport(_menu!, "planner_4_shutdown");
             ShutdownToday("Тестов ден – мина добре.");
             if (!_save.DayNotes.ContainsKey(TaskToday.ToString("yyyy-MM-dd"))) throw new Exception("бележката за деня не се запази");
             _save.DayNotes.Remove(TaskToday.ToString("yyyy-MM-dd"));
@@ -1476,36 +1503,36 @@ public sealed partial class PetWindow
         }, 600);
         await step("работа: днес и сега", () =>
         {
-            var p = _planner!;
-            p.SetView(PlannerWindow.View.Today);
+            var p = Work!;
+            p.SetView(WorkView.View.Today);
             p.UpdateLayout();
-            if (p.CurrentView != PlannerWindow.View.Today || p.SideShown != "None") throw new Exception("„Днес“ не се отвори: " + p.SideShown);
+            if (p.CurrentView != WorkView.View.Today || p.SideShown != "None") throw new Exception("„Днес“ не се отвори: " + p.SideShown);
             if (p.TodayCards < 2) throw new Exception($"в „Днес“ се виждат {p.TodayCards} задачи");
-            Shot(p, "work_today");
-            LayoutReport(p, "work_today");
+            Shot(_menu!, "work_today");
+            LayoutReport(_menu!, "work_today");
             var a = _save.Tasks.Single(x => x.Title == "Тест седмица А");
             StartFocusOn(a);
             p.UpdateLayout();
-            Shot(p, "work_today_focus");
-            LayoutReport(p, "work_today_focus");
+            Shot(_menu!, "work_today_focus");
+            LayoutReport(_menu!, "work_today_focus");
             StopPomodoro();
         }, 600);
         await step("работа: преглед на седмицата", () =>
         {
-            var p = _planner!;
-            p.SetView(PlannerWindow.View.Review);
+            var p = Work!;
+            p.SetView(WorkView.View.Review);
             p.UpdateLayout();
-            var monday = PlannerWindow.WeekOf(TaskToday);
+            var monday = WorkView.WeekOf(TaskToday);
             if (!AddWeekGoal(monday.AddDays(7), "Тестова цел")) throw new Exception("целта не се добави");
             SetWeekThoughts(monday, "добре", "по-рано");
             FinishWeekReview(monday);
             if (!WeekReviewFor(monday).Done || WeekReviewFor(monday.AddDays(7)).Goals.Count != 1) throw new Exception("прегледът не се запази");
             p.UpdateLayout();
-            Shot(p, "work_review");
-            LayoutReport(p, "work_review");
+            Shot(_menu!, "work_review");
+            LayoutReport(_menu!, "work_review");
             _save.WeekReviews.Clear();
             HideBubble();
-            p.SetView(PlannerWindow.View.Week);
+            p.SetView(WorkView.View.Week);
         }, 600);
         await step("задачи: бързо писане и затваряне", () =>
         {
@@ -1517,13 +1544,13 @@ public sealed partial class PetWindow
             OpenMenu(MenuWindow.BearTab);
             foreach (var small in new[] { false, true })
             {
-                _menu!.SelfTestSize(small);
-                foreach (var (tab, name) in new[] { (MenuWindow.BearTab, "bear"), (MenuWindow.FoodTab, "food"), (MenuWindow.PomodoroTab, "work"),
-                    (MenuWindow.NotesTab, "notes"), (MenuWindow.ShopTab, "shop"), (MenuWindow.MoreTab, "more") })
+                foreach (var page in new[] { MenuWindow.PageBear, MenuWindow.PageFood, MenuWindow.PageShop, MenuWindow.PageNotes, MenuWindow.PageMore,
+                    MenuWindow.PageToday, MenuWindow.PageFocus, MenuWindow.PagePlan, MenuWindow.PageShutdown, MenuWindow.PageWeek, MenuWindow.PageReview })
                 {
-                    _menu.SelfTestTab(tab);
+                    _menu!.SelfTestPage(page);
+                    _menu.SelfTestSize(small);
                     _menu.UpdateLayout();
-                    LayoutReport(_menu, $"menu_{name}{(small ? "_small" : "")}");
+                    LayoutReport(_menu, $"menu_{page}{(small ? "_small" : "")}");
                 }
             }
             _menu!.SelfTestSize(null);

@@ -19,7 +19,12 @@ public sealed class SaveData
     public double MenuTop { get; set; } = double.NaN;
     public double MenuW { get; set; }                            // размерът на менюто при мащаб 100% (0 – началният)
     public double MenuH { get; set; }
-    public double UiZoom { get; set; } = 1;                      // мащаб: менюто, „Работа“, таблата (1 – 100%)
+    public double UiZoom { get; set; } = 1;
+    public string MenuPage { get; set; } = "";                  // последната страница на менюто (отваря се пак на нея)
+    public double WorkW { get; set; }                            // „Работа“ (голямото меню) при мащаб 100% (0 – началният)
+    public double WorkH { get; set; }
+    public double WorkLeft { get; set; } = double.NaN;
+    public double WorkTop { get; set; } = double.NaN;                      // мащаб: менюто, „Работа“, таблата (1 – 100%)
     public bool SleepingByChoice { get; set; }
     public bool StayPut { get; set; }
     public string StayScene { get; set; } = "reading";   // кое кътче е избрала Тут („Почивай си“)
