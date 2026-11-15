@@ -163,7 +163,13 @@ public sealed class MenuWindow : Window
         var header = BuildHeader();
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
-        _nav = BuildTabs();
+        // Лентата вляво се превърта, ако прозорецът е нисък (плъзгачът е скрит – колелцето стига).
+        _nav = new ScrollViewer
+        {
+            Content = BuildTabs(),
+            VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
         DockPanel.SetDock(_nav, Dock.Left);
         root.Children.Add(_nav);
         root.Children.Add(new Border
@@ -507,7 +513,7 @@ public sealed class MenuWindow : Window
         double w = s.MenuW > 0 ? s.MenuW : DefaultSize.Width, h = s.MenuH > 0 ? s.MenuH : DefaultSize.Height;
         _sizing = true;
         MinWidth = 600 * U * z;
-        MinHeight = 440 * U * z;
+        MinHeight = 500 * U * z;
         Width = Math.Max(MinWidth, w * z);
         Height = Math.Max(MinHeight, h * z);
         _sizing = false;

@@ -205,7 +205,7 @@ public sealed partial class PetWindow
                             {
                                 insideScroll = true;
                                 // Страница без хоризонтален скрол: копче, което излиза вдясно, просто изчезва.
-                                if (f.Cursor == System.Windows.Input.Cursors.Hand && sv.HorizontalScrollBarVisibility == System.Windows.Controls.ScrollBarVisibility.Disabled
+                                if (f.Cursor == System.Windows.Input.Cursors.Hand && f is not System.Windows.Controls.Primitives.Thumb && sv.HorizontalScrollBarVisibility == System.Windows.Controls.ScrollBarVisibility.Disabled
                                     && sv.ViewportWidth > 0 && sv.IsVisible)
                                 {
                                     var inSv = f.TransformToAncestor(sv).TransformBounds(new Rect(0, 0, f.ActualWidth, f.ActualHeight));

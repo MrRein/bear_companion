@@ -203,8 +203,7 @@ public sealed class PlannerWindow : Window
         bar.Children.Add(searchBox);
         DockPanel.SetDock(_filters, Dock.Left);
         bar.Children.Add(_filters);
-        _summary.Margin = new Thickness(8, 0, 4, 0);
-        bar.Children.Add(_summary);
+        // Обобщението на седмицата е в „Преглед“ (тук редът е тесен).
 
         // ── Тялото: „Някога“ | дните (лента) | вдясно подробности / план / край на деня ──
         _dayScroll = new ScrollViewer
@@ -1474,7 +1473,7 @@ public sealed class PlannerWindow : Window
         var p = new StackPanel();
         p.Children.Add(new TextBlock { Text = "Сега", FontWeight = FontWeights.Bold, FontSize = Body * 1.15, Margin = new Thickness(0, 0, 0, 8 * U) });
         bool focus = _pet.PomodoroFocus, rest = _pet.Save.PomodoroPhase == PomodoroPhase.Break, timer = _pet.TimerRunning;
-        _clockText = new TextBlock { FontWeight = FontWeights.Bold, FontSize = Body * 2.4, HorizontalAlignment = HorizontalAlignment.Center };
+        _clockText = new TextBlock { FontWeight = FontWeights.Bold, FontSize = Body * 2, HorizontalAlignment = HorizontalAlignment.Center };
         _clockWhat = new TextBlock { Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center };
         var clock = new StackPanel { Margin = new Thickness(0, 4 * U, 0, 10 * U) };
         clock.Children.Add(_clockText);
