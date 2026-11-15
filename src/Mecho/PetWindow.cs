@@ -174,6 +174,7 @@ public sealed partial class PetWindow : Window
         Loaded += (_, _) =>
         {
             RestorePins();
+            RestorePlanner();
             // Беше на разходка, когато програмата спря: още го няма.
             if (_save.WalkUntil > DateTime.Now) Dispatcher.BeginInvoke(new Action(Hide));
             else _save.WalkUntil = DateTime.MinValue;
@@ -1217,10 +1218,7 @@ public sealed partial class PetWindow : Window
     /// <summary>Менюто е на фокус (току-що отворено или цъкнато).</summary>
     internal bool MenuIsActive => _menu is { IsActive: true };
 
-    /// <summary>
-    /// Отваря менюто (на страницата, на която е било последно – така „Работа“ е на един клик)
-    /// или го затваря. Връща true, ако го е отворил.
-    /// </summary>
+    /// <summary>Отваря панела или го затваря. Връща true, ако го е отворил.</summary>
     public bool ToggleMenu(bool fromClick = false)
     {
         if (MenuIsOpen)
@@ -1230,7 +1228,7 @@ public sealed partial class PetWindow : Window
         }
         // Кликът върху мечока първо затваря панела (той губи фокус); да не го отворим пак веднага.
         if (fromClick && _menuOpenAtPress) return false;
-        OpenMenuPage(MenuWindow.IsPage(_save.MenuPage) ? _save.MenuPage : MenuWindow.PageBear);
+        OpenMenu(MenuWindow.BearTab);
         return true;
     }
 
@@ -1249,14 +1247,13 @@ public sealed partial class PetWindow : Window
         UpdateLayoutAndWindow();
     }
 
-    /// <summary>Отваря менюто на таба; „Работа“ – на „Днес“ (workPart: 0 мечо-доро, 1 таймер, 2 задачи).</summary>
-    public void OpenMenu(int tab, int workPart = 2) => OpenMenuPage(MenuWindow.PageForTab(tab, workPart));
-
-    /// <summary>Отваря менюто на страница (MenuWindow.Page…).</summary>
-    public void OpenMenuPage(string page)
+    /// <summary>Отваря панела на даден таб. Само това – балончето с въпроса (ако има) си остава.</summary>
+    /// <summary>Отваря менюто на таба; „Работа“ – на „Задачи“ (workPart: 0 мечо-доро, 1 таймер, 2 задачи).</summary>
+    public void OpenMenu(int tab, int workPart = 2)
     {
         _menu ??= new MenuWindow(this);
-        _menu.ShowNear(_bearRect, Area, page);
+        _menu.ShowNear(_bearRect, Area, tab);
+        if (tab == MenuWindow.PomodoroTab) _menu.ShowWorkPart(workPart);
         TutorialEvent("menu");
     }
 
@@ -1269,16 +1266,9 @@ public sealed partial class PetWindow : Window
     /// <summary>„➕ Нова“ от таблото: менюто – направо на новата задача/бележка.</summary>
     public void OpenNew(string kind)
     {
-        if (kind == PinWindow.Tasks)
-        {
-            OpenMenuPage(MenuWindow.PageToday);
-            _menu!.Work.FocusNewTask();
-        }
-        else
-        {
-            OpenMenu(MenuWindow.NotesTab);
-            _menu!.ShowNewNote(true);
-        }
+        OpenMenu(kind == PinWindow.Tasks ? MenuWindow.TasksTab : MenuWindow.NotesTab);
+        if (kind == PinWindow.Tasks) _menu!.ShowNewTask(true);
+        else _menu!.ShowNewNote(true);
     }
 
     // ───────────────────────── Рисуване ─────────────────────────

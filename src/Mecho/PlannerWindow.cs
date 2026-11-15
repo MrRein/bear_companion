@@ -23,7 +23,7 @@ namespace Mecho;
 /// подробностите на избраната задача (име, бележка, стъпки, кога, повторение, етикет, време…).
 /// Изтриване и местене се отменят (Ctrl+Z или „Отмени“ долу).
 /// </summary>
-public sealed class WorkView : Border
+public sealed class PlannerWindow : Window
 {
     private enum Side { None, Details, Plan, Shutdown }
 
@@ -73,15 +73,97 @@ public sealed class WorkView : Border
         return day.Date.AddDays(-back);
     }
 
+    private PinState State => _pet.Save.Planner;
     private DateTime Today => _pet.TaskToday;
     private int CapacityMinutes => Math.Clamp(_pet.Save.PlannerHours, 1, 16) * 60;
 
-    public WorkView(PetWindow pet)
+    public PlannerWindow(PetWindow pet)
     {
         _pet = pet;
         _from = WeekOf(pet.TaskToday).AddDays(-7);
         _count = 42;
+        Title = "Работа – Мечо";
+        WindowStyle = WindowStyle.None;
+        AllowsTransparency = true;
         Background = Brushes.Transparent;
+        ResizeMode = ResizeMode.CanResizeWithGrip;
+        ShowInTaskbar = true;
+        FontFamily = GameFont;
+        FontSize = Body;
+        Foreground = Ink;
+        UseLayoutRounding = true;
+        SnapsToDevicePixels = true;
+        MinWidth = 640 * U;
+        MinHeight = 400 * U;
+        TextOptions.SetTextRenderingMode(this, TextRenderingMode.Aliased);
+        TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
+        Resources.Add(typeof(ScrollBar), ScrollBarStyle());
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        try { Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/mecho.ico")); } catch (Exception) { }
+
+        // Мястото и размерът – запомнени; отначало почти целият екран, в средата.
+        var area = SystemParameters.WorkArea;
+        var s = State;
+        Width = s.W > 0 ? Math.Min(s.W, area.Width) : Math.Min(area.Width - 60, Step * 5 + ColumnWidth + 330 * U);
+        Height = s.H > 0 ? Math.Min(s.H, area.Height) : Math.Min(area.Height - 60, 680 * U);
+        Left = double.IsNaN(s.X) ? area.Left + (area.Width - Width) / 2 : Math.Clamp(s.X, area.Left - Width + 80, area.Right - 80);
+        Top = double.IsNaN(s.Y) ? area.Top + (area.Height - Height) / 2 : Math.Clamp(s.Y, area.Top, area.Bottom - 60);
+
+        // ── Горе: „Работа“ | Днес · Седмица · Преглед … ?, смали, ✕ (влачи се оттук) ──
+        var top = new DockPanel { Margin = new Thickness(4, 0, 2, 6), Background = Brushes.Transparent, Cursor = Cursors.SizeAll };
+        var close = HeaderChip("✕", Close, "Затвори");
+        var minimize = HeaderChip("", () => WindowState = WindowState.Minimized, "Смали в лентата долу");
+        minimize.Child = Icon("minimize");
+        var help = HeaderChip("", () => { }, "");
+        help.Child = Icon("question");
+        help.ToolTip = Tip(
+            "Днес – задачите за днес и работата по тях (мечо-доро, таймер). Сутрин – „План за деня“, вечер – „Край на деня“.\n" +
+            "Седмица – дните един до друг: влачи задачите от ден в ден; вляво е „Някога“.\n" +
+            "Преглед – как мина седмицата и целите за следващата.\n" +
+            "Клавиши: Ctrl+1/2/3 – Днес/Седмица/Преглед · N – нова задача · Ctrl+F – търси · Ctrl+Z – отмени.\n" +
+            "Избрана задача: Space – свършена · Alt+← → – ден назад/напред · S – важна · Ctrl+D – копие · Delete – изтрий.\n" +
+            "Дясно копче върху задача – всичко за нея.");
+        ToolTipService.SetShowDuration(help, 60000);
+        ToolTipService.SetInitialShowDelay(help, 100);
+        foreach (var b in new[] { close, minimize, help })
+        {
+            DockPanel.SetDock(b, Dock.Right);
+            top.Children.Add(b);
+        }
+        var title = IconText("tasks", "Работа", bold: true);
+        System.Windows.Documents.TextElement.SetForeground(title, Brushes.White);
+        title.Margin = new Thickness(0, 0, 14, 0);
+        DockPanel.SetDock(title, Dock.Left);
+        top.Children.Add(title);
+        // Трите изгледа – като копчета един до друг.
+        var views = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        (string Icon, string Name, string Tip)[] viewNames =
+        {
+            ("sun", "Днес", "Задачите за днес и работата по тях (Ctrl+1)"),
+            ("tasks", "Седмица", "Дните един до друг – планирай с влачене (Ctrl+2)"),
+            ("book", "Преглед", "Как мина седмицата и целите за следващата (Ctrl+3)"),
+        };
+        for (int i = 0; i < viewNames.Length; i++)
+        {
+            int v = i;
+            var chip = Chip("", () => SetView((View)v));
+            chip.Child = IconText(viewNames[i].Icon, viewNames[i].Name, bold: true);
+            chip.Padding = new Thickness(10, 2, 12, 3);
+            chip.Margin = new Thickness(0, 0, 4, 0);
+            chip.ToolTip = Tip(viewNames[i].Tip);
+            _viewChips[i] = chip;
+            views.Children.Add(chip);
+        }
+        top.Children.Add(views);
+        top.MouseLeftButtonDown += (_, e) =>
+        {
+            if (e.ClickCount == 2)
+            {
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+                return;
+            }
+            try { DragMove(); } catch (InvalidOperationException) { }
+        };
 
         // ── Под него (само в „Седмица“): ◀ Днес ▶, кои дни се виждат, търсене, етикети … обобщение ──
         var weekNav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -188,21 +270,53 @@ public sealed class WorkView : Border
         _toastTimer.Tick += (_, _) => HideToast();
         var bodyLayer = new Grid { Children = { body, _toast } };
 
-        // Хартията и рамката са на менюто (тук – само съдържанието).
+        var paper = new Border
+        {
+            Background = PaperTexture,
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(10 * U, 10 * U, 10 * U, 6 * U),
+            Child = bodyLayer,
+        }.Skinned("card");
+
         var root = new DockPanel();
+        DockPanel.SetDock(top, Dock.Top);
         DockPanel.SetDock(bar, Dock.Top);
+        root.Children.Add(top);
         root.Children.Add(bar);
-        root.Children.Add(bodyLayer);
-        Child = root;
+        root.Children.Add(paper);
+        _frame = new Border
+        {
+            Background = WoodTexture,
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(8, 6, 8, 8),
+            Child = root,
+        }.Skinned("frame");
+        Content = _frame;
         _view = (View)Math.Clamp(_pet.Save.WorkView, 0, 2);
+        // Запомненият размер е при сегашния мащаб; началният – при 100% (и се уголемява).
+        _zoom = s.W > 0 && _pet.Save.UiZoom is >= 0.75 and <= 2 ? _pet.Save.UiZoom : 1;
+        ApplyZoom();
         _clock.Tick += (_, _) => UpdateClock();
         _clock.Start();
+
+        PreviewKeyDown += OnKey;
+        LocationChanged += (_, _) => Remember();
+        SizeChanged += (_, _) => Remember();
         _pet.CareChanged += OnCareChanged;
         _pet.TaskRemoved += OnTaskRemoved;
-        // Скрит (друга страница на менюто) – не се строи; щом се покаже – наново.
-        IsVisibleChanged += (_, _) =>
+        SourceInitialized += (_, _) => HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndProc);
+        Closed += (_, _) =>
         {
-            if (IsVisible && _stale) Refresh(true);
+            _pet.CareChanged -= OnCareChanged;
+            _pet.TaskRemoved -= OnTaskRemoved;
+            _scrollTimer.Stop();
+            _toastTimer.Stop();
+            _clock.Stop();
+            Remember();
         };
         Loaded += (_, _) => Dispatcher.BeginInvoke(() =>
         {
@@ -215,27 +329,18 @@ public sealed class WorkView : Border
         SetView(_view);
     }
 
-    private bool _stale;
-
-    /// <summary>Менюто се затваря завинаги (изход): абонаментите и часовниците спират.</summary>
-    public void Dispose()
-    {
-        _pet.CareChanged -= OnCareChanged;
-        _pet.TaskRemoved -= OnTaskRemoved;
-        _scrollTimer.Stop();
-        _toastTimer.Stop();
-        _clock.Stop();
-    }
-
     // ───────────────────────── Изгледи ─────────────────────────
 
     public enum View { Today, Week, Review }
 
     private View _view;
+    private readonly Border[] _viewChips = new Border[3];
     private FrameworkElement _weekBar = null!, _weekView = null!;
     private ScrollViewer _todayView = null!, _reviewView = null!;
     private readonly StackPanel _todayPanel = new() { Margin = new Thickness(4 * U, 0, 10 * U, 10 * U), MaxWidth = 760 };
     private readonly StackPanel _reviewPanel = new() { Margin = new Thickness(4 * U, 0, 10 * U, 10 * U), MaxWidth = 900 };
+    private Border _frame = null!;
+    private double _zoom = 1;
     private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(1) };
 
     internal View CurrentView => _view;
@@ -247,6 +352,7 @@ public sealed class WorkView : Border
         Commit();
         _view = view;
         _pet.Save.WorkView = (int)view;
+        for (int i = 0; i < _viewChips.Length; i++) SetOn(_viewChips[i], i == (int)view);
         _todayView.Visibility = view == View.Today ? Visibility.Visible : Visibility.Collapsed;
         _weekView.Visibility = view == View.Week ? Visibility.Visible : Visibility.Collapsed;
         _reviewView.Visibility = view == View.Review ? Visibility.Visible : Visibility.Collapsed;
@@ -273,6 +379,23 @@ public sealed class WorkView : Border
         }
     }
 
+    /// <summary>Мащабът от „Още“ → Размер.</summary>
+    public void ApplyZoom()
+    {
+        double z = _pet.Save.UiZoom is >= 0.75 and <= 2 ? _pet.Save.UiZoom : 1;
+        _frame.LayoutTransform = Math.Abs(z - 1) < 0.01 ? Transform.Identity : new ScaleTransform(z, z);
+        RenderOptions.SetBitmapScalingMode(_frame, BitmapScalingMode.NearestNeighbor);
+        if (Math.Abs(z - _zoom) > 0.001)
+        {
+            var area = SystemParameters.WorkArea;
+            Width = Math.Min(area.Width, Width / _zoom * z);
+            Height = Math.Min(area.Height, Height / _zoom * z);
+        }
+        MinWidth = 640 * U * z;
+        MinHeight = 400 * U * z;
+        _zoom = z;
+    }
+
     private static Border HeaderChip(string text, Action click, string tip)
     {
         var chip = Chip(text, click);
@@ -285,20 +408,14 @@ public sealed class WorkView : Border
 
     private void OnCareChanged(object? sender, EventArgs e) => Refresh();
 
-    /// <summary>Отваря подробностите на задачата (от таблото, от менюто).</summary>
-    public void SelectTask(Guid id)
+    private void Remember()
     {
-        var t = _pet.Save.Tasks.FirstOrDefault(x => x.Id == id);
-        if (t == null) return;
-        if (_view == View.Review) SetView(t.Day == Today ? View.Today : View.Week);
-        Select(id, FocusOn.Title);
-    }
-
-    /// <summary>„Нова“ от таблото: полето за нова задача за днес.</summary>
-    public void FocusNewTask()
-    {
-        if (_view != View.Today) SetView(View.Today);
-        FocusAdd(Today);
+        if (WindowState != WindowState.Normal || ActualWidth <= 0) return;
+        var s = State;
+        s.X = Left;
+        s.Y = Top;
+        s.W = ActualWidth;
+        s.H = ActualHeight;
     }
 
     /// <summary>Отваря от вън плана или края на деня.</summary>
@@ -374,11 +491,17 @@ public sealed class WorkView : Border
         e.Handled = true;
     }
 
-    /// <summary>Тъчпадът и мишките с колелце встрани (WM_MOUSEHWHEEL – менюто го препраща).</summary>
-    public void HorizontalWheel(int delta)
+    /// <summary>Тъчпадът и мишките с колелце встрани (WM_MOUSEHWHEEL).</summary>
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (_view != View.Week) return;
-        ScrollTo((double.IsNaN(_target) ? _dayScroll.HorizontalOffset : _target) + delta * 1.1, smooth: true);
+        const int WM_MOUSEHWHEEL = 0x020E;
+        if (msg == WM_MOUSEHWHEEL)
+        {
+            int delta = (short)((wParam.ToInt64() >> 16) & 0xFFFF);
+            ScrollTo((double.IsNaN(_target) ? _dayScroll.HorizontalOffset : _target) + delta * 1.1, smooth: true);
+            handled = true;
+        }
+        return IntPtr.Zero;
     }
 
     private bool _ready;              // лентата е на мястото си (след първото показване) – чак тогава расте
@@ -476,12 +599,6 @@ public sealed class WorkView : Border
     public void Refresh(bool force = false)
     {
         if (TaskCards.Dragging) return;   // по време на влачене – не (картичката, която се влачи, ще изчезне)
-        if (!IsVisible && IsLoaded)
-        {
-            _stale = true;
-            return;
-        }
-        _stale = false;
         var state = _pet.TaskState;
         var today = Today;
         switch (_view)
@@ -987,8 +1104,7 @@ public sealed class WorkView : Border
 
     // ───────────────────────── Клавиши ─────────────────────────
 
-    /// <summary>Клавишите (менюто ги препраща, докато е на „Работа“).</summary>
-    internal void OnKey(object sender, KeyEventArgs e)
+    private void OnKey(object sender, KeyEventArgs e)
     {
         var mods = Keyboard.Modifiers;
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
