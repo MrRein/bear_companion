@@ -54,8 +54,12 @@ public sealed class TrayIcon : IDisposable
         };
         menu.Items.Add(timers);
         // Седмицата със задачите (и когато мечокът е скрит или на разходка).
-        var week = menu.Items.Add("Седмица (задачи)");
+        var week = menu.Items.Add("Задачи по дни");
         week.Click += (_, _) => _pet.OpenPlanner();
+        var plan = menu.Items.Add("План за деня");
+        plan.Click += (_, _) => _pet.OpenPlanner("plan");
+        var shutdown = menu.Items.Add("Край на деня");
+        shutdown.Click += (_, _) => _pet.OpenPlanner("shutdown");
         menu.Items.Add(new Forms.ToolStripSeparator());
         var update = menu.Items.Add("");
         update.Click += (_, _) =>
@@ -78,7 +82,7 @@ public sealed class TrayIcon : IDisposable
         menu.ImageScalingSize = new System.Drawing.Size(24, 24);
         (Forms.ToolStripItem Item, string Icon)[] icons =
         {
-            (panel, "bear"), (week, "tasks"), (update, "update"), (exit, "close"),
+            (panel, "bear"), (week, "tasks"), (plan, "sun"), (shutdown, "moon"), (update, "update"), (exit, "close"),
         };
         foreach (var (item, icon) in icons) item.Image = PixelIcon(icon);
         exit.Click += (_, _) =>
