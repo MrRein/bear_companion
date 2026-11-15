@@ -59,17 +59,12 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path shots | Out-Null
           if (Test-Path "$env:TEMP/MechoSelfTest/shots") { Copy-Item "$env:TEMP/MechoSelfTest/shots/*" shots/ }
-      # При пробна сборка („[no release]“) снимките отиват и в дневника (base64) – за преглед отвън.
-      - name: Self-test pictures in the log
-        if: always() && contains(github.event.head_commit.message, '[no release]')
+      # Докладът за подредбата (текстове, които се режат, неща извън прозореца).
+      - name: Layout report
+        if: always()
         shell: pwsh
         run: |
-          foreach ($f in Get-ChildItem shots -Filter *.png -ErrorAction SilentlyContinue) {
-            $b = [Convert]::ToBase64String([IO.File]::ReadAllBytes($f.FullName))
-            Write-Output "SHOT-BEGIN $($f.Name)"
-            for ($i = 0; $i -lt $b.Length; $i += 3000) { Write-Output ("SHOT|" + $b.Substring($i, [Math]::Min(3000, $b.Length - $i))) }
-            Write-Output "SHOT-END $($f.Name)"
-          }
+          if (Test-Path "$env:TEMP/MechoSelfTest/layout.txt") { Get-Content "$env:TEMP/MechoSelfTest/layout.txt" }
       - uses: actions/upload-artifact@v4
         if: always()
         with:

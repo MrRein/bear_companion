@@ -164,6 +164,57 @@ public sealed partial class PetWindow
         }
     }
 
+    /// <summary>
+    /// Проверка на подредбата (без очи): текстове, които се режат (не се събират и не се
+    /// пренасят), и неща, които излизат извън прозореца. Пише се в MechoSelfTest/layout.txt.
+    /// </summary>
+    private static void LayoutReport(Window w, string name)
+    {
+        try
+        {
+            w.UpdateLayout();
+            if (w.Content is not FrameworkElement root) return;
+            var lines = new List<string> { $"== {name}: {root.ActualWidth:0}×{root.ActualHeight:0}" };
+            double dpi = VisualTreeHelper.GetDpi(w).PixelsPerDip;
+            int cut = 0, outside = 0, texts = 0;
+            void Walk(DependencyObject d)
+            {
+                if (d is UIElement { IsVisible: false }) return;
+                if (d is System.Windows.Controls.TextBlock tb && tb.ActualWidth > 0 && !string.IsNullOrEmpty(tb.Text))
+                {
+                    texts++;
+                    var ft = new FormattedText(tb.Text, System.Globalization.CultureInfo.CurrentCulture, tb.FlowDirection,
+                        new Typeface(tb.FontFamily, tb.FontStyle, tb.FontWeight, tb.FontStretch), tb.FontSize, Brushes.Black, dpi);
+                    double need = ft.WidthIncludingTrailingWhitespace + tb.Padding.Left + tb.Padding.Right;
+                    if (tb.TextWrapping == TextWrapping.NoWrap && need > tb.ActualWidth + 1.5 && cut++ < 40)
+                        lines.Add($"  реже се ({tb.ActualWidth:0} < {need:0}{(tb.TextTrimming != TextTrimming.None ? ", с …" : "")}): „{Ui.Shorten(tb.Text, 50)}“");
+                }
+                if (d is FrameworkElement f && f != root && f.ActualWidth > 0 && f.IsVisible)
+                {
+                    try
+                    {
+                        var r = f.TransformToAncestor(root).TransformBounds(new Rect(0, 0, f.ActualWidth, f.ActualHeight));
+                        bool insideScroll = false;
+                        for (var a = VisualTreeHelper.GetParent(f); a != null; a = VisualTreeHelper.GetParent(a))
+                            if (a is System.Windows.Controls.ScrollViewer) { insideScroll = true; break; }
+                        if (!insideScroll && (r.Right > root.ActualWidth + 2 || r.Bottom > root.ActualHeight + 2) && outside++ < 15)
+                            lines.Add($"  излиза навън: {f.GetType().Name} {r.Left:0},{r.Top:0} {r.Width:0}×{r.Height:0}" +
+                                (f is System.Windows.Controls.TextBlock t2 ? $" „{Ui.Shorten(t2.Text, 40)}“" : ""));
+                    }
+                    catch (InvalidOperationException) { }
+                }
+                for (int i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) Walk(VisualTreeHelper.GetChild(d, i));
+            }
+            Walk(root);
+            lines.Add($"  текстове {texts}, режат се {cut}, излизат {outside}");
+            File.AppendAllLines(Path.Combine(SaveData.Folder, "layout.txt"), lines);
+        }
+        catch (Exception ex)
+        {
+            SelfTest.Log("подредба " + name + ": " + ex.Message);
+        }
+    }
+
     internal async Task SelfTestSteps(Func<string, Action, int, Task> step)
     {
         await step("умора: обикновен ден за теста", () =>
@@ -1296,6 +1347,7 @@ public sealed partial class PetWindow
             NotifyCare();
             _planner.UpdateLayout();
             Shot(_planner, "planner_1_open");
+            LayoutReport(_planner, "planner_1_open");
         }, 800);
         DateTime stripFirst = default;
         int stripCount = 0;
@@ -1349,6 +1401,7 @@ public sealed partial class PetWindow
             NotifyCare();
             p.UpdateLayout();
             Shot(p, "planner_2_details");
+            LayoutReport(p, "planner_2_details");
             DuplicateTask(a2);
             if (_save.Tasks.Count(x => x.Title.StartsWith("Тест седмица А")) != 2) throw new Exception("няма копие");
         }, 600);
@@ -1374,12 +1427,14 @@ public sealed partial class PetWindow
             p.UpdateLayout();
             if (p.SideShown != "Plan") throw new Exception("планът не се отвори");
             Shot(p, "planner_3_plan");
+            LayoutReport(p, "planner_3_plan");
             PlannedToday();
             if (_save.PlannedDay != TaskToday.ToString("yyyy-MM-dd")) throw new Exception("денят не е планиран");
             p.TestSide("shutdown");
             p.UpdateLayout();
             if (p.SideShown != "Shutdown") throw new Exception("краят на деня не се отвори");
             Shot(p, "planner_4_shutdown");
+            LayoutReport(p, "planner_4_shutdown");
             ShutdownToday("Тестов ден – мина добре.");
             if (!_save.DayNotes.ContainsKey(TaskToday.ToString("yyyy-MM-dd"))) throw new Exception("бележката за деня не се запази");
             _save.DayNotes.Remove(TaskToday.ToString("yyyy-MM-dd"));
@@ -1397,6 +1452,11 @@ public sealed partial class PetWindow
             SetPinned(PinWindow.Tasks, true);
             _pins[PinWindow.Tasks].UpdateLayout();
             Shot(_pins[PinWindow.Tasks], "board_tasks");
+            LayoutReport(_pins[PinWindow.Tasks], "board_tasks");
+            OpenMenu(MenuWindow.TasksTab);
+            _menu!.UpdateLayout();
+            LayoutReport(_menu, "menu_tasks");
+            _menu.Hide();
             SetPinned(PinWindow.Tasks, false);
             ClosePlanner();
             if (PlannerIsOpen) throw new Exception("седмицата не се затвори");
