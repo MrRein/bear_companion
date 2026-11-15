@@ -131,6 +131,18 @@ internal static class NativeMethods
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int X, Y;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT point);
+
+    /// <summary>Мишката на екрана (във физически пиксели).</summary>
+    public static System.Windows.Point CursorPosition() => GetCursorPos(out var p) ? new(p.X, p.Y) : new(0, 0);
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct RECT
     {
         public int Left, Top, Right, Bottom;

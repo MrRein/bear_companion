@@ -3370,10 +3370,13 @@ public sealed class MenuWindow : Window
             Text = hint,
             Foreground = Muted,
             IsHitTestVisible = false,
-            Margin = new Thickness(11, 0, 0, 0),
+            // Точно там, където почва написаното (ръб + отстъп + каретката).
+            Margin = new Thickness(box.BorderThickness.Left + box.Padding.Left + 2, 0, 0, 0),
             VerticalAlignment = box.AcceptsReturn ? VerticalAlignment.Top : VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.NoWrap,
         };
-        if (box.AcceptsReturn) text.Margin = new Thickness(11, 9, 0, 0);
+        if (box.AcceptsReturn) text.Margin = new Thickness(box.BorderThickness.Left + box.Padding.Left + 2, box.BorderThickness.Top + box.Padding.Top + 1, 0, 0);
         box.TextChanged += (_, _) => text.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         var grid = new Grid();
         grid.Children.Add(box);

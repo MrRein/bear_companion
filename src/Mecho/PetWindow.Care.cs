@@ -419,14 +419,17 @@ public sealed partial class PetWindow
     /// Нова задача: без ден – за днес; someday – за „Някога“. quiet – без реплика (бързото
     /// добавяне в седмицата и таблото, където се пишат една след друга).
     /// </summary>
-    public void AddTask(string title, int size, string? description = null, DateTime? day = null, bool someday = false,
-        string? tag = null, bool star = false, int minutes = 0, bool quiet = false)
+    public TaskItem? AddTask(string title, int size, string? description = null, DateTime? day = null, bool someday = false,
+        string? tag = null, bool star = false, int minutes = 0, bool quiet = false, Guid? before = null, string? repeat = null)
     {
-        if (!CoreEngine.Bus.Send(new Mecho.Core.AddTask(title, size, description, day, someday, tag, star, minutes)).Ok) return;
+        var before0 = TaskState.Open.Select(t => t.Id).ToHashSet();
+        if (!CoreEngine.Bus.Send(new Mecho.Core.AddTask(title, size, description, day, someday, tag, star, minutes, before, repeat)).Ok) return null;
         if (quiet) Emote("idea", 1);
         else Say(Lines.Pick(Lines.TaskAdded, _save.OwnerName), 3);
         NotifyCare();
         Persist();
+        // Новата: тази, която я нямаше преди.
+        return TaskState.Open.FirstOrDefault(t => !before0.Contains(t.Id));
     }
 
     /// <summary>Поправя името, описанието и трудността (✏ в менюто).</summary>
@@ -520,10 +523,16 @@ public sealed partial class PetWindow
 
     public void DeleteTask(TaskItem task)
     {
-        CoreEngine.Bus.Send(new Mecho.Core.DeleteTask(task.Id));
+        var open = TaskState.Open;
+        int index = open.FindIndex(t => t.Id == task.Id);
+        if (index < 0 || !CoreEngine.Bus.Send(new Mecho.Core.DeleteTask(task.Id)).Ok) return;
+        TaskRemoved?.Invoke(open[index], index);
         NotifyCare();
         Persist();
     }
+
+    /// <summary>Изтрита задача (каквато беше и на кое място) – за „Отмени“ в седмицата.</summary>
+    public event Action<TaskItem, int>? TaskRemoved;
 
     // ───────────────────────── Бележки ─────────────────────────
 
@@ -762,6 +771,7 @@ public sealed partial class PetWindow
         Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts) + page, 8);
         Sounds.Play(_save);
         Emote("happy", 3);
+        AddFocusTaskTime(FocusLength.TotalMinutes);
         AskAboutFocusTask();
         if (!InFocus) StartBreakRelax();
         NotifyCare();
@@ -836,7 +846,11 @@ public sealed partial class PetWindow
         bool rest = kind == Mecho.Core.WorkTimerKinds.Rest, work = kind == Mecho.Core.WorkTimerKinds.Work;
         // Лешници – само за работен таймер.
         int nuts = work ? PayForMinutes(minutes) : 0;
-        if (work) RecordWork(minutes);
+        if (work)
+        {
+            RecordWork(minutes);
+            AddFocusTaskTime(minutes);
+        }
         Say((label.Length > 0 ? $"⏰ Времето изтече: {label}!" : "⏰ Времето изтече!") + Earned(nuts), 12);
         if (work) AskAboutFocusTask();
         Sounds.Play(_save);

@@ -140,6 +140,30 @@ public sealed partial class PetWindow
     private readonly object _coreListener = new();   // самопроверката слуша с този собственик (не с мечока – той има свои абонаменти)
 
     /// <summary>Стъпките на самопроверката (имат достъп до всичко вътре в мечока).</summary>
+    /// <summary>Снимка на прозорец за проверка на окото (MechoSelfTest/shots, качва се в GitHub като artifact).</summary>
+    private static void Shot(Window w, string name)
+    {
+        try
+        {
+            w.UpdateLayout();
+            if (w.Content is not FrameworkElement v || v.ActualWidth < 1) return;
+            var dpi = VisualTreeHelper.GetDpi(w);
+            var bmp = new RenderTargetBitmap((int)Math.Ceiling(v.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(v.ActualHeight * dpi.DpiScaleY),
+                96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
+            bmp.Render(v);
+            var png = new PngBitmapEncoder();
+            png.Frames.Add(BitmapFrame.Create(bmp));
+            string dir = Path.Combine(SaveData.Folder, "shots");
+            Directory.CreateDirectory(dir);
+            using var file = File.Create(Path.Combine(dir, name + ".png"));
+            png.Save(file);
+        }
+        catch (Exception ex)
+        {
+            SelfTest.Log("снимка " + name + ": " + ex.Message);
+        }
+    }
+
     internal async Task SelfTestSteps(Func<string, Action, int, Task> step)
     {
         await step("умора: обикновен ден за теста", () =>
@@ -1271,10 +1295,98 @@ public sealed partial class PetWindow
             if (_planner != first) throw new Exception("отвори втора седмица");
             NotifyCare();
             _planner.UpdateLayout();
+            Shot(_planner, "planner_1_open");
+        }, 800);
+        await step("задачи: лентата с дните се превърта и расте", () =>
+        {
+            var p = _planner!;
+            p.UpdateLayout();
+            if (p.ColumnsShown != p.DayCount) throw new Exception($"колони {p.ColumnsShown}, дни {p.DayCount}");
+            var first = p.FirstDay;
+            int count = p.DayCount;
+            p.TestScrollTo(0);
+            p.UpdateLayout();
+            if (p.FirstDay >= first || p.DayCount <= count) throw new Exception("назад не се добавиха дни");
+            p.TestScrollTo(1e6);
+            p.UpdateLayout();
+            if (p.DayCount <= count + 14 - 1) throw new Exception("напред не се добавиха дни");
+            p.TestScrollToDay(TaskToday);
+            p.UpdateLayout();
+            if (p.ColumnsShown != p.DayCount) throw new Exception("колоните не отговарят на дните след разширяване");
+            if (p.VisibleCards(TaskToday) < 2) throw new Exception($"днес се виждат {p.VisibleCards(TaskToday)} картички");
+        }, 600);
+        await step("задачи: подробности, стъпки, повторение, копие", () =>
+        {
+            var p = _planner!;
+            var a = _save.Tasks.Single(x => x.Title == "Тест седмица А");
+            p.TestSelect(a.Id);
+            if (p.SideShown != "Details") throw new Exception("подробностите не се отвориха: " + p.SideShown);
+            AddTaskStep(a, "Първа стъпка");
+            AddTaskStep(a, "Втора стъпка с много дълго име, което трябва да се пренесе на следващия ред, без да се реже");
+            var st = _save.Tasks.Single(x => x.Id == a.Id).StepList;
+            SetTaskStepDone(a, st[0].Id, true);
+            SetTaskRepeat(a, Mecho.Core.TaskRepeat.Weekdays);
+            MarkTask(a, minutes: 45);
+            var a2 = _save.Tasks.Single(x => x.Id == a.Id);
+            if (a2.StepList.Count != 2 || !a2.StepList[0].Done || a2.Repeat != Mecho.Core.TaskRepeat.Weekdays) throw new Exception("стъпки/повторение");
+            AddTask("Дълго име: Подготовка на презентацията за клиента с всички графики и бележки към тях преди срещата", 3,
+                "Описание, което също е доста дълго и трябва да се съкрати красиво на картичката.", tag: "people", minutes: 90, quiet: true);
+            NotifyCare();
+            p.UpdateLayout();
+            Shot(p, "planner_2_details");
+            DuplicateTask(a2);
+            if (_save.Tasks.Count(x => x.Title.StartsWith("Тест седмица А")) != 2) throw new Exception("няма копие");
+        }, 600);
+        await step("задачи: изтрий и отмени, търсене", () =>
+        {
+            var p = _planner!;
+            var copy = _save.Tasks.Single(x => x.Title == "Тест седмица А (копие)");
+            DeleteTask(copy);
+            if (!p.ToastShown) throw new Exception("няма „Отмени“");
+            p.TestUndo();
+            if (!_save.Tasks.Any(x => x.Id == copy.Id)) throw new Exception("„Отмени“ не върна задачата");
+            DeleteTask(_save.Tasks.Single(x => x.Id == copy.Id));
+            p.TestSearch("презентацията");
+            p.UpdateLayout();
+            if (p.VisibleCards(TaskToday) != 1) throw new Exception($"търсенето показва {p.VisibleCards(TaskToday)} за днес");
+            p.TestSearch("");
+            p.UpdateLayout();
+        }, 500);
+        await step("задачи: план за деня и край на деня", () =>
+        {
+            var p = _planner!;
+            p.TestSide("plan");
+            p.UpdateLayout();
+            if (p.SideShown != "Plan") throw new Exception("планът не се отвори");
+            Shot(p, "planner_3_plan");
+            PlannedToday();
+            if (_save.PlannedDay != TaskToday.ToString("yyyy-MM-dd")) throw new Exception("денят не е планиран");
+            p.TestSide("shutdown");
+            p.UpdateLayout();
+            if (p.SideShown != "Shutdown") throw new Exception("краят на деня не се отвори");
+            Shot(p, "planner_4_shutdown");
+            ShutdownToday("Тестов ден – мина добре.");
+            if (!_save.DayNotes.ContainsKey(TaskToday.ToString("yyyy-MM-dd"))) throw new Exception("бележката за деня не се запази");
+            _save.DayNotes.Remove(TaskToday.ToString("yyyy-MM-dd"));
+            _save.PlannedDay = _save.ShutdownDay = "";
+            p.TestSide("");
+            HideBubble();
+        }, 600);
+        await step("задачи: бързо писане и затваряне", () =>
+        {
+            var q = TaskQuick.Parse("Скица #рис 1ч30 !");
+            if (q.Title != "Скица" || q.Tag != "art" || q.Minutes != 90 || !q.Star) throw new Exception($"бързо писане: {q}");
+            var q2 = TaskQuick.Parse("Купи 2 хляба 15м");
+            if (q2.Title != "Купи 2 хляба" || q2.Minutes != 15) throw new Exception($"бързо писане 2: {q2}");
+            if (TaskQuick.Parse("#работа").Title != "#работа") throw new Exception("само маркировка изяде името");
+            SetPinned(PinWindow.Tasks, true);
+            _pins[PinWindow.Tasks].UpdateLayout();
+            Shot(_pins[PinWindow.Tasks], "board_tasks");
+            SetPinned(PinWindow.Tasks, false);
             ClosePlanner();
             if (PlannerIsOpen) throw new Exception("седмицата не се затвори");
-            foreach (var t in new[] { a, b, c }) DeleteTask(_save.Tasks.Single(x => x.Id == t.Id));
-        }, 800);
+            foreach (var t in _save.Tasks.Where(x => x.Title.StartsWith("Тест седмица") || x.Title.StartsWith("Дълго име")).ToList()) DeleteTask(t);
+        }, 500);
         await step("обиколка: цъкни ме с десен бутон", () =>
         {
             StartTutorial();

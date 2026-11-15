@@ -65,6 +65,10 @@ public sealed class TaskCardOptions
     public Action<TaskItem>? Edit { get; init; }
     /// <summary>Може ли да се влачи (свършените в историята – не).</summary>
     public bool Draggable { get; init; } = true;
+    /// <summary>Двойно цъкване по картичката (например – отвори подробностите и пиши в името).</summary>
+    public Action<TaskItem>? Open { get; init; }
+    /// <summary>▶ при посочване: мечо-доро по задачата.</summary>
+    public bool PlayButton { get; init; } = true;
 }
 
 /// <summary>
@@ -158,28 +162,44 @@ internal static class TaskCards
         return pill;
     }
 
-    /// <summary>Редът под името: етикет, големина, време, пренасяна.</summary>
+    private static FrameworkElement MetaItem(string icon, string text, string tip)
+    {
+        var item = IconText(icon, text);
+        item.Opacity = 0.8;
+        item.Margin = new Thickness(0, 0, 8 * U, 2);
+        item.ToolTip = Tip(tip);
+        return item;
+    }
+
+    public static string RepeatName(string repeat) => repeat switch
+    {
+        Mecho.Core.TaskRepeat.Daily => "всеки ден",
+        Mecho.Core.TaskRepeat.Weekdays => "делнични дни",
+        Mecho.Core.TaskRepeat.Weekly => "всяка седмица",
+        Mecho.Core.TaskRepeat.Monthly => "всеки месец",
+        _ => "не се повтаря",
+    };
+
+    /// <summary>Редът под името: етикет, големина, стъпки, време (работено/планирано), повторение, пренасяна.</summary>
     public static FrameworkElement? Meta(TaskItem t)
     {
         var row = new WrapPanel { Margin = new Thickness(0, 3 * U, 0, 0) };
         if (t.Tag.Length > 0) row.Children.Add(TagPill(t.Tag));
         row.Children.Add(SizeDots(t.Size));
-        if (t.Minutes > 0)
-        {
-            var time = IconText("clock", Duration(t.Minutes));
-            time.Opacity = 0.8;
-            time.Margin = new Thickness(0, 0, 8 * U, 0);
-            row.Children.Add(time);
-        }
+        var steps = t.StepList;
+        if (steps.Count > 0)
+            row.Children.Add(MetaItem("check", $"{steps.Count(x => x.Done)}/{steps.Count}", "Стъпки: свършени от всички"));
+        if (t.Spent > 0)
+            row.Children.Add(MetaItem("hourglass", t.Minutes > 0 ? $"{Duration(t.Spent)}/{Duration(t.Minutes)}" : Duration(t.Spent),
+                $"Работено {Duration(t.Spent)}" + (t.Minutes > 0 ? $" от планираните {Duration(t.Minutes)}" : "")));
+        else if (t.Minutes > 0)
+            row.Children.Add(MetaItem("clock", Duration(t.Minutes), $"Ще отнеме около {Duration(t.Minutes)}"));
+        if (t.Repeat.Length > 0)
+            row.Children.Add(MetaItem("reroll", "", "Повтаря се " + RepeatName(t.Repeat)));
         if (t.Rolled > 0 && !t.Done)
-        {
-            var rolled = IconText("reroll", t.Rolled.ToString());
-            rolled.Opacity = 0.8;
-            rolled.ToolTip = Tip(t.Rolled == 1
+            row.Children.Add(MetaItem("history", t.Rolled.ToString(), t.Rolled == 1
                 ? "Пренесена от вчера."
-                : $"Пренасяна {t.Rolled} пъти от ден за ден. Може би е голяма – раздели я на по-малки или я сложи за „Някога“.");
-            row.Children.Add(rolled);
-        }
+                : $"Пренасяна {t.Rolled} пъти от ден за ден. Може би е голяма – раздели я на стъпки или я сложи за „Някога“."));
         return row;
     }
 
@@ -238,7 +258,6 @@ internal static class TaskCards
         {
             Child = star,
             Background = Brushes.Transparent,
-            VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(4 * U, 0, 0, 0),
             Cursor = live && !t.Done ? Cursors.Hand : null,
             Opacity = t.Star ? 1 : 0,
@@ -253,8 +272,32 @@ internal static class TaskCards
                 pet.MarkTask(t, star: !t.Star);
             };
         }
-        Grid.SetColumn(starBox, 3);
-        grid.Children.Add(starBox);
+        var corner = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+        corner.Children.Add(starBox);
+        // ▶ при посочване: мечо-доро по нея (текущата – винаги се вижда).
+        Border? play = null;
+        bool current = live && !t.Done && pet.InFocus && pet.FocusTask?.Id == t.Id;
+        if (live && !t.Done && o.PlayButton)
+        {
+            play = new Border
+            {
+                Child = Icon("play"),
+                Background = Brushes.Transparent,
+                Margin = new Thickness(4 * U, 4 * U, 0, 0),
+                Cursor = Cursors.Hand,
+                Opacity = current ? 1 : 0,
+                ToolTip = Tip(current ? "По нея се работи сега" : "Мечо-доро по нея"),
+            };
+            play.MouseLeftButtonDown += (_, e) => e.Handled = true;
+            play.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                if (!current) pet.StartFocusOn(t);
+            };
+            corner.Children.Add(play);
+        }
+        Grid.SetColumn(corner, 3);
+        grid.Children.Add(corner);
 
         if (o.Side != null)
         {
@@ -278,9 +321,24 @@ internal static class TaskCards
             card.MouseEnter += (_, _) => card.Background = Hover;
             card.MouseLeave += (_, _) => card.Background = normal;
         }
-        card.MouseEnter += (_, _) => { if (!t.Star && live && !t.Done) starBox.Opacity = 0.35; };
-        card.MouseLeave += (_, _) => { if (!t.Star) starBox.Opacity = 0; };
+        card.MouseEnter += (_, _) =>
+        {
+            if (!t.Star && live && !t.Done) starBox.Opacity = 0.35;
+            if (play != null) play.Opacity = current ? 1 : 0.6;
+        };
+        card.MouseLeave += (_, _) =>
+        {
+            if (!t.Star) starBox.Opacity = 0;
+            if (play != null) play.Opacity = current ? 1 : 0;
+        };
 
+        if (o.Open != null)
+            card.MouseLeftButtonDown += (_, e) =>
+            {
+                if (e.ClickCount != 2 || e.Handled) return;
+                o.Open(t);
+                e.Handled = true;
+            };
         if (o.Select != null)
         {
             card.MouseLeftButtonUp += (_, e) =>
@@ -373,14 +431,25 @@ internal static class TaskCards
                 var today = pet.TaskToday;
                 var move = Item("Премести", null);
                 move.Items.Add(Item("Днес", () => pet.MoveTask(Now(), today), cur.Day == today));
+                if (cur.Day is { } d0 && d0 >= today)
+                    move.Items.Add(Item("Ден напред", () => pet.MoveTask(Now(), (Now().Day ?? today).AddDays(1))));
                 move.Items.Add(Item("Утре", () => pet.MoveTask(Now(), today.AddDays(1)), cur.Day == today.AddDays(1)));
                 var monday = PlannerWindow.WeekOf(today).AddDays(7);
                 move.Items.Add(Item("Следващата седмица", () => pet.MoveTask(Now(), monday), cur.Day == monday));
                 move.Items.Add(Item("Някога", () => pet.MoveTask(Now(), null), cur.Day == null));
                 menu.Items.Add(move);
 
+                var repeat = Item("Повтаряй", null);
+                foreach (var r in Mecho.Core.TaskRepeat.All)
+                {
+                    var rr = r;
+                    repeat.Items.Add(Item(r.Length == 0 ? "Не" : char.ToUpper(RepeatName(r)[0]) + RepeatName(r)[1..], () => pet.SetTaskRepeat(Now(), rr), cur.Repeat == r));
+                }
+                menu.Items.Add(repeat);
+
                 bool onBoard = pet.TaskOnBoard(cur);
                 menu.Items.Add(Item(onBoard ? "Махни от таблото" : "Сложи в таблото", () => pet.SetTaskOnBoard(Now(), !onBoard)));
+                menu.Items.Add(Item("Направи копие", () => pet.DuplicateTask(Now())));
                 menu.Items.Add(new Separator());
                 if (edit != null) menu.Items.Add(Item("Редактирай…", () => edit(Now())));
                 menu.Items.Add(Item("Свършена", () => pet.SetTaskDone(Now(), true)));
@@ -414,13 +483,18 @@ internal static class TaskCards
                 && Math.Abs(p.Y - s.Y) < SystemParameters.MinimumVerticalDragDistance * 2) return;
             start = null;
             Dragging = true;
+            var ghost = DragGhost.Start(card, s);
             card.Opacity = 0.35;
+            GiveFeedbackEventHandler follow = (_, _) => ghost?.Follow();
+            card.GiveFeedback += follow;
             try
             {
                 DragDrop.DoDragDrop(card, new DataObject(DragFormat, id.ToString()), DragDropEffects.Move);
             }
             finally
             {
+                card.GiveFeedback -= follow;
+                ghost?.Close();
                 Dragging = false;
                 card.Opacity = 1;
                 DragEnded?.Invoke();
@@ -520,5 +594,133 @@ internal static class TaskCards
         double edge = 28 * U;
         if (p.Y < edge) scroll.ScrollToVerticalOffset(scroll.VerticalOffset - 12 * U);
         else if (p.Y > scroll.ActualHeight - edge) scroll.ScrollToVerticalOffset(scroll.VerticalOffset + 12 * U);
+    }
+}
+
+/// <summary>
+/// „Призракът“ при влачене: снимка на картичката, леко наклонена, която следва мишката
+/// (прозорец, през който кликовете минават – иначе пускането би паднало върху него).
+/// </summary>
+internal sealed class DragGhost
+{
+    private readonly Window _window;
+    private readonly Point _grab;
+    private readonly double _dpi;
+
+    private DragGhost(Window window, Point grab, double dpi)
+    {
+        _window = window;
+        _grab = grab;
+        _dpi = dpi;
+    }
+
+    public static DragGhost? Start(FrameworkElement card, Point grab)
+    {
+        try
+        {
+            if (card.ActualWidth < 1 || card.ActualHeight < 1) return null;
+            var dpi = VisualTreeHelper.GetDpi(card);
+            var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                (int)Math.Ceiling(card.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(card.ActualHeight * dpi.DpiScaleY),
+                96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
+            bmp.Render(card);
+            bmp.Freeze();
+            var image = new System.Windows.Controls.Image
+            {
+                Source = bmp,
+                Width = card.ActualWidth,
+                Height = card.ActualHeight,
+                RenderTransform = new RotateTransform(2, card.ActualWidth / 2, card.ActualHeight / 2),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 0, ShadowDepth = 4, Opacity = 0.35, Direction = 300 },
+            };
+            var w = new Window
+            {
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                Topmost = true,
+                ShowInTaskbar = false,
+                ShowActivated = false,
+                ResizeMode = ResizeMode.NoResize,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                Content = new Border { Child = image, Padding = new Thickness(6), Opacity = 0.9 },
+                IsHitTestVisible = false,
+            };
+            w.SourceInitialized += (_, _) => NativeMethods.MakeClickThrough(new System.Windows.Interop.WindowInteropHelper(w).Handle);
+            var ghost = new DragGhost(w, grab, dpi.DpiScaleX);
+            ghost.Follow();
+            w.Show();
+            return ghost;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    public void Follow()
+    {
+        var p = NativeMethods.CursorPosition();
+        _window.Left = p.X / _dpi - _grab.X - 6;
+        _window.Top = p.Y / _dpi - _grab.Y - 6;
+    }
+
+    public void Close()
+    {
+        try { _window.Close(); } catch (InvalidOperationException) { }
+    }
+}
+
+/// <summary>
+/// Бързо писане на задача: „Скица #работа 30м !“ → име „Скица“, етикет „Работа“, 30 минути,
+/// важна. Етикетът е по име или ключ (стига началото: #раб), времето – 15м, 1ч, 1ч30, 2h, 45m.
+/// </summary>
+internal static class TaskQuick
+{
+    public sealed record Parsed(string Title, string? Tag, bool Star, int Minutes);
+
+    private static readonly System.Text.RegularExpressions.Regex Time =
+        new(@"^(?:(\d{1,2})\s*(?:ч|h)\s*(?:(\d{1,2})\s*(?:м|m|мин)?)?|(\d{1,3})\s*(?:м|m|мин))$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    public static Parsed Parse(string text)
+    {
+        string? tag = null;
+        bool star = false;
+        int minutes = 0;
+        var keep = new List<string>();
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (word == "!" || word == "!!")
+            {
+                star = true;
+                continue;
+            }
+            if (word.Length > 1 && word[0] == '#' && FindTag(word[1..]) is { } found)
+            {
+                tag = found;
+                continue;
+            }
+            var m = Time.Match(word);
+            if (m.Success && minutes == 0)
+            {
+                minutes = m.Groups[3].Success
+                    ? int.Parse(m.Groups[3].Value)
+                    : int.Parse(m.Groups[1].Value) * 60 + (m.Groups[2].Success ? int.Parse(m.Groups[2].Value) : 0);
+                if (minutes is > 0 and <= 12 * 60) continue;
+                minutes = 0;
+            }
+            keep.Add(word);
+        }
+        string title = string.Join(" ", keep);
+        // Само маркировки, без име – значи не е било маркировка, а името.
+        if (title.Length == 0) return new Parsed(text.Trim(), null, false, 0);
+        return new Parsed(title, tag, star, minutes);
+    }
+
+    private static string? FindTag(string word)
+    {
+        word = word.ToLowerInvariant();
+        if (word.Length == 0) return null;
+        return TaskTags.All.FirstOrDefault(t => t.Key == word || t.Name.ToLowerInvariant().StartsWith(word))?.Key;
     }
 }

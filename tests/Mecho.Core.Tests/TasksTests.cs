@@ -221,4 +221,114 @@ public class TasksTests
         Assert.Equal(("", false, 0, 0), (s.Open[0].Tag, s.Open[0].Star, s.Open[0].Minutes, s.Open[0].Rolled));
         Assert.Empty(s.Someday);
     }
+
+    [Fact]
+    public void Steps_add_tick_rename_delete_and_survive_save()
+    {
+        var (e, _, _) = Started();
+        e.Bus.Send(new AddTask("a", 1));
+        var id = Last(e).Id;
+        Assert.False(e.Bus.Send(new AddTaskStep(id, "  ")).Ok);
+        e.Bus.Send(new AddTaskStep(id, " скица "));
+        e.Bus.Send(new AddTaskStep(id, "цвят"));
+        var steps = Last(e).StepList;
+        Assert.Equal(new[] { "скица", "цвят" }, steps.Select(x => x.Title));
+        e.Bus.Send(new SetTaskStepDone(id, steps[0].Id, true));
+        e.Bus.Send(new RenameTaskStep(id, steps[1].Id, "оцветяване"));
+        Assert.Equal(("скица", true, "оцветяване"), (Last(e).StepList[0].Title, Last(e).StepList[0].Done, Last(e).StepList[1].Title));
+
+        var json = e.Store.Export();
+        var (e2, _, _) = Kit.Engine();
+        e2.Store.Import(json);
+        e2.Modules.Add(new EconomyModule());
+        e2.Modules.Add(new TasksModule());
+        e2.Start();
+        Assert.Equal(e.Store.Get<TasksState>().Open, e2.Store.Get<TasksState>().Open);
+        Assert.DoesNotContain("StepList", json.ToJsonString());
+
+        e.Bus.Send(new DeleteTaskStep(id, steps[0].Id));
+        Assert.Equal("оцветяване", Assert.Single(Last(e).StepList).Title);
+    }
+
+    [Fact]
+    public void Daily_repeat_makes_a_new_task_each_day_and_replaces_the_unfinished_one()
+    {
+        var (e, clock, _) = Started(new DateTime(2026, 11, 16, 23, 59, 0));
+        e.Bus.Send(new AddTask("разходка", 1, Repeat: TaskRepeat.Daily));
+        var first = Last(e);
+        e.Bus.Send(new AddTaskStep(first.Id, "обуй се"));
+        e.Bus.Send(new SetTaskStepDone(first.Id, Last(e).StepList[0].Id, true));
+        Next(e, clock);   // 17-и: вчерашната не е свършена – днешната е вместо нея (не се пренася)
+        var s = e.Store.Get<TasksState>();
+        var t = Assert.Single(s.Open);
+        Assert.NotEqual(first.Id, t.Id);
+        Assert.Equal((new DateTime(2026, 11, 17), 0, first.Id), (t.Day, t.Rolled, t.Series));
+        Assert.False(t.StepList[0].Done);
+        e.Bus.Send(new SetTaskDone(t.Id, true));
+        clock.Advance(24 * 3600 - 120);
+        Next(e, clock);   // 18-и: вчерашната е свършена – в историята, днес нова
+        s = e.Store.Get<TasksState>();
+        Assert.Equal(new DateTime(2026, 11, 18), Assert.Single(s.Open).Day);
+        Assert.Single(s.History);
+    }
+
+    [Fact]
+    public void Weekly_and_weekday_repeats_skip_other_days()
+    {
+        Assert.True(TaskRepeat.Due(TaskRepeat.Weekly, new DateTime(2026, 11, 16), new DateTime(2026, 11, 23)));
+        Assert.False(TaskRepeat.Due(TaskRepeat.Weekly, new DateTime(2026, 11, 16), new DateTime(2026, 11, 24)));
+        Assert.False(TaskRepeat.Due(TaskRepeat.Weekdays, new DateTime(2026, 11, 16), new DateTime(2026, 11, 21)));
+        Assert.True(TaskRepeat.Due(TaskRepeat.Monthly, new DateTime(2026, 1, 31), new DateTime(2026, 2, 28)));
+
+        var (e, clock, _) = Started(new DateTime(2026, 11, 16, 23, 59, 0));   // понеделник
+        e.Bus.Send(new AddTask("отчет", 1, Repeat: TaskRepeat.Weekly));
+        var id = Last(e).Id;
+        e.Bus.Send(new SetTaskDone(id, true));
+        Next(e, clock);   // вторник – не е ден за нея
+        Assert.Empty(e.Store.Get<TasksState>().Open);
+        Assert.False(e.Bus.Send(new SetTaskRepeat(Guid.NewGuid(), TaskRepeat.Daily)).Ok);
+        Assert.False(e.Bus.Send(new SetTaskRepeat(id, "веднъж")).Ok);
+    }
+
+    private static void Next(GameEngine e, ManualClock clock)
+    {
+        for (int i = 0; i < 120; i++)
+        {
+            clock.Advance(1);
+            e.Update(1);
+        }
+    }
+
+    [Fact]
+    public void Duplicate_put_back_time_and_move_unfinished()
+    {
+        var (e, _, _) = Started(new DateTime(2026, 11, 16, 10, 0, 0));
+        var mon = new DateTime(2026, 11, 16);
+        e.Bus.Send(new AddTask("a", 2, Star: true));
+        e.Bus.Send(new AddTask("b", 1));
+        var a = e.Store.Get<TasksState>().Open[0];
+        e.Bus.Send(new AddTaskStep(a.Id, "x"));
+        e.Bus.Send(new DuplicateTask(a.Id));
+        var s = e.Store.Get<TasksState>();
+        Assert.Equal("a (копие)", s.Open[1].Title);
+        Assert.True(s.Open[1].Star);
+        Assert.NotEqual(s.Open[0].StepList[0].Id, s.Open[1].StepList[0].Id);
+
+        e.Bus.Send(new AddTaskTime(a.Id, 25));
+        e.Bus.Send(new AddTaskTime(a.Id, 25));
+        Assert.Equal(50, e.Store.Get<TasksState>().Open[0].Spent);
+
+        var before = e.Store.Get<TasksState>().Open[0];
+        e.Bus.Send(new DeleteTask(a.Id));
+        e.Bus.Send(new PutTask(before, 0));
+        Assert.Equal(before, e.Store.Get<TasksState>().Open[0]);
+
+        e.Bus.Send(new AddTask("c", 1, Before: before.Id));
+        Assert.Equal("c", e.Store.Get<TasksState>().Open[0].Title);
+
+        e.Bus.Send(new SetTaskDone(e.Store.Get<TasksState>().Open[0].Id, true));
+        e.Bus.Send(new MoveUnfinished(mon, mon.AddDays(1)));
+        Assert.Equal("c", Titles(e, mon));
+        Assert.Equal("a a (копие) b", Titles(e, mon.AddDays(1)));
+    }
 }

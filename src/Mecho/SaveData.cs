@@ -126,6 +126,11 @@ public sealed class SaveData
     public PinState PinTasks { get; set; } = new();              // закаченото прозорче със задачите
     public PinState PinNotes { get; set; } = new();
     public PinState Planner { get; set; } = new();               // седмицата със задачите (къде е, колко е голяма)
+    public int PlannerHours { get; set; } = 6;                  // колко часа работа на ден (за „твърде много за деня“)
+    public bool PlannerHideDone { get; set; }                   // седмицата: свършените не се показват
+    public string PlannedDay { get; set; } = "";                // кой ден е планиран („План за деня“)
+    public string ShutdownDay { get; set; } = "";               // кой ден е приключен („Край на деня“)
+    public Dictionary<string, string> DayNotes { get; set; } = new();   // „Как мина денят?“ по дни (yyyy-MM-dd)
     public Dictionary<string, SurveyAnswer> Answers { get; set; } = new();   // въпросникът: id → какво отговори Тут
     /// <summary>
     /// Броячи „колко пъти днес“ (въпросник, спомени, нови желания…) – сами се нулират на
