@@ -102,6 +102,7 @@ public sealed partial class PetWindow : Window
         // данните през него (виж Engine/CoreSetup.cs и ARCHITECTURE.md).
         CoreEngine = Engine.CoreSetup.Build(this, save, a => Dispatcher.BeginInvoke(a));
         WireWork();     // мечо-доро и таймер: ядрото засича края, мечокът реагира
+        WirePlanner();  // задачите от минали дни се пренасят за днес – мечокът казва
         WireEvents();   // събития (пижамен ден, болен ден, Коледа, пеперуда…)
         WireBehaviour(); // продаден/махнат предмет спира заниманието; нов скин – пречертава
         InitItems();     // предметите на земята и какво прави мечокът с тях (Items/*.cs)
@@ -173,6 +174,7 @@ public sealed partial class PetWindow : Window
         Loaded += (_, _) =>
         {
             RestorePins();
+            RestorePlanner();
             // Беше на разходка, когато програмата спря: още го няма.
             if (_save.WalkUntil > DateTime.Now) Dispatcher.BeginInvoke(new Action(Hide));
             else _save.WalkUntil = DateTime.MinValue;

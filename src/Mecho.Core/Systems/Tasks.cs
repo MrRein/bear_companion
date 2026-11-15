@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text.Json.Nodes;
 
 namespace Mecho.Core;
 
@@ -13,13 +14,23 @@ namespace Mecho.Core;
 //     bus.Send(new SetTaskDone(id, false));   // отмяна: наградата се връща
 //     bus.Send(new SetFocusTask(id));         // по нея е мечо-дорото / работният таймер
 //
+//     bus.Send(new MoveTask(id, monday, before));   // в друг ден (null – „Някога“), преди дадена задача
+//     bus.Send(new MarkTask(id, Tag: "work", Star: true, Minutes: 30));
+//
 // Правила тук: голяма задача дава шанс за страница само при първото „свършено“
 // (TaskCompleted.FirstBigCompletion); свършените от минали дни отиват в историята
-// сами в полунощ (DayStarted) – най-новите отпред, до 2000.
+// сами в полунощ (DayStarted) – най-новите отпред, до 2000. Несвършените от минал ден
+// се пренасят за днес (Rolled + 1, TasksRolledOver). Редът в Open е редът в деня.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// <summary>Една задача. Size: 1 – малка, 2 – средна, 3 – голяма. PageRolled – вече е дала шанс за страница.</summary>
-public sealed record TaskEntry(Guid Id, string Title, string Description, int Size, bool Done, DateTime? DoneAt, bool PageRolled)
+/// <summary>
+/// Една задача. Size: 1 – малка, 2 – средна, 3 – голяма. PageRolled – вече е дала шанс за страница.
+/// Day – денят, за който е (само датата; null – „Някога“), Tag – етикетът (ключ, "" – без),
+/// Star – важна, Minutes – колко време ще отнеме (0 – не е казано), Rolled – колко пъти е
+/// пренасяна от ден за ден.
+/// </summary>
+public sealed record TaskEntry(Guid Id, string Title, string Description, int Size, bool Done, DateTime? DoneAt, bool PageRolled,
+    DateTime? Day = null, string Tag = "", bool Star = false, int Minutes = 0, int Rolled = 0)
 {
     public int Reward => Size switch { 3 => 5, 2 => 3, _ => 1 };
 }
@@ -31,12 +42,30 @@ public sealed record TasksState(ImmutableList<TaskEntry> Open, ImmutableList<Tas
 
     public TaskEntry? Find(Guid id) => Open.FirstOrDefault(t => t.Id == id);
 
+    /// <summary>Задачите за деня (в реда им), заедно със свършените, които вече са в историята.</summary>
+    public IEnumerable<TaskEntry> OnDay(DateTime day)
+    {
+        day = day.Date;
+        return Open.Where(t => t.Day == day).Concat(History.Where(t => (t.Day ?? t.DoneAt?.Date) == day).Reverse());
+    }
+
+    /// <summary>„Някога“: несвършените без ден.</summary>
+    public IEnumerable<TaskEntry> Someday => Open.Where(t => t.Day == null && !t.Done);
+
     /// <summary>Текущата задача, ако още не е свършена.</summary>
     public TaskEntry? FocusTask => Focus is { } id && Find(id) is { Done: false } t ? t : null;
 }
 
 // ── Команди ──
-public sealed record AddTask(string Title, int Size, string? Description = null) : IGameCommand;
+/// <summary>Нова задача. Без Day – за днес; Someday – за „Някога“ (без ден).</summary>
+public sealed record AddTask(string Title, int Size, string? Description = null, DateTime? Day = null, bool Someday = false,
+    string? Tag = null, bool Star = false, int Minutes = 0) : IGameCommand;
+/// <summary>Мести задачата в ден (null – „Някога“) – преди Before или накрая на деня.</summary>
+public sealed record MoveTask(Guid Id, DateTime? Day, Guid? Before = null) : IGameCommand;
+/// <summary>Маркира задачата: етикет, важна, време, големина (null – без промяна).</summary>
+public sealed record MarkTask(Guid Id, string? Tag = null, bool? Star = null, int? Minutes = null, int? Size = null) : IGameCommand;
+/// <summary>Несвършените от минали дни → за днес (става и само в полунощ и при пускане).</summary>
+public sealed record RollOverTasks : IGameCommand;
 public sealed record SetTaskDone(Guid Id, bool Done) : IGameCommand;
 public sealed record DeleteTask(Guid Id) : IGameCommand;
 /// <summary>Поправя име, описание и трудност на несвършена задача (същата задача, същото място).</summary>
@@ -53,6 +82,8 @@ public sealed record TaskAdded(Guid Id, string Title) : ISignal;
 public sealed record TaskCompleted(Guid Id, int Size, int Reward, bool FirstBigCompletion) : ISignal;
 public sealed record TaskReopened(Guid Id, int Reward) : ISignal;
 public sealed record TaskDeleted(Guid Id) : ISignal;
+/// <summary>Толкова несвършени задачи от минали дни се преместиха за днес.</summary>
+public sealed record TasksRolledOver(int Count) : ISignal;
 
 /// <summary>Модулът „задачи“ (Id: tasks, зависи от economy – наградите са в лешници).</summary>
 public sealed class TasksModule : GameModule
@@ -61,6 +92,11 @@ public sealed class TasksModule : GameModule
     public const string Key = "tasks";
     public const int MaxHistory = 2000;
     public const int MaxTitle = 200;
+    public const int MaxMinutes = 12 * 60;
+    public const int MaxTag = 40;
+
+    /// <summary>Версия 2: задачите имат ден (старите несвършени стават за днес, а не „Някога“).</summary>
+    public const int Version = 2;
 
     public override string Id => ModuleId;
 
@@ -68,14 +104,16 @@ public sealed class TasksModule : GameModule
 
     protected override void OnRegister()
     {
-        Store.Register(this, Key, TasksState.Empty);
+        Store.Register(this, Key, TasksState.Empty, Version, Migrate);
 
         Handle<AddTask>(c =>
         {
             string title = (c.Title ?? "").Trim();
             if (title.Length == 0) return CommandResult.Rejected("задачата няма име");
             if (title.Length > MaxTitle) title = title[..MaxTitle];
-            var t = new TaskEntry(Guid.NewGuid(), title, (c.Description ?? "").Trim(), Math.Clamp(c.Size, 1, 3), false, null, false);
+            DateTime? day = c.Someday ? null : (c.Day ?? Clock.Today()).Date;
+            var t = new TaskEntry(Guid.NewGuid(), title, (c.Description ?? "").Trim(), Math.Clamp(c.Size, 1, 3), false, null, false,
+                day, CleanTag(c.Tag), c.Star, Math.Clamp(c.Minutes, 0, MaxMinutes));
             Store.Update<TasksState>(s => s with { Open = s.Open.Add(t) });
             Emit(new TaskAdded(t.Id, t.Title));
             return CommandResult.Done;
@@ -130,6 +168,43 @@ public sealed class TasksModule : GameModule
             if (s.Focus != c.Id) Store.Set(s with { Focus = c.Id });
             return CommandResult.Done;
         });
+        Handle<MoveTask>(c =>
+        {
+            var s = State<TasksState>();
+            if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
+            if (c.Before == c.Id) return CommandResult.Done;
+            var moved = t with { Day = c.Day?.Date };
+            var list = s.Open.Remove(t);
+            int at = c.Before is { } b ? list.FindIndex(x => x.Id == b) : -1;
+            if (at < 0)
+            {
+                // Накрая на деня: след последната задача от него (или накрая на списъка).
+                int last = list.FindLastIndex(x => x.Day == moved.Day);
+                at = last < 0 ? list.Count : last + 1;
+            }
+            Store.Set(s with { Open = list.Insert(at, moved) });
+            return CommandResult.Done;
+        });
+        Handle<MarkTask>(c =>
+        {
+            var s = State<TasksState>();
+            if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
+            var marked = t with
+            {
+                Tag = c.Tag != null ? CleanTag(c.Tag) : t.Tag,
+                Star = c.Star ?? t.Star,
+                Minutes = c.Minutes is { } m ? Math.Clamp(m, 0, MaxMinutes) : t.Minutes,
+                // Големината (а с нея и наградата) – само докато не е свършена.
+                Size = c.Size is { } z && !t.Done ? Math.Clamp(z, 1, 3) : t.Size,
+            };
+            if (marked != t) Store.Set(s with { Open = s.Open.Replace(t, marked) });
+            return CommandResult.Done;
+        });
+        Handle<RollOverTasks>(_ =>
+        {
+            RollOver();
+            return CommandResult.Done;
+        });
         Handle<ArchiveDoneTasks>(_ =>
         {
             Archive();
@@ -144,10 +219,63 @@ public sealed class TasksModule : GameModule
             return CommandResult.Done;
         });
 
-        On<DayStarted>(_ => Archive());
+        On<DayStarted>(_ => NewDay());
     }
 
-    public override void Start() => Archive();
+    public override void Start() => NewDay();
+
+    private void NewDay()
+    {
+        Archive();
+        RollOver();
+    }
+
+    private static string CleanTag(string? tag)
+    {
+        string t = (tag ?? "").Trim();
+        return t.Length > MaxTag ? t[..MaxTag] : t;
+    }
+
+    /// <summary>Несвършените от минал ден – за днес, на същото място в реда.</summary>
+    private void RollOver()
+    {
+        var s = State<TasksState>();
+        var today = Clock.Today();
+        int count = 0;
+        var open = s.Open.Select(t =>
+        {
+            if (t.Done || t.Day is not { } d || d >= today) return t;
+            count++;
+            return t with { Day = today, Rolled = t.Rolled + 1 };
+        }).ToImmutableList();
+        if (count == 0) return;
+        Store.Set(s with { Open = open });
+        Emit(new TasksRolledOver(count));
+    }
+
+    /// <summary>
+    /// Версия 1 → 2: задачите още нямаха ден. Несвършените стават за днес (иначе изведнъж
+    /// всичко щеше да е в „Някога“), свършените – за деня, в който са свършени.
+    /// </summary>
+    private JsonNode Migrate(JsonNode data, int version)
+    {
+        if (version < 2)
+        {
+            string today = Clock.Today().ToString("yyyy-MM-ddT00:00:00");
+            foreach (var name in new[] { "Open", "History" })
+            {
+                if (data[name] is not JsonArray list) continue;
+                foreach (var item in list.OfType<JsonObject>())
+                {
+                    if (item["Day"] != null) continue;
+                    string? doneAt = item["DoneAt"]?.GetValue<string>();
+                    bool done = item["Done"]?.GetValue<bool>() ?? false;
+                    item["Day"] = done && doneAt is { Length: >= 10 } ? doneAt[..10] + "T00:00:00" : today;
+                }
+            }
+        }
+        return data;
+    }
 
     private void Archive()
     {

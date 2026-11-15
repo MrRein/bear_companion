@@ -125,6 +125,7 @@ public sealed class SaveData
     public bool FavFoodSaid { get; set; }                       // каза ли днес какво му се яде
     public PinState PinTasks { get; set; } = new();              // закаченото прозорче със задачите
     public PinState PinNotes { get; set; } = new();
+    public PinState Planner { get; set; } = new();               // седмицата със задачите (къде е, колко е голяма)
     public Dictionary<string, SurveyAnswer> Answers { get; set; } = new();   // въпросникът: id → какво отговори Тут
     /// <summary>
     /// Броячи „колко пъти днес“ (въпросник, спомени, нови желания…) – сами се нулират на

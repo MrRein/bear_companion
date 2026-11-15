@@ -1,0 +1,524 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using static Mecho.Ui;
+
+namespace Mecho;
+
+/// <summary>Етикетите на задачите: ключът се пази в задачата, името и цветът – тук.</summary>
+internal static class TaskTags
+{
+    public sealed record Info(string Key, string Name, Color Color);
+
+    public static readonly Info[] All =
+    {
+        new("work", "Работа", Color.FromRgb(84, 132, 204)),
+        new("art", "Рисуване", Color.FromRgb(214, 104, 146)),
+        new("study", "Учене", Color.FromRgb(146, 108, 196)),
+        new("home", "Вкъщи", Color.FromRgb(222, 150, 54)),
+        new("health", "Здраве", Color.FromRgb(98, 168, 82)),
+        new("people", "Хора", Color.FromRgb(58, 164, 164)),
+    };
+
+    public static Info? Find(string? key) => string.IsNullOrEmpty(key) ? null : All.FirstOrDefault(t => t.Key == key);
+
+    private static readonly Dictionary<string, Brush> Brushes = new();
+
+    public static Brush BrushOf(string key, byte alpha = 255)
+    {
+        string id = key + "/" + alpha;
+        if (Brushes.TryGetValue(id, out var b)) return b;
+        var c = Find(key)?.Color ?? Colors.Transparent;
+        var brush = new SolidColorBrush(Color.FromArgb(c.A == 0 ? (byte)0 : alpha, c.R, c.G, c.B));
+        brush.Freeze();
+        return Brushes[id] = brush;
+    }
+
+    /// <summary>Квадратче в цвета на етикета (в копчетата за избор).</summary>
+    public static Border Swatch(string key) => new()
+    {
+        Width = 3 * P,
+        Height = 3 * P,
+        Background = BrushOf(key),
+        BorderBrush = Ink,
+        BorderThickness = Px(1),
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(0, 0, 5, 0),
+    };
+}
+
+/// <summary>Как се показва задача (за картичката), на едно място за менюто, таблото и седмицата.</summary>
+public sealed class TaskCardOptions
+{
+    /// <summary>Цъкване по картичката (не по отметката и копчетата) – например избор в седмицата.</summary>
+    public Action<TaskItem>? Select { get; init; }
+    public bool Selected { get; init; }
+    /// <summary>Описанието под името (съкратено до толкова знака; 0 – без).</summary>
+    public int Description { get; init; } = 70;
+    /// <summary>Копчета вдясно (например 📍 ✕ в таблото).</summary>
+    public FrameworkElement? Side { get; init; }
+    /// <summary>Дясното меню: „Редактирай…“ (null – без).</summary>
+    public Action<TaskItem>? Edit { get; init; }
+    /// <summary>Може ли да се влачи (свършените в историята – не).</summary>
+    public bool Draggable { get; init; } = true;
+}
+
+/// <summary>
+/// Картичка на задача и влаченето ѝ. Картичката: цветна черта на етикета, квадратче за
+/// отметка, името (задраскано, ако е свършена), описанието, а отдолу – етикет, големина,
+/// време и колко пъти е пренасяна; звездичката вдясно горе се цъка (важна). С дясното копче –
+/// всичко останало (етикет, време, премести за утре/„Някога“, мечо-доро, изтрий).
+/// </summary>
+internal static class TaskCards
+{
+    public const string DragFormat = "MechoTask";
+
+    /// <summary>Колко време може да отнеме една задача (в минути) – копчетата за избор.</summary>
+    public static readonly int[] Estimates = { 15, 30, 45, 60, 90, 120, 180 };
+
+    /// <summary>15м, 1ч, 1ч 30м.</summary>
+    public static string Duration(int minutes) =>
+        minutes < 60 ? $"{minutes}м" : minutes % 60 == 0 ? $"{minutes / 60}ч" : $"{minutes / 60}ч {minutes % 60}м";
+
+    public static readonly string[] SizeNames = { "малка", "средна", "голяма" };
+
+    private static double U => Body / 18;
+
+    /// <summary>Пикселно квадратче за отметка: празно или медено с отметка.</summary>
+    public static Border CheckSquare(bool on, Action<bool> toggled, bool enabled = true)
+    {
+        var box = new Border
+        {
+            Width = 5 * P,
+            Height = 5 * P,
+            Background = on ? Honey : Cream,
+            BorderBrush = Ink,
+            BorderThickness = Px(1),
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 1, 7 * U, 0),
+            Cursor = enabled ? Cursors.Hand : null,
+            Child = on ? Icon("check") : null,
+        };
+        if (box.Child is FrameworkElement check)
+        {
+            check.Width = check.Height = 3 * P;
+            check.HorizontalAlignment = HorizontalAlignment.Center;
+            check.VerticalAlignment = VerticalAlignment.Center;
+        }
+        if (!enabled) return box;
+        box.MouseEnter += (_, _) => { if (!on) box.Background = Hover; };
+        box.MouseLeave += (_, _) => box.Background = on ? Honey : Cream;
+        box.MouseLeftButtonDown += (_, e) => e.Handled = true;
+        box.MouseLeftButtonUp += (_, e) =>
+        {
+            e.Handled = true;
+            toggled(!on);
+        };
+        return box;
+    }
+
+    /// <summary>Големината – три пикселни квадратчета (пълните са колкото е голяма).</summary>
+    public static FrameworkElement SizeDots(int size)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8 * U, 0) };
+        for (int i = 1; i <= 3; i++)
+            row.Children.Add(new Border
+            {
+                Width = 2 * P,
+                Height = 2 * P,
+                Margin = new Thickness(0, 0, P / 2, 0),
+                Background = i <= size ? Ink : Brushes.Transparent,
+                BorderBrush = Ink,
+                BorderThickness = new Thickness(Math.Max(1, P / 2)),
+                Opacity = i <= size ? 0.75 : 0.35,
+            });
+        row.ToolTip = Tip($"{SizeNames[Math.Clamp(size, 1, 3) - 1]} задача · +{(size switch { 3 => 5, 2 => 3, _ => 1 })} лешника");
+        return row;
+    }
+
+    /// <summary>Етикет: цветна лентичка с името.</summary>
+    public static FrameworkElement TagPill(string key)
+    {
+        var info = TaskTags.Find(key);
+        var pill = new Border
+        {
+            Background = TaskTags.BrushOf(key, 70),
+            BorderBrush = TaskTags.BrushOf(key),
+            BorderThickness = new Thickness(Math.Max(1, P / 2)),
+            CornerRadius = new CornerRadius(2),
+            Padding = new Thickness(5 * U, 0, 5 * U, 1),
+            Margin = new Thickness(0, 0, 8 * U, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock { Text = info?.Name ?? key, Foreground = Ink },
+        };
+        return pill;
+    }
+
+    /// <summary>Редът под името: етикет, големина, време, пренасяна.</summary>
+    public static FrameworkElement? Meta(TaskItem t)
+    {
+        var row = new WrapPanel { Margin = new Thickness(0, 3 * U, 0, 0) };
+        if (t.Tag.Length > 0) row.Children.Add(TagPill(t.Tag));
+        row.Children.Add(SizeDots(t.Size));
+        if (t.Minutes > 0)
+        {
+            var time = IconText("clock", Duration(t.Minutes));
+            time.Opacity = 0.8;
+            time.Margin = new Thickness(0, 0, 8 * U, 0);
+            row.Children.Add(time);
+        }
+        if (t.Rolled > 0 && !t.Done)
+        {
+            var rolled = IconText("reroll", t.Rolled.ToString());
+            rolled.Opacity = 0.8;
+            rolled.ToolTip = Tip(t.Rolled == 1
+                ? "Пренесена от вчера."
+                : $"Пренасяна {t.Rolled} пъти от ден за ден. Може би е голяма – раздели я на по-малки или я сложи за „Някога“.");
+            row.Children.Add(rolled);
+        }
+        return row;
+    }
+
+    /// <summary>Картичката на задачата.</summary>
+    public static Border Build(PetWindow pet, TaskItem t, TaskCardOptions? o = null)
+    {
+        o ??= new TaskCardOptions();
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });   // черта
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });   // отметка
+        grid.ColumnDefinitions.Add(new ColumnDefinition());                             // текст
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });   // звезда
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });   // копчета
+
+        // Цветна черта отляво – етикетът.
+        var stripe = new Border
+        {
+            Width = 1.5 * P,
+            Margin = new Thickness(-4 * U, -3 * U, 6 * U, -3 * U),
+            Background = t.Tag.Length > 0 ? TaskTags.BrushOf(t.Tag) : Brushes.Transparent,
+            CornerRadius = new CornerRadius(2),
+        };
+        grid.Children.Add(stripe);
+
+        bool live = pet.Save.Tasks.Any(x => x.Id == t.Id);   // в историята (минал ден) – само за гледане
+        var check = CheckSquare(t.Done, on => pet.SetTaskDone(t, on), enabled: live);
+        Grid.SetColumn(check, 1);
+        grid.Children.Add(check);
+
+        var text = new StackPanel();
+        text.Children.Add(new TextBlock
+        {
+            Text = t.Title,
+            FontWeight = FontWeights.Bold,
+            TextWrapping = TextWrapping.Wrap,
+            TextDecorations = t.Done ? TextDecorations.Strikethrough : null,
+            Foreground = t.Done ? Muted : Ink,
+        });
+        if (o.Description > 0 && t.Description.Length > 0 && !t.Done)
+        {
+            text.Children.Add(new TextBlock { Text = Shorten(t.Description, o.Description), Foreground = Muted, TextWrapping = TextWrapping.Wrap });
+            if (t.Description.Length > o.Description)
+            {
+                text.ToolTip = Tip(t.Description);
+                ToolTipService.SetInitialShowDelay(text, 250);
+                ToolTipService.SetShowDuration(text, 60000);
+            }
+        }
+        if (!t.Done && Meta(t) is { } meta) text.Children.Add(meta);
+        Grid.SetColumn(text, 2);
+        grid.Children.Add(text);
+
+        // Звездичката: пълна – важна; иначе се показва бледа при посочване.
+        var star = Icon("star");
+        var starBox = new Border
+        {
+            Child = star,
+            Background = Brushes.Transparent,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(4 * U, 0, 0, 0),
+            Cursor = live && !t.Done ? Cursors.Hand : null,
+            Opacity = t.Star ? 1 : 0,
+            ToolTip = Tip(t.Star ? "Важна (цъкни, за да я махнеш)" : "Направи я важна"),
+        };
+        if (live && !t.Done)
+        {
+            starBox.MouseLeftButtonDown += (_, e) => e.Handled = true;
+            starBox.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                pet.MarkTask(t, star: !t.Star);
+            };
+        }
+        Grid.SetColumn(starBox, 3);
+        grid.Children.Add(starBox);
+
+        if (o.Side != null)
+        {
+            Grid.SetColumn(o.Side, 4);
+            grid.Children.Add(o.Side);
+        }
+
+        var card = MenuWindow.Card(grid, t.Done);
+        card.Padding = new Thickness(6 * U, 5 * U, 5 * U, 5 * U);
+        card.Margin = new Thickness(0, 0, 0, 5 * U);
+        card.Tag = t;
+        if (o.Selected)
+        {
+            card.BorderBrush = Ink;
+            card.BorderThickness = Px(1);
+            card.Background = Cream;
+        }
+        else if (!t.Done)
+        {
+            var normal = card.Background;
+            card.MouseEnter += (_, _) => card.Background = Hover;
+            card.MouseLeave += (_, _) => card.Background = normal;
+        }
+        card.MouseEnter += (_, _) => { if (!t.Star && live && !t.Done) starBox.Opacity = 0.35; };
+        card.MouseLeave += (_, _) => { if (!t.Star) starBox.Opacity = 0; };
+
+        if (o.Select != null)
+        {
+            card.MouseLeftButtonUp += (_, e) =>
+            {
+                if (e.Handled) return;
+                o.Select(t);
+                e.Handled = true;
+            };
+        }
+        if (live)
+        {
+            card.ContextMenu = Menu(pet, t, o.Edit);
+            if (o.Draggable) Draggable(card, t.Id);
+        }
+        return card;
+    }
+
+    // ───────────────────────── Дясното меню ─────────────────────────
+
+    private static MenuItem Item(string text, Action? click, bool on = false, bool enabled = true)
+    {
+        var item = new MenuItem
+        {
+            Header = text,
+            IsCheckable = false,
+            IsChecked = on,
+            IsEnabled = enabled,
+            FontFamily = GameFont,
+            FontSize = Body,
+            Foreground = Ink,
+        };
+        if (click != null) item.Click += (_, _) => click();
+        return item;
+    }
+
+    /// <summary>Дясното копче на задача: важна, етикет, време, големина, премести, мечо-доро, изтрий.</summary>
+    public static ContextMenu Menu(PetWindow pet, TaskItem t, Action<TaskItem>? edit)
+    {
+        var menu = new ContextMenu
+        {
+            FontFamily = GameFont,
+            FontSize = Body,
+            Foreground = Ink,
+            Background = Cream,
+            BorderBrush = Ink,
+            BorderThickness = Px(1),
+        };
+        // Задачата може да се е сменила, докато менюто е било затворено – взимаме я наново.
+        TaskItem Now() => pet.Save.Tasks.FirstOrDefault(x => x.Id == t.Id) ?? t;
+        menu.Opened += (_, _) =>
+        {
+            menu.Items.Clear();
+            var cur = Now();
+            if (!cur.Done)
+            {
+                if (!pet.InFocus || pet.FocusTask?.Id != cur.Id)
+                    menu.Items.Add(Item("Мечо-доро по нея", () => pet.StartFocusOn(Now())));
+                menu.Items.Add(Item(cur.Star ? "Не е важна" : "Важна", () => pet.MarkTask(Now(), star: !Now().Star), cur.Star));
+
+                var tags = Item("Етикет", null);
+                foreach (var tag in TaskTags.All)
+                {
+                    var key = tag.Key;
+                    var ti = Item(tag.Name, () => pet.MarkTask(Now(), tag: Now().Tag == key ? "" : key), cur.Tag == key);
+                    ti.Icon = TaskTags.Swatch(key);
+                    tags.Items.Add(ti);
+                }
+                tags.Items.Add(new Separator());
+                tags.Items.Add(Item("Без етикет", () => pet.MarkTask(Now(), tag: ""), cur.Tag.Length == 0));
+                menu.Items.Add(tags);
+
+                var time = Item("Време", null);
+                foreach (int m in Estimates)
+                {
+                    int minutes = m;
+                    time.Items.Add(Item(Duration(m), () => pet.MarkTask(Now(), minutes: minutes), cur.Minutes == m));
+                }
+                time.Items.Add(new Separator());
+                time.Items.Add(Item("Не знам", () => pet.MarkTask(Now(), minutes: 0), cur.Minutes == 0));
+                menu.Items.Add(time);
+
+                var size = Item("Големина", null);
+                for (int i = 1; i <= 3; i++)
+                {
+                    int s = i;
+                    size.Items.Add(Item(SizeNames[i - 1], () => pet.MarkTask(Now(), size: s), cur.Size == i));
+                }
+                menu.Items.Add(size);
+
+                var today = pet.TaskToday;
+                var move = Item("Премести", null);
+                move.Items.Add(Item("Днес", () => pet.MoveTask(Now(), today), cur.Day == today));
+                move.Items.Add(Item("Утре", () => pet.MoveTask(Now(), today.AddDays(1)), cur.Day == today.AddDays(1)));
+                var monday = PlannerWindow.WeekOf(today).AddDays(7);
+                move.Items.Add(Item("Следващата седмица", () => pet.MoveTask(Now(), monday), cur.Day == monday));
+                move.Items.Add(Item("Някога", () => pet.MoveTask(Now(), null), cur.Day == null));
+                menu.Items.Add(move);
+
+                bool onBoard = pet.TaskOnBoard(cur);
+                menu.Items.Add(Item(onBoard ? "Махни от таблото" : "Сложи в таблото", () => pet.SetTaskOnBoard(Now(), !onBoard)));
+                menu.Items.Add(new Separator());
+                if (edit != null) menu.Items.Add(Item("Редактирай…", () => edit(Now())));
+                menu.Items.Add(Item("Свършена", () => pet.SetTaskDone(Now(), true)));
+            }
+            else
+            {
+                menu.Items.Add(Item("Не е свършена", () => pet.SetTaskDone(Now(), false)));
+            }
+            menu.Items.Add(Item("Изтрий", () => pet.DeleteTask(Now())));
+        };
+        menu.Items.Add(new MenuItem());   // да се отвори (съдържанието се строи при Opened)
+        return menu;
+    }
+
+    // ───────────────────────── Влачене ─────────────────────────
+
+    /// <summary>Влачи ли се задача точно сега (докато трае – списъците не се строят наново).</summary>
+    public static bool Dragging { get; private set; }
+
+    /// <summary>Картичката се влачи с лявото копче (не от отметката, звездата и копчетата).</summary>
+    public static void Draggable(FrameworkElement card, Guid id)
+    {
+        Point? start = null;
+        card.PreviewMouseLeftButtonDown += (_, e) => start = OnButton(e.OriginalSource as DependencyObject, card) ? null : e.GetPosition(card);
+        card.PreviewMouseLeftButtonUp += (_, _) => start = null;
+        card.PreviewMouseMove += (_, e) =>
+        {
+            if (start is not { } s || e.LeftButton != MouseButtonState.Pressed) return;
+            var p = e.GetPosition(card);
+            if (Math.Abs(p.X - s.X) < SystemParameters.MinimumHorizontalDragDistance * 2
+                && Math.Abs(p.Y - s.Y) < SystemParameters.MinimumVerticalDragDistance * 2) return;
+            start = null;
+            Dragging = true;
+            card.Opacity = 0.35;
+            try
+            {
+                DragDrop.DoDragDrop(card, new DataObject(DragFormat, id.ToString()), DragDropEffects.Move);
+            }
+            finally
+            {
+                Dragging = false;
+                card.Opacity = 1;
+                DragEnded?.Invoke();
+            }
+        };
+    }
+
+    /// <summary>Влаченето свърши (пуснато или отказано) – който е чакал, да се опресни.</summary>
+    public static event Action? DragEnded;
+
+    /// <summary>Натиснато ли е върху копче (всичко с ръчичка), а не върху самата картичка.</summary>
+    private static bool OnButton(DependencyObject? e, FrameworkElement card)
+    {
+        while (e != null && e != card)
+        {
+            if (e is FrameworkElement f && f.Cursor == Cursors.Hand) return true;
+            if (e is TextBox) return true;
+            e = e is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(e) : LogicalTreeHelper.GetParent(e);
+        }
+        return false;
+    }
+
+    public static Guid? DraggedId(DragEventArgs e) =>
+        e.Data.GetDataPresent(DragFormat) && Guid.TryParse(e.Data.GetData(DragFormat) as string, out var id) ? id : null;
+
+    /// <summary>
+    /// Списък, в който се пускат задачи: area е цялата колона (там се пуска), list – картичките
+    /// (по тях се гледа мястото; медена черта показва къде ще падне). drop(задача, преди коя).
+    /// </summary>
+    public static void DropTarget(FrameworkElement area, Panel list, Action<Guid, Guid?> drop, ScrollViewer? scroll = null)
+    {
+        area.AllowDrop = true;
+        var marker = new Border
+        {
+            Height = 1.5 * P,
+            Background = Honey,
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(0, Math.Max(1, P / 2), 0, Math.Max(1, P / 2)),
+            Margin = new Thickness(0, -1 * U, 0, 4 * U),
+            IsHitTestVisible = false,
+        };
+        void Remove()
+        {
+            list.Children.Remove(marker);
+            area.Tag = null;
+        }
+        // Мястото: преди първата картичка, чиято среда е под мишката.
+        int Place(DragEventArgs e)
+        {
+            for (int i = 0; i < list.Children.Count; i++)
+                if (list.Children[i] is FrameworkElement { Tag: TaskItem } c && c.IsVisible && e.GetPosition(c).Y < c.ActualHeight / 2) return i;
+            return list.Children.Count;
+        }
+        area.DragOver += (_, e) =>
+        {
+            e.Handled = true;
+            if (DraggedId(e) == null)
+            {
+                e.Effects = DragDropEffects.None;
+                return;
+            }
+            e.Effects = DragDropEffects.Move;
+            list.Children.Remove(marker);
+            int at = Math.Min(Place(e), list.Children.Count);
+            list.Children.Insert(at, marker);
+            area.Tag = "drop";
+            if (scroll != null) AutoScroll(scroll, e);
+        };
+        area.DragLeave += (_, e) =>
+        {
+            // DragLeave идва и при минаване от картичка на картичка – махаме чертата само навън.
+            var p = e.GetPosition(area);
+            if (p.X < 0 || p.Y < 0 || p.X >= area.ActualWidth || p.Y >= area.ActualHeight) Remove();
+        };
+        area.Drop += (_, e) =>
+        {
+            e.Handled = true;
+            list.Children.Remove(marker);
+            int at = Place(e);
+            Remove();
+            if (DraggedId(e) is not { } id) return;
+            Guid? before = null;
+            for (int i = at; i < list.Children.Count; i++)
+                if (list.Children[i] is FrameworkElement { Tag: TaskItem t } && t.Id != id)
+                {
+                    before = t.Id;
+                    break;
+                }
+            drop(id, before);
+        };
+    }
+
+    /// <summary>Близо до горния/долния ръб при влачене – списъкът сам се превърта.</summary>
+    public static void AutoScroll(ScrollViewer scroll, DragEventArgs e)
+    {
+        var p = e.GetPosition(scroll);
+        double edge = 28 * U;
+        if (p.Y < edge) scroll.ScrollToVerticalOffset(scroll.VerticalOffset - 12 * U);
+        else if (p.Y > scroll.ActualHeight - edge) scroll.ScrollToVerticalOffset(scroll.VerticalOffset + 12 * U);
+    }
+}

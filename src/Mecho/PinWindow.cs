@@ -17,16 +17,17 @@ public sealed class PinState
     public double Y { get; set; } = double.NaN;
     public double W { get; set; }
     public double H { get; set; }
-    public bool Collapsed { get; set; }    // свито до заглавието
+    public bool Collapsed { get; set; }    // смалено до иконка (X, Y, W, H са на разгънатото)
     public bool Faded { get; set; }        // полупрозрачно, докато мишката не е отгоре
     public bool Centered { get; set; }     // веднъж е било в средата на екрана (старите версии го слагаха в ъгъла)
 }
 
 /// <summary>
-/// Закачено прозорче със задачите или бележките: стои отгоре, където го сложиш.
-/// Удобства: отметка на задача направо оттук, ▶ пуска мечо-доро по задачата,
-/// поле за нова задача/бележка, свиване до заглавието, полупрозрачно, размер
-/// с дръжката долу вдясно; мястото и размерът се помнят.
+/// Закачено прозорче със задачите (за днес) или бележките: стои отгоре, където го сложиш.
+/// Удобства: отметка на задача направо оттук, звезда (важна), влачене нагоре-надолу (и
+/// от седмицата насам), дясно копче за всичко останало, поле за бърза задача за днес,
+/// „Седмица“; смаляване до малка иконка (влачи се където искаш, цъкната – пак се
+/// разгъва), полупрозрачно, размер с дръжката долу вдясно; мястото и размерът се помнят.
 /// </summary>
 public sealed class PinWindow : Window
 {
@@ -39,7 +40,11 @@ public sealed class PinWindow : Window
     private readonly Border _body;
     private readonly TextBlock _count = new() { Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
     private readonly Border _collapse, _fade;
+    private readonly Border _full, _iconView;
+    private readonly TextBlock _iconCount = new() { FontWeight = FontWeights.Bold, Foreground = Ink };
+    private readonly Border _iconBadge;
     private string _shown = "";
+    private bool _menuWasOpen;
 
     private static double U => Body / 18;
 
@@ -93,11 +98,16 @@ public sealed class PinWindow : Window
         close.ToolTip = Tip("Откачи");
         _fade = Chip("👁", () => { State.Faded = !State.Faded; ApplyFade(); _pet.SavePins(); });
         _fade.ToolTip = Tip("Полупрозрачно, когато мишката не е отгоре");
-        _collapse = Chip("➖", ToggleCollapse);
-        _collapse.ToolTip = Tip("Свий / разгъни");
-        var menu = Chip("🐻", () => _pet.OpenMenu(_kind == Tasks ? MenuWindow.TasksTab : MenuWindow.NotesTab));
-        menu.ToolTip = Tip("Отвори в менюто");
-        foreach (var b in new[] { close, _fade, _collapse, menu })
+        _collapse = Chip("", ToggleCollapse);
+        _collapse.Child = Icon("minimize");
+        _collapse.ToolTip = Tip("Смали до иконка (цъкни я, за да се разгъне пак)");
+        // Менюто на мечока: отваря го, а ако е отворено – затваря го. Цъкането по таблото
+        // само по себе си затваря менюто (то губи фокуса), затова се гледа как е било при натискането.
+        var menu = Chip("", () => _pet.ToggleMenuFrom(_kind == Tasks ? MenuWindow.TasksTab : MenuWindow.NotesTab, _menuWasOpen));
+        menu.Child = Icon("bear");
+        menu.PreviewMouseLeftButtonDown += (_, _) => _menuWasOpen = _pet.MenuOpenOrJustClosed;
+        menu.ToolTip = Tip("Менюто на Мечо (цъкни пак – затваря се)");
+        foreach (var b in new[] { close, _collapse, _fade, menu })
         {
             b.Margin = new Thickness(4, 0, 0, 0);
             b.Padding = new Thickness(6, 1, 6, 2);
@@ -122,15 +132,43 @@ public sealed class PinWindow : Window
             Remember();
         };
 
-        // „➕ Нова“ отваря менюто на новата задача/бележка (с всичко за нея – трудност, напомняне…).
-        var newButton = Button("Нова", () => _pet.OpenNew(kind), primary: true, icon: "plus");
-        newButton.Margin = new Thickness(0, 6, 0, 0);
-        newButton.HorizontalAlignment = HorizontalAlignment.Stretch;
-
-        _scroll = new ScrollViewer { Content = _list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        // Прозрачен фон: и празното място под картичките приема пусната задача.
+        _scroll = new ScrollViewer { Content = _list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Background = Brushes.Transparent };
         var bodyPanel = new DockPanel();
-        DockPanel.SetDock(newButton, Dock.Bottom);
-        bodyPanel.Children.Add(newButton);
+        var bottom = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+        if (kind == Tasks)
+        {
+            // Бърза задача за днес (Enter) и под нея: Седмица, Нова (с всичко за нея).
+            var quick = MenuWindow.NewTextInput();
+            quick.Padding = new Thickness(6, 4, 6, 4);
+            quick.KeyDown += (_, e) =>
+            {
+                if (e.Key != Key.Enter || string.IsNullOrWhiteSpace(quick.Text)) return;
+                string text = quick.Text;
+                quick.Clear();
+                _pet.AddTask(text, 1, quiet: true);
+                e.Handled = true;
+            };
+            bottom.Children.Add(MenuWindow.WithHint(quick, "Задача за днес… (Enter)"));
+            var week = Button("Седмица", _pet.OpenPlanner, icon: "tasks");
+            week.ToolTip = Tip("Задачите по дни: влачи ги от ден в ден, маркирай ги, планирай седмицата");
+            var add = Button("Нова", () => _pet.OpenNew(kind), primary: true, icon: "plus");
+            add.ToolTip = Tip("Нова задача с всичко за нея (описание, етикет, ден…)");
+            week.Margin = new Thickness(0, 6, 3, 0);
+            add.Margin = new Thickness(3, 6, 0, 0);
+            bottom.Children.Add(new UniformGrid { Rows = 1, Children = { week, add } });
+            TaskCards.DropTarget(_scroll, _list, DropTask, _scroll);
+        }
+        else
+        {
+            // „➕ Нова“ отваря менюто на новата бележка (с всичко за нея – напомняне…).
+            var newButton = Button("Нова", () => _pet.OpenNew(kind), primary: true, icon: "plus");
+            newButton.Margin = new Thickness(0);
+            newButton.HorizontalAlignment = HorizontalAlignment.Stretch;
+            bottom.Children.Add(newButton);
+        }
+        DockPanel.SetDock(bottom, Dock.Bottom);
+        bodyPanel.Children.Add(bottom);
         bodyPanel.Children.Add(_scroll);
         _body = new Border
         {
@@ -146,7 +184,7 @@ public sealed class PinWindow : Window
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
         root.Children.Add(_body);
-        Content = new Border
+        _full = new Border
         {
             Background = WoodTexture,
             BorderBrush = Ink,
@@ -156,10 +194,54 @@ public sealed class PinWindow : Window
             Child = root,
         }.Skinned("frame");
 
+        // Смалено: малка дървена иконка с картинката на таблото и колко има в него.
+        var picture = Icon(kind == Tasks ? "tasks" : "notes");
+        picture.Width *= 3;
+        picture.Height *= 3;
+        _iconBadge = new Border
+        {
+            Background = Honey,
+            BorderBrush = Ink,
+            BorderThickness = Px(1),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(4, 0, 4, 1),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, -4, -4),
+            Child = _iconCount,
+            IsHitTestVisible = false,
+        };
+        var iconGrid = new Grid { Children = { picture, _iconBadge } };
+        _iconView = new Border
+        {
+            Background = WoodTexture,
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(7),
+            Child = iconGrid,
+            Cursor = Cursors.Hand,
+            ToolTip = Tip($"{Title} – цъкни, за да се разгъне; влачи, за да го преместиш"),
+        }.Skinned("frame");
+        // Влачи се; ако не е мръднало – цъкване: разгъва се.
+        _iconView.MouseLeftButtonDown += (_, e) =>
+        {
+            double x = Left, y = Top;
+            try { DragMove(); } catch (InvalidOperationException) { }
+            if (Math.Abs(Left - x) < 4 && Math.Abs(Top - y) < 4) ToggleCollapse();
+            else Remember();
+            e.Handled = true;
+        };
+        Content = State.Collapsed ? _iconView : _full;
+
         MouseEnter += (_, _) => Opacity = 1;
         MouseLeave += (_, _) => ApplyFade();
         LocationChanged += (_, _) => Remember();
         SizeChanged += (_, _) => { if (!State.Collapsed) Remember(); };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape && Keyboard.FocusedElement is not TextBox) { ToggleCollapse(); e.Handled = true; }
+        };
         Closed += (_, _) => Remember();
         SourceInitialized += (_, _) => NativeMethods.MakeToolWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
         ApplyCollapse();
@@ -169,13 +251,31 @@ public sealed class PinWindow : Window
 
     private void Remember()
     {
+        if (_applying) return;
         var s = State;
+        if (s.Collapsed)
+        {
+            // Иконката стои там, където е горният десен ъгъл на таблото (там е и копчето за смаляване).
+            s.X = Left + IconSize.Width - (s.W > 0 ? s.W : Width);
+            s.Y = Top;
+            return;
+        }
         s.X = Left;
         s.Y = Top;
-        if (!s.Collapsed && !_applying && ActualWidth > 0)
+        if (ActualWidth > 0)
         {
             s.W = ActualWidth;
             s.H = ActualHeight;
+        }
+    }
+
+    /// <summary>Колко е голяма иконката (смаленото табло).</summary>
+    private Size IconSize
+    {
+        get
+        {
+            _iconView.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            return _iconView.DesiredSize;
         }
     }
 
@@ -185,35 +285,53 @@ public sealed class PinWindow : Window
         Opacity = State.Faded && !IsMouseOver ? 0.55 : 1;
     }
 
-    /// <summary>Свива / разгъва (като ➖).</summary>
+    /// <summary>Смалява до иконка / разгъва пак.</summary>
     public void ToggleCollapse()
     {
+        if (!State.Collapsed) Remember();
         State.Collapsed = !State.Collapsed;
         ApplyCollapse();
         _pet.SavePins();
     }
 
+    public bool IsIcon => State.Collapsed;
+
     private void ApplyCollapse()
     {
-        // Докато се свива/разгъва, размерът се мени за миг (ResizeMode, SizeToContent):
-        // той не бива да се запомня, иначе разгънатото излиза мъничко.
-        double height = State.H;
+        // Докато се смалява/разгъва, размерът и мястото се менят за миг (ResizeMode,
+        // SizeToContent): те не бива да се запомнят, иначе разгънатото излиза мъничко.
+        var s = State;
+        double width = s.W > 0 ? s.W : Width, height = s.H > 0 ? s.H : DefaultHeight;
+        var area = SystemParameters.WorkArea;
         _applying = true;
-        SetOn(_collapse, State.Collapsed);
-        _body.Visibility = State.Collapsed ? Visibility.Collapsed : Visibility.Visible;
-        if (State.Collapsed)
+        if (s.Collapsed)
         {
-            SizeToContent = SizeToContent.Height;
+            var icon = IconSize;
+            Content = _iconView;
             ResizeMode = ResizeMode.NoResize;
-            MinHeight = 0;
+            MinWidth = MinHeight = 0;
+            SizeToContent = SizeToContent.WidthAndHeight;
+            double x = double.IsNaN(s.X) ? Left : s.X;
+            Left = Math.Clamp(x + width - icon.Width, area.Left, area.Right - icon.Width);
+            Top = Math.Clamp(double.IsNaN(s.Y) ? Top : s.Y, area.Top, area.Bottom - icon.Height);
         }
         else
         {
+            Content = _full;
             SizeToContent = SizeToContent.Manual;
             ResizeMode = ResizeMode.CanResizeWithGrip;
+            MinWidth = 220 * U;
             MinHeight = 90 * U;
-            State.H = height;
-            Height = height > 0 ? height : DefaultHeight;
+            Width = width;
+            Height = height;
+            // Разгъва се от иконката (горният ѝ десен ъгъл), без да излиза от екрана.
+            double x = double.IsNaN(s.X) ? Left : s.X, y = double.IsNaN(s.Y) ? Top : s.Y;
+            Left = Math.Clamp(x, area.Left, Math.Max(area.Left, area.Right - width));
+            Top = Math.Clamp(y, area.Top, Math.Max(area.Top, area.Bottom - Math.Min(height, area.Height)));
+            s.W = width;
+            s.H = height;
+            s.X = Left;
+            s.Y = Top;
         }
         _applying = false;
     }
@@ -224,8 +342,9 @@ public sealed class PinWindow : Window
     public void Refresh()
     {
         var s = _pet.Save;
+        if (TaskCards.Dragging) return;   // по време на влачене – не (картичката, която се влачи, ще изчезне)
         string sig = _kind == Tasks
-            ? string.Join("|", _pet.OrderedTasks(boardOnly: true).Select(t => t.Id + t.Title + t.Description + t.Size))
+            ? string.Join("|", BoardTasks().Select(t => t.ToString())) + "#" + s.FocusTask + s.UiTheme
             : string.Join("|", _pet.OrderedNotes(pinnedOnly: true).Select(n => n.Id + n.Title + "¦" + n.Text));
         if (sig == _shown) return;
         _shown = sig;
@@ -234,72 +353,65 @@ public sealed class PinWindow : Window
         else BuildNotes();
     }
 
+    /// <summary>Днешните в таблото: несвършените в реда им, после свършените днес.</summary>
+    private System.Collections.Generic.List<TaskItem> BoardTasks()
+    {
+        var today = _pet.TaskToday;
+        var open = _pet.OrderedTasks(boardOnly: true);
+        var done = _pet.Save.Tasks.Where(t => t.Done && t.Day == today && _pet.TaskOnBoard(t)).OrderBy(t => t.DoneAt);
+        return open.Concat(done).ToList();
+    }
+
     private void BuildTasks()
     {
-        var s = _pet.Save;
-        // Само задачите в таблото (📍 ги маха оттук, в менюто 📌 ги връща).
-        var tasks = _pet.OrderedTasks(boardOnly: true);
-        _count.Text = tasks.Count > 0 ? $"· {tasks.Count}" : "";
-        if (tasks.Count == 0) _list.Children.Add(MenuWindow.MutedText("Няма задачи в таблото. Напиши една отдолу!"));
+        // Само днешните задачи в таблото (📍 ги маха оттук, в менюто 📌 ги връща).
+        var tasks = BoardTasks();
+        int done = tasks.Count(t => t.Done);
+        _count.Text = tasks.Count > 0 ? $"· {done}/{tasks.Count}" : "";
+        int left = tasks.Count - done;
+        _iconCount.Text = left.ToString();
+        _iconBadge.Visibility = left > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (tasks.Count == 0) _list.Children.Add(MenuWindow.MutedText("Няма задачи за днес. Напиши една отдолу – или виж седмицата!"));
+        else if (left == 0) _list.Children.Add(MenuWindow.MutedText("Всичко за днес е свършено! 🍯"));
         foreach (var task in tasks)
         {
             var t = task;
-            bool current = s.FocusTask == t.Id;
-            var row = new Grid();
-            row.ColumnDefinitions.Add(new ColumnDefinition());
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var check = new CheckBox
+            FrameworkElement? side = null;
+            if (!t.Done)
             {
-                VerticalContentAlignment = VerticalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Content = new TextBlock
+                // 📍 махни от таблото, под него ✕ изтрий.
+                var off = Chip("📍", () => _pet.SetTaskOnBoard(t, false));
+                off.ToolTip = Tip("Махни я от таблото (задачата остава)");
+                var del = Chip("✕", () => _pet.DeleteTask(t));
+                del.ToolTip = Tip("Изтрий");
+                var panel = new StackPanel { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(2, 0, 0, 0) };
+                foreach (var b in new[] { off, del })
                 {
-                    Text = t.Title,
-                    TextWrapping = TextWrapping.Wrap,
-                    FontWeight = FontWeights.Bold,
-                    Margin = new Thickness(4, 0, 0, 0),
-                },
-            };
-            check.Click += (_, _) => _pet.SetTaskDone(t, check.IsChecked == true);
-            // Описанието (ако има) – под името, съкратено; цялото излиза при посочване.
-            if (t.Description.Length > 0)
-            {
-                var both = new StackPanel { Margin = new Thickness(4, 0, 0, 0) };
-                var head = (TextBlock)check.Content;
-                head.Margin = new Thickness(0);
-                check.Content = both;
-                both.Children.Add(head);
-                both.Children.Add(new TextBlock { Text = Ui.Shorten(t.Description, 70), Foreground = Muted, TextWrapping = TextWrapping.Wrap });
-                check.ToolTip = Tip(t.Description);
-                ToolTipService.SetInitialShowDelay(check, 250);
-                ToolTipService.SetShowDuration(check, 60000);
+                    b.Padding = new Thickness(5, 0, 5, 1);
+                    b.Margin = new Thickness(4, 0, 0, 3);
+                    panel.Children.Add(b);
+                }
+                side = panel;
             }
-            row.Children.Add(check);
-            var reward = RewardText(t.Reward);
-            reward.Opacity = 0.7;
-            reward.Margin = new Thickness(6, 0, 4, 0);
-            Grid.SetColumn(reward, 1);
-            row.Children.Add(reward);
-            // 📍 махни от таблото, под него ✕ изтрий.
-            var off = Chip("📍", () => _pet.SetTaskOnBoard(t, false));
-            off.ToolTip = Tip("Махни я от таблото (задачата остава)");
-            var del = Chip("✕", () => _pet.DeleteTask(t));
-            del.ToolTip = Tip("Изтрий");
-            var side = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
-            foreach (var b in new[] { off, del })
+            var card = TaskCards.Build(_pet, t, new TaskCardOptions
             {
-                b.Padding = new Thickness(5, 0, 5, 1);
-                b.Margin = new Thickness(4, 0, 0, 3);
-                side.Children.Add(b);
-            }
-            Grid.SetColumn(side, 2);
-            row.Children.Add(side);
-            var card = MenuWindow.Card(row, false);
-            card.Padding = new Thickness(6, 4, 4, 4);
-            card.Margin = new Thickness(0, 0, 0, 4);
+                Side = side,
+                Edit = x => _pet.EditTaskInMenu(x),
+                Selected = IsCurrent(t),
+            });
             _list.Children.Add(card);
         }
+    }
+
+    private bool IsCurrent(TaskItem t) => !t.Done && _pet.Save.FocusTask == t.Id && _pet.InFocus;
+
+    /// <summary>Пусната тук задача (от таблото или от седмицата): за днес, в таблото, на това място.</summary>
+    private void DropTask(Guid id, Guid? before)
+    {
+        if (_pet.Save.Tasks.FirstOrDefault(t => t.Id == id) is not { } task) return;
+        if (_pet.TasksSort != PetWindow.ManualSort) _pet.SetTasksSort(PetWindow.ManualSort);   // нареди ги сама – значи „моят ред“
+        if (!_pet.TaskOnBoard(task)) _pet.SetTaskOnBoard(task, true);
+        _pet.MoveTask(task, _pet.TaskToday, before);
     }
 
     private void BuildNotes()
@@ -307,6 +419,8 @@ public sealed class PinWindow : Window
         // Само бележките с „📌 В таблото“.
         var notes = _pet.OrderedNotes(pinnedOnly: true);
         _count.Text = notes.Count > 0 ? $"· {notes.Count}" : "";
+        _iconCount.Text = notes.Count.ToString();
+        _iconBadge.Visibility = notes.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (notes.Count == 0) _list.Children.Add(MenuWindow.MutedText("Няма закачени бележки."));
         foreach (var note in notes)
         {

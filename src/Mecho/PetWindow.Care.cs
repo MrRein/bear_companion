@@ -415,10 +415,16 @@ public sealed partial class PetWindow
 
     // ───────────────────────── Задачи ─────────────────────────
 
-    public void AddTask(string title, int size, string? description = null)
+    /// <summary>
+    /// Нова задача: без ден – за днес; someday – за „Някога“. quiet – без реплика (бързото
+    /// добавяне в седмицата и таблото, където се пишат една след друга).
+    /// </summary>
+    public void AddTask(string title, int size, string? description = null, DateTime? day = null, bool someday = false,
+        string? tag = null, bool star = false, int minutes = 0, bool quiet = false)
     {
-        if (!CoreEngine.Bus.Send(new Mecho.Core.AddTask(title, size, description)).Ok) return;
-        Say(Lines.Pick(Lines.TaskAdded, _save.OwnerName), 3);
+        if (!CoreEngine.Bus.Send(new Mecho.Core.AddTask(title, size, description, day, someday, tag, star, minutes)).Ok) return;
+        if (quiet) Emote("idea", 1);
+        else Say(Lines.Pick(Lines.TaskAdded, _save.OwnerName), 3);
         NotifyCare();
         Persist();
     }
@@ -431,16 +437,26 @@ public sealed partial class PetWindow
         Persist();
     }
 
-    /// <summary>Подредбата на задачите: 0 най-нови, 1 най-стари, 2 по големина (големите горе), 3 по големина (малките горе).</summary>
-    public int TasksSort => _save.TasksSort is >= 0 and <= 3 ? _save.TasksSort : _save.TasksOldestFirst ? 1 : 0;
+    /// <summary>
+    /// Подредбата на задачите: 0 най-нови, 1 най-стари, 2 по големина (големите горе),
+    /// 3 по големина (малките горе), 4 – моят ред (както са наредени с влачене).
+    /// </summary>
+    public int TasksSort => _save.TasksSort is >= 0 and < TaskSorts ? _save.TasksSort : _save.TasksOldestFirst ? 1 : 0;
 
-    /// <summary>Несвършените задачи в избрания ред: тези в таблото – най-горе, после по подредбата.</summary>
+    public const int TaskSorts = 5, ManualSort = 4;
+
+    /// <summary>
+    /// Несвършените задачи за днес в избрания ред: тези в таблото – най-горе, после важните
+    /// (★), после по подредбата. При „моят ред“ – точно както са наредени.
+    /// </summary>
     public System.Collections.Generic.List<TaskItem> OrderedTasks(bool boardOnly = false)
     {
-        var open = _save.Tasks.Where(t => !t.Done && (!boardOnly || TaskOnBoard(t))).ToList();
+        var today = TaskToday;
+        var open = _save.Tasks.Where(t => !t.Done && t.Day == today && (!boardOnly || TaskOnBoard(t))).ToList();
         int sort = TasksSort;
+        if (sort == ManualSort) return open.OrderBy(t => TaskOnBoard(t) ? 0 : 1).ToList();
         if (sort != 1) open.Reverse();   // в ядрото новите са отзад; при еднаква големина – най-новите горе
-        var byBoard = open.OrderBy(t => TaskOnBoard(t) ? 0 : 1);
+        var byBoard = open.OrderBy(t => TaskOnBoard(t) ? 0 : 1).ThenBy(t => t.Star ? 0 : 1);
         return (sort switch
         {
             2 => byBoard.ThenByDescending(t => t.Size),
@@ -451,7 +467,7 @@ public sealed partial class PetWindow
 
     public void SetTasksSort(int sort)
     {
-        _save.TasksSort = ((sort % 4) + 4) % 4;
+        _save.TasksSort = ((sort % TaskSorts) + TaskSorts) % TaskSorts;
         NotifyCare();
         Persist();
     }

@@ -1227,15 +1227,54 @@ public sealed partial class PetWindow
             pin.Height = 333;
             _save.PinTasks.H = 333;
             pin.UpdateLayout();
+            double right = pin.Left + pin.ActualWidth;
             pin.ToggleCollapse();
             pin.UpdateLayout();
+            if (!pin.IsIcon || pin.ActualWidth > 120 || pin.ActualHeight > 120) throw new Exception($"смаленото не е иконка ({pin.ActualWidth:0}×{pin.ActualHeight:0})");
+            if (Math.Abs(pin.Left + pin.ActualWidth - right) > 3) throw new Exception("иконката не е на мястото на таблото");
             pin.ToggleCollapse();
             pin.UpdateLayout();
+            if (pin.IsIcon) throw new Exception("не се разгъна");
             if (Math.Abs(pin.Height - 333) > 2) throw new Exception($"след разгъване е {pin.Height:0}, а беше 333");
             SetPinned(PinWindow.Tasks, false);
             DeleteTask(t);
             if (_save.Tasks.Any(x => x.Id == t.Id)) throw new Exception("изтритата задача остана в ядрото");
         }, 600);
+        await step("копчето с мечока в таблото отваря и затваря менюто", () =>
+        {
+            ToggleMenuFrom(MenuWindow.TasksTab, MenuOpenOrJustClosed);
+            if (!MenuIsOpen) throw new Exception("не се отвори");
+            ToggleMenuFrom(MenuWindow.TasksTab, MenuOpenOrJustClosed);
+            if (MenuIsOpen) throw new Exception("не се затвори");
+        }, 400);
+        await step("седмица: дни, местене, маркиране", () =>
+        {
+            var today = TaskToday;
+            AddTask("Тест седмица А", 1, quiet: true);
+            AddTask("Тест седмица Б", 2, day: today.AddDays(1), tag: "work", minutes: 30, quiet: true);
+            AddTask("Тест седмица В", 1, someday: true, quiet: true);
+            var a = _save.Tasks.Single(x => x.Title == "Тест седмица А");
+            var b = _save.Tasks.Single(x => x.Title == "Тест седмица Б");
+            var c = _save.Tasks.Single(x => x.Title == "Тест седмица В");
+            if (a.Day != today || b.Day != today.AddDays(1) || c.Day != null) throw new Exception("дните не са верни");
+            if (!OrderedTasks().Any(x => x.Id == a.Id) || OrderedTasks().Any(x => x.Id == b.Id)) throw new Exception("„днес“ показва грешните");
+            MoveTask(c, today, before: a.Id);
+            MarkTask(a, star: true, tag: "art");
+            var a2 = _save.Tasks.Single(x => x.Id == a.Id);
+            if (!a2.Star || a2.Tag != "art") throw new Exception("не се маркира");
+            OpenPlanner();
+            _planner!.UpdateLayout();
+            if (!PlannerIsOpen) throw new Exception("седмицата не се отвори");
+            // Пак отворена – същата (не втора).
+            var first = _planner;
+            OpenPlanner();
+            if (_planner != first) throw new Exception("отвори втора седмица");
+            NotifyCare();
+            _planner.UpdateLayout();
+            ClosePlanner();
+            if (PlannerIsOpen) throw new Exception("седмицата не се затвори");
+            foreach (var t in new[] { a, b, c }) DeleteTask(_save.Tasks.Single(x => x.Id == t.Id));
+        }, 800);
         await step("обиколка: цъкни ме с десен бутон", () =>
         {
             StartTutorial();
@@ -2194,6 +2233,11 @@ public sealed partial class PetWindow
             if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Size != 3) throw new Exception("„по големина“ не слага голямата горе");
             SetTasksSort(3);
             if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Size != 1) throw new Exception("„по големина ▲“ не слага малката горе");
+            // „Моят ред“: както са наредени (влачене = MoveTask преди друга).
+            SetTasksSort(ManualSort);
+            var nova = _save.Tasks.First(x => x.Title == "Тест: нова");
+            MoveTask(nova, TaskToday, before: task.Id);
+            if (OrderedTasks().Where(x => x.Title.StartsWith("Тест:")).First().Id != nova.Id) throw new Exception("„моят ред“ не следва влаченето");
             SetTasksOldestFirst(false);
             foreach (var x in _save.Tasks.Where(x => x.Title.StartsWith("Тест:")).ToList()) DeleteTask(x);
             var n = AddNote("Тест", "текст", pinned: false, quiet: true)!;

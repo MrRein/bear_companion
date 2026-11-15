@@ -1852,6 +1852,52 @@ public sealed class MenuWindow : Window
             sizes.Children.Add(_sizeButtons[i]);
         }
         p.Children.Add(sizes);
+
+        // Кога, етикет, важна, време – по избор (отначало: за днес, без етикет).
+        p.Children.Add(new TextBlock { Text = "За кога?", Foreground = Muted, Margin = new Thickness(0, 8, 0, 3) });
+        var days = new WrapPanel();
+        string[] dayNames = { "Днес", "Утре", "Някога" };
+        for (int i = 0; i < 3; i++)
+        {
+            int d = i;
+            _dayButtons[i] = Chip(dayNames[i], () => { _taskDay = d; UpdateSizeButtons(); });
+            _dayButtons[i].Margin = new Thickness(0, 0, 6, 4);
+            days.Children.Add(_dayButtons[i]);
+        }
+        _taskStarChip = Chip("", () => { _taskStar = !_taskStar; UpdateSizeButtons(); });
+        _taskStarChip.Child = IconText("star", "Важна", bold: true);
+        _taskStarChip.Margin = new Thickness(0, 0, 6, 4);
+        days.Children.Add(_taskStarChip);
+        p.Children.Add(days);
+        p.Children.Add(new TextBlock { Text = "Етикет", Foreground = Muted, Margin = new Thickness(0, 6, 0, 3) });
+        var tags = new WrapPanel();
+        for (int i = 0; i < TaskTags.All.Length; i++)
+        {
+            var key = TaskTags.All[i].Key;
+            var chip = Chip("", () => { _taskTag = _taskTag == key ? "" : key; UpdateSizeButtons(); });
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            row.Children.Add(TaskTags.Swatch(key));
+            row.Children.Add(new TextBlock { Text = TaskTags.All[i].Name, FontWeight = FontWeights.Bold });
+            chip.Child = row;
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            _tagButtons[i] = chip;
+            tags.Children.Add(chip);
+        }
+        p.Children.Add(tags);
+        p.Children.Add(new TextBlock { Text = "Колко време?", Foreground = Muted, Margin = new Thickness(0, 6, 0, 3) });
+        var times = new WrapPanel();
+        var estimates = TaskCards.Estimates.Prepend(0).ToArray();
+        _timeButtons = new Border[estimates.Length];
+        for (int i = 0; i < estimates.Length; i++)
+        {
+            int m = estimates[i];
+            var chip = Chip(m == 0 ? "—" : TaskCards.Duration(m), () => { _taskMinutes = m; UpdateSizeButtons(); });
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            chip.Tag = false;
+            _timeButtons[i] = chip;
+            times.Children.Add(chip);
+        }
+        p.Children.Add(times);
         // Под трудността: Добави (Запази при поправка) и Отказ – еднакво големи.
         _addTaskButton = Button("Добави", AddTask, primary: true, icon: "plus");
         var cancel = Button("Отказ", () => ShowNewTask(false), icon: "close");
@@ -1861,13 +1907,33 @@ public sealed class MenuWindow : Window
         UpdateSizeButtons();
         root.Children.Add(p);
 
-        root.Children.Add(_taskSort = TaskSortChip());
+        // Над списъка: „Седмица“ (задачите по дни) и подредбата.
+        var weekRow = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+        _taskSort = TaskSortChip();
+        _taskSort.Margin = new Thickness(6, 0, 0, 0);
+        DockPanel.SetDock(_taskSort, Dock.Right);
+        weekRow.Children.Add(_taskSort);
+        var week = Chip("", _pet.OpenPlanner);
+        week.Child = IconText("tasks", "Седмица", bold: true);
+        ((FrameworkElement)week.Child).HorizontalAlignment = HorizontalAlignment.Center;
+        week.ToolTip = Tip("Задачите по дни: влачи ги от ден в ден, маркирай ги, планирай седмицата");
+        weekRow.Children.Add(week);
+        _taskSortRow = weekRow;
+        root.Children.Add(weekRow);
         root.Children.Add(_taskScroll = new ScrollViewer
         {
             Content = _taskList,
             MaxHeight = 480 * U,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Background = Brushes.Transparent,
         });
+        // Задачите се нареждат с влачене (тогава подредбата става „моят ред“).
+        TaskCards.DropTarget(_taskScroll, _taskList, (id, before) =>
+        {
+            if (_pet.Save.Tasks.FirstOrDefault(t => t.Id == id) is not { } task) return;
+            if (_pet.TasksSort != PetWindow.ManualSort) _pet.SetTasksSort(PetWindow.ManualSort);
+            _pet.MoveTask(task, _pet.TaskToday, before);
+        }, _taskScroll);
 
         // Отдолу: ➕ Нова, Табло, История (като при бележките) и колко са свършени.
         _taskBottom = BottomBar(() => ShowNewTask(true), out _newTaskButton,
@@ -1881,6 +1947,16 @@ public sealed class MenuWindow : Window
     }
 
     private readonly StackPanel _taskEditor = new();
+    private readonly Border[] _dayButtons = new Border[3];
+    private readonly Border[] _tagButtons = new Border[TaskTags.All.Length];
+    private Border[] _timeButtons = Array.Empty<Border>();
+    private Border _taskStarChip = null!;
+    private FrameworkElement _taskSortRow = null!;
+    private int _taskDay;          // 0 днес, 1 утре, 2 някога (друг ден – при поправка остава)
+    private DateTime? _taskEditDay;
+    private string _taskTag = "";
+    private bool _taskStar;
+    private int _taskMinutes;
     private ScrollViewer _taskScroll = null!;
     private Border _newTaskButton = null!, _taskSort = null!;
     private UniformGrid _taskBottom = null!;
@@ -1900,12 +1976,18 @@ public sealed class MenuWindow : Window
         _taskInput.Text = edit?.Title ?? "";
         _taskText.Text = edit?.Description ?? "";
         if (edit != null) _taskSize = edit.Size;
+        var today = _pet.TaskToday;
+        _taskEditDay = edit?.Day;
+        _taskDay = edit == null ? 0 : edit.Day == null ? 2 : edit.Day == today.AddDays(1) ? 1 : edit.Day == today ? 0 : -1;
+        _taskTag = edit?.Tag ?? "";
+        _taskStar = edit?.Star ?? false;
+        _taskMinutes = edit?.Minutes ?? 0;
         UpdateSizeButtons();
         SetButton(_addTaskButton, edit != null ? "Запази" : "Добави", edit != null ? "check" : "plus");
         var list = on ? Visibility.Collapsed : Visibility.Visible;
         _taskEditor.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         _taskScroll.Visibility = list;
-        _taskSort.Visibility = list;
+        _taskSortRow.Visibility = list;
         _taskBottom.Visibility = list;
         _taskSummary.Visibility = list;
         _workBar.Visibility = list;
@@ -1913,19 +1995,22 @@ public sealed class MenuWindow : Window
         if (on && IsVisible) Dispatcher.BeginInvoke(() => _taskInput.Focus(), DispatcherPriority.Input);
     }
 
-    /// <summary>Подредбата на задачите – цъкаш и минава през четирите (закачените са винаги горе).</summary>
+    private Action? _setSortChip;
+
+    /// <summary>Подредбата на задачите – цъкаш и минава през петте (закачените са винаги горе).</summary>
     private Border TaskSortChip()
     {
-        string[] names = { "▼ Най-нови", "▲ Най-стари", "▼ По големина", "▲ По големина" };
+        string[] names = { "▼ Най-нови", "▲ Най-стари", "▼ По големина", "▲ По големина", "Моят ред" };
         Border chip = null!;
         chip = Chip(names[_pet.TasksSort], () =>
         {
             _pet.SetTasksSort(_pet.TasksSort + 1);
             SetChip(chip, names[_pet.TasksSort]);
         });
-        chip.ToolTip = Tip("Подредба (цъкни за следващата): най-новите горе, най-старите горе, големите горе, малките горе. Закачените са винаги най-отгоре.");
+        chip.ToolTip = Tip("Подредба (цъкни за следващата): най-новите горе, най-старите горе, големите горе, малките горе, моят ред (както ги нареждаш с влачене). Тези в таблото са най-отгоре, после важните.");
         chip.HorizontalAlignment = HorizontalAlignment.Right;
         chip.Margin = new Thickness(0, 0, 0, 6);
+        _setSortChip = () => SetChip(chip, names[_pet.TasksSort]);
         return chip;
     }
 
@@ -2018,6 +2103,8 @@ public sealed class MenuWindow : Window
 
     private void BuildTaskList()
     {
+        if (TaskCards.Dragging) return;   // по време на влачене – не (картичката, която се влачи, ще изчезне)
+        _setSortChip?.Invoke();
         _taskList.Children.Clear();
         SetOn(_historyButton, _showHistory);
         SetOn(_pinTasks, _pet.IsPinned(PinWindow.Tasks));
@@ -2030,43 +2117,11 @@ public sealed class MenuWindow : Window
         // Свършените се виждат само в „История“; тези в таблото (📌) са най-горе, после по подредбата.
         var tasks = _pet.OrderedTasks();
         if (tasks.Count == 0)
-            _taskList.Children.Add(MutedText("Няма задачи."));
+            _taskList.Children.Add(MutedText(_pet.Save.Tasks.Any(t => !t.Done) ? "Няма задачи за днес. Виж седмицата – там са останалите." : "Няма задачи."));
 
         foreach (var task in tasks)
         {
             var t = task;
-            var row = new Grid();
-            row.ColumnDefinitions.Add(new ColumnDefinition());
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var check = new CheckBox
-            {
-                IsChecked = t.Done,
-                VerticalContentAlignment = VerticalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Content = new TextBlock
-                {
-                    Text = t.Title,
-                    FontWeight = FontWeights.Bold,
-                    TextWrapping = TextWrapping.Wrap,
-                    TextDecorations = t.Done ? TextDecorations.Strikethrough : null,
-                    Foreground = t.Done ? Muted : Ink,
-                    Margin = new Thickness(4, 0, 0, 0),
-                },
-            };
-            check.Click += (_, _) => _pet.SetTaskDone(t, check.IsChecked == true);
-            if (t.Description.Length > 0)
-            {
-                var both = new StackPanel { Margin = new Thickness(4, 0, 0, 0) };
-                var head = (TextBlock)check.Content;
-                head.Margin = new Thickness(0);
-                check.Content = both;
-                both.Children.Add(head);
-                both.Children.Add(new TextBlock { Text = Shorten(t.Description, 90), Foreground = Muted, TextWrapping = TextWrapping.Wrap });
-                if (t.Description.Length > 90) check.ToolTip = Tip(t.Description);
-            }
-            row.Children.Add(check);
-
             // Вдясно, две по две: 📌 ✏ / лешниците ✕.
             bool onBoard = _pet.TaskOnBoard(t);
             var pin = Chip("📌", () => _pet.SetTaskOnBoard(t, !onBoard));
@@ -2079,13 +2134,23 @@ public sealed class MenuWindow : Window
             var reward = RewardText(t.Reward, bold: true);
             reward.HorizontalAlignment = HorizontalAlignment.Center;
             reward.VerticalAlignment = VerticalAlignment.Center;
-            row.Children.Add(TwoByTwo(pin, edit, t.Reward > 0 ? reward : null, del));
-
-            _taskList.Children.Add(Card(row, t.Done));
+            var side = TwoByTwo(pin, edit, t.Reward > 0 ? reward : null, del);
+            Grid.SetColumn(side, 0);
+            _taskList.Children.Add(TaskCards.Build(_pet, t, new TaskCardOptions { Side = side, Description = 90, Edit = x => ShowNewTask(true, x) }));
         }
 
-        int today = _pet.Save.Tasks.Count(t => t.Done);
-        _taskSummary.Text = $"Свършени днес: {today}   ·   Общо: {_pet.Save.TasksDoneTotal}";
+        // Отдолу: днес, утре, „Някога“ – колко има.
+        var s = _pet.TaskState;
+        var today = _pet.TaskToday;
+        var (doneToday, allToday, minutes) = _pet.TodayLoad();
+        int tomorrow = s.Open.Count(t => !t.Done && t.Day == today.AddDays(1));
+        int later = s.Open.Count(t => !t.Done && t.Day > today.AddDays(1));
+        int someday = s.Someday.Count();
+        var parts = new System.Collections.Generic.List<string> { $"Днес: {doneToday}/{allToday}" + (minutes > 0 ? $" · ~{TaskCards.Duration(minutes)}" : "") };
+        if (tomorrow > 0) parts.Add($"утре {tomorrow}");
+        if (later > 0) parts.Add($"после {later}");
+        if (someday > 0) parts.Add($"някога {someday}");
+        _taskSummary.Text = string.Join("   ·   ", parts) + $"   ·   общо свършени {_pet.Save.TasksDoneTotal}";
     }
 
     /// <summary>Четири места две по две (празно място – null) – копчетата до задача/бележка.</summary>
@@ -2109,13 +2174,17 @@ public sealed class MenuWindow : Window
     private void AddTask()
     {
         if (string.IsNullOrWhiteSpace(_taskInput.Text)) return;
+        var today = _pet.TaskToday;
+        DateTime? day = _taskDay switch { 0 => today, 1 => today.AddDays(1), 2 => null, _ => _taskEditDay };
         if (_editTask != null)
         {
             _pet.EditTask(_editTask, _taskInput.Text, _taskSize, _taskText.Text);
+            _pet.MarkTask(_editTask, tag: _taskTag, star: _taskStar, minutes: _taskMinutes);
+            if (day != _editTask.Day) _pet.MoveTask(_editTask, day);
             ShowNewTask(false);
             return;
         }
-        _pet.AddTask(_taskInput.Text, _taskSize, _taskText.Text);
+        _pet.AddTask(_taskInput.Text, _taskSize, _taskText.Text, day, someday: day == null, tag: _taskTag, star: _taskStar, minutes: _taskMinutes);
         _taskInput.Clear();
         _taskText.Clear();
         ShowNewTask(false);   // добавена – обратно към списъка
@@ -2125,6 +2194,13 @@ public sealed class MenuWindow : Window
     {
         for (int i = 0; i < 3; i++)
             SetOn(_sizeButtons[i], i + 1 == _taskSize);
+        for (int i = 0; i < 3; i++)
+            if (_dayButtons[i] != null) SetOn(_dayButtons[i], i == _taskDay);
+        for (int i = 0; i < _tagButtons.Length; i++)
+            if (_tagButtons[i] != null) SetOn(_tagButtons[i], TaskTags.All[i].Key == _taskTag);
+        if (_taskStarChip != null) SetOn(_taskStarChip, _taskStar);
+        var estimates = TaskCards.Estimates.Prepend(0).ToArray();
+        for (int i = 0; i < _timeButtons.Length; i++) SetOn(_timeButtons[i], estimates[i] == _taskMinutes);
     }
 
     // ───────────────────────── Бележки ─────────────────────────
