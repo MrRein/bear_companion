@@ -281,7 +281,12 @@ public sealed class PlannerWindow : Window
             _toastTimer.Stop();
             Remember();
         };
-        Loaded += (_, _) => Dispatcher.BeginInvoke(() => ScrollToDay(Today, smooth: false), DispatcherPriority.Loaded);
+        Loaded += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            ScrollToDay(Today, smooth: false);
+            _dayScroll.UpdateLayout();
+            _ready = true;
+        }, DispatcherPriority.Loaded);
         Refresh(true);
     }
 
@@ -387,29 +392,45 @@ public sealed class PlannerWindow : Window
         return IntPtr.Zero;
     }
 
-    /// <summary>Близо до края на лентата – още дни (две седмици) отзад или отпред.</summary>
+    private bool _ready;              // лентата е на мястото си (след първото показване) – чак тогава расте
+    private const int MaxDays = 400;   // повече дни в лентата не се пазят наведнъж
+
+    /// <summary>
+    /// Близо до края на лентата – още дни (две седмици) отзад или отпред. Става малко след
+    /// превъртането (Background), веднъж наведнъж: иначе новата ширина и новото място идват
+    /// в различни моменти и проверката може да се върти в кръг.
+    /// </summary>
     private void OnScrolled()
     {
         UpdateRangeLabel();
-        if (_extending || _dayScroll.ViewportWidth <= 0) return;
-        double offset = _dayScroll.HorizontalOffset;
-        if (offset < Step * 2)
+        if (!_ready || _extending || _dayScroll.ViewportWidth <= 0) return;
+        _extending = true;
+        Dispatcher.BeginInvoke(() =>
         {
-            _extending = true;
+            try { ExtendIfNeeded(); }
+            finally { Dispatcher.BeginInvoke(() => _extending = false, DispatcherPriority.ContextIdle); }
+        }, DispatcherPriority.Background);
+    }
+
+    private void ExtendIfNeeded()
+    {
+        if (!IsLoaded || _dayScroll.ViewportWidth <= 0) return;
+        double offset = _dayScroll.HorizontalOffset;
+        if (offset < Step * 2 && _count + 14 <= MaxDays)
+        {
             _from = _from.AddDays(-14);
             _count += 14;
             Refresh(true);
             _dayScroll.UpdateLayout();
             _dayScroll.ScrollToHorizontalOffset(offset + 14 * Step);
             if (!double.IsNaN(_target)) _target += 14 * Step;
-            _extending = false;
+            _dayScroll.UpdateLayout();
         }
-        else if (offset + _dayScroll.ViewportWidth > _dayScroll.ExtentWidth - Step * 2)
+        else if (offset + _dayScroll.ViewportWidth > _dayScroll.ExtentWidth - Step * 2 && _count + 14 <= MaxDays)
         {
-            _extending = true;
             _count += 14;
             Refresh(true);
-            _extending = false;
+            _dayScroll.UpdateLayout();
         }
     }
 
@@ -426,7 +447,7 @@ public sealed class PlannerWindow : Window
         }
         if (day > _from.AddDays(_count - 8))
         {
-            _count = IndexOf(day) + 15;
+            _count = Math.Min(Math.Max(_count, IndexOf(day) + 15), MaxDays * 2);
             changed = true;
         }
         if (changed)
@@ -1617,6 +1638,7 @@ public sealed class PlannerWindow : Window
     internal string SideShown => _sideMode.ToString();
     internal bool ToastShown => _toast.Visibility == Visibility.Visible;
     internal void TestScrollTo(double offset) => ScrollTo(offset, smooth: false);
+    internal bool Ready => _ready;
     internal void TestScrollToDay(DateTime day) => ScrollToDay(day, smooth: false);
     internal void TestSelect(Guid? id) => Select(id);
     internal void TestSide(string side) => OpenSide(side);

@@ -41,12 +41,16 @@ jobs:
       # Пуска мечока в режим на самопроверка (менюто, магазина, кътчетата,
       # готвенето, гардероба). Ако нещо гърми, версия не излиза.
       - name: Self-test
-        timeout-minutes: 12
+        timeout-minutes: 14
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath publish/Mecho/Mecho.exe -ArgumentList '--selftest' -Wait -PassThru
+          $p = Start-Process -FilePath publish/Mecho/Mecho.exe -ArgumentList '--selftest' -PassThru
+          # Увиснала самопроверка се спира след 11 минути – и дневникът пак се показва.
+          $hung = -not $p.WaitForExit(660000)
+          if ($hung) { Stop-Process -Id $p.Id -Force }
           # Самопроверката пише в отделна папка (не пипа истинския запис) – виж App.cs.
           Get-Content "$env:TEMP/MechoSelfTest/selftest.log"
+          if ($hung) { Write-Error "Самопроверката увисна"; exit 1 }
           if ($p.ExitCode -ne 0) { Write-Error "Самопроверката не мина (код $($p.ExitCode))"; exit 1 }
       # Снимките от самопроверката (прозорците, както изглеждат) – за преглед.
       - name: Self-test pictures

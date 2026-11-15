@@ -1297,19 +1297,34 @@ public sealed partial class PetWindow
             _planner.UpdateLayout();
             Shot(_planner, "planner_1_open");
         }, 800);
-        await step("задачи: лентата с дните се превърта и расте", () =>
+        DateTime stripFirst = default;
+        int stripCount = 0;
+        await step("задачи: лентата с дните – назад", () =>
         {
             var p = _planner!;
             p.UpdateLayout();
+            if (!p.Ready) throw new Exception("лентата не застана на днес");
             if (p.ColumnsShown != p.DayCount) throw new Exception($"колони {p.ColumnsShown}, дни {p.DayCount}");
-            var first = p.FirstDay;
-            int count = p.DayCount;
+            stripFirst = p.FirstDay;
+            stripCount = p.DayCount;
             p.TestScrollTo(0);
             p.UpdateLayout();
-            if (p.FirstDay >= first || p.DayCount <= count) throw new Exception("назад не се добавиха дни");
+        }, 700);
+        await step("задачи: лентата с дните – напред", () =>
+        {
+            var p = _planner!;
+            if (p.FirstDay >= stripFirst || p.DayCount <= stripCount) throw new Exception("назад не се добавиха дни");
+            if (p.DayCount > 120) throw new Exception($"лентата расте без край: {p.DayCount} дни");
+            if (p.Offset < 1) throw new Exception("след добавянето назад лентата не е на същото място");
+            stripCount = p.DayCount;
             p.TestScrollTo(1e6);
             p.UpdateLayout();
-            if (p.DayCount <= count + 14 - 1) throw new Exception("напред не се добавиха дни");
+        }, 700);
+        await step("задачи: лентата с дните – днес", () =>
+        {
+            var p = _planner!;
+            if (p.DayCount <= stripCount) throw new Exception("напред не се добавиха дни");
+            if (p.DayCount > 140) throw new Exception($"лентата расте без край: {p.DayCount} дни");
             p.TestScrollToDay(TaskToday);
             p.UpdateLayout();
             if (p.ColumnsShown != p.DayCount) throw new Exception("колоните не отговарят на дните след разширяване");
