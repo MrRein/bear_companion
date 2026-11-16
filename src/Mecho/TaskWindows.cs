@@ -223,7 +223,7 @@ internal static class DayPicker
                 new("Утре", "nav_next", () => pick(today.AddDays(1)), On: current == today.AddDays(1)),
             };
             if (pickBucket != null)
-                list.Add(new("Неразпределени", "backlog", null, Sub: () => TaskCards.Buckets.Select(b =>
+                list.Add(new("Чакащи", "backlog", null, Sub: () => TaskCards.Buckets.Select(b =>
                     new PixelPopup.Entry(b.Name, null, () => pickBucket(b.Bucket), On: current == null && currentBucket == b.Bucket, Dot: b.Color, Letter: b.Letter))));
             else if (allowSomeday) list.Add(new("Някога (без ден)", "history", () => pick(null), On: current == null));
             list.Add(new("", null, null, Custom: close => Calendar(current, today, d => { close(); pick(d); })));

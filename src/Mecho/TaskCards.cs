@@ -546,7 +546,7 @@ internal static class TaskCards
                 new("Днес", "sun", () => pet.MoveTask(Fresh(pet, t), today), On: Fresh(pet, t).Day == today),
                 new("Утре", null, () => pet.MoveTask(Fresh(pet, t), today.AddDays(1)), On: Fresh(pet, t).Day == today.AddDays(1)),
                 new("Следващата седмица", null, () => pet.MoveTask(Fresh(pet, t), WorkView.WeekOf(today).AddDays(7))),
-                new("Неразпределени", "backlog", null, Sub: () => Buckets.Select(b => new PixelPopup.Entry(b.Name, null,
+                new("Чакащи", "backlog", null, Sub: () => Buckets.Select(b => new PixelPopup.Entry(b.Name, null,
                     () => pet.SetTaskBucket(Fresh(pet, t), b.Bucket), On: Fresh(pet, t).Day == null && Fresh(pet, t).Bucket == b.Bucket, Dot: b.Color, Letter: b.Letter))),
             }));
             list.Add(new("Приоритет", "flag", null, Sub: PriorityEntries(pet, t)));

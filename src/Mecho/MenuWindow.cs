@@ -297,7 +297,7 @@ public sealed class MenuWindow : Window
         new(PageFocus, "honey", "Фокус", PomodoroTab, true, Work: true),
         new(PageWeek, "board", "Седмица", WorkPage, true, Work: true),
         new(PageCalendar, "calendar", "Календар", WorkPage, true, Work: true),
-        new(PageBacklog, "backlog", "Неразпределени", WorkPage, true, Work: true),
+        new(PageBacklog, "backlog", "Чакащи", WorkPage, true, Work: true),
         new(PageReview, "book", "Преглед", WorkPage, true, Work: true),
         new(PageShop, "shop", "Магазин", ShopTab, true),
         new(PageMore, "gear", "Още", MoreTab, true),

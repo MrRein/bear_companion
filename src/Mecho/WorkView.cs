@@ -1131,7 +1131,7 @@ public sealed class WorkView : Border
             var today = Today;
             if (from != today) list.Add(new("Недовършените – за днес", "sun", () => MoveAll(from, today)));
             list.Add(new("Недовършените – за утре", "arrow_right", () => MoveAll(from, (from < today ? today : from).AddDays(1))));
-            list.Add(new("Недовършените – в Неразпределени", "backlog", () => MoveAll(from, null)));
+            list.Add(new("Недовършените – в Чакащи", "backlog", () => MoveAll(from, null)));
         }
         return list;
     };
@@ -1580,7 +1580,7 @@ public sealed class WorkView : Border
             _pet.Persist();
         }
         if (realToday && _pet.Save.PlannedDay != key && _pet.Save.PlanSeenDay != key && hour < 15)
-            p.Children.Add(Invite("sun", "Добро утро! Да планираме деня – вчерашните и какво да вземем от Неразпределени.", "План за деня",
+            p.Children.Add(Invite("sun", "Добро утро! Да планираме деня – вчерашните и какво да вземем от Чакащи.", "План за деня",
                 () => { Seen(true); ShowSide(Side.Plan); }, () => { Seen(true); Refresh(true); }));
         else if (realToday && _pet.Save.ShutdownDay != key && _pet.Save.ShutdownSeenDay != key && hour >= 17)
             p.Children.Add(Invite("moon", "Денят свършва. Да видим какво стана и какво остава за утре.", "Край на деня",
@@ -1910,7 +1910,7 @@ public sealed class WorkView : Border
         head.Children.Add(all);
         head.Children.Add(new TextBlock
         {
-            Text = due.Count == 1 ? "Дойде времето на 1 неразпределена задача." : $"Дойде времето на {due.Count} неразпределени задачи.",
+            Text = due.Count == 1 ? "Дойде времето на 1 чакаща задача." : $"Дойде времето на {due.Count} чакащи задачи.",
             FontWeight = FontWeights.Bold,
             TextWrapping = TextWrapping.Wrap,
             VerticalAlignment = VerticalAlignment.Center,
@@ -2306,7 +2306,7 @@ public sealed class WorkView : Border
             p.Children.Add(Label("Все се пренасят – може би са големи? Раздели ги на стъпки или ги сложи за „Някога“."));
             foreach (var t in stuck)
                 p.Children.Add(MiniRow(t,
-                    ("Неразпределени", "Без ден – в „Неразпределени“", () => MoveWithToast(t, null)),
+                    ("Чакащи", "Без ден – в „Чакащи“", () => MoveWithToast(t, null)),
                     ("✏", "Отвори я (стъпки, ден…)", () =>
                     {
                         SetView(View.Week);
@@ -2880,7 +2880,7 @@ public sealed class WorkView : Border
         p.Children.Add(SideHeader("План за " + DayName(today) + ", " + today.ToString("d MMMM", Bg), () => ShowSide(Side.None)));
         p.Children.Add(new TextBlock
         {
-            Text = "Две кратки стъпки: какво да правим с вчерашните и какво да вземем от Неразпределени.",
+            Text = "Две кратки стъпки: какво да правим с вчерашните и какво да вземем от Чакащи.",
             Foreground = Muted,
             TextWrapping = TextWrapping.Wrap,
         });
@@ -2892,7 +2892,7 @@ public sealed class WorkView : Border
         foreach (var t in rolled)
             p.Children.Add(MiniRow(t,
                 ("Утре", "За утре", () => MoveWithToast(t, today.AddDays(1))),
-                ("Неразпределени", "Без ден – в „Неразпределени“", () => MoveWithToast(t, null)),
+                ("Чакащи", "Без ден – в „Чакащи“", () => MoveWithToast(t, null)),
                 ("✕", "Изтрий", () => _pet.DeleteTask(t))));
 
         // Без време ли са някои – кратка бележка (часовете за работа се сменят в „Днес“).
@@ -2909,8 +2909,8 @@ public sealed class WorkView : Border
 
         // 2. От Backlog.
         var someday = state.Someday.Where(t => t.Bucket != TaskItem.Never).ToList();
-        p.Children.Add(Label($"2. Нещо от Неразпределени? · {someday.Count}"));
-        if (someday.Count == 0) p.Children.Add(MenuWindow.MutedText("Няма неразпределени задачи."));
+        p.Children.Add(Label($"2. Нещо от Чакащи? · {someday.Count}"));
+        if (someday.Count == 0) p.Children.Add(MenuWindow.MutedText("Няма чакащи задачи."));
         foreach (var t in someday.OrderBy(t => t.Star ? 0 : 1).Take(12))
             p.Children.Add(MiniRow(t, ("+ Днес", "Сложи я за днес", () => MoveWithToast(t, today))));
         if (someday.Count > 12) p.Children.Add(MenuWindow.MutedText($"… и още {someday.Count - 12} (в колоната вляво)."));
@@ -2953,7 +2953,7 @@ public sealed class WorkView : Border
         foreach (var t in left)
             p.Children.Add(MiniRow(t,
                 ("Утре", "За утре", () => MoveWithToast(t, today.AddDays(1))),
-                ("Неразпределени", "Без ден – в „Неразпределени“", () => MoveWithToast(t, null))));
+                ("Чакащи", "Без ден – в „Чакащи“", () => MoveWithToast(t, null))));
         if (left.Count > 1)
         {
             var allTomorrow = Button("Всички за утре", Act(() => MoveAll(today, today.AddDays(1))), icon: "arrow_right");
