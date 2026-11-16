@@ -2440,6 +2440,8 @@ public sealed partial class PetWindow
             bool instant = InstantModes;
             InstantModes = true;
             if (_inScene) LeaveScene();
+            // Мечокът трябва да се вижда: скрит ли е, сложените от него мебели (постелката) се прибират веднага.
+            if (!IsVisible) Show();
             SetIdle();
             // Музиката и растението първо отиват до предмета (котва) – те имат свои стъпки.
             foreach (var sc in Scenes.All.Where(x => x != Scenes.Trampoline && x != Scenes.Music && x != Scenes.Plant))
@@ -2452,7 +2454,8 @@ public sealed partial class PetWindow
                     throw new Exception($"„{sc.Name}“: стои прав ({_anim}) върху седалка");
                 if (sc.Seat != null && pose == Behaviour.Posture.Sit && _seatProp == null && sc.Seat != "couch")
                     throw new Exception($"„{sc.Name}“: седи, а седалката я няма");
-                if (sc == Scenes.Yoga && _seatProp == null) throw new Exception("йога без постелка");
+                if (sc == Scenes.Yoga && _seatProp == null)
+                    throw new Exception($"йога без постелка (вижда се: {IsVisible}, постелката е сложена: {FurniturePlaced(Kitchen.YogaMat)}, поза: {_anim})");
                 LeaveScene();
             }
             // Без бюро „Работи на бюрото“ не става (и не казва „сядам на бюрото“).
