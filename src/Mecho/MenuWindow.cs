@@ -150,6 +150,22 @@ public sealed class MenuWindow : Window
         _tabs[MoreTab] = BuildMoreTab();
         Work = new WorkView(_pet);
         Work.OpenFocus += () => ShowPage(PageFocus);
+        // Изгледът е сменен отвътре (покана, „Отвори“…) – горе и вляво се вижда точната страница.
+        Work.ViewChanged += view =>
+        {
+            string page = view switch
+            {
+                WorkView.View.Week => PageWeek,
+                WorkView.View.Review => PageReview,
+                WorkView.View.Backlog => PageBacklog,
+                WorkView.View.Calendar => PageCalendar,
+                _ => _page is PagePlan or PageShutdown ? _page : PageToday,
+            };
+            if (page == _page || !IsWorkPage) return;
+            _page = page;
+            _pet.Save.MenuPage = page;
+            UpdateNavSelection();
+        };
         _tabs[WorkPage] = Work;
 
         // Всяка страница се превърта сама: колкото и малък да е прозорецът, нищо не изчезва.

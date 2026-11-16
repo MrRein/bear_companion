@@ -39,7 +39,7 @@ internal sealed class DayTimeline : DockPanel
     private Canvas[] _canvases = Array.Empty<Canvas>();
     private Grid _body = new();
     private string _shown = "";
-    private bool _placed;
+    private bool _placed, _placeWired;
 
     // Влачене / разтягане на блокче.
     private enum Mode { None, Pending, Move, Resize }
@@ -242,30 +242,37 @@ internal sealed class DayTimeline : DockPanel
                 // Надпис: колко е часът сега (червената черта).
                 var nowText = new TextBlock { Text = "сега " + now.ToString("H:mm"), Foreground = Bad, FontWeight = FontWeights.Bold, FontSize = Body * 0.8, IsHitTestVisible = false, Tag = "now" };
                 Canvas.SetTop(nowText, y - 15 * U);
+                Canvas.SetLeft(nowText, 6 * U);
                 canvas.Children.Add(line);
                 canvas.Children.Add(dot);
                 canvas.Children.Add(nowText);
-                canvas.SizeChanged += (_, _) =>
-                {
-                    line.Width = canvas.ActualWidth;
-                    Canvas.SetLeft(nowText, Math.Max(4, canvas.ActualWidth - 84 * U));
-                };
+                canvas.SizeChanged += (_, _) => line.Width = canvas.ActualWidth;
             }
         }
         _scroll.Content = _body;
         LayoutBlocks();
 
-        // Първия път – часът преди сега; иначе – където е бил.
-        Dispatcher.BeginInvoke(() =>
+        // Първия път – часът преди сега (когато графикът вече има размер); иначе – където е бил.
+        if (_placed) Dispatcher.BeginInvoke(() => _scroll.ScrollToVerticalOffset(offset), DispatcherPriority.Loaded);
+        else PlaceAtNow();
+    }
+
+    private void PlaceAtNow()
+    {
+        void Try()
         {
-            if (!_placed)
-            {
-                _placed = true;
-                var now = DateTime.Now;
-                _scroll.ScrollToVerticalOffset(Math.Max(0, ((now - now.Date).TotalHours - 1.2) * HourH));
-            }
-            else _scroll.ScrollToVerticalOffset(offset);
-        }, DispatcherPriority.Loaded);
+            if (_placed || _scroll.ViewportHeight <= 0 || _scroll.ExtentHeight <= 0) return;
+            _placed = true;
+            var now = DateTime.Now;
+            _scroll.ScrollToVerticalOffset(Math.Max(0, ((now - now.Date).TotalHours - 1.2) * HourH));
+        }
+        if (!_placeWired)
+        {
+            _placeWired = true;
+            _scroll.ScrollChanged += (_, _) => Try();
+            _scroll.SizeChanged += (_, _) => Try();
+        }
+        Dispatcher.BeginInvoke(Try, DispatcherPriority.Loaded);
     }
 
     private Rectangle Line(double y, Brush brush, double opacity)

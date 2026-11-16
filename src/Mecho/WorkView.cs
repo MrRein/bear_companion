@@ -32,7 +32,7 @@ public sealed class WorkView : Border
     private readonly ScrollViewer _dayScroll;
     private readonly Border _someday = new();
     private readonly Border _side;
-    private readonly TextBlock _rangeLabel = new() { FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+    private readonly TextBlock _rangeLabel = new() { FontWeight = FontWeights.Bold, Foreground = Ink, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock _summary = new() { Foreground = Brushes.White, Opacity = 0.9, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, TextAlignment = TextAlignment.Right };
     private readonly WrapPanel _filters = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBox _search;
@@ -296,8 +296,10 @@ public sealed class WorkView : Border
         // „План за деня“ и „Край на деня“ са само в „Днес“ – в другите изгледи се затварят.
         if (view != View.Today && _sideMode is Side.Plan or Side.Shutdown) _sideMode = Side.None;
         if (view == View.Today) _todayDay = null;   // „Днес“ винаги почва от днешния ден
+        bool changed = _view != view;
         _view = view;
         _pet.Save.WorkView = (int)view;
+        if (changed) ViewChanged?.Invoke(view);
         _todayView.Visibility = view == View.Today ? Visibility.Visible : Visibility.Collapsed;
         _weekView.Visibility = view == View.Week ? Visibility.Visible : Visibility.Collapsed;
         _reviewView.Visibility = view == View.Review ? Visibility.Visible : Visibility.Collapsed;
@@ -1451,7 +1453,7 @@ public sealed class WorkView : Border
         {
             // Веднъж за деня: колко часа имаш? (✕ – този ден без часове, не пита пак)
             var ask = new WrapPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
-            ask.Children.Add(new TextBlock { Text = realToday ? "Колко часа работа имаш днес?" : "Колко часа работа ще имаш?", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8 * U, 4 * U) });
+            ask.Children.Add(new TextBlock { Text = realToday ? "Колко часа работа имаш днес?" : "Колко часа работа ще имаш?", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8 * U, 4 * U) });
             foreach (int h in new[] { 2, 4, 6, 8 })
             {
                 int hh = h;
@@ -1586,23 +1588,24 @@ public sealed class WorkView : Border
     /// <summary>Покана (план, край на деня, преглед): медена картичка с текст и копче.</summary>
     private FrameworkElement Invite(string icon, string text, string button, Action click, Action? dismiss = null)
     {
-        var row = new DockPanel();
+        // Текстът отгоре (пренася се), копчетата – под него вдясно: в тясна колона не се смачква.
+        var row = new StackPanel();
+        row.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 6 * U, 0, 0) };
+        var go = Button(button, click, primary: true, icon: icon);
+        go.Margin = new Thickness(0);
+        go.VerticalAlignment = VerticalAlignment.Center;
+        buttons.Children.Add(go);
         if (dismiss != null)
         {
             var x = SmallIcon("close", dismiss);
             x.ToolTip = Tip("Не днес");
             x.Tag = "dismiss";
             x.VerticalAlignment = VerticalAlignment.Center;
-            x.Margin = new Thickness(8 * U, 0, 0, 0);
-            DockPanel.SetDock(x, Dock.Right);
-            row.Children.Add(x);
+            x.Margin = new Thickness(6 * U, 0, 0, 0);
+            buttons.Children.Add(x);
         }
-        var go = Button(button, click, primary: true, icon: icon);
-        go.Margin = new Thickness(10 * U, 0, 0, 0);
-        go.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(go, Dock.Right);
-        row.Children.Add(go);
-        row.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(buttons);
         return new Border
         {
             Background = Cream,
@@ -1621,6 +1624,9 @@ public sealed class WorkView : Border
     // ── Сега: работата по задачите (вдясно в „Днес“) ──
 
     private TextBlock? _clockText, _clockWhat;
+
+    /// <summary>Изгледът е сменен (и отвътре – от покана, от прегледа…): менюто сменя страницата горе и вляво.</summary>
+    public event Action<View>? ViewChanged;
 
     /// <summary>„Към Фокус“ – менюто отваря страницата „Фокус“.</summary>
     public event Action? OpenFocus;
@@ -2122,7 +2128,7 @@ public sealed class WorkView : Border
         var tiles = new UniformGrid { Rows = 1, Margin = new Thickness(0, 0, 0, 12 * U) };
         tiles.Children.Add(StatTile("check", $"{done.Count}", tasks.Count == 0 ? "свършени" : $"свършени от {tasks.Count}"));
         tiles.Children.Add(StatTile("hourglass", spent > 0 ? TaskCards.Duration(spent) : "—", "работено по задачи"));
-        tiles.Children.Add(StatTile("star", best.Done > 0 ? Capital(best.Day.ToString("dddd", Bg)) : "—", best.Done > 0 ? $"най-много: {best.Done}" : "най-добрият ден"));
+        tiles.Children.Add(StatTile("star", best.Done > 0 ? Capital(best.Day.ToString("ddd", Bg)) : "—", best.Done > 0 ? $"най-много: {best.Done}" : "най-добрият ден"));
         tiles.Children.Add(StatTile("history", $"{rolled}", "пренасяни"));
         p.Children.Add(tiles);
 
