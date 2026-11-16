@@ -59,6 +59,29 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path shots | Out-Null
           if (Test-Path "$env:TEMP/MechoSelfTest/shots") { Copy-Item "$env:TEMP/MechoSelfTest/shots/*" shots/ }
+      # Снимките, докладът за подредбата и дневникът – и в отделен клон selftest-shots
+      # (презаписва се при всяко сглобяване), за да се разглеждат без сваляне на артефакти.
+      # Качването с github.token не пуска ново сглобяване; ако нещо тук не стане – сглобяването продължава.
+      - name: Pictures to branch selftest-shots
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if (-not (Get-ChildItem shots -ErrorAction SilentlyContinue)) { exit 0 }
+          New-Item -ItemType Directory -Force -Path pictures | Out-Null
+          Copy-Item shots/* pictures/
+          foreach ($f in 'layout.txt', 'selftest.log') { if (Test-Path "$env:TEMP/MechoSelfTest/$f") { Copy-Item "$env:TEMP/MechoSelfTest/$f" pictures/ } }
+          Set-Content pictures/README.txt "Сглобяване $env:GITHUB_RUN_NUMBER, $env:GITHUB_SHA ($env:GITHUB_REF_NAME)"
+          Set-Location pictures
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q -b selftest-shots
+          git add -A
+          git commit -q -m "Снимки от самопроверката: сглобяване $env:GITHUB_RUN_NUMBER"
+          git push -q --force "https://x-access-token:$env:GH_TOKEN@github.com/$env:GITHUB_REPOSITORY.git" selftest-shots
       # Докладът за подредбата (текстове, които се режат, неща извън прозореца).
       - name: Layout report
         if: always()
