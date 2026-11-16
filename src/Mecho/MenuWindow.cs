@@ -481,6 +481,9 @@ public sealed class MenuWindow : Window
     private readonly TextBlock _workBadgeText = new() { FontWeight = FontWeights.Bold, Foreground = Ink };
     private Border _workBadge = null!;
     private readonly StackPanel _workChildren = new();
+    private Border? _workBox;
+    private StackPanel _navList = null!;
+    private Grid _navHost = null!;
     private TextBlock _workArrow = null!;
     private bool _navCompact, _workNavOpen;
     private readonly TextBlock _where = new()
@@ -541,9 +544,17 @@ public sealed class MenuWindow : Window
                 // „Работа ▸“ – разгъва/свива; като се разгъне, отваря последната си страница (или Днес).
                 var work = NavItem(new PageInfo("work", "tasks", "Работа", WorkPage, true), child: false);
                 list.Children.Add(work);
-                _workChildren.Margin = new Thickness(14 * U, 0, 0, 0);
                 foreach (var child in Pages.Where(p => p.InNav && p.Work)) _workChildren.Children.Add(NavItem(child, child: true));
-                list.Children.Add(_workChildren);
+                // Под „Работа“ – с линия отляво (личи си, че са в нея; и когато са само иконки).
+                _workBox = new Border
+                {
+                    BorderBrush = WoodDark,
+                    BorderThickness = new Thickness(Math.Max(2, P / 2), 0, 0, 0),
+                    Margin = new Thickness(8 * U, 0, 0, 6 * U),
+                    Padding = new Thickness(6 * U, 0, 0, 0),
+                    Child = _workChildren,
+                };
+                list.Children.Add(_workBox);
             }
         }
         // Под „Още“ – „Затвори“ (менюто се затваря и с Esc и като цъкнеш другаде).
@@ -579,7 +590,47 @@ public sealed class MenuWindow : Window
             _pet.Save.MenuTop = Top;
             _pet.Persist();
         };
-        return scroll;
+        _navList = list;
+        // Дръжка на десния ръб: дърпаш – лентата става по-широка/тясна; съвсем тясна – само иконки.
+        var grip = new Border
+        {
+            Width = 6 * U,
+            Background = Brushes.Transparent,
+            Cursor = Cursors.SizeWE,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            ToolTip = Tip("Дръпни: по-широка или само иконки"),
+        };
+        double startX = 0, startW = 0;
+        bool dragging = false;
+        grip.MouseLeftButtonDown += (_, e) =>
+        {
+            dragging = true;
+            startX = e.GetPosition(this).X;
+            startW = _navHost.ActualWidth;
+            grip.CaptureMouse();
+            e.Handled = true;
+        };
+        grip.MouseMove += (_, e) =>
+        {
+            if (!dragging) return;
+            double w = startW + e.GetPosition(this).X - startX;
+            bool collapse = w < 110 * U;
+            _pet.Save.NavCollapsed = collapse;
+            if (!collapse) _pet.Save.NavWidth = Math.Clamp(w, 150 * U, 300 * U) / U;
+            _navCompact = !_navCompact;   // да се приложи наново
+            UpdateNav();
+        };
+        grip.MouseLeftButtonUp += (_, _) =>
+        {
+            if (!dragging) return;
+            dragging = false;
+            grip.ReleaseMouseCapture();
+            _pet.Persist();
+        };
+        grip.MouseEnter += (_, _) => grip.Background = new SolidColorBrush(Color.FromArgb(60, 0, 0, 0));
+        grip.MouseLeave += (_, _) => { if (!dragging) grip.Background = Brushes.Transparent; };
+        _navHost = new Grid { Children = { scroll, grip } };
+        return _navHost;
     }
 
     private string _lastWorkPage = PageToday;
@@ -654,6 +705,7 @@ public sealed class MenuWindow : Window
         foreach (var (id, (item, _)) in _navItems)
             SetOn(item, id == selected || (id == "work" && inWork));
         _workChildren.Visibility = _workNavOpen ? Visibility.Visible : Visibility.Collapsed;
+        if (_workBox != null) _workBox.Visibility = _workChildren.Visibility;
         if (_workArrow != null) _workArrow.Text = _workNavOpen ? "▾" : "▸";
         var info = Pages.FirstOrDefault(p => p.Id == _page);
         _where.Text = _page switch
@@ -672,16 +724,30 @@ public sealed class MenuWindow : Window
     {
         double zoom = Zoom;
         double width = ActualWidth > 0 ? ActualWidth : Width;
-        bool compact = !double.IsNaN(width) && width / zoom < 760 * U;
+        // Само иконки: свита е с дърпане – или прозорецът е тесен.
+        bool compact = _pet.Save.NavCollapsed || (!double.IsNaN(width) && width / zoom < 760 * U);
+        _navHost.Width = compact ? double.NaN : _pet.Save.NavWidth > 0 ? _pet.Save.NavWidth * U : double.NaN;
         if (compact == _navCompact) return;
         _navCompact = compact;
-        foreach (var (item, name) in _navItems.Values)
+        foreach (var (id, (item, name)) in _navItems)
         {
             name.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
             ToolTipService.SetIsEnabled(item, compact);
+            // Само иконки – квадратни и в средата (по-малките – под „Работа“).
+            bool child = Pages.FirstOrDefault(p => p.Id == id)?.Work == true;
+            item.Width = compact ? (child ? 34 : 44) * U : double.NaN;
+            item.Height = compact ? (child ? 30 : 40) * U : double.NaN;
+            item.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+            if (item.Child is FrameworkElement row) row.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
+            if (compact) item.Padding = new Thickness(0);
+            else item.Padding = child ? new Thickness(8 * U, 3 * U, 8 * U, 4 * U) : new Thickness(8 * U, 5 * U, 10 * U, 6 * U);
         }
         if (_workArrow != null) _workArrow.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-        _workChildren.Margin = new Thickness(compact ? 0 : 14 * U, 0, 0, 0);
+        if (_workBox != null)
+        {
+            _workBox.Margin = compact ? new Thickness(6 * U, 0, 0, 6 * U) : new Thickness(8 * U, 0, 0, 6 * U);
+            _workBox.Padding = compact ? new Thickness(3 * U, 0, 0, 0) : new Thickness(6 * U, 0, 0, 0);
+        }
     }
 
     // ───────────────────────── Размер и мащаб ─────────────────────────
