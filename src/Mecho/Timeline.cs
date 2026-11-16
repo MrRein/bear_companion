@@ -116,6 +116,13 @@ internal sealed class DayTimeline : DockPanel
         return state.Open.Concat(state.History).Where(t => t.Start is { } s && s.Date == day);
     }
 
+    /// <summary>Свършените в деня без час – показват се там, където са свършени (свършва в часа на отметката).</summary>
+    private IEnumerable<TaskItem> DoneUnscheduled(DateTime day)
+    {
+        var state = _pet.TaskState;
+        return state.Open.Concat(state.History).Where(t => t.Done && t.Start == null && t.DoneAt is { } at && at.Date == day);
+    }
+
     /// <summary>Несвършените задачи от деня без час (показват се бледо – предложено време).</summary>
     private IEnumerable<TaskItem> Unscheduled(DateTime day) =>
         day < _pet.TaskToday ? Enumerable.Empty<TaskItem>() : _pet.TaskState.Open.Where(t => t.Day == day && t.Start == null && !t.Done);
@@ -156,7 +163,9 @@ internal sealed class DayTimeline : DockPanel
         var now = DateTime.Now;
         string sig = string.Join(",", _days.Select(d => d.ToString("yyyyMMdd"))) + $"#{now:yyyyMMddHHmm}#{_pet.Save.UiTheme}#{TaskTags.Version}#"
             + string.Join("|", _days.SelectMany(Scheduled).Select(t => t.Signature + t.Done))
-            + "#u:" + string.Join("|", _days.SelectMany(Unscheduled).Select(t => t.Signature));
+            + "#u:" + string.Join("|", _days.SelectMany(Unscheduled).Select(t => t.Signature))
+            + "#e:" + string.Join(",", _days.Select(d => _pet.Save.DayEnd.TryGetValue(d.ToString("yyyy-MM-dd"), out int e) ? e : 0))
+            + "#d:" + string.Join("|", _days.SelectMany(DoneUnscheduled).Select(t => t.Signature));
         if (!force && sig == _shown) return;
         _shown = sig;
         Build();
@@ -232,6 +241,17 @@ internal sealed class DayTimeline : DockPanel
             Canvas.SetTop(night2, 20 * HourH);
             canvas.Children.Insert(0, night1);
             canvas.Children.Insert(0, night2);
+            // След часа, до който работиш (ако е казан) – леко засенчено, без надписи.
+            if (_pet.Save.DayEnd.TryGetValue(day.ToString("yyyy-MM-dd"), out int endMin) && endMin > 0)
+            {
+                var after = new Rectangle { Fill = WoodLight, Opacity = 0.18, Height = Math.Max(0, (24 * 60 - endMin) / 60.0 * HourH), IsHitTestVisible = false };
+                Canvas.SetTop(after, endMin / 60.0 * HourH);
+                var endLine = new Rectangle { Fill = WoodDark, Height = 1, Opacity = 0.6, IsHitTestVisible = false };
+                Canvas.SetTop(endLine, endMin / 60.0 * HourH);
+                canvas.Children.Insert(0, after);
+                canvas.Children.Add(endLine);
+                canvas.SizeChanged += (_, _) => { after.Width = endLine.Width = canvas.ActualWidth; };
+            }
             canvas.SizeChanged += (_, _) => { night1.Width = night2.Width = canvas.ActualWidth; LayoutBlocks(); };
 
             Grid.SetColumn(canvas, i + 1);
@@ -244,6 +264,16 @@ internal sealed class DayTimeline : DockPanel
 
             foreach (var t in Scheduled(day).OrderBy(t => t.Start)) canvas.Children.Add(Block(t, t.Start!.Value, ghost: false));
             foreach (var (t, at) in Projected(day)) canvas.Children.Add(Block(t, at, ghost: true));
+            // Свършените без час – да свършват в часа, в който са отметнати (може да се местят).
+            foreach (var t in DoneUnscheduled(day))
+            {
+                var doneAt = t.DoneAt!.Value;
+                var start = doneAt.AddMinutes(-Length(t));
+                if (start.Date != day) start = day;
+                var block = Block(t, start, ghost: false);
+                _ghostStart[block] = start;
+                canvas.Children.Add(block);
+            }
 
             // Сега.
             if (day == today)
@@ -339,7 +369,7 @@ internal sealed class DayTimeline : DockPanel
             Child = grid,
             ClipToBounds = true,
             Cursor = Cursors.Hand,
-            Opacity = t.Done ? 0.55 : ghost ? 0.6 : 1,
+            Opacity = t.Done ? 0.6 : ghost ? 0.85 : 1,
             Tag = t,
             ToolTip = Tip($"{t.Title}\n{Range(start, Length(t))}" + (t.Minutes == 0 ? " (без казано време – 30 мин)" : "")
                 + (ghost ? "\nПредложено време – хвани и пусни, за да я сложиш в графика." : "")),
@@ -444,7 +474,6 @@ internal sealed class DayTimeline : DockPanel
 
     private void Begin(Border block, TaskItem t, Point from, Mode mode, bool capture = true)
     {
-        if (t.Done && mode == Mode.Resize) return;
         _mode = mode;
         _task = t;
         _block = block;
@@ -466,7 +495,6 @@ internal sealed class DayTimeline : DockPanel
         if (_mode == Mode.Pending)
         {
             if (Math.Abs(dy) < 5 && Math.Abs(dx) < 5) return;
-            if (_task.Done) return;   // свършените не се местят
             _mode = Mode.Move;
             _block.Opacity = 0.85;
             Panel.SetZIndex(_block, 50);

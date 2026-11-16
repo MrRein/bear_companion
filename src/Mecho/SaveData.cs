@@ -137,6 +137,8 @@ public sealed class SaveData
     public int PlannerHours { get; set; } = 6;                  // колко часа работа на ден (за „твърде много за деня“)
     public bool PlannerHideDone { get; set; }                   // седмицата: свършените не се показват
     public Dictionary<string, int> DayHours { get; set; } = new();
+    public Dictionary<string, int> DayEnd { get; set; } = new();     // до колко работи в деня (минути от полунощ; -1 – „не знам“)
+    public int LastDayEnd { get; set; } = 18 * 60;               // последно избраното (предлага се отгоре)
     public bool NavCollapsed { get; set; }                       // лентата вляво – само иконки (свита с дърпане)
     public double NavWidth { get; set; }                         // ширината ѝ, когато е разгъната (0 – колкото трябва)   // часове за работа по дни (yyyy-MM-dd → часове; 0 – „не питай“)
     public string PlanSeenDay { get; set; } = "";               // поканата за план е видяна/махната днес (не излиза до утре)

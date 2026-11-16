@@ -1682,11 +1682,11 @@ public sealed partial class PetWindow
             }
 
             // Часовете за деня: пита, докато не кажеш; после – лента.
-            _save.DayHours.Remove(today.ToString("yyyy-MM-dd"));
+            _save.DayEnd.Remove(today.ToString("yyyy-MM-dd"));
             p.Refresh(true);
             p.UpdateLayout();
             if (!p.TodayAsksHours) throw new Exception("не пита колко часа");
-            p.TestHours(today, 6);
+            p.TestHours(today, 18 * 60);
             p.UpdateLayout();
             if (p.TodayAsksHours) throw new Exception("пак пита за часовете");
 
@@ -1711,7 +1711,7 @@ public sealed partial class PetWindow
             PopupCheck("popup_when", () => DayPicker.Show(anchorEl, today, today, _ => { }, pickBucket: _ => { }));
 
             foreach (var t in _save.Tasks.Where(x => x.Title is "Човешка задача" or "Задача от Backlog").ToList()) DeleteTask(t);
-            _save.DayHours.Clear();
+            _save.DayEnd.Clear();
             _save.PlannedDay = _save.PlanSeenDay = "";
             HideBubble();
         }, 600);

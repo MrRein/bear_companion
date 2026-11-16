@@ -387,6 +387,14 @@ internal static class TaskCards
             }
         }
         if (!t.Done && Meta(t, live ? pet : null) is { } meta) text.Children.Add(meta);
+        // Свършена: кога е отметната и колко време е отнела (може да се смени от картата ѝ).
+        if (t.Done && t.DoneAt is { } doneAt)
+            text.Children.Add(new TextBlock
+            {
+                Text = $"свършена в {doneAt:H:mm}" + (t.Minutes > 0 ? " · " + Duration(t.Minutes) : ""),
+                Foreground = Muted,
+                Margin = new Thickness(0, 2 * U, 0, 0),
+            });
         Grid.SetColumn(text, 2);
         grid.Children.Add(text);
 
@@ -891,8 +899,17 @@ internal static class PixelPopup
     internal static System.Windows.Controls.Primitives.Popup? Last;
     internal static Border? LastBox;
 
+    // Цъкнеш ли пак същото копче, докато менюто му е отворено – затваря се (а не се отваря пак).
+    private static FrameworkElement? _closedAnchor;
+    private static DateTime _closedAt;
+
     public static void Show(FrameworkElement anchor, string? title, Func<IEnumerable<Entry>> entries, bool atMouse = false)
     {
+        if (!atMouse && _closedAnchor == anchor && (DateTime.Now - _closedAt).TotalMilliseconds < 350)
+        {
+            _closedAnchor = null;
+            return;
+        }
         var popup = new System.Windows.Controls.Primitives.Popup
         {
             PlacementTarget = anchor,
@@ -927,6 +944,13 @@ internal static class PixelPopup
         TextOptions.SetTextRenderingMode(box, TextRenderingMode.Aliased);
         TextOptions.SetTextFormattingMode(box, TextFormattingMode.Display);
         popup.Child = box;
+        popup.Closed += (_, _) =>
+        {
+            // Само ако е затворено с цъкане върху самото копче.
+            if (!anchor.IsMouseOver) return;
+            _closedAnchor = anchor;
+            _closedAt = DateTime.Now;
+        };
         Last = popup;
         LastBox = box;
         var stack = new Stack<(string? Title, Func<IEnumerable<Entry>> Entries)>();

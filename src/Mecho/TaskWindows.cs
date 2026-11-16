@@ -235,7 +235,7 @@ internal static class DayPicker
     public static FrameworkElement Calendar(DateTime? selected, DateTime today, Action<DateTime> pick)
     {
         var month = new DateTime((selected ?? today).Year, (selected ?? today).Month, 1);
-        var root = new StackPanel { Margin = new Thickness(4 * U, 6 * U, 4 * U, 2 * U), MinWidth = 260 * U };
+        var root = new StackPanel { Margin = new Thickness(4 * U, 6 * U, 4 * U, 2 * U), MinWidth = 280 * U };
         void Fill()
         {
             root.Children.Clear();
@@ -265,13 +265,14 @@ internal static class DayPicker
                 bool inMonth = day.Month == month.Month, isSel = day == selected, isToday = day == today;
                 var cell = new Border
                 {
-                    Width = 32 * U,
-                    Height = 28 * U,
+                    Width = 36 * U,
+                    Height = 32 * U,
                     Margin = new Thickness(1),
-                    CornerRadius = new CornerRadius(3),
+                    CornerRadius = new CornerRadius(4),
+                    // Избраният ден – цялото квадратче медено с рамка (вижда се ясно); днес – само рамка.
                     Background = isSel ? Honey : Brushes.Transparent,
-                    BorderBrush = isToday ? Ink : Brushes.Transparent,
-                    BorderThickness = Px(1),
+                    BorderBrush = isSel || isToday ? Ink : Brushes.Transparent,
+                    BorderThickness = Px(isSel ? 1 : 0.5),
                     Child = new TextBlock
                     {
                         Text = day.Day.ToString(),
@@ -558,6 +559,14 @@ internal sealed class TaskCardWindow : FloatWindow
         Body.Content = p;
 
         Rebuild(task);
+        // Цъкнеш ли извън картата – записва написаното и се затваря (като в Sunsama).
+        Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            if (!IsLoaded || IsActive || SelfTest.Running) return;
+            if (PixelPopup.Last is { IsOpen: true }) return;   // изскачащо меню от картата – още се избира
+            SaveText();
+            Close();
+        }, DispatcherPriority.Input);
         Pet.CareChanged += OnChanged;
         Closed += (_, _) =>
         {
@@ -651,7 +660,9 @@ internal sealed class TaskCardWindow : FloatWindow
         if (!_notes.IsKeyboardFocused && _notes.Text != t.Description) _notes.Text = t.Description;
         _title.IsReadOnly = _notes.IsReadOnly = t.Done;
         _title.TextDecorations = t.Done ? TextDecorations.Strikethrough : null;
-        _reward.Text = t.Done ? $"Свършена · +{t.Reward} лешника" : $"+{t.Reward} лешника, като я свършиш";
+        _reward.Text = t.Done
+            ? (t.DoneAt is { } at ? $"Свършена в {at:H:mm}" + (at.Date != today ? $" ({at.ToString("d MMM", Bg)})" : "") : "Свършена") + $" · +{t.Reward} лешника"
+            : $"+{t.Reward} лешника, като я свършиш";
 
         // Свойствата.
         _props.Children.Clear();
@@ -677,7 +688,7 @@ internal sealed class TaskCardWindow : FloatWindow
                 else DayPicker.Show(b, null, today, d => { if (d is { } x) Pet.MarkTask(t, due: x); }, allowSomeday: false, title: "Срок до");
             }, muted: t.Due == null));
         Prop("Време", Value("hourglass", t.Minutes > 0 ? TaskCards.Duration(t.Minutes) : "не е казано",
-            t.Done ? null : b => PixelPopup.Show(b, "Колко време?", TaskCards.TimeEntries(Pet, t)), muted: t.Minutes == 0,
+            b => PixelPopup.Show(b, "Колко време?", TaskCards.TimeEntries(Pet, t)), muted: t.Minutes == 0,
             tip: t.Spent > 0 ? $"Работено досега: {TaskCards.Duration(t.Spent)}" : null));
         Prop("Сложност", Value(TaskCards.SizeIcon(t.Size), Capital(TaskCards.SizeNames[Math.Clamp(t.Size, 1, 3) - 1]) + $" · +{t.Reward}",
             t.Done ? null : b => PixelPopup.Show(b, "Сложност", () => Enumerable.Range(1, 3).Select(n =>

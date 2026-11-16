@@ -614,10 +614,10 @@ public sealed class MenuWindow : Window
         {
             if (!dragging) return;
             double w = startW + e.GetPosition(this).X - startX;
-            bool collapse = w < 110 * U;
+            // Плавно: по-тясно – имената се режат; под ~120 – само иконките (копчетата същите).
+            bool collapse = w < 120 * U;
             _pet.Save.NavCollapsed = collapse;
-            if (!collapse) _pet.Save.NavWidth = Math.Clamp(w, 150 * U, 300 * U) / U;
-            _navCompact = !_navCompact;   // да се приложи наново
+            if (!collapse) _pet.Save.NavWidth = Math.Clamp(w, 120 * U, 320 * U) / U;
             UpdateNav();
         };
         grip.MouseLeftButtonUp += (_, _) =>
@@ -724,7 +724,8 @@ public sealed class MenuWindow : Window
     {
         double zoom = Zoom;
         double width = ActualWidth > 0 ? ActualWidth : Width;
-        // Само иконки: свита е с дърпане – или прозорецът е тесен.
+        // Само иконки: свита е с дърпане – или прозорецът е тесен. Копчетата си остават същите
+        // (същата височина и отстъпи) – само името се скрива и иконката застава в средата.
         bool compact = _pet.Save.NavCollapsed || (!double.IsNaN(width) && width / zoom < 760 * U);
         _navHost.Width = compact ? double.NaN : _pet.Save.NavWidth > 0 ? _pet.Save.NavWidth * U : double.NaN;
         if (compact == _navCompact) return;
@@ -733,20 +734,13 @@ public sealed class MenuWindow : Window
         {
             name.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
             ToolTipService.SetIsEnabled(item, compact);
-            // Само иконки – квадратни и в средата (по-малките – под „Работа“).
-            bool child = Pages.FirstOrDefault(p => p.Id == id)?.Work == true;
-            item.Width = compact ? (child ? 34 : 44) * U : double.NaN;
-            item.Height = compact ? (child ? 30 : 40) * U : double.NaN;
-            item.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
             if (item.Child is FrameworkElement row) row.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
-            if (compact) item.Padding = new Thickness(0);
-            else item.Padding = child ? new Thickness(8 * U, 3 * U, 8 * U, 4 * U) : new Thickness(8 * U, 5 * U, 10 * U, 6 * U);
         }
         if (_workArrow != null) _workArrow.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         if (_workBox != null)
         {
-            _workBox.Margin = compact ? new Thickness(6 * U, 0, 0, 6 * U) : new Thickness(8 * U, 0, 0, 6 * U);
-            _workBox.Padding = compact ? new Thickness(3 * U, 0, 0, 0) : new Thickness(6 * U, 0, 0, 0);
+            _workBox.Margin = compact ? new Thickness(4 * U, 0, 0, 6 * U) : new Thickness(8 * U, 0, 0, 6 * U);
+            _workBox.Padding = compact ? new Thickness(4 * U, 0, 0, 0) : new Thickness(6 * U, 0, 0, 0);
         }
     }
 

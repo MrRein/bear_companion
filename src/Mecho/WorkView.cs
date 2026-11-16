@@ -75,20 +75,29 @@ public sealed class WorkView : Border
     }
 
     private DateTime Today => _pet.TaskToday;
-    /// <summary>Часовете за работа в деня (в минути) – само ако си ги казала за него; иначе null.</summary>
-    private int? CapacityFor(DateTime day) =>
-        _pet.Save.DayHours.TryGetValue(day.ToString("yyyy-MM-dd"), out int h) && h > 0 ? Math.Clamp(h, 1, 20) * 60 : null;
+    /// <summary>До колко работи в деня (минути от полунощ); null – не е казано или „не знам“.</summary>
+    private int? EndFor(DateTime day) =>
+        _pet.Save.DayEnd.TryGetValue(day.ToString("yyyy-MM-dd"), out int m) && m > 0 ? m : null;
 
-    private void SetDayHours(DateTime day, int hours)
+    private bool EndAsked(DateTime day) => _pet.Save.DayEnd.ContainsKey(day.ToString("yyyy-MM-dd"));
+
+    /// <summary>Записва до колко се работи в деня (-1 – „не знам“).</summary>
+    private void SetDayEnd(DateTime day, int minutes)
     {
-        _pet.Save.DayHours[day.ToString("yyyy-MM-dd")] = Math.Clamp(hours, 0, 20);
-        if (hours > 0) _pet.Save.PlannerHours = hours;   // следващия път се предлага същото
-        // Старите дни не се пазят вечно.
-        foreach (var old in _pet.Save.DayHours.Keys.Where(k => DateTime.TryParse(k, out var d) && d < Today.AddDays(-60)).ToList())
-            _pet.Save.DayHours.Remove(old);
+        _pet.Save.DayEnd[day.ToString("yyyy-MM-dd")] = minutes;
+        if (minutes > 0) _pet.Save.LastDayEnd = minutes;
+        foreach (var old in _pet.Save.DayEnd.Keys.Where(k => DateTime.TryParse(k, out var d) && d < Today.AddDays(-60)).ToList())
+            _pet.Save.DayEnd.Remove(old);
         _pet.Persist();
+        _todayTimeline?.Refresh(true);
         Refresh(true);
     }
+
+    private IEnumerable<PixelPopup.Entry> EndEntries(DateTime day) =>
+        Enumerable.Range(12, 12).Select(h => new PixelPopup.Entry($"до {h}:00", null, () => SetDayEnd(day, h * 60), On: EndFor(day) == h * 60))
+            .Append(new PixelPopup.Entry("Не знам", "question", () => SetDayEnd(day, -1), On: EndAsked(day) && EndFor(day) == null));
+
+    private static string Clock(int minutes) => $"{minutes / 60}:{minutes % 60:00}";
 
     /// <summary>Кой ден се гледа в „Днес“ (◀ ▶ сменят деня).</summary>
     private DateTime? _todayDay;
@@ -715,7 +724,7 @@ public sealed class WorkView : Border
         foreach (var t in state.History.Reverse())
             if ((t.Day ?? t.DoneAt?.Date) is { } d && d >= _from && d < last) Put(d, t);
 
-        string common = $"{today:yyyyMMdd}#{_filter}#{_starOnly}#{_query}#{_pet.Save.PlannerHideDone}#{string.Join(",", _pet.Save.DayHours.Select(x => x.Key + x.Value))}#{_pet.Save.UiTheme}#{(_pet.InFocus ? _pet.FocusTask?.Id : null)}";
+        string common = $"{today:yyyyMMdd}#{_filter}#{_starOnly}#{_query}#{_pet.Save.PlannerHideDone}#{_pet.Save.UiTheme}#{(_pet.InFocus ? _pet.FocusTask?.Id : null)}";
         // Избраната задача е само в подписа на нейната колона (иначе всеки клик строи всички дни).
         string Selected(List<TaskItem> tasks) => _sideMode == Side.Details && _selected is { } s && tasks.Any(t => t.Id == s) ? "#S" + s : "";
         if (force)
@@ -919,11 +928,10 @@ public sealed class WorkView : Border
         });
         head.Children.Add(sub);
 
-        // Време: планирано спрямо часовете за деня (свършеното – запълнено).
-        int planned = tasks.Sum(t => t.Minutes);
-        int doneMinutes = tasks.Where(t => t.Done).Sum(t => t.Minutes);
-        if (day is { } dayCap && planned > 0 && CapacityFor(dayCap) is { } cap)
-            head.Children.Add(LoadBar(planned, doneMinutes, cap, compact: true));
+        // Колко време са задачите в деня – само като сведение (без „не стига“).
+        int planned = tasks.Where(t => !t.Done).Sum(t => t.Minutes);
+        if (day != null && planned > 0)
+            head.Children.Add(new TextBlock { Text = "задачи: " + TaskCards.Duration(planned), Foreground = Muted, Margin = new Thickness(0, 2 * U, 0, 0) });
 
         int rolled = tasks.Count(t => !t.Done && t.Rolled > 0);
         if (isToday && rolled > 0)
@@ -1054,43 +1062,6 @@ public sealed class WorkView : Border
         day == null ? "Някога" : day == Today ? "днес" : day == Today.AddDays(1) ? "утре" : day == Today.AddDays(-1) ? "вчера" : day.Value.ToString("dddd, d MMMM", Bg);
 
     /// <summary>Лентичка „колко време“: свършеното (мед/зелено) и останалото от часовете за деня.</summary>
-    private static FrameworkElement LoadBar(int planned, int done, int capacity, bool compact)
-    {
-        var panel = new StackPanel { Margin = new Thickness(0, 5 * U, 0, 0) };
-        bool over = planned > capacity;
-        int total = Math.Max(capacity, planned);
-        var bar = new Grid { Height = (compact ? 1.5 : 2.5) * P };
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(done, 0.0001), GridUnitType.Star) });
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(planned - done, 0.0001), GridUnitType.Star) });
-        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(total - planned, 0.0001), GridUnitType.Star) });
-        var fill = new Border { Background = Good };
-        var rest = new Border { Background = over ? Bad : Honey };
-        var free = new Border { Background = Empty };
-        Grid.SetColumn(rest, 1);
-        Grid.SetColumn(free, 2);
-        bar.Children.Add(fill);
-        bar.Children.Add(rest);
-        bar.Children.Add(free);
-        panel.Children.Add(new Border { BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)), Child = bar });
-        // Само колко не стига – в червено; иначе кратко „2ч / 6ч“.
-        if (over || planned > 0)
-            panel.Children.Add(new TextBlock
-            {
-                Text = over ? "−" + TaskCards.Duration(planned - capacity) : $"{TaskCards.Duration(planned)} / {capacity / 60}ч",
-                Foreground = over ? Bad : Muted,
-                FontWeight = over ? FontWeights.Bold : FontWeights.Normal,
-                Margin = new Thickness(0, 2 * U, 0, 0),
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            });
-        panel.ToolTip = Tip(over
-            ? $"Не стигат {TaskCards.Duration(planned - capacity)} – планирани са {TaskCards.Duration(planned)}, а часовете за работа са {capacity / 60}."
-            : $"Планирани {TaskCards.Duration(planned)} от {capacity / 60}ч за работа. Зелено – свършеното.");
-        return panel;
-    }
-
-    private IEnumerable<PixelPopup.Entry> HourEntries(DateTime day) =>
-        Enumerable.Range(1, 20).Select(h => new PixelPopup.Entry(h + (h == 1 ? " час" : " часа"), null, () => SetDayHours(day, h), On: CapacityFor(day) == h * 60))
-            .Append(new PixelPopup.Entry("Без часове", "close", () => SetDayHours(day, 0), On: CapacityFor(day) == null));
 
     /// <summary>Малкото ⇅: подреди задачите от деня (без голямо копче).</summary>
     private Border SortChip(DateTime? day)
@@ -1124,7 +1095,7 @@ public sealed class WorkView : Border
     /// <summary>Дясното копче на заглавието на деня: всички недовършени – утре, днес, „Някога“.</summary>
     private Func<IEnumerable<PixelPopup.Entry>> ColumnEntries(DateTime? day, List<TaskItem> tasks) => () =>
     {
-        var list = new List<PixelPopup.Entry> { new("Нова задача тук", "plus", () => FocusAdd(day)) };
+        var list = new List<PixelPopup.Entry>();
         if (tasks.Count(t => !t.Done) > 1) list.Add(new("Подреди", "menu", null, Sub: SortEntries(day)));
         if (day is { } from && tasks.Any(t => !t.Done))
         {
@@ -1471,7 +1442,7 @@ public sealed class WorkView : Border
         int hour = DateTime.Now.Hour;
         bool realToday = today == Today;   // покани (план, край на деня…) – само за истинския днешен ден
         string sig = string.Join("|", tasks.Select(t => t.Signature + _pet.TaskOnBoard(t))) + $"#{today:yyyyMMdd}#{hour >= 17}#{hour < 15}"
-            + $"#{_pet.Save.PlannedDay}#{_pet.Save.ShutdownDay}#{_pet.Save.PlanSeenDay}#{_pet.Save.ShutdownSeenDay}#{CapacityFor(today)}#{_pet.Save.DayHours.ContainsKey(key)}#{Today:yyyyMMdd}#{_pet.Save.UiTheme}#{_selected}#{_sideMode}"
+            + $"#{_pet.Save.PlannedDay}#{_pet.Save.ShutdownDay}#{_pet.Save.PlanSeenDay}#{_pet.Save.ShutdownSeenDay}#{EndFor(today)}#{EndAsked(today)}#{DateTime.Now:HH}{DateTime.Now.Minute / 10}#{Today:yyyyMMdd}#{_pet.Save.UiTheme}#{_selected}#{_sideMode}"
             + string.Join(",", review.Goals.Select(g => g.Text + g.Done)) + review.Done + (_pet.InFocus ? _pet.FocusTask?.Id : null)
             + string.Join(",", WeekReviewFor(monday.AddDays(-7)).Done)
             + "#due:" + string.Join(",", BacklogDue(state, today).Select(t => t.Signature));
@@ -1499,54 +1470,52 @@ public sealed class WorkView : Border
         });
         int done = tasks.Count(t => t.Done), all = tasks.Count;
         int planned = tasks.Sum(t => t.Minutes), doneMinutes = tasks.Where(t => t.Done).Sum(t => t.Minutes);
-        var capacity = CapacityFor(today);
-        bool asked = _pet.Save.DayHours.ContainsKey(key);
-        // Кратък ред: колко е свършено; вдясно – часовете за работа (цъкаш – сменяш).
-        var info = new DockPanel { Margin = new Thickness(0, 2 * U, 0, 0), MaxWidth = 460 * U, HorizontalAlignment = HorizontalAlignment.Stretch };
-        if (capacity != null || asked || today < Today)
+        int left = tasks.Where(t => !t.Done).Sum(t => t.Minutes);
+        var end = EndFor(today);
+        bool asked = EndAsked(today);
+        // Един подреден ред: свършени · колко са задачите · до колко работиш (цъкаш – сменяш).
+        var info = new WrapPanel { Margin = new Thickness(0, 2 * U, 0, 0) };
+        TextBlock Bit(string text) => new() { Text = text, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center };
+        info.Children.Add(Bit(all == 0 ? "Още няма задачи" : $"Свършени {done} от {all}"));
+        if (left > 0) info.Children.Add(Bit($"  ·  задачи: {TaskCards.Duration(left)}"));
+        if (end is { } e)
         {
-            Border hours = null!;
-            hours = Small("", () => PixelPopup.Show(hours, "Часове за работа", () => HourEntries(today)));
-            hours.Child = IconText("clock", capacity is { } c0 ? $"{c0 / 60}ч работа" : "Часове", bold: true);
-            hours.ToolTip = Tip("Колко часа работа имаш в този ден – цъкни, за да ги смениш");
-            hours.Margin = new Thickness(8 * U, 0, 0, 0);
-            hours.VerticalAlignment = VerticalAlignment.Center;
-            DockPanel.SetDock(hours, Dock.Right);
-            info.Children.Add(hours);
-        }
-        info.Children.Add(new TextBlock
-        {
-            Text = all == 0 ? "Още няма задачи." : $"Свършени {done} от {all}",
-            Foreground = Muted,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-        });
-        p.Children.Add(info);
-        if (capacity is { } cap && planned > 0)
-        {
-            var bar = LoadBar(planned, doneMinutes, cap, compact: true);
-            ((FrameworkElement)bar).MaxWidth = 460 * U;
-            ((FrameworkElement)bar).HorizontalAlignment = HorizontalAlignment.Stretch;
-            p.Children.Add(bar);
-        }
-        else if (capacity == null && !asked && today >= Today)
-        {
-            // Веднъж за деня: колко часа имаш? (✕ – този ден без часове, не пита пак)
-            var ask = new WrapPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
-            ask.Children.Add(new TextBlock { Text = realToday ? "Колко часа работа имаш днес?" : "Колко часа работа ще имаш?", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8 * U, 4 * U) });
-            foreach (int h in new[] { 2, 4, 6, 8 })
+            info.Children.Add(Bit("  ·  "));
+            var until = new TextBlock { Text = $"до {Clock(e)} ▾", Foreground = Ink, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = Tip("До колко работиш – цъкни, за да го смениш") };
+            TaskCards.Clickable(until, () => PixelPopup.Show(until, "До колко ще работиш?", () => EndEntries(today)));
+            info.Children.Add(until);
+            // Колко време има до края (само днес и само сведение – без „не стига“).
+            if (realToday)
             {
-                int hh = h;
-                var chip = Small(h + "ч", () => SetDayHours(today, hh));
-                SetOn(chip, _pet.Save.PlannerHours == h);
+                int now = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
+                if (e > now) info.Children.Add(Bit($"  ·  остават {TaskCards.Duration(e - now)}"));
+            }
+        }
+        else if (asked || today < Today)
+        {
+            info.Children.Add(Bit("  ·  "));
+            var set = new TextBlock { Text = "до колко? ▾", Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = Tip("До колко работиш в този ден") };
+            TaskCards.Clickable(set, () => PixelPopup.Show(set, "До колко ще работиш?", () => EndEntries(today)));
+            info.Children.Add(set);
+        }
+        p.Children.Add(info);
+        if (!asked && today >= Today)
+        {
+            // В началото на деня: до колко ще работиш? (или „Не знам“ – тогава не казва нищо)
+            var ask = new WrapPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
+            ask.Children.Add(new TextBlock { Text = realToday ? "До колко ще работиш днес?" : "До колко ще работиш?", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8 * U, 4 * U) });
+            int last = _pet.Save.LastDayEnd is >= 12 * 60 and <= 23 * 60 ? _pet.Save.LastDayEnd : 18 * 60;
+            foreach (int m in new[] { last - 60, last, last + 60 }.Where(x => x >= 12 * 60 && x <= 23 * 60))
+            {
+                int mm = m;
+                var chip = Small(Clock(m), () => SetDayEnd(today, mm));
+                SetOn(chip, m == last);
                 ask.Children.Add(chip);
             }
             Border other = null!;
-            other = Small("Друго…", () => PixelPopup.Show(other, "Часове за работа", () => HourEntries(today)));
+            other = Small("Друго…", () => PixelPopup.Show(other, "До колко ще работиш?", () => EndEntries(today)));
             ask.Children.Add(other);
-            var no = SmallIcon("close", () => SetDayHours(today, 0));
-            no.ToolTip = Tip("Без часове за този ден (няма да пита пак)");
-            ask.Children.Add(no);
+            ask.Children.Add(Small("Не знам", () => SetDayEnd(today, -1)));
             p.Children.Add(ask);
         }
 
@@ -1616,8 +1585,8 @@ public sealed class WorkView : Border
                 Padding = new Thickness(6, 1, 6, 2),
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8 * U, 0, 0, 0),
-                Child = new TextBlock { Text = $"{openMinutes / 60}:{openMinutes % 60:00}", FontWeight = FontWeights.Bold, Foreground = capacity is { } cp && openMinutes > cp ? Bad : Ink },
-                ToolTip = Tip($"Остават ~{TaskCards.Duration(openMinutes)} работа" + (capacity is { } cp2 && openMinutes > cp2 ? $" – с {TaskCards.Duration(openMinutes - cp2)} повече от часовете" : "")),
+                Child = new TextBlock { Text = $"{openMinutes / 60}:{openMinutes % 60:00}", FontWeight = FontWeights.Bold, Foreground = Ink },
+                ToolTip = Tip($"Остават ~{TaskCards.Duration(openMinutes)} работа"),
             };
             DockPanel.SetDock(total, Dock.Right);
             addRow.Children.Add(total);
@@ -1872,7 +1841,7 @@ public sealed class WorkView : Border
         {
             int bucket = b.Bucket;
             var tasks = someday.Where(t => t.Bucket == bucket).ToList();
-            var head = new DockPanel { Background = PaperDark, Margin = new Thickness(0, 10 * U, 0, 4 * U) };
+            var head = new DockPanel();
             var add = Small("", () => NewTaskWindow.Show(_pet, null, near: Window.GetWindow(this), bucket: bucket));
             add.Child = Icon("plus");
             add.ToolTip = Tip("Нова задача тук");
@@ -1884,7 +1853,16 @@ public sealed class WorkView : Border
             title.Children.Add(new TextBlock { Text = b.Name, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
             if (tasks.Count > 0) title.Children.Add(new TextBlock { Text = "  " + tasks.Count, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center });
             head.Children.Add(title);
-            var section = new Border { CornerRadius = new CornerRadius(4), BorderBrush = WoodLight, BorderThickness = new Thickness(1), Child = head };
+            // Цялата лента е оцветена (и отстъпите), не само средата.
+            var section = new Border
+            {
+                Background = PaperDark,
+                CornerRadius = new CornerRadius(4),
+                BorderBrush = WoodLight,
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 10 * U, 0, 4 * U),
+                Child = head,
+            };
             p.Children.Add(section);
             var list = new StackPanel { Background = Brushes.Transparent, MinHeight = 18 * U, Margin = new Thickness(6 * U, 0, 0, 0) };
             foreach (var t in tasks) list.Children.Add(Card(t));
@@ -2224,7 +2202,8 @@ public sealed class WorkView : Border
         int Worked(DateTime d) => state.OnDay(d).Sum(t => t.Spent > 0 ? t.Spent : t.Done ? t.Minutes : 0);
         p.Children.Add(Label("Работа по дни"));
         int most = Math.Max(30, days.Max(Worked));
-        var bars = new UniformGrid { Rows = 1, Height = 120 * U };
+        // Без фиксирана височина: числото, стълбчето и денят винаги се събират (не се режат).
+        var bars = new UniformGrid { Rows = 1, Margin = new Thickness(0, 4 * U, 0, 6 * U) };
         foreach (var d in days)
         {
             int minutes = Worked(d);
@@ -2232,13 +2211,17 @@ public sealed class WorkView : Border
             var name = new TextBlock { Text = Capital(d.ToString("ddd", Bg)), HorizontalAlignment = HorizontalAlignment.Center, Foreground = d == today ? Ink : Muted, FontWeight = d == today ? FontWeights.Bold : FontWeights.Normal };
             DockPanel.SetDock(name, Dock.Bottom);
             col.Children.Add(name);
-            var hours = new TextBlock { Text = minutes == 0 ? "" : TaskCards.Duration(minutes), HorizontalAlignment = HorizontalAlignment.Center, Foreground = Muted };
-            DockPanel.SetDock(hours, Dock.Top);
-            col.Children.Add(hours);
+            // Числото е точно над стълбчето; всички стълбчета стъпват на една линия.
+            var hours = new TextBlock { Text = minutes == 0 ? "" : TaskCards.Duration(minutes), HorizontalAlignment = HorizontalAlignment.Center, Foreground = Muted, Margin = new Thickness(0, 0, 0, 2 * U) };
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
+            stack.Children.Add(hours);
+            var area = new Border { Height = 70 * U + 26 * U, Child = stack };
+            col.Children.Add(area);
             var bar = new Border
             {
                 Width = 16 * U,
-                Height = Math.Max(minutes > 0 ? 3 * U : 0, 80 * U * minutes / most),
+                Height = Math.Max(minutes > 0 ? 3 * U : 0, 70 * U * minutes / most),
+                Margin = new Thickness(0, 0, 0, 3 * U),
                 Background = Honey,
                 BorderBrush = Ink,
                 BorderThickness = new Thickness(minutes > 0 ? Math.Max(1, P / 2) : 0),
@@ -2246,7 +2229,7 @@ public sealed class WorkView : Border
                 HorizontalAlignment = HorizontalAlignment.Center,
                 ToolTip = Tip($"{Capital(d.ToString("dddd, d MMMM", Bg))}: {TaskCards.Duration(minutes)}"),
             };
-            col.Children.Add(bar);
+            stack.Children.Add(bar);
             bars.Children.Add(col);
         }
         p.Children.Add(bars);
@@ -2998,8 +2981,8 @@ public sealed class WorkView : Border
     /// <summary>В „Днес“ има ли покана/карта (invite:План за деня, due…).</summary>
     internal bool TodayHas(string tag) => _todayPanel.Children.OfType<FrameworkElement>().Any(e => e.Tag as string == tag);
     internal int DueCount => BacklogDue(_pet.TaskState, Today).Count;
-    internal void TestHours(DateTime day, int hours) => SetDayHours(day, hours);
-    internal bool TodayAsksHours => FindText(_todayPanel, "Колко часа работа");
+    internal void TestHours(DateTime day, int minutes) => SetDayEnd(day, minutes);
+    internal bool TodayAsksHours => FindText(_todayPanel, "До колко ще работиш");
     internal FrameworkElement TestAnchor => _todayPanel.Children.OfType<FrameworkElement>().FirstOrDefault() ?? _todayPanel;
     internal FrameworkElement? TodayPart(string tag) => _todayPanel.Children.OfType<FrameworkElement>().FirstOrDefault(e => e.Tag as string == tag);
 
