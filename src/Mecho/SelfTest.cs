@@ -1710,6 +1710,25 @@ public sealed partial class PetWindow
             PopupCheck("popup_priority", () => PixelPopup.Show(anchorEl, "Приоритет", TaskCards.PriorityEntries(this, fresh)));
             PopupCheck("popup_when", () => DayPicker.Show(anchorEl, today, today, _ => { }, pickBucket: _ => { }));
 
+            // Таблото за ден: утре → днес (едно табло, сменя деня); смалява се и се разгъва на същото място; второ цъкане – откача.
+            PinDay(today.AddDays(1));
+            if (!IsPinned(PinWindow.Tasks) || BoardDay != today.AddDays(1)) throw new Exception("таблото не закачи утре");
+            PinDay(today);
+            if (!IsPinned(PinWindow.Tasks) || BoardDay != today) throw new Exception("таблото не се смени на днес");
+            var board = _pins[PinWindow.Tasks];
+            board.UpdateLayout();
+            Shot(board, "board_day");
+            double bx = board.Left, by = board.Top;
+            board.ToggleCollapse();
+            board.UpdateLayout();
+            Shot(board, "board_icon");
+            board.ToggleCollapse();
+            board.UpdateLayout();
+            if (Math.Abs(board.Left - bx) > 4 || Math.Abs(board.Top - by) > 4) throw new Exception($"таблото се премести при смаляване: {bx:0},{by:0} → {board.Left:0},{board.Top:0}");
+            PinDay(today);
+            if (IsPinned(PinWindow.Tasks)) throw new Exception("второто цъкане не откачи таблото");
+            _save.PinTasksDay = "";
+
             foreach (var t in _save.Tasks.Where(x => x.Title is "Човешка задача" or "Задача от Backlog").ToList()) DeleteTask(t);
             _save.DayEnd.Clear();
             _save.PlannedDay = _save.PlanSeenDay = "";

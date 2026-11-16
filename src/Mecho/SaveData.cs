@@ -131,6 +131,7 @@ public sealed class SaveData
     public string OddCravingDay { get; set; } = "";
     public int OddCravingMeal { get; set; }                     // за кое хранене (Kitchen.Meal)
     public bool FavFoodSaid { get; set; }                       // каза ли днес какво му се яде
+    public string PinTasksDay { get; set; } = "";                 // кой ден е закачен в таблото с работата (yyyy-MM-dd; "" – днес)
     public PinState PinTasks { get; set; } = new();              // закаченото прозорче със задачите
     public PinState PinNotes { get; set; } = new();
     public PinState Planner { get; set; } = new();               // седмицата със задачите (къде е, колко е голяма)

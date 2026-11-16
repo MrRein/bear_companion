@@ -44,6 +44,13 @@ public sealed class PinWindow : Window
     private readonly TextBlock _iconCount = new() { FontWeight = FontWeights.Bold, Foreground = Ink };
     private readonly Border _iconBadge;
     private string _shown = "";
+    private TextBlock? _titleText;
+
+    private static readonly System.Globalization.CultureInfo Bg = new("bg-BG");
+
+    /// <summary>Денят на таблото с работата: „Днес“, „Утре“ или „сряда, 18 ное“.</summary>
+    private string DayName(DateTime d) =>
+        d == _pet.TaskToday ? "Днес" : d == _pet.TaskToday.AddDays(1) ? "Утре" : d == _pet.TaskToday.AddDays(-1) ? "Вчера" : d.ToString("dddd, d MMM", Bg);
     private bool _menuWasOpen;
 
     private static double U => Body / 18;
@@ -88,9 +95,11 @@ public sealed class PinWindow : Window
         Width = s.W > 0 ? s.W : 300 * U;
         Height = s.H > 0 ? s.H : DefaultHeight;
         var area = SystemParameters.WorkArea;
+        // Всички монитори заедно – запомненото място на втория монитор не скача на главния.
+        var all = new Rect(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop, SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
         // Първия път – в средата на екрана (после там, където Тут го е сложила).
-        Left = double.IsNaN(s.X) ? area.Left + (area.Width - Width) / 2 : Math.Clamp(s.X, area.Left - Width + 60, area.Right - 60);
-        Top = double.IsNaN(s.Y) ? area.Top + Math.Max(40, (area.Height - Height) / 2) : Math.Clamp(s.Y, area.Top, area.Bottom - 40);
+        Left = double.IsNaN(s.X) ? area.Left + (area.Width - Width) / 2 : Math.Clamp(s.X, all.Left - Width + 60, all.Right - 60);
+        Top = double.IsNaN(s.Y) ? area.Top + Math.Max(40, (area.Height - Height) / 2) : Math.Clamp(s.Y, all.Top, all.Bottom - 40);
 
         // Заглавие: иконка, име, брой; копчета: свий, прозрачно, затвори. Влачи се оттук.
         var header = new DockPanel { Margin = new Thickness(2, 0, 2, 5), Background = Brushes.Transparent, Cursor = Cursors.SizeAll };
@@ -115,6 +124,7 @@ public sealed class PinWindow : Window
             header.Children.Add(b);
         }
         var title = IconText(kind == Tasks ? "tasks" : "notes", Title, bold: true);
+        _titleText = title.Children.OfType<TextBlock>().LastOrDefault();
         title.VerticalAlignment = VerticalAlignment.Center;
         // На дървената рамка – бели букви.
         System.Windows.Documents.TextElement.SetForeground(title, Brushes.White);
@@ -146,10 +156,10 @@ public sealed class PinWindow : Window
                 if (e.Key != Key.Enter || string.IsNullOrWhiteSpace(quick.Text)) return;
                 string text = quick.Text;
                 quick.Clear();
-                _pet.AddTask(text, 1, quiet: true);
+                _pet.AddTask(text, 0, day: _pet.BoardDay, quiet: true);
                 e.Handled = true;
             };
-            bottom.Children.Add(MenuWindow.WithHint(quick, "Задача за днес…"));
+            bottom.Children.Add(MenuWindow.WithHint(quick, "Задача… (Enter)"));
             var week = Button("Работа", _pet.OpenPlanner, icon: "tasks");
             week.ToolTip = Tip("Днес, седмицата по дни, планът и прегледът – в голямото меню");
             var add = Button("Нова", () => _pet.OpenNew(kind), primary: true, icon: "plus");
@@ -194,10 +204,10 @@ public sealed class PinWindow : Window
             Child = root,
         }.Skinned("frame");
 
-        // Смалено: малка дървена иконка с картинката на таблото и колко има в него.
+        // Смалено: само картинката (бележката / работата) без фон, с колко има в нея.
         var picture = Icon(kind == Tasks ? "tasks" : "notes");
-        picture.Width *= 3;
-        picture.Height *= 3;
+        picture.Width *= 4;
+        picture.Height *= 4;
         _iconBadge = new Border
         {
             Background = Honey,
@@ -207,22 +217,19 @@ public sealed class PinWindow : Window
             Padding = new Thickness(4, 0, 4, 1),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(0, 0, -4, -4),
+            Margin = new Thickness(0, 0, -2, -2),
             Child = _iconCount,
             IsHitTestVisible = false,
         };
         var iconGrid = new Grid { Children = { picture, _iconBadge } };
         _iconView = new Border
         {
-            Background = WoodTexture,
-            BorderBrush = Ink,
-            BorderThickness = Flat,
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(7),
+            Background = Brushes.Transparent,   // само картинката (прозрачното още се хваща с мишката)
+            Padding = new Thickness(4),
             Child = iconGrid,
             Cursor = Cursors.Hand,
             ToolTip = Tip($"{Title} – цъкни, за да се разгъне; влачи, за да го преместиш"),
-        }.Skinned("frame");
+        };
         // Влачи се; ако не е мръднало – цъкване: разгъва се.
         _iconView.MouseLeftButtonDown += (_, e) =>
         {
@@ -329,7 +336,8 @@ public sealed class PinWindow : Window
         // SizeToContent): те не бива да се запомнят, иначе разгънатото излиза мъничко.
         var s = State;
         double width = s.W > 0 ? s.W : Width, height = s.H > 0 ? s.H : DefaultHeight;
-        var area = SystemParameters.WorkArea;
+        // Мониторът, на който е таблото (при два монитора не скача на главния).
+        var area = IsLoaded && FloatWindow.MonitorArea(this) is { } m ? m : SystemParameters.WorkArea;
         _applying = true;
         if (s.Collapsed)
         {
@@ -366,12 +374,13 @@ public sealed class PinWindow : Window
     private bool _applying;
 
     /// <summary>Строи списъка наново, само ако нещо се е сменило.</summary>
-    public void Refresh()
+    public void Refresh(bool force = false)
     {
         var s = _pet.Save;
+        if (force) _shown = "";
         if (TaskCards.Dragging) return;   // по време на влачене – не (картичката, която се влачи, ще изчезне)
         string sig = _kind == Tasks
-            ? string.Join("|", BoardTasks().Select(t => t.ToString())) + "#" + s.FocusTask + s.UiTheme
+            ? string.Join("|", BoardTasks().Select(t => t.ToString())) + "#" + s.FocusTask + s.UiTheme + "#" + _pet.BoardDay.ToString("yyyyMMdd") + _pet.TaskToday.ToString("yyyyMMdd")
             : string.Join("|", _pet.OrderedNotes(pinnedOnly: true).Select(n => n.Id + n.Title + "¦" + n.Text));
         if (sig == _shown) return;
         _shown = sig;
@@ -383,23 +392,23 @@ public sealed class PinWindow : Window
     /// <summary>Днешните в таблото: несвършените в реда им, после свършените днес.</summary>
     private System.Collections.Generic.List<TaskItem> BoardTasks()
     {
-        var today = _pet.TaskToday;
-        var open = _pet.OrderedTasks(boardOnly: true);
-        var done = _pet.Save.Tasks.Where(t => t.Done && t.Day == today && _pet.TaskOnBoard(t)).OrderBy(t => t.DoneAt);
-        return open.Concat(done).ToList();
+        var day = _pet.BoardDay;
+        var all = _pet.TaskState.OnDay(day).Where(_pet.TaskOnBoard).ToList();
+        return all.Where(t => !t.Done).Concat(all.Where(t => t.Done).OrderBy(t => t.DoneAt)).ToList();
     }
 
     private void BuildTasks()
     {
         // Само днешните задачи в таблото (📍 ги маха оттук, в менюто 📌 ги връща).
         var tasks = BoardTasks();
+        if (_titleText != null) _titleText.Text = "Работа · " + DayName(_pet.BoardDay);
         int done = tasks.Count(t => t.Done);
         _count.Text = tasks.Count > 0 ? $"· {done}/{tasks.Count}" : "";
         int left = tasks.Count - done;
         _iconCount.Text = left.ToString();
         _iconBadge.Visibility = left > 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (tasks.Count == 0) _list.Children.Add(MenuWindow.MutedText("Няма задачи за днес. Напиши една отдолу – или виж седмицата!"));
-        else if (left == 0) _list.Children.Add(MenuWindow.MutedText("Всичко за днес е свършено! 🍯"));
+        if (tasks.Count == 0) _list.Children.Add(MenuWindow.MutedText("Няма задачи за този ден."));
+        else if (left == 0) _list.Children.Add(MenuWindow.MutedText("Всичко е свършено! 🍯"));
         foreach (var task in tasks)
         {
             var t = task;
@@ -437,7 +446,7 @@ public sealed class PinWindow : Window
     {
         if (_pet.Save.Tasks.FirstOrDefault(t => t.Id == id) is not { } task) return;
         if (!_pet.TaskOnBoard(task)) _pet.SetTaskOnBoard(task, true);
-        _pet.MoveTask(task, _pet.TaskToday, before);
+        _pet.MoveTask(task, _pet.BoardDay, before);
     }
 
     private void BuildNotes()

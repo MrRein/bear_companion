@@ -1442,7 +1442,7 @@ public sealed class WorkView : Border
         int hour = DateTime.Now.Hour;
         bool realToday = today == Today;   // покани (план, край на деня…) – само за истинския днешен ден
         string sig = string.Join("|", tasks.Select(t => t.Signature + _pet.TaskOnBoard(t))) + $"#{today:yyyyMMdd}#{hour >= 17}#{hour < 15}"
-            + $"#{_pet.Save.PlannedDay}#{_pet.Save.ShutdownDay}#{_pet.Save.PlanSeenDay}#{_pet.Save.ShutdownSeenDay}#{EndFor(today)}#{EndAsked(today)}#{DateTime.Now:HH}{DateTime.Now.Minute / 10}#{Today:yyyyMMdd}#{_pet.Save.UiTheme}#{_selected}#{_sideMode}"
+            + $"#{_pet.Save.PlannedDay}#{_pet.Save.ShutdownDay}#{_pet.Save.PlanSeenDay}#{_pet.Save.ShutdownSeenDay}#{EndFor(today)}#{EndAsked(today)}#{_pet.IsPinned(PinWindow.Tasks)}{_pet.BoardDay:yyyyMMdd}#{DateTime.Now:HH}{DateTime.Now.Minute / 10}#{Today:yyyyMMdd}#{_pet.Save.UiTheme}#{_selected}#{_sideMode}"
             + string.Join(",", review.Goals.Select(g => g.Text + g.Done)) + review.Done + (_pet.InFocus ? _pet.FocusTask?.Id : null)
             + string.Join(",", WeekReviewFor(monday.AddDays(-7)).Done)
             + "#due:" + string.Join(",", BacklogDue(state, today).Select(t => t.Signature));
@@ -1592,6 +1592,15 @@ public sealed class WorkView : Border
             DockPanel.SetDock(total, Dock.Right);
             addRow.Children.Add(total);
         }
+        // „Табло“: закача задачите на този ден в отделното табло (едно е – друг ден го сменя).
+        bool pinned = _pet.IsPinned(PinWindow.Tasks) && _pet.BoardDay == today;
+        var board = SmallIcon(pinned ? "unpin" : "pin", () => { _pet.PinDay(today); Refresh(true); });
+        board.ToolTip = Tip(pinned ? "Откачи таблото" : "Закачи задачите на деня в табло");
+        SetOn(board, pinned);
+        board.Margin = new Thickness(8 * U, 0, 0, 0);
+        board.VerticalAlignment = VerticalAlignment.Center;
+        DockPanel.SetDock(board, Dock.Right);
+        addRow.Children.Add(board);
         if (tasks.Count(t => !t.Done) > 1)
         {
             var sort = SortChip(today);

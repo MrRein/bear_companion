@@ -140,7 +140,7 @@ internal abstract class FloatWindow : Window
     private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
 
     /// <summary>Работната площ на монитора, на който е прозорецът (в единиците на WPF).</summary>
-    private static Rect? MonitorArea(Window w)
+    internal static Rect? MonitorArea(Window w)
     {
         try
         {

@@ -34,6 +34,29 @@ public sealed partial class PetWindow
 
     public void SavePins() => Persist();
 
+    /// <summary>Денят в таблото с работата (закаченият; ако не е казан – днес).</summary>
+    public DateTime BoardDay =>
+        DateTime.TryParse(_save.PinTasksDay, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d) ? d.Date : TaskToday;
+
+    /// <summary>
+    /// „Табло“ в „Днес“: закача задачите на деня (таблото за работа е едно – друг ден го сменя);
+    /// цъкнеш ли пак за същия ден – откача го.
+    /// </summary>
+    public void PinDay(DateTime day)
+    {
+        bool same = IsPinned(PinWindow.Tasks) && BoardDay == day.Date;
+        if (same)
+        {
+            SetPinned(PinWindow.Tasks, false);
+            return;
+        }
+        _save.PinTasksDay = day.Date == TaskToday ? "" : day.ToString("yyyy-MM-dd");
+        if (IsPinned(PinWindow.Tasks)) _pins[PinWindow.Tasks].Refresh(force: true);
+        else SetPinned(PinWindow.Tasks, true);
+        SavePins();
+        NotifyCare();
+    }
+
     /// <summary>При пускане: закачените от миналия път пак се показват.</summary>
     private void RestorePins()
     {
