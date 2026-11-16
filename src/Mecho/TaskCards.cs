@@ -311,7 +311,6 @@ internal static class TaskCards
             if (pet != null) Clickable(tag, () => PixelPopup.Show(tag, "Етикет", TagEntries(pet, t)));
             row.Children.Add(tag);
         }
-        row.Children.Add(SizeDots(t.Size));
         // В графика на деня – в колко часа.
         if (t.Start is { } start && !t.Done)
             row.Children.Add(MetaItem("calendar", start.ToString("H:mm"), $"В графика: {start:H:mm}" + (t.Minutes > 0 ? $"–{start.AddMinutes(t.Minutes):H:mm}" : "")));
@@ -331,7 +330,7 @@ internal static class TaskCards
             row.Children.Add(MetaItem("history", t.Rolled.ToString(), t.Rolled == 1
                 ? "Пренесена от вчера."
                 : $"Пренасяна {t.Rolled} пъти от ден за ден. Може би е голяма – раздели я на стъпки или я сложи за „Някога“."));
-        return row;
+        return row.Children.Count == 0 ? null : row;
     }
 
     /// <summary>Картичката на задачата.</summary>
@@ -357,8 +356,16 @@ internal static class TaskCards
 
         bool live = pet.Save.Tasks.Any(x => x.Id == t.Id);   // в историята (минал ден) – само за гледане
         var check = CheckSquare(t.Done, on => pet.SetTaskDone(t, on), enabled: live);
-        Grid.SetColumn(check, 1);
-        grid.Children.Add(check);
+        // Под квадратчето – лешниците (колко носи задачата).
+        var left = new StackPanel { VerticalAlignment = VerticalAlignment.Top, Margin = check.Margin };
+        check.Margin = new Thickness(0, 1, 0, 0);
+        left.Children.Add(check);
+        var nuts = SizeDots(t.Size);
+        nuts.Margin = new Thickness(0, 4 * U, 0, 0);
+        nuts.HorizontalAlignment = HorizontalAlignment.Center;
+        left.Children.Add(nuts);
+        Grid.SetColumn(left, 1);
+        grid.Children.Add(left);
 
         var text = new StackPanel();
         text.Children.Add(new TextBlock
@@ -539,7 +546,7 @@ internal static class TaskCards
                 new("Днес", "sun", () => pet.MoveTask(Fresh(pet, t), today), On: Fresh(pet, t).Day == today),
                 new("Утре", null, () => pet.MoveTask(Fresh(pet, t), today.AddDays(1)), On: Fresh(pet, t).Day == today.AddDays(1)),
                 new("Следващата седмица", null, () => pet.MoveTask(Fresh(pet, t), WorkView.WeekOf(today).AddDays(7))),
-                new("Backlog", "history", null, Sub: () => Buckets.Select(b => new PixelPopup.Entry(b.Name, null,
+                new("Неразпределени", "backlog", null, Sub: () => Buckets.Select(b => new PixelPopup.Entry(b.Name, null,
                     () => pet.SetTaskBucket(Fresh(pet, t), b.Bucket), On: Fresh(pet, t).Day == null && Fresh(pet, t).Bucket == b.Bucket, Dot: b.Color, Letter: b.Letter))),
             }));
             list.Add(new("Приоритет", "flag", null, Sub: PriorityEntries(pet, t)));

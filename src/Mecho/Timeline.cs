@@ -26,7 +26,9 @@ internal sealed class DayTimeline : DockPanel
     private const int Snap = 15;
     private static readonly CultureInfo Bg = new("bg-BG");
     private static double U => Body / 18;
-    private double HourH => 46 * U;
+    /// <summary>Колко е висок един час: расте с прозореца (поне 46, иначе ~1/11 от видимото).</summary>
+    private double HourH => _hourH > 0 ? _hourH : 46 * U;
+    private double _hourH;
     private const double LabelW = 44;
 
     private readonly PetWindow _pet;
@@ -59,7 +61,7 @@ internal sealed class DayTimeline : DockPanel
         _open = open;
         _headers = headers;
         LastChildFill = true;
-        _head.Margin = new Thickness(LabelW * U, 0, 0, 4 * U);
+        _head.Margin = new Thickness(LabelW * U, 0, 0, 0);
         DockPanel.SetDock(_head, Dock.Top);
         if (headers) Children.Add(_head);
         _scroll = new ScrollViewer
@@ -68,6 +70,10 @@ internal sealed class DayTimeline : DockPanel
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             Background = Brushes.Transparent,
         };
+        // Черта над часовете: като се превърта, графикът се реже на нея, а не насред нещо.
+        var rule = new Border { Height = Math.Max(1, P / 2), Background = WoodDark, Margin = new Thickness(0, 4 * U, 0, 0) };
+        DockPanel.SetDock(rule, Dock.Top);
+        Children.Add(rule);
         Children.Add(_scroll);
         _tick.Tick += (_, _) => Refresh();
         IsVisibleChanged += (_, _) =>
@@ -77,6 +83,16 @@ internal sealed class DayTimeline : DockPanel
         };
         _pet.CareChanged += (_, _) => { if (IsVisible && _mode == Mode.None) Refresh(); };
         SizeChanged += (_, _) => LayoutBlocks();
+        _scroll.SizeChanged += (_, _) =>
+        {
+            double h = Math.Max(46 * U, Math.Min(90 * U, _scroll.ViewportHeight / 11));
+            if (Math.Abs(h - HourH) < 2 || _mode != Mode.None) return;
+            double hours = _scroll.VerticalOffset / HourH;
+            _hourH = h;
+            _shown = "";
+            Refresh(true);
+            Dispatcher.BeginInvoke(() => _scroll.ScrollToVerticalOffset(hours * HourH), DispatcherPriority.Loaded);
+        };
     }
 
     /// <summary>Кои дни се показват (един – „Днес“; седем – „Календар“).</summary>
@@ -239,13 +255,8 @@ internal sealed class DayTimeline : DockPanel
                 Canvas.SetTop(line, y - line.Height / 2);
                 Canvas.SetTop(dot, y - dot.Height / 2);
                 Canvas.SetLeft(dot, -dot.Width / 2);
-                // Надпис: колко е часът сега (червената черта).
-                var nowText = new TextBlock { Text = "сега " + now.ToString("H:mm"), Foreground = Bad, FontWeight = FontWeights.Bold, FontSize = Body * 0.8, IsHitTestVisible = false, Tag = "now" };
-                Canvas.SetTop(nowText, y - 15 * U);
-                Canvas.SetLeft(nowText, 6 * U);
                 canvas.Children.Add(line);
                 canvas.Children.Add(dot);
-                canvas.Children.Add(nowText);
                 canvas.SizeChanged += (_, _) => line.Width = canvas.ActualWidth;
             }
         }

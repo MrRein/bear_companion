@@ -297,7 +297,7 @@ public sealed class MenuWindow : Window
         new(PageFocus, "honey", "Фокус", PomodoroTab, true, Work: true),
         new(PageWeek, "board", "Седмица", WorkPage, true, Work: true),
         new(PageCalendar, "calendar", "Календар", WorkPage, true, Work: true),
-        new(PageBacklog, "backlog", "Backlog", WorkPage, true, Work: true),
+        new(PageBacklog, "backlog", "Неразпределени", WorkPage, true, Work: true),
         new(PageReview, "book", "Преглед", WorkPage, true, Work: true),
         new(PageShop, "shop", "Магазин", ShopTab, true),
         new(PageMore, "gear", "Още", MoreTab, true),
@@ -1518,7 +1518,17 @@ public sealed class MenuWindow : Window
             cells.Children.Add(link);
         }
         row.Children.Add(cells);
-        int gain = (int)Math.Round(after - now);
+        // Колко добавя – и с число (медените звена се губят до жълтото „средно“).
+        int gain = (int)Math.Round(Math.Min(100, after) - now);
+        if (gain > 0)
+            row.Children.Add(new TextBlock
+            {
+                Text = "+" + gain,
+                FontWeight = FontWeights.Bold,
+                Foreground = Ink,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(6 * U, 0, 0, 0),
+            });
         return row;
     }
 
