@@ -2454,6 +2454,8 @@ public sealed partial class PetWindow
             {
                 if (!CanDo(sc)) throw new Exception($"всичко е купено, а „{sc.Name}“ не може");
                 StartScene(sc, quiet: true);
+                // Една стъпка: ако мебелта вече е сложена, мечокът застава на нея (бързият режим не ходи).
+                if (_inScene && _scene == sc) FollowSceneAnchor(sc, 0);
                 if (!_inScene || _scene != sc) throw new Exception($"не седна: {sc.Name}");
                 var pose = Behaviour.PostureOf(_anim);
                 if (_seatProp != null && pose != Behaviour.Posture.Sit && !Behaviour.IsFloorSeat(sc.Seat))

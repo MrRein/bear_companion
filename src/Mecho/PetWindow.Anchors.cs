@@ -110,9 +110,11 @@ public sealed partial class PetWindow
         var (spot, faceLeft) = AnchorSpot(a, r);
         bool furniture = a.Seat || a.SideDir != 0;
         // Самопроверката не чака разходки: веднага е на мястото си.
-        if (furniture && InstantModes && !_anchorWalk)
+        if (furniture && InstantModes)
         {
-            if (Math.Abs(_x - spot) > 0.5 || _facingLeft != faceLeft)
+            bool walking = _anchorWalk;
+            _anchorWalk = false;
+            if (walking || Math.Abs(_x - spot) > 0.5 || _facingLeft != faceLeft)
             {
                 _x = spot;
                 _facingLeft = faceLeft;
