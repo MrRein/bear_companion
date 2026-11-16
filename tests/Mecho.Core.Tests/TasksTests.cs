@@ -177,6 +177,21 @@ public class TasksTests
     }
 
     [Fact]
+    public void Priority_follows_star_and_due_can_be_set_and_cleared()
+    {
+        var (e, _, _) = Started();
+        e.Bus.Send(new AddTask("a", 1, Priority: -1, Due: new DateTime(2026, 12, 1, 15, 0, 0)));
+        var id = Last(e).Id;
+        Assert.Equal((-1, false, new DateTime(2026, 12, 1)), (Last(e).Level, Last(e).Star, Last(e).Due!.Value));
+        e.Bus.Send(new MarkTask(id, Priority: 2));
+        Assert.Equal((2, true), (Last(e).Level, Last(e).Star));
+        e.Bus.Send(new MarkTask(id, Star: false));
+        Assert.Equal((0, false), (Last(e).Level, Last(e).Star));
+        e.Bus.Send(new MarkTask(id, Priority: 1, ClearDue: true));
+        Assert.Equal((1, (DateTime?)null), (Last(e).Level, Last(e).Due));
+    }
+
+    [Fact]
     public void Unfinished_tasks_roll_over_to_today()
     {
         var (e, clock, signals) = Started(new DateTime(2026, 11, 16, 23, 59, 0));

@@ -1450,7 +1450,7 @@ public sealed partial class PetWindow
             var p = Work!;
             var a = _save.Tasks.Single(x => x.Title == "Тест седмица А");
             p.TestSelect(a.Id);
-            if (p.SideShown != "Details") throw new Exception("подробностите не се отвориха: " + p.SideShown);
+            if (TaskCardWindow.For(a.Id) == null) throw new Exception("картата на задачата не се отвори");
             AddTaskStep(a, "Първа стъпка");
             AddTaskStep(a, "Втора стъпка с много дълго име, което трябва да се пренесе на следващия ред, без да се реже");
             var st = _save.Tasks.Single(x => x.Id == a.Id).StepList;
@@ -1464,6 +1464,23 @@ public sealed partial class PetWindow
             p.UpdateLayout();
             Shot(_menu!, "planner_2_details");
             LayoutReport(_menu!, "planner_2_details");
+            if (TaskCardWindow.For(a.Id) is { } card)
+            {
+                MarkTask(a2, priority: 1, due: TaskToday.AddDays(3));
+                card.UpdateLayout();
+                Shot(card, "task_card");
+                LayoutReport(card, "task_card");
+                card.Close();
+            }
+            NewTaskWindow.Show(this, TaskToday, near: _menu);
+            if (NewTaskWindow.Current is { } nw)
+            {
+                nw.UpdateLayout();
+                Shot(nw, "task_new");
+                LayoutReport(nw, "task_new");
+                nw.Close();
+            }
+            else throw new Exception("„Нова задача“ не се отвори");
             DuplicateTask(a2);
             if (_save.Tasks.Count(x => x.Title.StartsWith("Тест седмица А")) != 2) throw new Exception("няма копие");
         }, 600);

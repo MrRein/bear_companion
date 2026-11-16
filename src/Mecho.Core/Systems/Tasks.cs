@@ -33,9 +33,14 @@ namespace Mecho.Core;
 /// </summary>
 public sealed record TaskEntry(Guid Id, string Title, string Description, int Size, bool Done, DateTime? DoneAt, bool PageRolled,
     DateTime? Day = null, string Tag = "", bool Star = false, int Minutes = 0, int Rolled = 0,
-    ImmutableList<TaskStep>? Steps = null, string Repeat = "", Guid? Series = null, int Spent = 0, DateTime? Created = null)
+    ImmutableList<TaskStep>? Steps = null, string Repeat = "", Guid? Series = null, int Spent = 0, DateTime? Created = null,
+    int Priority = 0, DateTime? Due = null)
 {
     public int Reward => Size switch { 3 => 5, 2 => 3, _ => 1 };
+
+    /// <summary>Приоритетът: 2 – Важно (= Star), 1 – Средно, 0 – Нормално, -1 – Ниско.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Level => Star ? 2 : Math.Clamp(Priority, -1, 1);
 
     /// <summary>Стъпките (никога null).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -46,14 +51,14 @@ public sealed record TaskEntry(Guid Id, string Title, string Description, int Si
         o is not null && Id == o.Id && Title == o.Title && Description == o.Description && Size == o.Size && Done == o.Done
         && DoneAt == o.DoneAt && PageRolled == o.PageRolled && Day == o.Day && Tag == o.Tag && Star == o.Star && Minutes == o.Minutes
         && Rolled == o.Rolled && StepList.SequenceEqual(o.StepList) && Repeat == o.Repeat && Series == o.Series && Spent == o.Spent
-        && Created == o.Created;
+        && Created == o.Created && Priority == o.Priority && Due == o.Due;
 
     public override int GetHashCode() => HashCode.Combine(Id, Title, Done, Day, Tag, Star, StepList.Count, Spent);
 
     /// <summary>Кратък подпис на всичко видимо (за „сменило ли се е нещо“ в прозорците).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string Signature =>
-        $"{Id}|{Title}|{Description}|{Size}|{Done}|{Day:yyyyMMdd}|{Tag}|{Star}|{Minutes}|{Rolled}|{Repeat}|{Spent}|" +
+        $"{Id}|{Title}|{Description}|{Size}|{Done}|{Day:yyyyMMdd}|{Tag}|{Star}|{Minutes}|{Rolled}|{Repeat}|{Spent}|{Priority}|{Due:yyyyMMdd}|" +
         string.Join(",", StepList.Select(x => (x.Done ? "+" : "-") + x.Title));
 }
 
@@ -84,7 +89,7 @@ public sealed record TasksState(ImmutableList<TaskEntry> Open, ImmutableList<Tas
 // ── Команди ──
 /// <summary>Нова задача. Без Day – за днес; Someday – за „Някога“ (без ден).</summary>
 public sealed record AddTask(string Title, int Size, string? Description = null, DateTime? Day = null, bool Someday = false,
-    string? Tag = null, bool Star = false, int Minutes = 0, Guid? Before = null) : IGameCommand;
+    string? Tag = null, bool Star = false, int Minutes = 0, Guid? Before = null, int Priority = 0, DateTime? Due = null) : IGameCommand;
 /// <summary>Нова стъпка (подзадача) накрая.</summary>
 public sealed record AddTaskStep(Guid TaskId, string Title) : IGameCommand;
 public sealed record SetTaskStepDone(Guid TaskId, Guid StepId, bool Done) : IGameCommand;
@@ -100,8 +105,12 @@ public sealed record PutTask(TaskEntry Task, int Index) : IGameCommand;
 public sealed record MoveUnfinished(DateTime From, DateTime? To) : IGameCommand;
 /// <summary>Мести задачата в ден (null – „Някога“) – преди Before или накрая на деня.</summary>
 public sealed record MoveTask(Guid Id, DateTime? Day, Guid? Before = null) : IGameCommand;
-/// <summary>Маркира задачата: етикет, важна, време, големина (null – без промяна).</summary>
-public sealed record MarkTask(Guid Id, string? Tag = null, bool? Star = null, int? Minutes = null, int? Size = null) : IGameCommand;
+/// <summary>
+/// Маркира задачата: етикет, важна, време, големина, приоритет (2 Важно … -1 Ниско; сменя и
+/// Star), срок (ClearDue – без срок). null – без промяна.
+/// </summary>
+public sealed record MarkTask(Guid Id, string? Tag = null, bool? Star = null, int? Minutes = null, int? Size = null,
+    int? Priority = null, DateTime? Due = null, bool ClearDue = false) : IGameCommand;
 /// <summary>Несвършените от минали дни → за днес (става и само в полунощ и при пускане).</summary>
 public sealed record RollOverTasks : IGameCommand;
 public sealed record SetTaskDone(Guid Id, bool Done) : IGameCommand;
@@ -152,8 +161,8 @@ public sealed class TasksModule : GameModule
             DateTime? day = c.Someday ? null : (c.Day ?? Clock.Today()).Date;
             var id = Guid.NewGuid();
             var t = new TaskEntry(id, title, (c.Description ?? "").Trim(), Math.Clamp(c.Size, 1, 3), false, null, false,
-                day, CleanTag(c.Tag), c.Star, Math.Clamp(c.Minutes, 0, MaxMinutes),
-                Created: Clock.Now);
+                day, CleanTag(c.Tag), c.Star || c.Priority >= 2, Math.Clamp(c.Minutes, 0, MaxMinutes),
+                Created: Clock.Now, Priority: Math.Clamp(c.Priority, -1, 2), Due: c.Due?.Date);
             Store.Update<TasksState>(s =>
             {
                 int at = c.Before is { } b ? s.Open.FindIndex(x => x.Id == b) : -1;
@@ -240,7 +249,14 @@ public sealed class TasksModule : GameModule
                 Minutes = c.Minutes is { } m ? Math.Clamp(m, 0, MaxMinutes) : t.Minutes,
                 // Големината (а с нея и наградата) – само докато не е свършена.
                 Size = c.Size is { } z && !t.Done ? Math.Clamp(z, 1, 3) : t.Size,
+                Due = c.ClearDue ? null : c.Due?.Date ?? t.Due,
             };
+            if (c.Priority is { } p)
+            {
+                p = Math.Clamp(p, -1, 2);
+                marked = marked with { Priority = p, Star = p == 2 };
+            }
+            else if (c.Star is { } star) marked = marked with { Priority = star ? 2 : (t.Priority == 2 ? 0 : t.Priority) };
             if (marked != t) Store.Set(s with { Open = s.Open.Replace(t, marked) });
             return CommandResult.Done;
         });

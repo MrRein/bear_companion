@@ -1,0 +1,611 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
+using Mecho.Core;
+using static Mecho.Ui;
+
+namespace Mecho;
+
+/// <summary>
+/// Малко отделно прозорче (разкачено от менюто): дървена рамка, хартия, заглавие, ✕.
+/// Влачи се за горния ред (и за празното място); Esc го затваря; мястото се помни.
+/// </summary>
+internal abstract class FloatWindow : Window
+{
+    protected readonly PetWindow Pet;
+    protected readonly DockPanel Head = new() { Margin = new Thickness(0, 0, 0, 8), Background = Brushes.Transparent, Cursor = Cursors.SizeAll };
+    protected readonly ContentControl Body = new();
+    private readonly string _placeKey;
+    private static readonly Dictionary<string, Point> Places = new();
+    private static readonly List<FloatWindow> Open = new();
+
+    protected static double U => Ui.Body / 18;
+
+    /// <summary>Някое от прозорчетата е активно (менюто тогава не се скрива).</summary>
+    public static bool AnyActive => Open.Any(w => w.IsActive);
+
+    public static void CloseAll()
+    {
+        foreach (var w in Open.ToList()) w.Close();
+    }
+
+    protected FloatWindow(PetWindow pet, string placeKey, double width)
+    {
+        Pet = pet;
+        _placeKey = placeKey;
+        WindowStyle = WindowStyle.None;
+        AllowsTransparency = true;
+        Background = Brushes.Transparent;
+        ResizeMode = ResizeMode.NoResize;
+        ShowInTaskbar = false;
+        Topmost = true;
+        SizeToContent = SizeToContent.Height;
+        Width = width;
+        FontFamily = GameFont;
+        FontSize = Ui.Body;
+        Foreground = Ink;
+        UseLayoutRounding = true;
+        SnapsToDevicePixels = true;
+        TextOptions.SetTextRenderingMode(this, TextRenderingMode.Aliased);
+        TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
+        Resources.Add(typeof(ScrollBar), ScrollBarStyle());
+        WindowStartupLocation = WindowStartupLocation.Manual;
+
+        var close = Chip("", Close);
+        close.Child = Icon("close");
+        close.ToolTip = Tip("Затвори (Esc)");
+        close.Margin = new Thickness(8, 0, 0, 0);
+        close.VerticalAlignment = VerticalAlignment.Top;
+        DockPanel.SetDock(close, Dock.Right);
+        Head.Children.Add(close);
+        var root = new DockPanel();
+        DockPanel.SetDock(Head, Dock.Top);
+        root.Children.Add(Head);
+        root.Children.Add(Body);
+        Content = Ui.Frame(root, new Thickness(14 * U, 10 * U, 12 * U, 14 * U));
+        MouseLeftButtonDown += (_, e) =>
+        {
+            if (e.Handled || InTextBox(e.OriginalSource as DependencyObject)) return;
+            try { DragMove(); }
+            catch (InvalidOperationException) { }
+            Places[_placeKey] = new Point(Left, Top);
+        };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Escape || e.Handled) return;
+            Close();
+            e.Handled = true;
+        };
+        Deactivated += (_, _) => Dispatcher.BeginInvoke(() => Pet.FloatDeactivated(), DispatcherPriority.Input);
+        Closed += (_, _) => Open.Remove(this);
+        Open.Add(this);
+    }
+
+    private static bool InTextBox(DependencyObject? d)
+    {
+        for (; d != null; d = d is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
+            if (d is TextBox) return true;
+        return false;
+    }
+
+    /// <summary>Където е било последно; иначе – до менюто (или в средата на екрана).</summary>
+    protected void Place(Window? near)
+    {
+        var area = SystemParameters.WorkArea;
+        Loaded += (_, _) =>
+        {
+            double h = ActualHeight;
+            if (Places.TryGetValue(_placeKey, out var p))
+            {
+                Left = Math.Clamp(p.X, area.Left, area.Right - Width);
+                Top = Math.Clamp(p.Y, area.Top, Math.Max(area.Top, area.Bottom - h));
+            }
+            else if (near is { IsVisible: true })
+            {
+                Left = Math.Clamp(near.Left + (near.ActualWidth - Width) / 2, area.Left, area.Right - Width);
+                Top = Math.Clamp(near.Top + 90 * U, area.Top, Math.Max(area.Top, area.Bottom - h));
+            }
+            else
+            {
+                Left = area.Left + (area.Width - Width) / 2;
+                Top = area.Top + Math.Max(40, (area.Height - h) / 3);
+            }
+        };
+        Left = area.Left + (area.Width - Width) / 2;
+        Top = area.Top + area.Height / 4;
+    }
+
+    /// <summary>Копче-хапче в реда с избора (Ден, Време, Етикет…): иконка/цвят + текст.</summary>
+    protected static Border MetaChip(string? icon, string text, Action<Border> click, string tip, Color? dot = null, bool on = false)
+    {
+        Border chip = null!;
+        chip = Chip("", () => click(chip));
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        if (dot is { } c) row.Children.Add(TaskTags.ColorSquare(c));
+        else if (icon != null)
+        {
+            var i = Icon(icon);
+            i.Margin = new Thickness(0, 0, 6, 0);
+            i.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(i);
+        }
+        row.Children.Add(new TextBlock { Text = text, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 140 * U });
+        chip.Child = row;
+        chip.Padding = new Thickness(8, 3, 8, 4);
+        chip.Margin = new Thickness(0, 0, 6 * U, 6 * U);
+        chip.ToolTip = Tip(tip);
+        SetOn(chip, on);
+        return chip;
+    }
+
+    protected static TextBox BigInput(string text, double size)
+    {
+        var box = MenuWindow.NewTextInput();
+        box.Text = text;
+        box.FontSize = size;
+        box.Padding = new Thickness(8, 5, 8, 6);
+        return box;
+    }
+}
+
+/// <summary>Изборът на ден: Днес, Утре, следващата седмица, „Някога“ и календар.</summary>
+internal static class DayPicker
+{
+    private static readonly CultureInfo Bg = new("bg-BG");
+    private static double U => Body / 18;
+
+    public static string Name(DateTime? day, DateTime today) => day switch
+    {
+        null => "Някога",
+        { } d when d == today => "Днес",
+        { } d when d == today.AddDays(1) => "Утре",
+        { } d when d == today.AddDays(-1) => "Вчера",
+        { } d => d.ToString(d.Year == today.Year ? "ddd, d MMM" : "d MMM yyyy", Bg),
+    };
+
+    /// <summary>Изскача под копчето. pick получава деня (null – „Някога“).</summary>
+    public static void Show(FrameworkElement anchor, DateTime? current, DateTime today, Action<DateTime?> pick, bool allowSomeday = true, string title = "Кога?")
+    {
+        int toMonday = ((int)DayOfWeek.Monday - (int)today.DayOfWeek + 7) % 7;
+        DateTime nextMonday = today.AddDays(toMonday == 0 ? 7 : toMonday);
+        PixelPopup.Show(anchor, title, () =>
+        {
+            var list = new List<PixelPopup.Entry>
+            {
+                new("Днес", "sun", () => pick(today), On: current == today),
+                new("Утре", "arrow_right", () => pick(today.AddDays(1)), On: current == today.AddDays(1)),
+                new("Следващата седмица (" + nextMonday.ToString("d MMM", Bg) + ")", "tasks", () => pick(nextMonday), On: current == nextMonday),
+            };
+            if (allowSomeday) list.Add(new("Някога (без ден)", "history", () => pick(null), On: current == null));
+            list.Add(new("", null, null, Custom: close => Calendar(current, today, d => { close(); pick(d); })));
+            return list;
+        });
+    }
+
+    /// <summary>Месец с дни (от понеделник); днес – с медена рамка, избраният – меден.</summary>
+    public static FrameworkElement Calendar(DateTime? selected, DateTime today, Action<DateTime> pick)
+    {
+        var month = new DateTime((selected ?? today).Year, (selected ?? today).Month, 1);
+        var root = new StackPanel { Margin = new Thickness(4 * U, 6 * U, 4 * U, 2 * U) };
+        void Fill()
+        {
+            root.Children.Clear();
+            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 4 * U) };
+            var prev = Chip("◀", () => { month = month.AddMonths(-1); Fill(); });
+            var next = Chip("▶", () => { month = month.AddMonths(1); Fill(); });
+            prev.Padding = next.Padding = new Thickness(6, 1, 6, 2);
+            DockPanel.SetDock(prev, Dock.Left);
+            DockPanel.SetDock(next, Dock.Right);
+            head.Children.Add(prev);
+            head.Children.Add(next);
+            string name = month.ToString("MMMM yyyy", Bg);
+            head.Children.Add(new TextBlock { Text = char.ToUpper(name[0], Bg) + name[1..], FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+            root.Children.Add(head);
+            var grid = new UniformGrid { Columns = 7 };
+            foreach (var d in new[] { "П", "В", "С", "Ч", "П", "С", "Н" })
+                grid.Children.Add(new TextBlock { Text = d, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 2 * U) });
+            int shift = ((int)month.DayOfWeek + 6) % 7;
+            var first = month.AddDays(-shift);
+            for (int i = 0; i < 42; i++)
+            {
+                var day = first.AddDays(i);
+                if (i >= 35 && day.Month != month.Month) break;
+                bool inMonth = day.Month == month.Month, isSel = day == selected, isToday = day == today;
+                var cell = new Border
+                {
+                    Width = 26 * U,
+                    Height = 22 * U,
+                    Margin = new Thickness(1),
+                    CornerRadius = new CornerRadius(3),
+                    Background = isSel ? Honey : Brushes.Transparent,
+                    BorderBrush = isToday ? Ink : Brushes.Transparent,
+                    BorderThickness = Px(1),
+                    Child = new TextBlock
+                    {
+                        Text = day.Day.ToString(),
+                        FontWeight = isSel || isToday ? FontWeights.Bold : FontWeights.Normal,
+                        Foreground = inMonth ? (day < today ? Muted : Ink) : Muted,
+                        Opacity = inMonth ? 1 : 0.5,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                    },
+                };
+                cell.MouseEnter += (_, _) => { if (!isSel) cell.Background = Hover; };
+                cell.MouseLeave += (_, _) => cell.Background = isSel ? Honey : Brushes.Transparent;
+                TaskCards.Clickable(cell, () => pick(day));
+                grid.Children.Add(cell);
+            }
+            root.Children.Add(grid);
+        }
+        Fill();
+        return root;
+    }
+}
+
+/// <summary>
+/// „Нова задача“ – отделно прозорче (като в Sunsama): отгоре името, отдолу на един ред
+/// Ден (с календар), Време, Етикет, Приоритет и Сложност; Enter или „Добави“.
+/// </summary>
+internal sealed class NewTaskWindow : FloatWindow
+{
+    private static NewTaskWindow? _current;
+    private readonly TextBox _title;
+    private readonly WrapPanel _meta = new();
+    private DateTime? _day;
+    private int _minutes, _size = 1, _priority;
+    private string _tag;
+
+    public static NewTaskWindow? Current => _current;
+
+    public static void Show(PetWindow pet, DateTime? day, string? tag = null, bool star = false, Window? near = null)
+    {
+        if (_current != null)
+        {
+            _current._day = day;
+            _current.FillMeta();
+            _current.Activate();
+            _current._title.Focus();
+            return;
+        }
+        _current = new NewTaskWindow(pet, day, tag ?? "", star ? 2 : 0);
+        _current.Place(near);
+        _current.Show();
+        _current.Activate();
+    }
+
+    private NewTaskWindow(PetWindow pet, DateTime? day, string tag, int priority) : base(pet, "newtask", 640 * U)
+    {
+        _day = day;
+        _tag = TaskTags.Find(tag) != null ? tag : "";
+        _priority = priority;
+        Title = "Нова задача";
+        Head.Children.Add(new TextBlock { Text = "Нова задача", FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center });
+
+        var p = new StackPanel();
+        _title = BigInput("", Ui.Title);
+        _title.MaxLength = TasksModule.MaxTitle;
+        p.Children.Add(MenuWindow.WithHint(_title, "Какво ще правиш?"));
+        _meta.Margin = new Thickness(0, 10 * U, 0, 0);
+        var row = new DockPanel();
+        var add = Ui.Button("Добави", Add, primary: true, icon: "plus");
+        add.Margin = new Thickness(6 * U, 10 * U, 0, 6 * U);
+        add.VerticalAlignment = VerticalAlignment.Top;
+        add.ToolTip = Tip("Добави (Enter)");
+        DockPanel.SetDock(add, Dock.Right);
+        row.Children.Add(add);
+        row.Children.Add(_meta);
+        p.Children.Add(row);
+        Body.Content = p;
+        FillMeta();
+
+        _title.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Enter) return;
+            Add();
+            e.Handled = true;
+        };
+        Loaded += (_, _) => Dispatcher.BeginInvoke(() => { _title.Focus(); Keyboard.Focus(_title); }, DispatcherPriority.Input);
+        Closed += (_, _) => _current = null;
+    }
+
+    private void FillMeta()
+    {
+        var today = Pet.TaskToday;
+        _meta.Children.Clear();
+        _meta.Children.Add(MetaChip("clock", DayPicker.Name(_day, today), chip =>
+            DayPicker.Show(chip, _day, today, d => { _day = d; FillMeta(); }), "Кой ден", on: true));
+        _meta.Children.Add(MetaChip("hourglass", _minutes > 0 ? TaskCards.Duration(_minutes) : "Време", chip =>
+            PixelPopup.Show(chip, "Колко време?", () => TaskCards.Estimates
+                .Select(m => new PixelPopup.Entry(TaskCards.Duration(m), null, () => { _minutes = m; FillMeta(); }, On: _minutes == m))
+                .Append(new PixelPopup.Entry("Не знам", null, () => { _minutes = 0; FillMeta(); }, On: _minutes == 0))),
+            "Колко време ще отнеме", on: _minutes > 0));
+        var tag = TaskTags.Find(_tag);
+        _meta.Children.Add(MetaChip("pin", tag?.Name ?? "Етикет", chip =>
+            PixelPopup.Show(chip, "Етикет", () => TaskTags.All
+                .Select(t => new PixelPopup.Entry(t.Name, null, () => { _tag = t.Key; FillMeta(); }, On: _tag == t.Key, Swatch: t.Key))
+                .Append(new PixelPopup.Entry("Без етикет", null, () => { _tag = ""; FillMeta(); }, On: _tag.Length == 0))
+                .Append(new PixelPopup.Entry("Нов етикет", "plus", null, Sub: () => new[]
+                {
+                    new PixelPopup.Entry("", null, null, Custom: close => TagEditor.NewTag(Pet, key => { close(); _tag = key; FillMeta(); })),
+                }))),
+            "Етикет", tag?.Color, on: tag != null));
+        var pr = TaskCards.PriorityOf(_priority);
+        _meta.Children.Add(MetaChip(null, pr.Name, chip =>
+            PixelPopup.Show(chip, "Приоритет", () => TaskCards.Priorities
+                .Select(x => new PixelPopup.Entry(x.Name, null, () => { _priority = x.Level; FillMeta(); }, On: _priority == x.Level, Dot: x.Color))),
+            "Приоритет", pr.Color, on: _priority != 0));
+        _meta.Children.Add(MetaChip(TaskCards.SizeIcon(_size), TaskCards.SizeNames[_size - 1], chip =>
+            PixelPopup.Show(chip, "Сложност", () => Enumerable.Range(1, 3)
+                .Select(n => new PixelPopup.Entry($"{TaskCards.SizeNames[n - 1]} (+{(n switch { 3 => 5, 2 => 3, _ => 1 })} лешника)", TaskCards.SizeIcon(n),
+                    () => { _size = n; FillMeta(); }, On: _size == n))),
+            "Сложност – колко лешника носи", on: _size > 1));
+    }
+
+    private void Add()
+    {
+        string text = _title.Text.Trim();
+        if (text.Length == 0)
+        {
+            _title.BorderBrush = Bad;
+            _title.Focus();
+            return;
+        }
+        var first = Pet.TaskState.Open.FirstOrDefault(t => t.Day == _day && !t.Done);
+        Pet.AddTask(text, _size, null, _day, someday: _day == null, tag: _tag.Length > 0 ? _tag : null, star: _priority == 2,
+            minutes: _minutes, quiet: true, before: first?.Id, priority: _priority);
+        Close();
+    }
+}
+
+/// <summary>
+/// Картата на задача – отделно прозорче (като в Sunsama): горе етикет, приоритет, ден, срок,
+/// ··· ; после отметката и името, работено/планирано; бележки; подзадачи.
+/// </summary>
+internal sealed class TaskCardWindow : FloatWindow
+{
+    private static readonly Dictionary<Guid, TaskCardWindow> Windows = new();
+    private static readonly CultureInfo Bg = new("bg-BG");
+    private readonly Guid _id;
+    private readonly WrapPanel _meta = new();
+    private readonly StackPanel _top = new();
+    private readonly TextBox _title, _notes;
+    private readonly StackPanel _steps = new();
+    private readonly TextBox _newStep;
+    private string _shown = "";
+
+    public static TaskCardWindow? For(Guid id) => Windows.TryGetValue(id, out var w) ? w : null;
+
+    public static void Show(PetWindow pet, TaskItem task, Window? near = null)
+    {
+        if (Windows.TryGetValue(task.Id, out var open))
+        {
+            open.Activate();
+            return;
+        }
+        var w = new TaskCardWindow(pet, task);
+        w.Place(near);
+        w.Show();
+        w.Activate();
+    }
+
+    private TaskItem? Task => Pet.Save.Tasks.FirstOrDefault(t => t.Id == _id);
+
+    private TaskCardWindow(PetWindow pet, TaskItem task) : base(pet, "taskcard", 560 * U)
+    {
+        _id = task.Id;
+        Windows[_id] = this;
+        Title = task.Title;
+        _meta.VerticalAlignment = VerticalAlignment.Center;
+        Head.Children.Add(_meta);
+
+        var p = new StackPanel();
+        // Отметка, име и вдясно – работено / планирано.
+        var titleRow = new DockPanel();
+        _top.Orientation = Orientation.Horizontal;
+        _top.VerticalAlignment = VerticalAlignment.Top;
+        _top.Margin = new Thickness(10 * U, 0, 0, 0);
+        DockPanel.SetDock(_top, Dock.Right);
+        titleRow.Children.Add(_top);
+        var checkHost = new ContentControl { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 6 * U, 0, 0), Tag = "check" };
+        DockPanel.SetDock(checkHost, Dock.Left);
+        titleRow.Children.Add(checkHost);
+        _title = BigInput(task.Title, Ui.Title);
+        _title.MaxLength = TasksModule.MaxTitle;
+        _title.TextWrapping = TextWrapping.Wrap;
+        _title.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Enter) return;
+            SaveText();
+            Keyboard.ClearFocus();
+            e.Handled = true;
+        };
+        _title.LostKeyboardFocus += (_, _) => SaveText();
+        titleRow.Children.Add(_title);
+        p.Children.Add(titleRow);
+
+        // Бележки.
+        _notes = MenuWindow.NewTextInput();
+        _notes.Text = task.Description;
+        _notes.AcceptsReturn = true;
+        _notes.TextWrapping = TextWrapping.Wrap;
+        _notes.MinHeight = 80 * U;
+        _notes.MaxHeight = 220 * U;
+        _notes.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        _notes.Margin = new Thickness(0);
+        _notes.LostKeyboardFocus += (_, _) => SaveText();
+        p.Children.Add(Caption("Бележки"));
+        p.Children.Add(MenuWindow.WithHint(_notes, "Бележки…"));
+
+        // Подзадачи.
+        p.Children.Add(Caption("Подзадачи"));
+        p.Children.Add(_steps);
+        _newStep = MenuWindow.NewTextInput();
+        _newStep.MaxLength = TasksModule.MaxTitle;
+        _newStep.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Enter || string.IsNullOrWhiteSpace(_newStep.Text) || Task is not { } t) return;
+            Pet.AddTaskStep(t, _newStep.Text.Trim());
+            _newStep.Clear();
+            e.Handled = true;
+        };
+        var addStep = MenuWindow.WithHint(_newStep, "+ Подзадача (Enter)");
+        ((FrameworkElement)addStep).Margin = new Thickness(0, 2 * U, 0, 0);
+        p.Children.Add(addStep);
+        Body.Content = p;
+
+        Rebuild(task, checkHost);
+        Pet.CareChanged += OnChanged;
+        Closed += (_, _) =>
+        {
+            SaveText();
+            Pet.CareChanged -= OnChanged;
+            Windows.Remove(_id);
+        };
+        void OnChanged(object? s, EventArgs e)
+        {
+            if (Task is not { } t)
+            {
+                Close();
+                return;
+            }
+            Rebuild(t, checkHost);
+        }
+    }
+
+    private static TextBlock Caption(string text) => new()
+    {
+        Text = text,
+        Foreground = Muted,
+        FontWeight = FontWeights.Bold,
+        Margin = new Thickness(0, 12 * U, 0, 4 * U),
+    };
+
+    private void SaveText()
+    {
+        if (Task is not { } t || t.Done) return;
+        string title = _title.Text.Trim(), notes = _notes.Text.Trim();
+        if (title.Length == 0) { _title.Text = t.Title; return; }
+        if (title == t.Title && notes == t.Description) return;
+        Pet.EditTask(t, title, t.Size, notes);
+    }
+
+    private void Rebuild(TaskItem t, ContentControl checkHost)
+    {
+        string sig = t.Signature + TaskTags.Version + Pet.TaskToday.ToString("yyyyMMdd");
+        if (sig == _shown) return;
+        _shown = sig;
+        Title = t.Title;
+        var today = Pet.TaskToday;
+
+        // Горният ред: етикет, приоритет, ден, срок, ···.
+        _meta.Children.Clear();
+        var tag = TaskTags.Find(t.Tag);
+        _meta.Children.Add(MetaChip("pin", tag?.Name ?? "Етикет", chip => PixelPopup.Show(chip, "Етикет", TaskCards.TagEntries(Pet, t)), "Етикет", tag?.Color, tag != null));
+        var pr = TaskCards.PriorityOf(t.Level);
+        _meta.Children.Add(MetaChip(null, pr.Name, chip => PixelPopup.Show(chip, "Приоритет", () => TaskCards.Priorities
+            .Select(x => new PixelPopup.Entry(x.Name, null, () => Pet.MarkTask(t, priority: x.Level), On: t.Level == x.Level, Dot: x.Color))), "Приоритет", pr.Color, t.Level != 0));
+        _meta.Children.Add(MetaChip("clock", DayPicker.Name(t.Day, today), chip =>
+            DayPicker.Show(chip, t.Day, today, d => Pet.MoveTask(t, d)), "Кой ден"));
+        string due = t.Due is { } dd ? "Срок: " + DayPicker.Name(dd, today) : "Срок";
+        _meta.Children.Add(MetaChip("bell", due, chip =>
+        {
+            if (t.Due != null)
+                PixelPopup.Show(chip, "Срок", () => new[]
+                {
+                    new PixelPopup.Entry("Друг ден…", "clock", null, Sub: () => new[]
+                    {
+                        new PixelPopup.Entry("", null, null, Custom: close => DayPicker.Calendar(t.Due, today, d => { close(); Pet.MarkTask(t, due: d); })),
+                    }),
+                    new PixelPopup.Entry("Без срок", "close", () => Pet.MarkTask(t, clearDue: true)),
+                });
+            else DayPicker.Show(chip, null, today, d => { if (d is { } x) Pet.MarkTask(t, due: x); }, allowSomeday: false, title: "Срок до");
+        }, t.Due is { } d0 ? $"Срок: {d0.ToString("dddd, d MMMM", Bg)}" + (d0 < today && !t.Done ? " – мина!" : "") : "Добави срок", on: t.Due != null));
+        Border more = null!;
+        more = Chip("···", () => PixelPopup.Show(more, null, TaskCards.TaskEntries(Pet, t, null)));
+        more.Margin = new Thickness(0, 0, 0, 6 * U);
+        more.ToolTip = Tip("Още: копие, табло, изтрий…");
+        _meta.Children.Add(more);
+
+        // Отметката.
+        checkHost.Content = TaskCards.CheckSquare(t.Done, on => Pet.SetTaskDone(t, on));
+        if (!_title.IsKeyboardFocused && _title.Text != t.Title) _title.Text = t.Title;
+        if (!_notes.IsKeyboardFocused && _notes.Text != t.Description) _notes.Text = t.Description;
+        _title.IsReadOnly = _notes.IsReadOnly = t.Done;
+        _title.TextDecorations = t.Done ? TextDecorations.Strikethrough : null;
+
+        // Работено / планирано.
+        _top.Children.Clear();
+        _top.Children.Add(Stat("РАБОТЕНО", t.Spent > 0 ? TaskCards.Duration(t.Spent) : "0м", null));
+        _top.Children.Add(Stat("ПЛАНИРАНО", t.Minutes > 0 ? TaskCards.Duration(t.Minutes) : "—", chip =>
+            PixelPopup.Show(chip, "Колко време?", TaskCards.TimeEntries(Pet, t))));
+
+        // Подзадачите.
+        _steps.Children.Clear();
+        foreach (var step in t.StepList)
+        {
+            var st = step;
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 4 * U) };
+            var check = TaskCards.CheckSquare(st.Done, on => Pet.SetTaskStepDone(t, st.Id, on));
+            DockPanel.SetDock(check, Dock.Left);
+            row.Children.Add(check);
+            var del = new TextBlock { Text = "✕", Foreground = Muted, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 2, 0), ToolTip = Tip("Махни подзадачата") };
+            TaskCards.Clickable(del, () => Pet.DeleteTaskStep(t, st.Id));
+            DockPanel.SetDock(del, Dock.Right);
+            row.Children.Add(del);
+            var name = new TextBox
+            {
+                Text = st.Title,
+                BorderThickness = new Thickness(0),
+                Background = Brushes.Transparent,
+                TextWrapping = TextWrapping.Wrap,
+                FontFamily = GameFont,
+                FontSize = Ui.Body,
+                Foreground = st.Done ? Muted : Ink,
+                TextDecorations = st.Done ? TextDecorations.Strikethrough : null,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            void Rename()
+            {
+                string v = name.Text.Trim();
+                if (v.Length > 0 && v != st.Title) Pet.RenameTaskStep(t, st.Id, v);
+            }
+            name.LostKeyboardFocus += (_, _) => Rename();
+            name.KeyDown += (_, e) =>
+            {
+                if (e.Key != Key.Enter) return;
+                Rename();
+                Keyboard.ClearFocus();
+                e.Handled = true;
+            };
+            row.Children.Add(name);
+            _steps.Children.Add(row);
+        }
+    }
+
+    private static FrameworkElement Stat(string label, string value, Action<Border>? click)
+    {
+        var box = new StackPanel { Margin = new Thickness(10 * U, 0, 0, 0) };
+        box.Children.Add(new TextBlock { Text = label, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Right });
+        var v = new TextBlock { Text = value, FontWeight = FontWeights.Bold, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Right };
+        if (click == null)
+        {
+            box.Children.Add(v);
+            return box;
+        }
+        Border chip = null!;
+        chip = Chip("", () => click(chip));
+        chip.Child = v;
+        chip.Padding = new Thickness(6, 0, 6, 2);
+        chip.HorizontalAlignment = HorizontalAlignment.Right;
+        chip.ToolTip = Tip("Колко време ще отнеме");
+        box.Children.Add(chip);
+        return box;
+    }
+}

@@ -37,6 +37,12 @@ public sealed partial class PetWindow
         if (PlannerIsOpen) _menu!.Hide();
     }
 
+    /// <summary>Отделно прозорче за задача изгуби фокуса: ако не е към менюто или друго прозорче – менюто се скрива.</summary>
+    internal void FloatDeactivated()
+    {
+        if (_menu is { IsVisible: true } m && !m.IsActive && !FloatWindow.AnyActive) m.Hide();
+    }
+
     /// <summary>Самопроверката: „Работа“ (в менюто).</summary>
     internal WorkView? Work => _menu?.Work;
 
@@ -55,10 +61,11 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Маркира: етикет ("" – без), важна, време (0 – не е казано), големина.</summary>
-    public void MarkTask(TaskItem task, string? tag = null, bool? star = null, int? minutes = null, int? size = null)
+    public void MarkTask(TaskItem task, string? tag = null, bool? star = null, int? minutes = null, int? size = null,
+        int? priority = null, DateTime? due = null, bool clearDue = false)
     {
-        if (!CoreEngine.Bus.Send(new MarkTask(task.Id, tag, star, minutes, size)).Ok) return;
-        if (star == true) Emote("sparkle", 1);
+        if (!CoreEngine.Bus.Send(new MarkTask(task.Id, tag, star, minutes, size, priority, due, clearDue)).Ok) return;
+        if (star == true || priority == 2) Emote("sparkle", 1);
         NotifyCare();
         Persist();
     }
@@ -277,8 +284,7 @@ public sealed partial class PetWindow
     /// <summary>„Редактирай…“ от таблото: „Работа“, с подробностите на задачата.</summary>
     public void EditTaskInMenu(TaskItem task)
     {
-        OpenMenuPage(task.Day == TaskToday ? MenuWindow.PageToday : MenuWindow.PageWeek);
-        _menu!.Work.SelectTask(task.Id);
+        TaskCardWindow.Show(this, task);
     }
 
     /// <summary>Колко задачи са за днес и колко са свършени, и колко време са (за обобщенията).</summary>

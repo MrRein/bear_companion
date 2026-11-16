@@ -214,7 +214,11 @@ public sealed class MenuWindow : Window
         _refresh.Tick += (_, _) => Refresh(rebuild: false);
 
         // Малкото меню (Мечо, Храна…) се скрива, щом цъкнеш другаде; „Работа“ стои като прозорец.
-        Deactivated += (_, _) => Hide();
+        // Цъкнато другаде – менюто се скрива; но не и когато е към отделните прозорчета за задачи.
+        Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            if (!IsActive && !FloatWindow.AnyActive) Hide();
+        }, System.Windows.Threading.DispatcherPriority.Input);
         IsVisibleChanged += (_, _) =>
         {
             if (IsVisible) _refresh.Start();
@@ -310,7 +314,8 @@ public sealed class MenuWindow : Window
         var page = Pages.FirstOrDefault(p => p.Id == id) ?? Pages[0];
         if (page.Tab == WardrobeTab && !DailyOffer.HasWardrobe(_pet.Save)) page = Pages[0];
         _page = page.Id;
-        _pet.Save.MenuPage = page.Id;
+        // „План за деня“ и „Край на деня“ не се помнят – иначе всяко отваряне на менюто пак ги вади.
+        _pet.Save.MenuPage = page.Id is PagePlan or PageShutdown ? PageToday : page.Id;
         if (page.Work) _workNavOpen = true;
         SelectTab(page.Tab);
         switch (page.Id)
@@ -521,6 +526,23 @@ public sealed class MenuWindow : Window
                 list.Children.Add(_workChildren);
             }
         }
+        // Под „Още“ – „Затвори“ (менюто се затваря и с Esc и като цъкнеш другаде).
+        var closeRow = new DockPanel();
+        var closeIcon = Icon("close", 2);
+        closeIcon.VerticalAlignment = VerticalAlignment.Center;
+        DockPanel.SetDock(closeIcon, Dock.Left);
+        closeRow.Children.Add(closeIcon);
+        var closeName = new TextBlock { Text = "Затвори", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8 * U, 0, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
+        closeRow.Children.Add(closeName);
+        var close = Chip("", Hide);
+        close.Child = closeRow;
+        close.Padding = new Thickness(8 * U, 5 * U, 10 * U, 6 * U);
+        close.Margin = new Thickness(0, 10 * U, 0, 5 * U);
+        close.HorizontalAlignment = HorizontalAlignment.Stretch;
+        close.ToolTip = Tip("Затвори менюто (Esc)");
+        ToolTipService.SetIsEnabled(close, false);
+        _navItems["close"] = (close, closeName);
+        list.Children.Add(close);
         var scroll = new ScrollViewer
         {
             Content = list,
@@ -751,7 +773,8 @@ public sealed class MenuWindow : Window
             Child = top,
             Margin = new Thickness(0, 0, 0, 10 * U),
             Padding = new Thickness(0, 0, 0, 10 * U),
-            BorderBrush = UiSkin.Line("dash") ?? WoodLight,
+            // Плътна черта: тук се отрязва страницата, когато се превърта.
+            BorderBrush = WoodDark,
             BorderThickness = new Thickness(0, 0, 0, P),
         };
     }
@@ -1017,13 +1040,15 @@ public sealed class MenuWindow : Window
         _wardrobeTile.Button.Visibility = wardrobe ? Visibility.Visible : Visibility.Collapsed;
         Grid.SetColumnSpan(_foodTile.Button, wardrobe ? 1 : 2);
         int worn = Clothes.Shelves.Count(slot => Clothes.Worn(s, slot) != null);
-        SetTile(_wardrobeTile, "Гардероб", "wardrobe", worn == 0 ? "Облечи го" : "Облечени: " + worn);
-        TileState(_wardrobeTile, false);
+        bool cold = _pet.NeedsWarmerClothes;
+        SetTile(_wardrobeTile, "Гардероб", "wardrobe", cold ? "Студено му е!" : worn == 0 ? "Облечи го" : "Облечени: " + worn);
+        TileState(_wardrobeTile, false, cold && !_pet.OnWalk);
 
         if (_pet.IsAsleep) SetTile(_sleepTile, "Събуди", "sun");
         else SetTile(_sleepTile, "Приспи", "moon");
         _sleepTile.Button.IsEnabled = _pet.CanSleep || _pet.IsAsleep;
-        TileState(_sleepTile, _sleepOpen, !_pet.IsAsleep && s.Energy < PetWindow.TiredBelow && _pet.CanSleep);
+        bool tired = !_pet.IsAsleep && s.Energy < PetWindow.TiredBelow && _pet.CanSleep;
+        TileState(_sleepTile, _sleepOpen, tired);
 
         SetTile(_walkTile, _pet.OnWalk ? "Повикай" : "Разходка", "walk");
         TileState(_walkTile, _walkOpen || _pet.OnWalk);

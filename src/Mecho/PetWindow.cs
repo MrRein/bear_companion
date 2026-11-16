@@ -1272,8 +1272,8 @@ public sealed partial class PetWindow : Window
     {
         if (kind == PinWindow.Tasks)
         {
-            OpenMenuPage(MenuWindow.PageToday);
-            _menu!.Work.FocusNewTask();
+            // Отделното прозорче „Нова задача“ (за днес) – без да се отваря менюто.
+            NewTaskWindow.Show(this, TaskToday);
         }
         else
         {

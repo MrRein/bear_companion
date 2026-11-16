@@ -177,6 +177,21 @@ internal static class TaskCards
 
     public static readonly string[] SizeNames = { "малка", "средна", "голяма" };
 
+    /// <summary>Сложността като лешници: един, два, купчинка.</summary>
+    public static string SizeIcon(int size) => size switch { 3 => "nut3", 2 => "nut2", _ => "nut" };
+
+    /// <summary>Приоритетите: 2 Важно, 1 Средно, 0 Нормално, -1 Ниско.</summary>
+    public static readonly (int Level, string Name, Color Color)[] Priorities =
+    {
+        (2, "Важно", Color.FromRgb(220, 90, 80)),
+        (1, "Средно", Color.FromRgb(230, 160, 56)),
+        (0, "Нормално", Color.FromRgb(120, 160, 110)),
+        (-1, "Ниско", Color.FromRgb(150, 150, 160)),
+    };
+
+    public static (int Level, string Name, Color Color) PriorityOf(int level) =>
+        Priorities.FirstOrDefault(p => p.Level == level, Priorities[2]);
+
     private static double U => Body / 18;
 
     /// <summary>Пикселно квадратче за отметка: празно или медено с отметка.</summary>
@@ -215,20 +230,12 @@ internal static class TaskCards
     /// <summary>Големината – три пикселни квадратчета (пълните са колкото е голяма).</summary>
     public static FrameworkElement SizeDots(int size)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8 * U, 0) };
-        for (int i = 1; i <= 3; i++)
-            row.Children.Add(new Border
-            {
-                Width = 2 * P,
-                Height = 2 * P,
-                Margin = new Thickness(0, 0, P / 2, 0),
-                Background = i <= size ? Ink : Brushes.Transparent,
-                BorderBrush = Ink,
-                BorderThickness = new Thickness(Math.Max(1, P / 2)),
-                Opacity = i <= size ? 0.75 : 0.35,
-            });
-        row.ToolTip = Tip($"{SizeNames[Math.Clamp(size, 1, 3) - 1]} задача · +{(size switch { 3 => 5, 2 => 3, _ => 1 })} лешника");
-        return row;
+        // Сложността – като лешници: един, два, купчинка.
+        var icon = Icon(SizeIcon(Math.Clamp(size, 1, 3)));
+        icon.VerticalAlignment = VerticalAlignment.Center;
+        icon.Margin = new Thickness(0, 0, 8 * U, 0);
+        icon.ToolTip = Tip($"{SizeNames[Math.Clamp(size, 1, 3) - 1]} задача · +{(size switch { 3 => 5, 2 => 3, _ => 1 })} лешника");
+        return icon;
     }
 
     /// <summary>Етикет: цветна лентичка с името.</summary>
@@ -827,7 +834,7 @@ internal sealed class DragGhost
 internal static class PixelPopup
 {
     public sealed record Entry(string Text, string? Icon, Action? Click, bool On = false, Func<IEnumerable<Entry>>? Sub = null,
-        bool Danger = false, string? Swatch = null, Func<Action, FrameworkElement>? Custom = null);
+        bool Danger = false, string? Swatch = null, Func<Action, FrameworkElement>? Custom = null, Color? Dot = null);
 
     /// <summary>Изскачащо меню със свое съдържание (build получава „затвори“).</summary>
     public static void ShowCustom(FrameworkElement anchor, Func<Action, FrameworkElement> build, bool atMouse = false) =>
@@ -894,9 +901,9 @@ internal static class PixelPopup
                     continue;
                 }
                 var row = new DockPanel();
-                if (en.Swatch != null)
+                if (en.Swatch != null || en.Dot != null)
                 {
-                    var sw = TaskTags.Swatch(en.Swatch);
+                    var sw = en.Dot is { } dot ? TaskTags.ColorSquare(dot) : TaskTags.Swatch(en.Swatch!);
                     DockPanel.SetDock(sw, Dock.Left);
                     row.Children.Add(sw);
                 }

@@ -61,6 +61,9 @@ public sealed partial class PetWindow
     private bool VeryHot => _tempC is { } t && Math.Round(t) >= Weather.VeryHot;
     private bool WantsHeater => ColdLevel >= 2;
     private bool DressedWarmEnough => Warmth >= ColdLevel;
+
+    /// <summary>Студено му е, а в гардероба има по-топли дрехи от облечените („!“ на Гардероб).</summary>
+    public bool NeedsWarmerClothes => Cold && !DressedWarmEnough && BestWarmth > Warmth;
     private bool Comfortable => DressedWarmEnough && (!WantsHeater || _save.HeaterOn);
 
     /// <summary>За менюто: „7°C · студено му е“.</summary>
