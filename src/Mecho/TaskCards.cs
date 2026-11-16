@@ -903,9 +903,17 @@ internal static class PixelPopup
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(4 * U),
             Margin = new Thickness(0, 2, 6, 6),
-            Child = list,
+            // Високо меню (календарът в „Кога?“) на малък екран – превърта се, не се реже.
+            Child = new ScrollViewer
+            {
+                Content = list,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                MaxHeight = SystemParameters.WorkArea.Height * 0.85,
+            },
             Effect = Ui.HardShadow(),
         };
+        box.Resources.Add(typeof(System.Windows.Controls.Primitives.ScrollBar), Ui.ScrollBarStyle());
         TextElement.SetFontFamily(box, Ui.GameFont);
         TextElement.SetFontSize(box, Ui.Body);
         TextElement.SetForeground(box, Ui.Ink);

@@ -2912,7 +2912,7 @@ public sealed class WorkView : Border
     internal int DueCount => BacklogDue(_pet.TaskState, Today).Count;
     internal void TestHours(DateTime day, int hours) => SetDayHours(day, hours);
     internal bool TodayAsksHours => FindText(_todayPanel, "Колко часа работа");
-    internal FrameworkElement TestAnchor => _todayPanel;
+    internal FrameworkElement TestAnchor => _todayPanel.Children.OfType<FrameworkElement>().FirstOrDefault() ?? _todayPanel;
     internal FrameworkElement? TodayPart(string tag) => _todayPanel.Children.OfType<FrameworkElement>().FirstOrDefault(e => e.Tag as string == tag);
 
     private static bool FindText(DependencyObject root, string text)
