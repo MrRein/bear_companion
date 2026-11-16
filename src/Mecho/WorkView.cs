@@ -84,7 +84,7 @@ public sealed class WorkView : Border
         Background = Brushes.Transparent;
 
         // ── Под него (само в „Седмица“): ◀ Днес ▶, кои дни се виждат, търсене, етикети … обобщение ──
-        var weekNav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
+        var weekNav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 10, 4), VerticalAlignment = VerticalAlignment.Center };
         // ◀ Днес ▶ – стрелките (нарисувани) местят дните с по седмица; и с колелцето, влачене, ←/→.
         var prev = HeaderChip("", () => ScrollBy(-7), "Седмица назад (←: ден назад)");
         prev.Child = Icon("nav_prev");
@@ -100,7 +100,8 @@ public sealed class WorkView : Border
         _rangeLabel.MinWidth = 120 * U;
         weekNav.Children.Add(_rangeLabel);
         // ── Втори ред: търсене, етикети, само важните, скрий свършените … обобщение ──
-        var bar = new DockPanel { Margin = new Thickness(4, 0, 2, 6) };
+        // Пренася се на втори ред, ако не се събира (стрелките, търсенето, филтрите).
+        var bar = new WrapPanel { Margin = new Thickness(4, 0, 2, 6) };
         _weekBar = bar;
         DockPanel.SetDock(weekNav, Dock.Left);
         bar.Children.Add(weekNav);
@@ -119,7 +120,7 @@ public sealed class WorkView : Border
             Keyboard.ClearFocus();
             e.Handled = true;
         };
-        var searchBox = new Border { Width = 150 * U, Margin = new Thickness(0, 0, 8, 0), Child = MenuWindow.WithHint(_search, "Търси…") };
+        var searchBox = new Border { Width = 150 * U, Margin = new Thickness(0, 0, 8, 4), Child = MenuWindow.WithHint(_search, "Търси…") };
         DockPanel.SetDock(searchBox, Dock.Left);
         bar.Children.Add(searchBox);
         // Тясно (малко меню): търсенето и надписът с дните – по-тесни, филтрите да се събират.

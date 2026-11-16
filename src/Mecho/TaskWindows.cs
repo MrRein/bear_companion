@@ -136,7 +136,7 @@ internal abstract class FloatWindow : Window
             i.VerticalAlignment = VerticalAlignment.Center;
             row.Children.Add(i);
         }
-        row.Children.Add(new TextBlock { Text = text, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 140 * U });
+        row.Children.Add(new TextBlock { Text = text, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 220 * U });
         chip.Child = row;
         chip.Padding = new Thickness(8, 3, 8, 4);
         chip.Margin = new Thickness(0, 0, 6 * U, 6 * U);
