@@ -347,10 +347,15 @@ internal sealed class DayTimeline : DockPanel
         {
             if (e.Handled) return;
             e.Handled = true;
-            Begin(block, t, e, handle.IsMouseOver ? Mode.Resize : Mode.Pending);
+            Begin(block, t, e.GetPosition(_body), handle.IsMouseOver ? Mode.Resize : Mode.Pending);
         };
-        block.MouseMove += (_, e) => Drag(e);
-        block.MouseLeftButtonUp += (_, e) => End(e);
+        block.MouseMove += (_, e) => DragTo(e.GetPosition(_body), e.GetPosition(_scroll).Y);
+        block.MouseLeftButtonUp += (_, e) =>
+        {
+            if (_mode == Mode.None) return;
+            e.Handled = true;
+            Finish();
+        };
         block.LostMouseCapture += (_, _) => { if (_mode != Mode.None && !_reparenting) Cancel(); };
         block.MouseRightButtonUp += (_, e) =>
         {
@@ -419,26 +424,26 @@ internal sealed class DayTimeline : DockPanel
 
     // ── Влачене на блокче ──
 
-    private void Begin(Border block, TaskItem t, MouseButtonEventArgs e, Mode mode)
+    private void Begin(Border block, TaskItem t, Point from, Mode mode, bool capture = true)
     {
         if (t.Done && mode == Mode.Resize) return;
         _mode = mode;
         _task = t;
         _block = block;
-        _from = e.GetPosition(_body);
+        _from = from;
         _origTop = Canvas.GetTop(block);
         _origHeight = block.Height;
         _origDay = Array.IndexOf(_canvases, block.Parent as Canvas);
         _timeLabels.TryGetValue(block, out _timeLabel);
-        block.CaptureMouse();
+        if (capture) block.CaptureMouse();
     }
 
     private double SnapY(double y) => Math.Round(y / (HourH * Snap / 60.0)) * (HourH * Snap / 60.0);
 
-    private void Drag(MouseEventArgs e)
+    /// <summary>Мишката е в p (в графика); scrollY – колко е от горния ръб на видимото (за превъртане до ръба).</summary>
+    private void DragTo(Point p, double scrollY)
     {
         if (_mode == Mode.None || _block == null || _task == null) return;
-        var p = e.GetPosition(_body);
         double dy = p.Y - _from.Y, dx = p.X - _from.X;
         if (_mode == Mode.Pending)
         {
@@ -462,11 +467,11 @@ internal sealed class DayTimeline : DockPanel
                 _canvases[day].Children.Add(_block);
                 _block.Width = Math.Max(20, _canvases[day].ActualWidth - 6);
                 Canvas.SetLeft(_block, 3);
-                _block.CaptureMouse();
+                if (Mouse.LeftButton == MouseButtonState.Pressed) _block.CaptureMouse();
                 _reparenting = false;
             }
             if (_timeLabel != null) _timeLabel.Text = Range(TimeAt(DayOf(_block), top - 1), Length(_task));
-            AutoScroll(e.GetPosition(_scroll).Y);
+            AutoScroll(scrollY);
         }
         else if (_mode == Mode.Resize)
         {
@@ -475,14 +480,13 @@ internal sealed class DayTimeline : DockPanel
             int minutes = (int)Math.Round((_block.Height + 2) / HourH * 60 / Snap) * Snap;
             var from = _task.Start ?? (_ghostStart.TryGetValue(_block, out var g) ? g : DateTime.Today);
             if (_timeLabel != null) _timeLabel.Text = Range(from, minutes);
-            AutoScroll(e.GetPosition(_scroll).Y);
+            AutoScroll(scrollY);
         }
     }
 
-    private void End(MouseButtonEventArgs e)
+    private void Finish()
     {
         if (_mode == Mode.None || _block == null || _task == null) return;
-        e.Handled = true;
         var mode = _mode;
         var t = _task;
         var block = _block;
@@ -541,6 +545,7 @@ internal sealed class DayTimeline : DockPanel
 
     private void AutoScroll(double y)
     {
+        if (double.IsNaN(y)) return;
         double edge = 26 * U;
         if (y < edge) _scroll.ScrollToVerticalOffset(_scroll.VerticalOffset - 10 * U);
         else if (y > _scroll.ActualHeight - edge) _scroll.ScrollToVerticalOffset(_scroll.VerticalOffset + 10 * U);
@@ -597,8 +602,7 @@ internal sealed class DayTimeline : DockPanel
             double y = SnapY(e.GetPosition(canvas).Y - HourH / 4);
             RemoveGhost();
             if (TaskCards.DraggedId(e) is not { } id || _pet.Save.Tasks.FirstOrDefault(t => t.Id == id) is not { } task) return;
-            var start = TimeAt(_days[index], Math.Max(0, y));
-            _pet.ScheduleTask(task, start, task.Minutes > 0 ? null : 30);
+            DropAt(task, index, y);
         };
         canvas.MouseLeftButtonDown += (_, e) =>
         {
@@ -609,6 +613,36 @@ internal sealed class DayTimeline : DockPanel
         };
         canvas.ToolTip = null;
     }
+
+    /// <summary>Задача, пусната в ден index на височина y – в графика от този час.</summary>
+    private void DropAt(TaskItem task, int index, double y)
+    {
+        var start = TimeAt(_days[index], Math.Max(0, y));
+        _pet.ScheduleTask(task, start, task.Minutes > 0 ? null : 30);
+    }
+
+    // ── За самопроверката: същото като с мишката, но с дадени разстояния ──
+
+    private Border? BlockOf(Guid id) =>
+        _canvases.SelectMany(c => c.Children.OfType<Border>()).FirstOrDefault(b => b.Tag is TaskItem t && t.Id == id);
+
+    /// <summary>Хваща блокчето и го мести с minutes надолу (или разтяга долния ръб), после го пуска.</summary>
+    internal bool TestDrag(Guid id, double minutes, bool resize)
+    {
+        UpdateLayout();
+        if (BlockOf(id) is not { } block || block.Tag is not TaskItem t) return false;
+        var from = block.TranslatePoint(new Point(10, resize ? block.Height - 2 : 6), _body);
+        Begin(block, t, from, resize ? Mode.Resize : Mode.Pending, capture: false);
+        DragTo(new Point(from.X, from.Y + minutes / 60.0 * HourH), double.NaN);
+        Finish();
+        return true;
+    }
+
+    /// <summary>Пуска задача (като от списъка) в деня index в hour:minute.</summary>
+    internal void TestDrop(TaskItem task, int index, double hours) => DropAt(task, index, hours * HourH);
+
+    /// <summary>Колко от блокчетата са предложени (задачи без час).</summary>
+    internal int GhostCount => _ghostStart.Count;
 
     private void RemoveGhost()
     {

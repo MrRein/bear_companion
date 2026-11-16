@@ -880,6 +880,10 @@ internal static class PixelPopup
 
     private static double U => Ui.Body / 18;
 
+    /// <summary>Самопроверката: последното отворено меню (за снимка и проверка на подредбата).</summary>
+    internal static System.Windows.Controls.Primitives.Popup? Last;
+    internal static Border? LastBox;
+
     public static void Show(FrameworkElement anchor, string? title, Func<IEnumerable<Entry>> entries, bool atMouse = false)
     {
         var popup = new System.Windows.Controls.Primitives.Popup
@@ -908,6 +912,8 @@ internal static class PixelPopup
         TextOptions.SetTextRenderingMode(box, TextRenderingMode.Aliased);
         TextOptions.SetTextFormattingMode(box, TextFormattingMode.Display);
         popup.Child = box;
+        Last = popup;
+        LastBox = box;
         var stack = new Stack<(string? Title, Func<IEnumerable<Entry>> Entries)>();
 
         void Fill(string? head, Func<IEnumerable<Entry>> make)

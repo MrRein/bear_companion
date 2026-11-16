@@ -1591,6 +1591,7 @@ public sealed class WorkView : Border
         {
             var x = SmallIcon("close", dismiss);
             x.ToolTip = Tip("Не днес");
+            x.Tag = "dismiss";
             x.VerticalAlignment = VerticalAlignment.Center;
             x.Margin = new Thickness(8 * U, 0, 0, 0);
             DockPanel.SetDock(x, Dock.Right);
@@ -1611,6 +1612,7 @@ public sealed class WorkView : Border
             Padding = new Thickness(12 * U, 8 * U, 8 * U, 8 * U),
             Margin = new Thickness(0, 10 * U, 0, 0),
             Child = row,
+            Tag = "invite:" + button,
         };
     }
 
@@ -1842,6 +1844,7 @@ public sealed class WorkView : Border
             Padding = new Thickness(12 * U, 8 * U, 8 * U, 8 * U),
             Margin = new Thickness(0, 6 * U, 0, 4 * U),
             Child = p,
+            Tag = "due",
         };
     }
 
@@ -2897,6 +2900,22 @@ public sealed class WorkView : Border
     internal bool Ready => _ready;
     internal int TimelineBlocks => _todayTimeline?.BlockCount ?? -1;
     internal int CalendarBlocks => _weekTimeline?.BlockCount ?? -1;
+    internal DayTimeline? TodayTimeline => _todayTimeline;
+    /// <summary>В „Днес“ има ли покана/карта (invite:План за деня, due…).</summary>
+    internal bool TodayHas(string tag) => _todayPanel.Children.OfType<FrameworkElement>().Any(e => e.Tag as string == tag);
+    internal int DueCount => BacklogDue(_pet.TaskState, Today).Count;
+    internal void TestHours(DateTime day, int hours) => SetDayHours(day, hours);
+    internal bool TodayAsksHours => FindText(_todayPanel, "Колко часа работа");
+    internal FrameworkElement TestAnchor => _todayPanel;
+    internal FrameworkElement? TodayPart(string tag) => _todayPanel.Children.OfType<FrameworkElement>().FirstOrDefault(e => e.Tag as string == tag);
+
+    private static bool FindText(DependencyObject root, string text)
+    {
+        if (root is TextBlock tb && tb.Text.StartsWith(text)) return true;
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            if (FindText(VisualTreeHelper.GetChild(root, i), text)) return true;
+        return false;
+    }
     internal void TestCalendarMode(int mode) { _calMode = mode; Refresh(true); }
     internal int TodayCards => FindCards(_todayPanel);
     internal void TestScrollToDay(DateTime day) => ScrollToDay(day, smooth: false);

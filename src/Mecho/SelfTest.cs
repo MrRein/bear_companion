@@ -141,13 +141,43 @@ public sealed partial class PetWindow
 
     /// <summary>Стъпките на самопроверката (имат достъп до всичко вътре в мечока).</summary>
     /// <summary>Снимка на прозорец за проверка на окото (MechoSelfTest/shots, качва се в GitHub като artifact).</summary>
+    /// <summary>Натиска Enter в полето (както от клавиатурата).</summary>
+    private static void PressEnter(UIElement target)
+    {
+        var src = PresentationSource.FromVisual(target) ?? throw new Exception("полето не се вижда");
+        target.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, src, 0, System.Windows.Input.Key.Enter) { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent });
+        target.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, src, 0, System.Windows.Input.Key.Enter) { RoutedEvent = System.Windows.Input.Keyboard.KeyDownEvent });
+    }
+
+    /// <summary>Цъкане с левия бутон (натискане и пускане) върху копче.</summary>
+    private static void Click(UIElement e)
+    {
+        e.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0, System.Windows.Input.MouseButton.Left) { RoutedEvent = UIElement.MouseLeftButtonDownEvent });
+        e.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0, System.Windows.Input.MouseButton.Left) { RoutedEvent = UIElement.MouseLeftButtonUpEvent });
+    }
+
+    private static FrameworkElement? FindTagged(DependencyObject root, string tag)
+    {
+        if (root is FrameworkElement f && f.Tag as string == tag) return f;
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            if (FindTagged(VisualTreeHelper.GetChild(root, i), tag) is { } found) return found;
+        return null;
+    }
+
     private static void Shot(Window w, string name)
+    {
+        w.UpdateLayout();
+        if (w.Content is FrameworkElement v) Shot(v, name);
+    }
+
+    /// <summary>Снимка на част (например изскачащо меню).</summary>
+    private static void Shot(FrameworkElement v, string name)
     {
         try
         {
-            w.UpdateLayout();
-            if (w.Content is not FrameworkElement v || v.ActualWidth < 1) return;
-            var dpi = VisualTreeHelper.GetDpi(w);
+            v.UpdateLayout();
+            if (v.ActualWidth < 1) return;
+            var dpi = VisualTreeHelper.GetDpi(v);
             var bmp = new RenderTargetBitmap((int)Math.Ceiling(v.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(v.ActualHeight * dpi.DpiScaleY),
                 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
             bmp.Render(v);
@@ -170,12 +200,17 @@ public sealed partial class PetWindow
     /// </summary>
     private static void LayoutReport(Window w, string name)
     {
+        w.UpdateLayout();
+        if (w.Content is FrameworkElement root) LayoutReport(root, name);
+    }
+
+    private static void LayoutReport(FrameworkElement root, string name)
+    {
         try
         {
-            w.UpdateLayout();
-            if (w.Content is not FrameworkElement root) return;
+            root.UpdateLayout();
             var lines = new List<string> { $"== {name}: {root.ActualWidth:0}×{root.ActualHeight:0}" };
-            double dpi = VisualTreeHelper.GetDpi(w).PixelsPerDip;
+            double dpi = VisualTreeHelper.GetDpi(root).PixelsPerDip;
             int cut = 0, outside = 0, texts = 0, clipped = 0;
             var seen = new Dictionary<string, int>();
             void Walk(DependencyObject d)
@@ -1565,6 +1600,115 @@ public sealed partial class PetWindow
             LayoutReport(_menu!, "work_today_focus");
             StopPomodoro();
         }, 600);
+        await step("работа: като човек – нова задача, карта, график", () =>
+        {
+            var p = Work!;
+            p.SetView(WorkView.View.Today);
+            p.UpdateLayout();
+            var today = TaskToday;
+            // Нова задача: пиша името и натискам Enter.
+            NewTaskWindow.Show(this, today, near: _menu);
+            var nw = NewTaskWindow.Current ?? throw new Exception("„Нова задача“ не се отвори");
+            nw.UpdateLayout();
+            nw.TitleBox.Text = "Човешка задача";
+            PressEnter(nw.TitleBox);
+            if (NewTaskWindow.Current != null) throw new Exception("„Нова задача“ не се затвори след Enter");
+            var human = _save.Tasks.SingleOrDefault(x => x.Title == "Човешка задача") ?? throw new Exception("Enter не добави задачата");
+            if (human.Day != today) throw new Exception("новата задача не е за днес");
+            // Празно име + Enter – нищо не се добавя, прозорецът остава.
+            int before = _save.Tasks.Count;
+            NewTaskWindow.Show(this, today, near: _menu);
+            var nw2 = NewTaskWindow.Current ?? throw new Exception("„Нова задача“ не се отвори пак");
+            PressEnter(nw2.TitleBox);
+            if (NewTaskWindow.Current == null || _save.Tasks.Count != before) throw new Exception("празна задача се добави или затвори прозореца");
+            nw2.Close();
+
+            // Картата: бележките се записват.
+            p.TestSelect(human.Id);
+            var card = TaskCardWindow.For(human.Id) ?? throw new Exception("картата не се отвори");
+            card.NotesBox.Text = "Бележка от теста";
+            card.TestSave();
+            if (_save.Tasks.Single(x => x.Id == human.Id).Description != "Бележка от теста") throw new Exception("бележките не се записаха");
+            card.Close();
+
+            // Графикът: пускам задачата в 9:00, местя я с час надолу, разтягам я с половин час.
+            p.Refresh(true);
+            p.UpdateLayout();
+            var tl = p.TodayTimeline ?? throw new Exception("графикът го няма");
+            tl.TestDrop(_save.Tasks.Single(x => x.Id == human.Id), 0, 9);
+            var h1 = _save.Tasks.Single(x => x.Id == human.Id);
+            if (h1.Start != today.AddHours(9) || h1.Minutes != 30) throw new Exception($"пускането в 9:00: {h1.Start:HH:mm}, {h1.Minutes} мин");
+            tl.Refresh(true);
+            if (!tl.TestDrag(human.Id, 60, resize: false)) throw new Exception("блокчето не е в графика");
+            var h2 = _save.Tasks.Single(x => x.Id == human.Id);
+            if (h2.Start != today.AddHours(10)) throw new Exception($"местенето с час: {h2.Start:HH:mm}");
+            tl.Refresh(true);
+            if (!tl.TestDrag(human.Id, 30, resize: true)) throw new Exception("блокчето изчезна след местенето");
+            var h3 = _save.Tasks.Single(x => x.Id == human.Id);
+            if (h3.Minutes != 60 || h3.Start != today.AddHours(10)) throw new Exception($"разтягането: {h3.Start:HH:mm}, {h3.Minutes} мин");
+            // Задачите без час се виждат бледо (ако денят не е към края си).
+            tl.Refresh(true);
+            if (DateTime.Now.Hour < 20 && _save.Tasks.Any(x => x.Day == today && x.Start == null && !x.Done) && tl.GhostCount < 1)
+                throw new Exception("задачите без час не се виждат в графика");
+
+            // Backlog: „следващата седмица“ отпреди 10 дни – дошло е време.
+            var back = AddTask("Задача от Backlog", 1, someday: true, quiet: true, bucket: TaskItem.NextWeek) ?? throw new Exception("задачата за Backlog не се добави");
+            int at = TaskState.Open.FindIndex(x => x.Id == back.Id);
+            PutTask(back with { BucketAt = today.AddDays(-10) }, at);
+            p.Refresh(true);
+            p.UpdateLayout();
+            if (p.DueCount < 1 || !p.TodayHas("due")) throw new Exception("„Дойде времето“ не излезе");
+            MoveTask(_save.Tasks.Single(x => x.Id == back.Id), today);
+            if (p.DueCount != 0) throw new Exception("задачата остана в „Дойде времето“");
+
+            // „План за деня“ – веднъж: ✕ го маха до утре.
+            _save.PlannedDay = _save.PlanSeenDay = "";
+            p.Refresh(true);
+            p.UpdateLayout();
+            if (DateTime.Now.Hour < 15)
+            {
+                var invite = p.TodayPart("invite:План за деня") ?? throw new Exception("поканата за план не излезе");
+                var x = FindTagged(invite, "dismiss") ?? throw new Exception("поканата няма ✕");
+                Click(x);
+                p.Refresh(true);
+                p.UpdateLayout();
+                if (p.TodayHas("invite:План за деня")) throw new Exception("поканата за план се върна след ✕");
+            }
+
+            // Часовете за деня: пита, докато не кажеш; после – лента.
+            _save.DayHours.Remove(today.ToString("yyyy-MM-dd"));
+            p.Refresh(true);
+            p.UpdateLayout();
+            if (!p.TodayAsksHours) throw new Exception("не пита колко часа");
+            p.TestHours(today, 6);
+            p.UpdateLayout();
+            if (p.TodayAsksHours) throw new Exception("пак пита за часовете");
+
+            // Изскачащите менюта: снимка и подредба.
+            var anchorEl = p.TestAnchor;
+            var fresh = _save.Tasks.Single(x => x.Id == human.Id);
+            void PopupCheck(string name, Action open)
+            {
+                open();
+                if (PixelPopup.LastBox is { } box && PixelPopup.Last is { IsOpen: true } pop)
+                {
+                    box.UpdateLayout();
+                    Shot(box, name);
+                    LayoutReport(box, name);
+                    pop.IsOpen = false;
+                }
+                else throw new Exception("менюто не се отвори: " + name);
+            }
+            PopupCheck("popup_task", () => PixelPopup.Show(anchorEl, null, TaskCards.TaskEntries(this, fresh, null)));
+            PopupCheck("popup_tag", () => PixelPopup.Show(anchorEl, "Етикет", TaskCards.TagEntries(this, fresh)));
+            PopupCheck("popup_priority", () => PixelPopup.Show(anchorEl, "Приоритет", TaskCards.PriorityEntries(this, fresh)));
+            PopupCheck("popup_when", () => DayPicker.Show(anchorEl, today, today, _ => { }, pickBucket: _ => { }));
+
+            foreach (var t in _save.Tasks.Where(x => x.Title is "Човешка задача" or "Задача от Backlog").ToList()) DeleteTask(t);
+            _save.DayHours.Clear();
+            _save.PlannedDay = _save.PlanSeenDay = "";
+            HideBubble();
+        }, 600);
         await step("работа: преглед на седмицата", () =>
         {
             var p = Work!;
@@ -1593,14 +1737,46 @@ public sealed partial class PetWindow
             foreach (var small in new[] { false, true })
             {
                 foreach (var page in new[] { MenuWindow.PageBear, MenuWindow.PageFood, MenuWindow.PageShop, MenuWindow.PageNotes, MenuWindow.PageMore,
-                    MenuWindow.PageToday, MenuWindow.PageFocus, MenuWindow.PagePlan, MenuWindow.PageShutdown, MenuWindow.PageWeek, MenuWindow.PageReview })
+                    MenuWindow.PageToday, MenuWindow.PageFocus, MenuWindow.PagePlan, MenuWindow.PageShutdown, MenuWindow.PageWeek,
+                    MenuWindow.PageCalendar, MenuWindow.PageBacklog, MenuWindow.PageReview })
                 {
                     _menu!.SelfTestPage(page);
                     _menu.SelfTestSize(small);
                     _menu.UpdateLayout();
+                    Shot(_menu, $"menu_{page}{(small ? "_small" : "")}");
                     LayoutReport(_menu, $"menu_{page}{(small ? "_small" : "")}");
                 }
             }
+            // По-голям мащаб (като Windows на 125% и 150%).
+            foreach (var zoom in new[] { 1.25, 1.5 })
+            {
+                _save.UiZoom = zoom;
+                _menu!.ApplyZoom();
+                _menu.SelfTestSize(false);
+                foreach (var page in new[] { MenuWindow.PageBear, MenuWindow.PageToday, MenuWindow.PageWeek, MenuWindow.PageCalendar })
+                {
+                    _menu.SelfTestPage(page);
+                    _menu.UpdateLayout();
+                    LayoutReport(_menu, $"zoom{zoom * 100:0}_{page}");
+                }
+            }
+            _save.UiZoom = 1;
+            _menu!.ApplyZoom();
+            _menu.SelfTestSize(false);
+            // Всички цветове на менюто – Мечо и Седмица (снимки за преглед).
+            foreach (var theme in UiThemes.All)
+            {
+                if (!UiThemes.Owns(_save, theme)) _save.Owned.Add(theme.Key);
+                UseUiTheme(theme);
+                foreach (var page in new[] { MenuWindow.PageBear, MenuWindow.PageWeek })
+                {
+                    _menu.SelfTestPage(page);
+                    _menu.UpdateLayout();
+                    Shot(_menu, $"theme_{theme.Id}_{page}");
+                    LayoutReport(_menu, $"theme_{theme.Id}_{page}");
+                }
+            }
+            UseUiTheme(UiThemes.All[0]);
             _menu!.SelfTestSize(null);
             _menu.Hide();
             SetPinned(PinWindow.Tasks, false);

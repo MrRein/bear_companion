@@ -307,6 +307,9 @@ internal sealed class NewTaskWindow : FloatWindow
 
     public static NewTaskWindow? Current => _current;
 
+    /// <summary>Самопроверката: полето за името.</summary>
+    internal TextBox TitleBox => _title;
+
     public static void Show(PetWindow pet, DateTime? day, string? tag = null, bool star = false, Window? near = null, int bucket = 0, DateTime? start = null)
     {
         if (_current != null)
@@ -433,6 +436,10 @@ internal sealed class TaskCardWindow : FloatWindow
     private string _shown = "";
 
     public static TaskCardWindow? For(Guid id) => Windows.TryGetValue(id, out var w) ? w : null;
+
+    /// <summary>Самопроверката: бележките и записът им (както при излизане от полето).</summary>
+    internal TextBox NotesBox => _notes;
+    internal void TestSave() => SaveText();
 
     public static void Show(PetWindow pet, TaskItem task, Window? near = null)
     {
