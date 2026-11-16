@@ -1473,30 +1473,31 @@ public sealed class WorkView : Border
         int left = tasks.Where(t => !t.Done).Sum(t => t.Minutes);
         var end = EndFor(today);
         bool asked = EndAsked(today);
-        // Един подреден ред: свършени · колко са задачите · до колко работиш (цъкаш – сменяш).
-        var info = new WrapPanel { Margin = new Thickness(0, 2 * U, 0, 0) };
-        TextBlock Bit(string text) => new() { Text = text, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center };
-        info.Children.Add(Bit(all == 0 ? "Още няма задачи" : $"Свършени {done} от {all}"));
-        if (left > 0) info.Children.Add(Bit($"  ·  задачи: {TaskCards.Duration(left)}"));
+        // Един подреден ред (пренася се като текст): свършени · задачите · до колко работиш (цъкаш – сменяш).
+        var info = new TextBlock { Margin = new Thickness(0, 2 * U, 0, 0), Foreground = Muted, TextWrapping = TextWrapping.Wrap };
+        void Add(string text) => info.Inlines.Add(new System.Windows.Documents.Run(text));
+        void AddLink(string text, bool bold)
+        {
+            var link = new TextBlock { Text = text, Foreground = bold ? Ink : Muted, FontWeight = bold ? FontWeights.Bold : FontWeights.Normal, Cursor = Cursors.Hand, ToolTip = Tip("До колко работиш – цъкни, за да го смениш") };
+            TaskCards.Clickable(link, () => PixelPopup.Show(link, "До колко ще работиш?", () => EndEntries(today)));
+            info.Inlines.Add(new System.Windows.Documents.InlineUIContainer(link) { BaselineAlignment = BaselineAlignment.TextBottom });
+        }
+        Add(all == 0 ? "Още няма задачи" : $"Свършени {done} от {all}");
+        if (left > 0) Add($"  ·  задачи: {TaskCards.Duration(left)}");
         if (end is { } e)
         {
-            info.Children.Add(Bit("  ·  "));
-            var until = new TextBlock { Text = $"до {Clock(e)} ▾", Foreground = Ink, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = Tip("До колко работиш – цъкни, за да го смениш") };
-            TaskCards.Clickable(until, () => PixelPopup.Show(until, "До колко ще работиш?", () => EndEntries(today)));
-            info.Children.Add(until);
-            // Колко време има до края (само днес и само сведение – без „не стига“).
+            Add("  ·  ");
+            AddLink($"до {Clock(e)} ▾", bold: true);
             if (realToday)
             {
                 int now = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
-                if (e > now) info.Children.Add(Bit($"  ·  остават {TaskCards.Duration(e - now)}"));
+                if (e > now) Add($"  ·  остават {TaskCards.Duration(e - now)}");
             }
         }
         else if (asked || today < Today)
         {
-            info.Children.Add(Bit("  ·  "));
-            var set = new TextBlock { Text = "до колко? ▾", Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = Tip("До колко работиш в този ден") };
-            TaskCards.Clickable(set, () => PixelPopup.Show(set, "До колко ще работиш?", () => EndEntries(today)));
-            info.Children.Add(set);
+            Add("  ·  ");
+            AddLink("до колко? ▾", bold: false);
         }
         p.Children.Add(info);
         if (!asked && today >= Today)
