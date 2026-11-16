@@ -661,7 +661,7 @@ internal sealed class TaskCardWindow : FloatWindow
         _title.IsReadOnly = _notes.IsReadOnly = t.Done;
         _title.TextDecorations = t.Done ? TextDecorations.Strikethrough : null;
         _reward.Text = t.Done
-            ? (t.DoneAt is { } at ? $"Свършена в {at:H:mm}" + (at.Date != today ? $" ({at.ToString("d MMM", Bg)})" : "") : "Свършена") + $" · +{t.Reward} лешника"
+            ? (t.DoneAt is { } doneAt ? $"Свършена в {doneAt:H:mm}" + (doneAt.Date != today ? $" ({doneAt.ToString("d MMM", Bg)})" : "") : "Свършена") + $" · +{t.Reward} лешника"
             : $"+{t.Reward} лешника, като я свършиш";
 
         // Свойствата.
