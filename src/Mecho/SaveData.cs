@@ -136,12 +136,15 @@ public sealed class SaveData
     public PinState Planner { get; set; } = new();               // седмицата със задачите (къде е, колко е голяма)
     public int PlannerHours { get; set; } = 6;                  // колко часа работа на ден (за „твърде много за деня“)
     public bool PlannerHideDone { get; set; }                   // седмицата: свършените не се показват
+    public string PlanSeenDay { get; set; } = "";               // поканата за план е видяна/махната днес (не излиза до утре)
+    public string ShutdownSeenDay { get; set; } = "";
     public string PlannedDay { get; set; } = "";                // кой ден е планиран („План за деня“)
     public string ShutdownDay { get; set; } = "";               // кой ден е приключен („Край на деня“)
     public Dictionary<string, string> DayNotes { get; set; } = new();   // „Как мина денят?“ по дни (yyyy-MM-dd)
     public Dictionary<string, WeekReview> WeekReviews { get; set; } = new();   // прегледът на седмицата (ключ – понеделникът, yyyy-MM-dd)
     public int WorkView { get; set; }                            // „Работа“: 0 Днес, 1 Седмица, 2 Преглед
-    public List<TaskTagDef>? TaskTags { get; set; }              // етикетите на задачите (свои име и цвят); null – още не са правени
+    public List<TaskTagDef>? TaskTags { get; set; }
+    public int TaskTagsVersion { get; set; }                     // 2: готовите етикети са само Работа и Лично              // етикетите на задачите (свои име и цвят); null – още не са правени
     public Dictionary<string, SurveyAnswer> Answers { get; set; } = new();   // въпросникът: id → какво отговори Тут
     /// <summary>
     /// Броячи „колко пъти днес“ (въпросник, спомени, нови желания…) – сами се нулират на

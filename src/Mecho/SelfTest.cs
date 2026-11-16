@@ -1393,9 +1393,9 @@ public sealed partial class PetWindow
             if (a.Day != today || b.Day != today.AddDays(1) || c.Day != null) throw new Exception("дните не са верни");
             if (!OrderedTasks().Any(x => x.Id == a.Id) || OrderedTasks().Any(x => x.Id == b.Id)) throw new Exception("„днес“ показва грешните");
             MoveTask(c, today, before: a.Id);
-            MarkTask(a, star: true, tag: "art");
+            MarkTask(a, star: true, tag: "work");
             var a2 = _save.Tasks.Single(x => x.Id == a.Id);
-            if (!a2.Star || a2.Tag != "art") throw new Exception("не се маркира");
+            if (!a2.Star || a2.Tag != "work") throw new Exception("не се маркира");
             OpenPlanner();
             Work!.SetView(WorkView.View.Week);
             Work.UpdateLayout();
@@ -1459,7 +1459,7 @@ public sealed partial class PetWindow
             var a2 = _save.Tasks.Single(x => x.Id == a.Id);
             if (a2.StepList.Count != 2 || !a2.StepList[0].Done ) throw new Exception("стъпки");
             AddTask("Дълго име: Подготовка на презентацията за клиента с всички графики и бележки към тях преди срещата", 3,
-                "Описание, което също е доста дълго и трябва да се съкрати красиво на картичката.", tag: "people", minutes: 90, quiet: true);
+                "Описание, което също е доста дълго и трябва да се съкрати красиво на картичката.", tag: "personal", minutes: 90, quiet: true);
             NotifyCare();
             p.UpdateLayout();
             Shot(_menu!, "planner_2_details");
@@ -1528,8 +1528,26 @@ public sealed partial class PetWindow
             p.UpdateLayout();
             if (p.CurrentView != WorkView.View.Today || p.SideShown != "None") throw new Exception("„Днес“ не се отвори: " + p.SideShown);
             if (p.TodayCards < 2) throw new Exception($"в „Днес“ се виждат {p.TodayCards} задачи");
+            // „Днес по часове“: задача в 10:00 за час – блокче в графика.
+            var sched = _save.Tasks.Single(x => x.Title == "Тест седмица А");
+            ScheduleTask(sched, TaskToday.AddHours(10), 60);
+            p.Refresh(true);
+            p.UpdateLayout();
+            if (p.TimelineBlocks < 1) throw new Exception($"в графика няма блокче ({p.TimelineBlocks})");
+            if (_save.Tasks.Single(x => x.Id == sched.Id).Start != TaskToday.AddHours(10)) throw new Exception("часът не се записа");
             Shot(_menu!, "work_today");
             LayoutReport(_menu!, "work_today");
+            p.SetView(WorkView.View.Calendar);
+            p.UpdateLayout();
+            if (p.CalendarBlocks < 1) throw new Exception($"в календара няма блокче ({p.CalendarBlocks})");
+            Shot(_menu!, "work_calendar");
+            LayoutReport(_menu!, "work_calendar");
+            p.SetView(WorkView.View.Backlog);
+            p.UpdateLayout();
+            Shot(_menu!, "work_backlog");
+            LayoutReport(_menu!, "work_backlog");
+            p.SetView(WorkView.View.Today);
+            p.UpdateLayout();
             var a = _save.Tasks.Single(x => x.Title == "Тест седмица А");
             StartFocusOn(a);
             p.UpdateLayout();

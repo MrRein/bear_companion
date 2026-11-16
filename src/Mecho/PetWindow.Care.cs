@@ -420,10 +420,10 @@ public sealed partial class PetWindow
     /// добавяне в седмицата и таблото, където се пишат една след друга).
     /// </summary>
     public TaskItem? AddTask(string title, int size, string? description = null, DateTime? day = null, bool someday = false,
-        string? tag = null, bool star = false, int minutes = 0, bool quiet = false, Guid? before = null, int priority = 0, DateTime? due = null)
+        string? tag = null, bool star = false, int minutes = 0, bool quiet = false, Guid? before = null, int priority = 0, DateTime? due = null, int bucket = 0)
     {
         var before0 = TaskState.Open.Select(t => t.Id).ToHashSet();
-        if (!CoreEngine.Bus.Send(new Mecho.Core.AddTask(title, size, description, day, someday, tag, star, minutes, before, priority, due)).Ok) return null;
+        if (!CoreEngine.Bus.Send(new Mecho.Core.AddTask(title, size, description, day, someday, tag, star, minutes, before, priority, due, bucket)).Ok) return null;
         if (quiet) Emote("idea", 1);
         else Say(Lines.Pick(Lines.TaskAdded, _save.OwnerName), 3);
         NotifyCare();

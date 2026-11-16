@@ -29,12 +29,12 @@ internal static class TaskTags
     private static readonly (string Key, string Name, Color Color)[] Defaults =
     {
         ("work", "Работа", Color.FromRgb(84, 132, 204)),
-        ("art", "Рисуване", Color.FromRgb(214, 104, 146)),
-        ("study", "Учене", Color.FromRgb(146, 108, 196)),
-        ("home", "Вкъщи", Color.FromRgb(222, 150, 54)),
-        ("health", "Здраве", Color.FromRgb(98, 168, 82)),
-        ("people", "Хора", Color.FromRgb(58, 164, 164)),
+        ("personal", "Лично", Color.FromRgb(98, 168, 82)),
     };
+
+    /// <summary>Старите готови етикети (до 1.0.134) – махат се, ако Тут не ги е сменяла.</summary>
+    private static readonly (string Key, string Name)[] OldDefaults =
+        { ("art", "Рисуване"), ("study", "Учене"), ("home", "Вкъщи"), ("health", "Здраве"), ("people", "Хора") };
 
     public const int MaxTags = 24, MaxName = 24;
 
@@ -45,6 +45,15 @@ internal static class TaskTags
     public static void Use(SaveData save)
     {
         save.TaskTags ??= Defaults.Select(d => new TaskTagDef { Key = d.Key, Name = d.Name, Color = Hex(d.Color) }).ToList();
+        if (save.TaskTagsVersion < 2)
+        {
+            // Готовите етикети стават само „Работа“ и „Лично“ (своите, преименуваните – остават).
+            save.TaskTags.RemoveAll(d => OldDefaults.Any(o => o.Key == d.Key && o.Name == d.Name));
+            foreach (var d in Defaults)
+                if (!save.TaskTags.Any(x => x.Key == d.Key))
+                    save.TaskTags.Add(new TaskTagDef { Key = d.Key, Name = d.Name, Color = Hex(d.Color) });
+            save.TaskTagsVersion = 2;
+        }
         _defs = save.TaskTags;
         Changed();
     }
@@ -169,7 +178,7 @@ internal static class TaskCards
     public const string DragFormat = "MechoTask";
 
     /// <summary>Колко време може да отнеме една задача (в минути) – копчетата за избор.</summary>
-    public static readonly int[] Estimates = { 15, 30, 45, 60, 90, 120, 180 };
+    public static readonly int[] Estimates = { 15, 30, 45, 60, 90, 120, 180, 240, 300, 360, 420, 480 };
 
     /// <summary>15м, 1ч, 1ч 30м.</summary>
     public static string Duration(int minutes) =>
@@ -178,7 +187,33 @@ internal static class TaskCards
     public static readonly string[] SizeNames = { "малка", "средна", "голяма" };
 
     /// <summary>Сложността като лешници: един, два, купчинка.</summary>
-    public static string SizeIcon(int size) => size switch { 3 => "nut3", 2 => "nut2", _ => "nut" };
+    public static string SizeIcon(int size) => size switch { 3 => "nut3", 2 => "nut2", _ => "nut1" };
+
+    /// <summary>Backlog: групите в реда, в който се показват (като в Sunsama).</summary>
+    public static readonly (int Bucket, string Name, string Short, string Letter, Color Color)[] Buckets =
+    {
+        (TaskItem.NextWeek, "Следващата седмица", "след седмица", "С", Color.FromRgb(98, 160, 90)),
+        (TaskItem.NextMonth, "Следващия месец", "след месец", "М", Color.FromRgb(140, 178, 80)),
+        (TaskItem.NextQuarter, "Следващото тримесечие", "след 3 месеца", "Т", Color.FromRgb(214, 172, 56)),
+        (TaskItem.NextYear, "Следващата година", "след година", "Г", Color.FromRgb(226, 146, 60)),
+        (TaskItem.SomedayBucket, "Някога", "някога", "Н", Color.FromRgb(120, 140, 162)),
+        (TaskItem.Never, "Никога", "никога", "Х", Color.FromRgb(112, 112, 120)),
+    };
+
+    public static (int Bucket, string Name, string Short, string Letter, Color Color) BucketOf(int bucket) =>
+        Buckets.FirstOrDefault(b => b.Bucket == bucket, Buckets[4]);
+
+    /// <summary>Кръгче с буква (за групите на Backlog).</summary>
+    public static Border Badge(string letter, Color color) => new()
+    {
+        Width = 5 * P,
+        Height = 5 * P,
+        CornerRadius = new CornerRadius(2.5 * P),
+        Background = new SolidColorBrush(color),
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(0, 0, 6, 0),
+        Child = new TextBlock { Text = letter, Foreground = Brushes.White, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = Body * 0.8 },
+    };
 
     /// <summary>Приоритетите: 2 Важно, 1 Средно, 0 Нормално, -1 Ниско.</summary>
     public static readonly (int Level, string Name, Color Color)[] Priorities =
@@ -277,6 +312,9 @@ internal static class TaskCards
             row.Children.Add(tag);
         }
         row.Children.Add(SizeDots(t.Size));
+        // В графика на деня – в колко часа.
+        if (t.Start is { } start && !t.Done)
+            row.Children.Add(MetaItem("calendar", start.ToString("H:mm"), $"В графика: {start:H:mm}" + (t.Minutes > 0 ? $"–{start.AddMinutes(t.Minutes):H:mm}" : "")));
         var steps = t.StepList;
         if (steps.Count > 0)
             row.Children.Add(MetaItem("check", $"{steps.Count(x => x.Done)}/{steps.Count}", "Стъпки: свършени от всички"));
@@ -345,26 +383,19 @@ internal static class TaskCards
         Grid.SetColumn(text, 2);
         grid.Children.Add(text);
 
-        // Звездичката: пълна – важна; иначе се показва бледа при посочване.
-        var star = Icon("star");
+        // Приоритетът – малко цветно знаменце (Важно, Средно, Ниско); „Нормално“ – нищо (при посочване – бледо).
+        var star = Icon(FlagIcon(t.Level));
         var starBox = new Border
         {
             Child = star,
             Background = Brushes.Transparent,
             Margin = new Thickness(4 * U, 0, 0, 0),
             Cursor = live && !t.Done ? Cursors.Hand : null,
-            Opacity = t.Star ? 1 : 0,
-            ToolTip = Tip(t.Star ? "Важна (цъкни, за да я махнеш)" : "Направи я важна"),
+            Opacity = t.Level != 0 ? 1 : 0,
+            ToolTip = Tip(t.Level != 0 ? "Приоритет: " + PriorityOf(t.Level).Name : "Приоритет"),
         };
         if (live && !t.Done)
-        {
-            starBox.MouseLeftButtonDown += (_, e) => e.Handled = true;
-            starBox.MouseLeftButtonUp += (_, e) =>
-            {
-                e.Handled = true;
-                pet.MarkTask(t, star: !t.Star);
-            };
-        }
+            Clickable(starBox, () => PixelPopup.Show(starBox, "Приоритет", PriorityEntries(pet, t)));
         var corner = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
         corner.Children.Add(starBox);
         // Мечо-дорото не се пуска от задачата – от „Фокус“ (там се избира и задачата).
@@ -414,12 +445,12 @@ internal static class TaskCards
         }
         card.MouseEnter += (_, _) =>
         {
-            if (!t.Star && live && !t.Done) starBox.Opacity = 0.35;
+            if (t.Level == 0 && live && !t.Done) starBox.Opacity = 0.35;
             if (play != null) play.Opacity = 0.8;
         };
         card.MouseLeave += (_, _) =>
         {
-            if (!t.Star) starBox.Opacity = 0;
+            if (t.Level == 0) starBox.Opacity = 0;
             if (play != null) play.Opacity = current ? 1 : 0;
         };
 
@@ -485,6 +516,12 @@ internal static class TaskCards
                 new PixelPopup.Entry("", null, null, Custom: _ => TagEditor.Manager(pet)),
             }));
 
+    public static Func<IEnumerable<PixelPopup.Entry>> PriorityEntries(PetWindow pet, TaskItem t) => () =>
+        Priorities.Select(x => new PixelPopup.Entry(x.Name, null, () => pet.MarkTask(Fresh(pet, t), priority: x.Level), On: Fresh(pet, t).Level == x.Level, Dot: x.Color));
+
+    /// <summary>Знаменцето за приоритета (Нормално – бяло).</summary>
+    public static string FlagIcon(int level) => level switch { 2 => "flag_high", 1 => "flag_mid", -1 => "flag_low", _ => "flag" };
+
     public static Func<IEnumerable<PixelPopup.Entry>> TimeEntries(PetWindow pet, TaskItem t) => () =>
         Estimates.Select(m => new PixelPopup.Entry(Duration(m), null, () => pet.MarkTask(Fresh(pet, t), minutes: m), On: Fresh(pet, t).Minutes == m))
             .Append(new PixelPopup.Entry("Не знам", null, () => pet.MarkTask(Fresh(pet, t), minutes: 0), On: Fresh(pet, t).Minutes == 0));
@@ -502,9 +539,10 @@ internal static class TaskCards
                 new("Днес", "sun", () => pet.MoveTask(Fresh(pet, t), today), On: Fresh(pet, t).Day == today),
                 new("Утре", null, () => pet.MoveTask(Fresh(pet, t), today.AddDays(1)), On: Fresh(pet, t).Day == today.AddDays(1)),
                 new("Следващата седмица", null, () => pet.MoveTask(Fresh(pet, t), WorkView.WeekOf(today).AddDays(7))),
-                new("Някога", null, () => pet.MoveTask(Fresh(pet, t), null), On: Fresh(pet, t).Day == null),
+                new("Backlog", "history", null, Sub: () => Buckets.Select(b => new PixelPopup.Entry(b.Name, null,
+                    () => pet.SetTaskBucket(Fresh(pet, t), b.Bucket), On: Fresh(pet, t).Day == null && Fresh(pet, t).Bucket == b.Bucket, Dot: b.Color, Letter: b.Letter))),
             }));
-            list.Add(new(cur.Star ? "Не е важна" : "Важна", "star", () => pet.MarkTask(Fresh(pet, t), star: !Fresh(pet, t).Star), On: cur.Star));
+            list.Add(new("Приоритет", "flag", null, Sub: PriorityEntries(pet, t)));
             list.Add(new("Етикет", "pin", null, Sub: TagEntries(pet, t)));
             list.Add(new("Колко време", "clock", null, Sub: TimeEntries(pet, t)));
             list.Add(new("Големина", "nut", null, Sub: () => Enumerable.Range(1, 3).Select(i =>
@@ -834,7 +872,7 @@ internal sealed class DragGhost
 internal static class PixelPopup
 {
     public sealed record Entry(string Text, string? Icon, Action? Click, bool On = false, Func<IEnumerable<Entry>>? Sub = null,
-        bool Danger = false, string? Swatch = null, Func<Action, FrameworkElement>? Custom = null, Color? Dot = null);
+        bool Danger = false, string? Swatch = null, Func<Action, FrameworkElement>? Custom = null, Color? Dot = null, string? Letter = null);
 
     /// <summary>Изскачащо меню със свое съдържание (build получава „затвори“).</summary>
     public static void ShowCustom(FrameworkElement anchor, Func<Action, FrameworkElement> build, bool atMouse = false) =>
@@ -903,7 +941,7 @@ internal static class PixelPopup
                 var row = new DockPanel();
                 if (en.Swatch != null || en.Dot != null)
                 {
-                    var sw = en.Dot is { } dot ? TaskTags.ColorSquare(dot) : TaskTags.Swatch(en.Swatch!);
+                    var sw = en.Dot is { } dot ? (en.Letter != null ? TaskCards.Badge(en.Letter, dot) : TaskTags.ColorSquare(dot)) : TaskTags.Swatch(en.Swatch!);
                     DockPanel.SetDock(sw, Dock.Left);
                     row.Children.Add(sw);
                 }

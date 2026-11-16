@@ -268,7 +268,7 @@ public sealed class MenuWindow : Window
 
     public const string PageBear = "bear", PageFood = "food", PageWardrobe = "wardrobe", PageShop = "shop",
         PageToday = "today", PageFocus = "focus", PageNotes = "notes", PagePlan = "plan", PageShutdown = "shutdown",
-        PageWeek = "week", PageReview = "review", PageMore = "more";
+        PageWeek = "week", PageReview = "review", PageMore = "more", PageCalendar = "calendar", PageBacklog = "backlog";
 
     /// <summary>Страница: иконка, име, кой таб показва, на кое място в лентата (Group – под „Работа“).</summary>
     private sealed record PageInfo(string Id, string Icon, string Name, int Tab, bool InNav, bool Work = false);
@@ -280,6 +280,8 @@ public sealed class MenuWindow : Window
         new(PageToday, "sun", "Днес", WorkPage, true, Work: true),
         new(PageFocus, "honey", "Фокус", PomodoroTab, true, Work: true),
         new(PageWeek, "board", "Седмица", WorkPage, true, Work: true),
+        new(PageCalendar, "calendar", "Календар", WorkPage, true, Work: true),
+        new(PageBacklog, "backlog", "Backlog", WorkPage, true, Work: true),
         new(PageReview, "book", "Преглед", WorkPage, true, Work: true),
         new(PageShop, "shop", "Магазин", ShopTab, true),
         new(PageMore, "gear", "Още", MoreTab, true),
@@ -323,6 +325,8 @@ public sealed class MenuWindow : Window
             case PageToday: Work.SetView(WorkView.View.Today); break;
             case PageWeek: Work.SetView(WorkView.View.Week); break;
             case PageReview: Work.SetView(WorkView.View.Review); break;
+            case PageCalendar: Work.SetView(WorkView.View.Calendar); break;
+            case PageBacklog: Work.SetView(WorkView.View.Backlog); break;
             case PagePlan: Work.OpenSide("plan"); break;
             case PageShutdown: Work.OpenSide("shutdown"); break;
         }
@@ -632,7 +636,7 @@ public sealed class MenuWindow : Window
         // Храна и Гардероб са в „Мечо“.
         string selected = _page is PageFood or PageWardrobe ? PageBear : _page is PagePlan or PageShutdown ? PageToday : _page;
         foreach (var (id, (item, _)) in _navItems)
-            SetOn(item, id == selected || (id == "work" && inWork && !_workNavOpen));
+            SetOn(item, id == selected || (id == "work" && inWork));
         _workChildren.Visibility = _workNavOpen ? Visibility.Visible : Visibility.Collapsed;
         if (_workArrow != null) _workArrow.Text = _workNavOpen ? "▾" : "▸";
         var info = Pages.FirstOrDefault(p => p.Id == _page);

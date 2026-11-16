@@ -43,6 +43,9 @@ public sealed partial class PetWindow
         if (_menu is { IsVisible: true } m && !m.IsActive && !FloatWindow.AnyActive) m.Hide();
     }
 
+    /// <summary>Менюто (за отделните прозорчета – отварят се върху него).</summary>
+    internal System.Windows.Window? MenuWin => _menu;
+
     /// <summary>Самопроверката: „Работа“ (в менюто).</summary>
     internal WorkView? Work => _menu?.Work;
 
@@ -116,6 +119,15 @@ public sealed partial class PetWindow
         Persist();
         return true;
     }
+
+    /// <summary>В Backlog, в група (TaskItem.NextWeek… Never).</summary>
+    public void SetTaskBucket(TaskItem task, int bucket) => TaskCommand(new SetTaskBucket(task.Id, bucket));
+
+    /// <summary>В графика на деня от start (null – вън от графика), по желание с нова дължина.</summary>
+    public void ScheduleTask(TaskItem task, DateTime? start, int? minutes = null) => TaskCommand(new ScheduleTask(task.Id, start, minutes));
+
+    /// <summary>Подрежда задачите от деня (null – Backlog) в този ред.</summary>
+    public void OrderTasks(DateTime? day, System.Collections.Generic.IReadOnlyList<Guid> order) => TaskCommand(new OrderTasks(day, order));
 
     public void AddTaskStep(TaskItem task, string title) => TaskCommand(new AddTaskStep(task.Id, title));
 

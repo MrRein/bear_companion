@@ -34,8 +34,25 @@ namespace Mecho.Core;
 public sealed record TaskEntry(Guid Id, string Title, string Description, int Size, bool Done, DateTime? DoneAt, bool PageRolled,
     DateTime? Day = null, string Tag = "", bool Star = false, int Minutes = 0, int Rolled = 0,
     ImmutableList<TaskStep>? Steps = null, string Repeat = "", Guid? Series = null, int Spent = 0, DateTime? Created = null,
-    int Priority = 0, DateTime? Due = null)
+    int Priority = 0, DateTime? Due = null, DateTime? Start = null, int Bucket = 0, DateTime? BucketAt = null)
 {
+    /// <summary>
+    /// Backlog („Някога“): 0 – някога, 1 – следващата седмица, 2 – следващия месец,
+    /// 3 – следващото тримесечие, 4 – следващата година, 5 – никога. BucketAt – кога е сложена там.
+    /// Start – в колко часа е в графика на деня (null – не е в графика).
+    /// </summary>
+    public const int SomedayBucket = 0, NextWeek = 1, NextMonth = 2, NextQuarter = 3, NextYear = 4, Never = 5;
+
+    /// <summary>Кога идва времето ѝ (за задачите в Backlog с „следващата седмица“ и т.н.).</summary>
+    public DateTime? BucketDue => Day != null || BucketAt is not { } at ? null : Bucket switch
+    {
+        NextWeek => at.Date.AddDays(((int)DayOfWeek.Monday - (int)at.DayOfWeek + 7) % 7 is 0 ? 7 : ((int)DayOfWeek.Monday - (int)at.DayOfWeek + 7) % 7),
+        NextMonth => new DateTime(at.Year, at.Month, 1).AddMonths(1),
+        NextQuarter => new DateTime(at.Year, (at.Month - 1) / 3 * 3 + 1, 1).AddMonths(3),
+        NextYear => new DateTime(at.Year + 1, 1, 1),
+        _ => null,
+    };
+
     public int Reward => Size switch { 3 => 5, 2 => 3, _ => 1 };
 
     /// <summary>Приоритетът: 2 – Важно (= Star), 1 – Средно, 0 – Нормално, -1 – Ниско.</summary>
@@ -51,14 +68,14 @@ public sealed record TaskEntry(Guid Id, string Title, string Description, int Si
         o is not null && Id == o.Id && Title == o.Title && Description == o.Description && Size == o.Size && Done == o.Done
         && DoneAt == o.DoneAt && PageRolled == o.PageRolled && Day == o.Day && Tag == o.Tag && Star == o.Star && Minutes == o.Minutes
         && Rolled == o.Rolled && StepList.SequenceEqual(o.StepList) && Repeat == o.Repeat && Series == o.Series && Spent == o.Spent
-        && Created == o.Created && Priority == o.Priority && Due == o.Due;
+        && Created == o.Created && Priority == o.Priority && Due == o.Due && Start == o.Start && Bucket == o.Bucket && BucketAt == o.BucketAt;
 
     public override int GetHashCode() => HashCode.Combine(Id, Title, Done, Day, Tag, Star, StepList.Count, Spent);
 
     /// <summary>Кратък подпис на всичко видимо (за „сменило ли се е нещо“ в прозорците).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string Signature =>
-        $"{Id}|{Title}|{Description}|{Size}|{Done}|{Day:yyyyMMdd}|{Tag}|{Star}|{Minutes}|{Rolled}|{Repeat}|{Spent}|{Priority}|{Due:yyyyMMdd}|" +
+        $"{Id}|{Title}|{Description}|{Size}|{Done}|{Day:yyyyMMdd}|{Tag}|{Star}|{Minutes}|{Rolled}|{Repeat}|{Spent}|{Priority}|{Due:yyyyMMdd}|{Start:yyyyMMddHHmm}|{Bucket}|" +
         string.Join(",", StepList.Select(x => (x.Done ? "+" : "-") + x.Title));
 }
 
@@ -89,7 +106,7 @@ public sealed record TasksState(ImmutableList<TaskEntry> Open, ImmutableList<Tas
 // ── Команди ──
 /// <summary>Нова задача. Без Day – за днес; Someday – за „Някога“ (без ден).</summary>
 public sealed record AddTask(string Title, int Size, string? Description = null, DateTime? Day = null, bool Someday = false,
-    string? Tag = null, bool Star = false, int Minutes = 0, Guid? Before = null, int Priority = 0, DateTime? Due = null) : IGameCommand;
+    string? Tag = null, bool Star = false, int Minutes = 0, Guid? Before = null, int Priority = 0, DateTime? Due = null, int Bucket = 0) : IGameCommand;
 /// <summary>Нова стъпка (подзадача) накрая.</summary>
 public sealed record AddTaskStep(Guid TaskId, string Title) : IGameCommand;
 public sealed record SetTaskStepDone(Guid TaskId, Guid StepId, bool Done) : IGameCommand;
@@ -105,6 +122,12 @@ public sealed record PutTask(TaskEntry Task, int Index) : IGameCommand;
 public sealed record MoveUnfinished(DateTime From, DateTime? To) : IGameCommand;
 /// <summary>Мести задачата в ден (null – „Някога“) – преди Before или накрая на деня.</summary>
 public sealed record MoveTask(Guid Id, DateTime? Day, Guid? Before = null) : IGameCommand;
+/// <summary>В Backlog (без ден), в групата Bucket (виж TaskEntry.NextWeek…).</summary>
+public sealed record SetTaskBucket(Guid Id, int Bucket) : IGameCommand;
+/// <summary>В графика на деня: от Start (денят става този на Start), за Minutes (null – без промяна); Start null – вън от графика.</summary>
+public sealed record ScheduleTask(Guid Id, DateTime? Start, int? Minutes = null) : IGameCommand;
+/// <summary>Подрежда задачите от деня (null – Backlog) в дадения ред (останалите – след тях).</summary>
+public sealed record OrderTasks(DateTime? Day, IReadOnlyList<Guid> Order) : IGameCommand;
 /// <summary>
 /// Маркира задачата: етикет, важна, време, големина, приоритет (2 Важно … -1 Ниско; сменя и
 /// Star), срок (ClearDue – без срок). null – без промяна.
@@ -162,7 +185,8 @@ public sealed class TasksModule : GameModule
             var id = Guid.NewGuid();
             var t = new TaskEntry(id, title, (c.Description ?? "").Trim(), Math.Clamp(c.Size, 1, 3), false, null, false,
                 day, CleanTag(c.Tag), c.Star || c.Priority >= 2, Math.Clamp(c.Minutes, 0, MaxMinutes),
-                Created: Clock.Now, Priority: Math.Clamp(c.Priority, -1, 2), Due: c.Due?.Date);
+                Created: Clock.Now, Priority: Math.Clamp(c.Priority, -1, 2), Due: c.Due?.Date,
+                Bucket: day == null ? Math.Clamp(c.Bucket, 0, 5) : 0, BucketAt: day == null ? Clock.Today() : null);
             Store.Update<TasksState>(s =>
             {
                 int at = c.Before is { } b ? s.Open.FindIndex(x => x.Id == b) : -1;
@@ -226,7 +250,13 @@ public sealed class TasksModule : GameModule
             var s = State<TasksState>();
             if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
             if (c.Before == c.Id) return CommandResult.Done;
-            var moved = t with { Day = c.Day?.Date };
+            var moved = t with
+            {
+                Day = c.Day?.Date,
+                Start = t.Start is { } st && st.Date == c.Day?.Date ? st : null,
+                Bucket = c.Day == null ? t.Bucket : 0,
+                BucketAt = c.Day == null ? (t.Day == null ? t.BucketAt : Clock.Today()) : null,
+            };
             var list = s.Open.Remove(t);
             int at = c.Before is { } b ? list.FindIndex(x => x.Id == b) : -1;
             if (at < 0)
@@ -236,6 +266,47 @@ public sealed class TasksModule : GameModule
                 at = last < 0 ? list.Count : last + 1;
             }
             Store.Set(s with { Open = list.Insert(at, moved) });
+            return CommandResult.Done;
+        });
+        Handle<SetTaskBucket>(c =>
+        {
+            var s = State<TasksState>();
+            if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
+            var moved = t with { Day = null, Start = null, Bucket = Math.Clamp(c.Bucket, 0, 5), BucketAt = Clock.Today() };
+            var list = s.Open.Remove(t);
+            int last = list.FindLastIndex(x => x.Day == null);
+            Store.Set(s with { Open = list.Insert(last < 0 ? list.Count : last + 1, moved) });
+            return CommandResult.Done;
+        });
+        Handle<ScheduleTask>(c =>
+        {
+            var s = State<TasksState>();
+            if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
+            var start = c.Start is { } st ? new DateTime(st.Year, st.Month, st.Day, st.Hour, st.Minute / 5 * 5, 0) : (DateTime?)null;
+            var scheduled = t with
+            {
+                Start = start,
+                Day = start?.Date ?? t.Day,
+                Bucket = start != null ? 0 : t.Bucket,
+                BucketAt = start != null ? null : t.BucketAt,
+                Minutes = c.Minutes is { } m ? Math.Clamp(m, 5, MaxMinutes) : t.Minutes,
+            };
+            if (scheduled != t) Store.Set(s with { Open = s.Open.Replace(t, scheduled) });
+            return CommandResult.Done;
+        });
+        Handle<OrderTasks>(c =>
+        {
+            var s = State<TasksState>();
+            var day = c.Day?.Date;
+            var mine = s.Open.Where(t => t.Day == day).ToList();
+            var ordered = c.Order.Select(id => mine.FirstOrDefault(t => t.Id == id)).OfType<TaskEntry>()
+                .Concat(mine.Where(t => !c.Order.Contains(t.Id))).ToList();
+            // На местата на задачите от деня – в новия ред.
+            var list = s.Open.ToList();
+            int k = 0;
+            for (int i = 0; i < list.Count; i++)
+                if (list[i].Day == day) list[i] = ordered[k++];
+            Store.Set(s with { Open = list.ToImmutableList() });
             return CommandResult.Done;
         });
         Handle<MarkTask>(c =>
@@ -378,7 +449,7 @@ public sealed class TasksModule : GameModule
         {
             if (t.Done || t.Day is not { } d || d >= today) return t;
             count++;
-            return t with { Day = today, Rolled = t.Rolled + 1 };
+            return t with { Day = today, Rolled = t.Rolled + 1, Start = null };
         }).ToImmutableList();
         if (count == 0) return;
         Store.Set(s with { Open = open });

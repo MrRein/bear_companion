@@ -102,15 +102,16 @@ internal abstract class FloatWindow : Window
         Loaded += (_, _) =>
         {
             double h = ActualHeight;
-            if (Places.TryGetValue(_placeKey, out var p))
+            // Винаги върху менюто на мечока (там, където е то); без меню – където е било последно.
+            if (near is { IsVisible: true })
+            {
+                Left = Math.Clamp(near.Left + (near.ActualWidth - Width) / 2, area.Left, area.Right - Width);
+                Top = Math.Clamp(near.Top + Math.Max(40 * U, (near.ActualHeight - h) / 3), area.Top, Math.Max(area.Top, area.Bottom - h));
+            }
+            else if (Places.TryGetValue(_placeKey, out var p))
             {
                 Left = Math.Clamp(p.X, area.Left, area.Right - Width);
                 Top = Math.Clamp(p.Y, area.Top, Math.Max(area.Top, area.Bottom - h));
-            }
-            else if (near is { IsVisible: true })
-            {
-                Left = Math.Clamp(near.Left + (near.ActualWidth - Width) / 2, area.Left, area.Right - Width);
-                Top = Math.Clamp(near.Top + 90 * U, area.Top, Math.Max(area.Top, area.Bottom - h));
             }
             else
             {
@@ -161,29 +162,33 @@ internal static class DayPicker
     private static readonly CultureInfo Bg = new("bg-BG");
     private static double U => Body / 18;
 
-    public static string Name(DateTime? day, DateTime today) => day switch
+    public static string Name(DateTime? day, DateTime today, int bucket = 0) => day switch
     {
-        null => "Някога",
+        null => TaskCards.BucketOf(bucket).Name,
         { } d when d == today => "Днес",
         { } d when d == today.AddDays(1) => "Утре",
         { } d when d == today.AddDays(-1) => "Вчера",
         { } d => d.ToString(d.Year == today.Year ? "ddd, d MMM" : "d MMM yyyy", Bg),
     };
 
-    /// <summary>Изскача под копчето. pick получава деня (null – „Някога“).</summary>
-    public static void Show(FrameworkElement anchor, DateTime? current, DateTime today, Action<DateTime?> pick, bool allowSomeday = true, string title = "Кога?")
+    /// <summary>
+    /// Изскача под копчето: Днес, Утре, групите на Backlog (като в Sunsama) и календар.
+    /// pick получава деня; pickBucket – групата (без него – само „Някога“).
+    /// </summary>
+    public static void Show(FrameworkElement anchor, DateTime? current, DateTime today, Action<DateTime?> pick, bool allowSomeday = true,
+        string title = "Кога?", Action<int>? pickBucket = null, int currentBucket = -1)
     {
-        int toMonday = ((int)DayOfWeek.Monday - (int)today.DayOfWeek + 7) % 7;
-        DateTime nextMonday = today.AddDays(toMonday == 0 ? 7 : toMonday);
         PixelPopup.Show(anchor, title, () =>
         {
             var list = new List<PixelPopup.Entry>
             {
                 new("Днес", "sun", () => pick(today), On: current == today),
-                new("Утре", "arrow_right", () => pick(today.AddDays(1)), On: current == today.AddDays(1)),
-                new("Следващата седмица (" + nextMonday.ToString("d MMM", Bg) + ")", "tasks", () => pick(nextMonday), On: current == nextMonday),
+                new("Утре", "nav_next", () => pick(today.AddDays(1)), On: current == today.AddDays(1)),
             };
-            if (allowSomeday) list.Add(new("Някога (без ден)", "history", () => pick(null), On: current == null));
+            if (pickBucket != null)
+                list.Add(new("Backlog", "history", null, Sub: () => TaskCards.Buckets.Select(b =>
+                    new PixelPopup.Entry(b.Name, null, () => pickBucket(b.Bucket), On: current == null && currentBucket == b.Bucket, Dot: b.Color, Letter: b.Letter))));
+            else if (allowSomeday) list.Add(new("Някога (без ден)", "history", () => pick(null), On: current == null));
             list.Add(new("", null, null, Custom: close => Calendar(current, today, d => { close(); pick(d); })));
             return list;
         });
@@ -198,8 +203,8 @@ internal static class DayPicker
         {
             root.Children.Clear();
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 4 * U) };
-            var prev = Chip("◀", () => { month = month.AddMonths(-1); Fill(); });
-            var next = Chip("▶", () => { month = month.AddMonths(1); Fill(); });
+            var prev = IconChip("nav_prev", () => { month = month.AddMonths(-1); Fill(); });
+            var next = IconChip("nav_next", () => { month = month.AddMonths(1); Fill(); });
             prev.Padding = next.Padding = new Thickness(6, 1, 6, 2);
             DockPanel.SetDock(prev, Dock.Left);
             DockPanel.SetDock(next, Dock.Right);
@@ -220,8 +225,8 @@ internal static class DayPicker
                 bool inMonth = day.Month == month.Month, isSel = day == selected, isToday = day == today;
                 var cell = new Border
                 {
-                    Width = 26 * U,
-                    Height = 22 * U,
+                    Width = 32 * U,
+                    Height = 28 * U,
                     Margin = new Thickness(1),
                     CornerRadius = new CornerRadius(3),
                     Background = isSel ? Honey : Brushes.Transparent,
@@ -259,23 +264,27 @@ internal sealed class NewTaskWindow : FloatWindow
     private readonly TextBox _title;
     private readonly WrapPanel _meta = new();
     private DateTime? _day;
-    private int _minutes, _size = 1, _priority;
+    private int _minutes, _size = 1, _priority, _bucket;
+    private DateTime? _start;
     private string _tag;
 
     public static NewTaskWindow? Current => _current;
 
-    public static void Show(PetWindow pet, DateTime? day, string? tag = null, bool star = false, Window? near = null)
+    public static void Show(PetWindow pet, DateTime? day, string? tag = null, bool star = false, Window? near = null, int bucket = 0, DateTime? start = null)
     {
         if (_current != null)
         {
             _current._day = day;
+            _current._bucket = bucket;
+            _current._start = start;
             _current.FillMeta();
             _current.Activate();
             _current._title.Focus();
             return;
         }
-        _current = new NewTaskWindow(pet, day, tag ?? "", star ? 2 : 0);
-        _current.Place(near);
+        _current = new NewTaskWindow(pet, day, tag ?? "", star ? 2 : 0) { _bucket = bucket, _start = start };
+        _current.FillMeta();
+        _current.Place(near ?? pet.MenuWin);
         _current.Show();
         _current.Activate();
     }
@@ -319,8 +328,13 @@ internal sealed class NewTaskWindow : FloatWindow
     {
         var today = Pet.TaskToday;
         _meta.Children.Clear();
-        _meta.Children.Add(MetaChip("clock", DayPicker.Name(_day, today), chip =>
-            DayPicker.Show(chip, _day, today, d => { _day = d; FillMeta(); }), "Кой ден", on: true));
+        _meta.Children.Add(MetaChip("clock", DayPicker.Name(_day, today, _bucket), chip =>
+            DayPicker.Show(chip, _day, today, d => { _day = d; FillMeta(); }, pickBucket: b => { _day = null; _bucket = b; FillMeta(); }, currentBucket: _bucket),
+            "Кога", on: true));
+        if (_start is { } st && _day == st.Date)
+            _meta.Children.Add(MetaChip("calendar", st.ToString("H:mm"), chip =>
+                PixelPopup.Show(chip, "В графика", () => new[] { new PixelPopup.Entry("Без час", "close", () => { _start = null; FillMeta(); }) }),
+                "В графика на деня от този час", on: true));
         _meta.Children.Add(MetaChip("hourglass", _minutes > 0 ? TaskCards.Duration(_minutes) : "Време", chip =>
             PixelPopup.Show(chip, "Колко време?", () => TaskCards.Estimates
                 .Select(m => new PixelPopup.Entry(TaskCards.Duration(m), null, () => { _minutes = m; FillMeta(); }, On: _minutes == m))
@@ -337,10 +351,10 @@ internal sealed class NewTaskWindow : FloatWindow
                 }))),
             "Етикет", tag?.Color, on: tag != null));
         var pr = TaskCards.PriorityOf(_priority);
-        _meta.Children.Add(MetaChip(null, pr.Name, chip =>
+        _meta.Children.Add(MetaChip("flag", _priority == 0 ? "Приоритет" : pr.Name, chip =>
             PixelPopup.Show(chip, "Приоритет", () => TaskCards.Priorities
                 .Select(x => new PixelPopup.Entry(x.Name, null, () => { _priority = x.Level; FillMeta(); }, On: _priority == x.Level, Dot: x.Color))),
-            "Приоритет", pr.Color, on: _priority != 0));
+            "Приоритет", _priority == 0 ? null : pr.Color, on: _priority != 0));
         _meta.Children.Add(MetaChip(TaskCards.SizeIcon(_size), TaskCards.SizeNames[_size - 1], chip =>
             PixelPopup.Show(chip, "Сложност", () => Enumerable.Range(1, 3)
                 .Select(n => new PixelPopup.Entry($"{TaskCards.SizeNames[n - 1]} (+{(n switch { 3 => 5, 2 => 3, _ => 1 })} лешника)", TaskCards.SizeIcon(n),
@@ -358,8 +372,9 @@ internal sealed class NewTaskWindow : FloatWindow
             return;
         }
         var first = Pet.TaskState.Open.FirstOrDefault(t => t.Day == _day && !t.Done);
-        Pet.AddTask(text, _size, null, _day, someday: _day == null, tag: _tag.Length > 0 ? _tag : null, star: _priority == 2,
-            minutes: _minutes, quiet: true, before: first?.Id, priority: _priority);
+        var added = Pet.AddTask(text, _size, null, _day, someday: _day == null, tag: _tag.Length > 0 ? _tag : null, star: _priority == 2,
+            minutes: _minutes, quiet: true, before: first?.Id, priority: _priority, bucket: _bucket);
+        if (added != null && _start is { } st && _day == st.Date) Pet.ScheduleTask(added, st, _minutes > 0 ? null : 30);
         Close();
     }
 }
@@ -390,7 +405,7 @@ internal sealed class TaskCardWindow : FloatWindow
             return;
         }
         var w = new TaskCardWindow(pet, task);
-        w.Place(near);
+        w.Place(near ?? pet.MenuWin);
         w.Show();
         w.Activate();
     }
@@ -509,10 +524,10 @@ internal sealed class TaskCardWindow : FloatWindow
         var tag = TaskTags.Find(t.Tag);
         _meta.Children.Add(MetaChip("pin", tag?.Name ?? "Етикет", chip => PixelPopup.Show(chip, "Етикет", TaskCards.TagEntries(Pet, t)), "Етикет", tag?.Color, tag != null));
         var pr = TaskCards.PriorityOf(t.Level);
-        _meta.Children.Add(MetaChip(null, pr.Name, chip => PixelPopup.Show(chip, "Приоритет", () => TaskCards.Priorities
-            .Select(x => new PixelPopup.Entry(x.Name, null, () => Pet.MarkTask(t, priority: x.Level), On: t.Level == x.Level, Dot: x.Color))), "Приоритет", pr.Color, t.Level != 0));
-        _meta.Children.Add(MetaChip("clock", DayPicker.Name(t.Day, today), chip =>
-            DayPicker.Show(chip, t.Day, today, d => Pet.MoveTask(t, d)), "Кой ден"));
+        _meta.Children.Add(MetaChip("flag", t.Level == 0 ? "Приоритет" : pr.Name, chip => PixelPopup.Show(chip, "Приоритет", () => TaskCards.Priorities
+            .Select(x => new PixelPopup.Entry(x.Name, null, () => Pet.MarkTask(t, priority: x.Level), On: t.Level == x.Level, Dot: x.Color))), "Приоритет", t.Level == 0 ? null : pr.Color, t.Level != 0));
+        _meta.Children.Add(MetaChip("clock", DayPicker.Name(t.Day, today, t.Bucket), chip =>
+            DayPicker.Show(chip, t.Day, today, d => Pet.MoveTask(t, d), pickBucket: b => Pet.SetTaskBucket(t, b), currentBucket: t.Bucket), "Кога"));
         string due = t.Due is { } dd ? "Срок: " + DayPicker.Name(dd, today) : "Срок";
         _meta.Children.Add(MetaChip("bell", due, chip =>
         {

@@ -666,6 +666,18 @@ public static class Ui
         return t.Length > max ? t[..max].TrimEnd() + "…" : t;
     }
 
+    /// <summary>Копче само с иконка (например нарисуваните стрелки nav_prev / nav_next).</summary>
+    public static Border IconChip(string icon, Action onClick, string? tip = null)
+    {
+        var chip = Chip("", onClick);
+        var i = Icon(icon);
+        i.HorizontalAlignment = HorizontalAlignment.Center;
+        i.VerticalAlignment = VerticalAlignment.Center;
+        chip.Child = i;
+        if (tip != null) chip.ToolTip = Tip(tip);
+        return chip;
+    }
+
     /// <summary>Малко копче (размер на задача, ✕ и др.).</summary>
     public static Border Chip(string text, Action onClick)
     {

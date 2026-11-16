@@ -192,6 +192,29 @@ public class TasksTests
     }
 
     [Fact]
+    public void Backlog_bucket_schedule_and_order()
+    {
+        var (e, clock, _) = Started(new DateTime(2026, 11, 18, 10, 0, 0));   // сряда
+        e.Bus.Send(new AddTask("a", 1));
+        var a = Last(e).Id;
+        e.Bus.Send(new SetTaskBucket(a, TaskEntry.NextWeek));
+        var t = e.Store.Get<TasksState>().Find(a)!;
+        Assert.Null(t.Day);
+        Assert.Equal(new DateTime(2026, 11, 23), t.BucketDue);
+        e.Bus.Send(new SetTaskBucket(a, TaskEntry.NextQuarter));
+        Assert.Equal(new DateTime(2027, 1, 1), e.Store.Get<TasksState>().Find(a)!.BucketDue);
+        e.Bus.Send(new ScheduleTask(a, new DateTime(2026, 11, 19, 14, 32, 0), 45));
+        t = e.Store.Get<TasksState>().Find(a)!;
+        Assert.Equal((new DateTime(2026, 11, 19), new DateTime(2026, 11, 19, 14, 30, 0), 45, (DateTime?)null), (t.Day!.Value, t.Start!.Value, t.Minutes, t.BucketDue));
+        e.Bus.Send(new MoveTask(a, new DateTime(2026, 11, 20)));
+        Assert.Null(e.Store.Get<TasksState>().Find(a)!.Start);
+        e.Bus.Send(new AddTask("b", 1, Day: new DateTime(2026, 11, 20)));
+        var b = Last(e).Id;
+        e.Bus.Send(new OrderTasks(new DateTime(2026, 11, 20), new[] { b, a }));
+        Assert.Equal("b a", Titles(e, new DateTime(2026, 11, 20)));
+    }
+
+    [Fact]
     public void Unfinished_tasks_roll_over_to_today()
     {
         var (e, clock, signals) = Started(new DateTime(2026, 11, 16, 23, 59, 0));
