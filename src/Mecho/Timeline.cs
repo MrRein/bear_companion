@@ -248,7 +248,7 @@ internal sealed class DayTimeline : DockPanel
                 canvas.SizeChanged += (_, _) =>
                 {
                     line.Width = canvas.ActualWidth;
-                    Canvas.SetLeft(nowText, Math.Max(4, canvas.ActualWidth - 70 * U));
+                    Canvas.SetLeft(nowText, Math.Max(4, canvas.ActualWidth - 84 * U));
                 };
             }
         }
