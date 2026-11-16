@@ -112,9 +112,9 @@ public sealed class WorkView : Border
         // ── Под него (само в „Седмица“): ◀ Днес ▶, кои дни се виждат, търсене, етикети … обобщение ──
         var weekNav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 10, 4), VerticalAlignment = VerticalAlignment.Center };
         // ◀ ▶ (по седмица; и с колелцето, влачене, ←/→) и хапчето с дните / „Към днес“.
-        _weekNav = MakeNav(() => ScrollBy(-7), () => ScrollBy(7), () => ScrollToDay(Today),
+        _weekNav = MakeNav(() => ScrollBy(-1), () => ScrollBy(1), () => ScrollToDay(Today),
             b => DayPicker.Show(b, Today, Today, d => { if (d is { } x) ScrollToDay(x); }, allowSomeday: false, title: "Към кой ден?"),
-            "Седмица назад (←: ден назад)", "Седмица напред (→: ден напред)");
+            "Ден назад (←)", "Ден напред (→)");
         _todayChip = new Border();
         weekNav.Children.Add(_weekNav.Root);
         // ── Втори ред: търсене, етикети, само важните, скрий свършените … обобщение ──
@@ -2922,13 +2922,10 @@ public sealed class WorkView : Border
         var done = todays.Where(t => t.Done).ToList();
         var left = todays.Where(t => !t.Done).ToList();
         int spent = todays.Sum(t => t.Spent);
-        p.Children.Add(new TextBlock
-        {
-            Text = done.Count == 0 ? "Днес нищо не е отметнато – и това е наред."
-                : $"Свършени {done.Count}" + (spent > 0 ? $" · работено {TaskCards.Duration(spent)}" : "") + $" · +{done.Sum(t => t.Reward)} лешника",
-            TextWrapping = TextWrapping.Wrap,
-            FontWeight = FontWeights.Bold,
-        });
+        var summary = RichText(done.Count == 0 ? "Днес нищо не е отметнато – и това е наред."
+            : $"Свършени {done.Count}" + (spent > 0 ? $" · работено {TaskCards.Duration(spent)}" : "") + $" · +{done.Sum(t => t.Reward)} 🌰", bold: true);
+        summary.TextWrapping = TextWrapping.Wrap;
+        p.Children.Add(summary);
         foreach (var t in done) p.Children.Add(MiniRow(t));
 
         p.Children.Add(Label($"Остава · {left.Count}"));

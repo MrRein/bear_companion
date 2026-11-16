@@ -407,8 +407,8 @@ internal sealed class NewTaskWindow : FloatWindow
             "Приоритет", _priority == 0 ? null : pr.Color, on: _priority != 0));
         _meta.Children.Add(MetaChip(TaskCards.SizeIcon(_size), TaskCards.SizeNames[_size - 1], chip =>
             PixelPopup.Show(chip, "Сложност", () => Enumerable.Range(1, 3)
-                .Select(n => new PixelPopup.Entry($"{TaskCards.SizeNames[n - 1]} (+{(n switch { 3 => 5, 2 => 3, _ => 1 })} лешника)", TaskCards.SizeIcon(n),
-                    () => { _size = n; FillMeta(); }, On: _size == n))),
+                .Select(n => new PixelPopup.Entry(TaskCards.SizeNames[n - 1], TaskCards.SizeIcon(n),
+                    () => { _size = n; FillMeta(); }, On: _size == n, Reward: n switch { 3 => 5, 2 => 3, _ => 1 }))),
             "Сложност – колко лешника носи", on: _size > 1));
     }
 
@@ -442,7 +442,7 @@ internal sealed class TaskCardWindow : FloatWindow
     private static readonly CultureInfo Bg = new("bg-BG");
     private readonly Guid _id;
     private readonly ContentControl _check = new() { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 8, 0, 0) };
-    private readonly TextBlock _reward = new() { Foreground = Muted, Margin = new Thickness(0, 2, 0, 0) };
+    private readonly StackPanel _reward = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
     private readonly Grid _props = new();
     private readonly TextBox _title, _notes;
     private readonly TextBlock _stepsLabel;
@@ -616,7 +616,7 @@ internal sealed class TaskCardWindow : FloatWindow
     }
 
     /// <summary>Стойност в реда: иконка/цвят, текст, ▾ – лека (без рамка), свети при посочване.</summary>
-    private static Border Value(string? icon, string text, Action<Border>? click, Color? dot = null, bool muted = false, string? tip = null)
+    private static Border Value(string? icon, string text, Action<Border>? click, Color? dot = null, bool muted = false, string? tip = null, int reward = 0)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         if (dot is { } c) row.Children.Add(TaskTags.ColorSquare(c));
@@ -628,6 +628,12 @@ internal sealed class TaskCardWindow : FloatWindow
             row.Children.Add(i);
         }
         row.Children.Add(new TextBlock { Text = text, FontWeight = muted ? FontWeights.Normal : FontWeights.Bold, Foreground = muted ? Muted : Ink, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+        if (reward > 0)
+        {
+            var r = Ui.RewardText(reward, bold: true);
+            r.Margin = new Thickness(8, 0, 0, 0);
+            row.Children.Add(r);
+        }
         if (click != null) row.Children.Add(new TextBlock { Text = "  ▾", Foreground = Muted, VerticalAlignment = VerticalAlignment.Center });
         var box = new Border
         {
@@ -673,9 +679,13 @@ internal sealed class TaskCardWindow : FloatWindow
         if (!_notes.IsKeyboardFocused && _notes.Text != t.Description) _notes.Text = t.Description;
         _title.IsReadOnly = _notes.IsReadOnly = t.Done;
         _title.TextDecorations = t.Done ? TextDecorations.Strikethrough : null;
-        _reward.Text = t.Done
-            ? (t.DoneAt is { } doneAt ? $"Свършена в {doneAt:H:mm}" + (doneAt.Date != today ? $" ({doneAt.ToString("d MMM", Bg)})" : "") : "Свършена") + $" · +{t.Reward} лешника"
-            : $"+{t.Reward} лешника, като я свършиш";
+        // „Свършена в 14:32 ·“ или „като я свършиш“ + еднаквото „+3 🌰“ (в получер).
+        _reward.Children.Clear();
+        TextBlock Muted1(string text) => new() { Text = text, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center };
+        if (t.Done)
+            _reward.Children.Add(Muted1((t.DoneAt is { } doneAt ? $"Свършена в {doneAt:H:mm}" + (doneAt.Date != today ? $" ({doneAt.ToString("d MMM", Bg)})" : "") : "Свършена") + "  ·  "));
+        _reward.Children.Add(Ui.RewardText(t.Reward, bold: true));
+        if (!t.Done) _reward.Children.Add(Muted1("  като я свършиш"));
 
         // Свойствата.
         _props.Children.Clear();
@@ -703,9 +713,9 @@ internal sealed class TaskCardWindow : FloatWindow
         Prop("Време", Value("hourglass", t.Minutes > 0 ? TaskCards.Duration(t.Minutes) : "не е казано",
             b => PixelPopup.Show(b, "Колко време?", TaskCards.TimeEntries(Pet, t)), muted: t.Minutes == 0,
             tip: t.Spent > 0 ? $"Работено досега: {TaskCards.Duration(t.Spent)}" : null));
-        Prop("Сложност", Value(TaskCards.SizeIcon(t.Size), Capital(TaskCards.SizeNames[Math.Clamp(t.Size, 1, 3) - 1]) + $" · +{t.Reward}",
+        Prop("Сложност", Value(TaskCards.SizeIcon(t.Size), Capital(TaskCards.SizeNames[Math.Clamp(t.Size, 1, 3) - 1]),
             t.Done ? null : b => PixelPopup.Show(b, "Сложност", () => Enumerable.Range(1, 3).Select(n =>
-                new PixelPopup.Entry($"{TaskCards.SizeNames[n - 1]} (+{(n switch { 3 => 5, 2 => 3, _ => 1 })} лешника)", TaskCards.SizeIcon(n), () => Pet.MarkTask(t, size: n), On: t.Size == n)))));
+                new PixelPopup.Entry(TaskCards.SizeNames[n - 1], TaskCards.SizeIcon(n), () => Pet.MarkTask(t, size: n), On: t.Size == n, Reward: n switch { 3 => 5, 2 => 3, _ => 1 }))), reward: t.Reward));
 
         // Подзадачите.
         var steps = t.StepList;

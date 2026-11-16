@@ -564,7 +564,7 @@ public static class Ui
     public static StackPanel RewardText(int nuts, bool bold = false)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        row.Children.Add(RichText($"+{nuts}", null, bold));
+        row.Children.Add(RichText($"+{nuts}", null, true));   // навсякъде еднакво – в получер
         var i = Icon("nut");
         i.VerticalAlignment = VerticalAlignment.Center;
         i.Margin = new Thickness(4, 0, 0, 0);

@@ -269,7 +269,7 @@ internal static class TaskCards
         var icon = Icon(SizeIcon(Math.Clamp(size, 1, 3)));
         icon.VerticalAlignment = VerticalAlignment.Center;
         icon.Margin = new Thickness(0, 0, 8 * U, 0);
-        icon.ToolTip = Tip($"{SizeNames[Math.Clamp(size, 1, 3) - 1]} задача · +{(size switch { 3 => 5, 2 => 3, _ => 1 })} лешника");
+        icon.ToolTip = Tip($"{SizeNames[Math.Clamp(size, 1, 3) - 1]} задача · +{(size switch { 3 => 5, 2 => 3, _ => 1 })} лешника, като я свършиш");
         return icon;
     }
 
@@ -887,7 +887,7 @@ internal sealed class DragGhost
 internal static class PixelPopup
 {
     public sealed record Entry(string Text, string? Icon, Action? Click, bool On = false, Func<IEnumerable<Entry>>? Sub = null,
-        bool Danger = false, string? Swatch = null, Func<Action, FrameworkElement>? Custom = null, Color? Dot = null, string? Letter = null);
+        bool Danger = false, string? Swatch = null, Func<Action, FrameworkElement>? Custom = null, Color? Dot = null, string? Letter = null, int Reward = 0);
 
     /// <summary>Изскачащо меню със свое съдържание (build получава „затвори“).</summary>
     public static void ShowCustom(FrameworkElement anchor, Func<Action, FrameworkElement> build, bool atMouse = false) =>
@@ -997,6 +997,14 @@ internal static class PixelPopup
                     icon.VerticalAlignment = VerticalAlignment.Center;
                     DockPanel.SetDock(icon, Dock.Left);
                     row.Children.Add(icon);
+                }
+                // „+3“ и лешникът – вдясно, в получер (еднакво навсякъде).
+                if (en.Reward > 0)
+                {
+                    var reward = Ui.RewardText(en.Reward, bold: true);
+                    reward.Margin = new Thickness(10 * U, 0, 0, 0);
+                    DockPanel.SetDock(reward, Dock.Right);
+                    row.Children.Add(reward);
                 }
                 if (en.Sub != null || en.On)
                 {
