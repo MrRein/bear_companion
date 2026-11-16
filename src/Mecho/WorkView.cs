@@ -1396,7 +1396,7 @@ public sealed class WorkView : Border
             TextWrapping = TextWrapping.Wrap,
         });
         // Колко часа работа днес – цъкни и избери (до 20).
-        var loadRow = new DockPanel { MaxWidth = 460 * U, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 2 * U, 0, 0) };
+        var loadRow = new DockPanel { MaxWidth = 460 * U, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 2 * U, 0, 0) };
         Border hoursChip = null!;
         hoursChip = Chip("", () => PixelPopup.Show(hoursChip, "Часове за работа днес", () =>
             Enumerable.Range(1, 20).Select(h => new PixelPopup.Entry(h + (h == 1 ? " час" : " часа"), null, () =>
@@ -1809,14 +1809,7 @@ public sealed class WorkView : Border
             nav.Children.Add(_calendarTitle);
             DockPanel.SetDock(nav, Dock.Left);
             bar.Children.Add(nav);
-            bar.Children.Add(new TextBlock
-            {
-                Text = "Влачи задачите от „Днес“ и „Седмица“ в часовете; двойно цъкване – нова задача.",
-                Foreground = Muted,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right,
-            });
+nav.ToolTip = Tip("Влачи задачите от „Днес“ и „Седмица“ в часовете; двойно цъкване – нова задача.");
             var root = new DockPanel();
             DockPanel.SetDock(bar, Dock.Top);
             root.Children.Add(bar);
