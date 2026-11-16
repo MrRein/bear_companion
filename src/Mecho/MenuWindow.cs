@@ -3321,7 +3321,7 @@ public sealed class MenuWindow : Window
         var (_, allToday, _) = _pet.TodayLoad();
         int leftToday = _pet.OrderedTasks().Count;
         _workBadgeText.Text = leftToday.ToString();
-        _workBadge.Visibility = leftToday > 0 && !_navCompact ? Visibility.Visible : Visibility.Collapsed;
+        _workBadge.Visibility = Visibility.Collapsed;   // броят задачи до „Работа“ не се показва
         _workBadge.ToolTip = Tip($"Остават {leftToday} от {allToday} задачи за днес");
         if (_navItems.TryGetValue(PageWardrobe, out var wardrobe))
             wardrobe.Item.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
