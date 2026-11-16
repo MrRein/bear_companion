@@ -1542,6 +1542,16 @@ public sealed partial class PetWindow
             if (p.CalendarBlocks < 1) throw new Exception($"в календара няма блокче ({p.CalendarBlocks})");
             Shot(_menu!, "work_calendar");
             LayoutReport(_menu!, "work_calendar");
+            p.TestCalendarMode(2);
+            p.UpdateLayout();
+            Shot(_menu!, "work_calendar_month");
+            LayoutReport(_menu!, "work_calendar_month");
+            p.TestCalendarMode(0);
+            p.UpdateLayout();
+            if (p.CalendarBlocks < 1) throw new Exception($"в деня няма блокче ({p.CalendarBlocks})");
+            Shot(_menu!, "work_calendar_day");
+            LayoutReport(_menu!, "work_calendar_day");
+            p.TestCalendarMode(1);
             p.SetView(WorkView.View.Backlog);
             p.UpdateLayout();
             Shot(_menu!, "work_backlog");

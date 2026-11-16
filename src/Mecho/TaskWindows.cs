@@ -95,32 +95,69 @@ internal abstract class FloatWindow : Window
         return false;
     }
 
-    /// <summary>Където е било последно; иначе – до менюто (или в средата на екрана).</summary>
+    /// <summary>
+    /// Върху менюто на мечока – на същия монитор, където е то (и при два монитора); без меню –
+    /// където е било последно, иначе в средата на главния екран.
+    /// </summary>
     protected void Place(Window? near)
     {
         var area = SystemParameters.WorkArea;
-        Loaded += (_, _) =>
+        bool onMenu = near is { IsVisible: true };
+        if (onMenu && MonitorArea(near!) is { } m) area = m;
+        void Put(double h)
         {
-            double h = ActualHeight;
-            // Винаги върху менюто на мечока (там, където е то); без меню – където е било последно.
-            if (near is { IsVisible: true })
+            if (onMenu)
             {
-                Left = Math.Clamp(near.Left + (near.ActualWidth - Width) / 2, area.Left, area.Right - Width);
+                Left = Math.Clamp(near!.Left + (near.ActualWidth - Width) / 2, area.Left, Math.Max(area.Left, area.Right - Width));
                 Top = Math.Clamp(near.Top + Math.Max(40 * U, (near.ActualHeight - h) / 3), area.Top, Math.Max(area.Top, area.Bottom - h));
             }
             else if (Places.TryGetValue(_placeKey, out var p))
             {
-                Left = Math.Clamp(p.X, area.Left, area.Right - Width);
-                Top = Math.Clamp(p.Y, area.Top, Math.Max(area.Top, area.Bottom - h));
+                Left = p.X;
+                Top = p.Y;
             }
             else
             {
                 Left = area.Left + (area.Width - Width) / 2;
                 Top = area.Top + Math.Max(40, (area.Height - h) / 3);
             }
-        };
-        Left = area.Left + (area.Width - Width) / 2;
-        Top = area.Top + area.Height / 4;
+        }
+        // Веднага на правилното място (иначе за миг се показва на главния екран), после – по височината.
+        Put(300 * U);
+        Loaded += (_, _) => Put(ActualHeight);
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct RECT { public int Left, Top, Right, Bottom; }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct MONITORINFO { public int cbSize; public RECT rcMonitor, rcWork; public int dwFlags; }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int flags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
+
+    /// <summary>Работната площ на монитора, на който е прозорецът (в единиците на WPF).</summary>
+    private static Rect? MonitorArea(Window w)
+    {
+        try
+        {
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(w).Handle;
+            if (hwnd == IntPtr.Zero) return null;
+            var info = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfo(MonitorFromWindow(hwnd, 2), ref info)) return null;
+            var source = PresentationSource.FromVisual(w);
+            var m = source?.CompositionTarget?.TransformFromDevice ?? Matrix.Identity;
+            var tl = m.Transform(new Point(info.rcWork.Left, info.rcWork.Top));
+            var br = m.Transform(new Point(info.rcWork.Right, info.rcWork.Bottom));
+            return new Rect(tl, br);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>Копче-хапче в реда с избора (Ден, Време, Етикет…): иконка/цвят + текст.</summary>
@@ -555,11 +592,18 @@ internal sealed class TaskCardWindow : FloatWindow
         _title.IsReadOnly = _notes.IsReadOnly = t.Done;
         _title.TextDecorations = t.Done ? TextDecorations.Strikethrough : null;
 
-        // Работено / планирано.
+        // Планирано време – обикновен текст (цъкнеш го – избираш колко).
         _top.Children.Clear();
-        _top.Children.Add(Stat("РАБОТЕНО", t.Spent > 0 ? TaskCards.Duration(t.Spent) : "0м", null));
-        _top.Children.Add(Stat("ПЛАНИРАНО", t.Minutes > 0 ? TaskCards.Duration(t.Minutes) : "—", chip =>
-            PixelPopup.Show(chip, "Колко време?", TaskCards.TimeEntries(Pet, t))));
+        var planned = new TextBlock
+        {
+            Text = "Планирано време: " + (t.Minutes > 0 ? TaskCards.Duration(t.Minutes) : "—"),
+            Foreground = Muted,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 8 * U, 0, 0),
+            ToolTip = Tip("Колко време ще отнеме – цъкни, за да го смениш"),
+        };
+        if (!t.Done) TaskCards.Clickable(planned, () => PixelPopup.Show(planned, "Колко време?", TaskCards.TimeEntries(Pet, t)));
+        _top.Children.Add(planned);
 
         // Подзадачите.
         _steps.Children.Clear();
@@ -604,23 +648,4 @@ internal sealed class TaskCardWindow : FloatWindow
         }
     }
 
-    private static FrameworkElement Stat(string label, string value, Action<Border>? click)
-    {
-        var box = new StackPanel { Margin = new Thickness(10 * U, 0, 0, 0) };
-        box.Children.Add(new TextBlock { Text = label, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Right });
-        var v = new TextBlock { Text = value, FontWeight = FontWeights.Bold, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Right };
-        if (click == null)
-        {
-            box.Children.Add(v);
-            return box;
-        }
-        Border chip = null!;
-        chip = Chip("", () => click(chip));
-        chip.Child = v;
-        chip.Padding = new Thickness(6, 0, 6, 2);
-        chip.HorizontalAlignment = HorizontalAlignment.Right;
-        chip.ToolTip = Tip("Колко време ще отнеме");
-        box.Children.Add(chip);
-        return box;
-    }
 }

@@ -136,6 +136,7 @@ public sealed class SaveData
     public PinState Planner { get; set; } = new();               // седмицата със задачите (къде е, колко е голяма)
     public int PlannerHours { get; set; } = 6;                  // колко часа работа на ден (за „твърде много за деня“)
     public bool PlannerHideDone { get; set; }                   // седмицата: свършените не се показват
+    public Dictionary<string, int> DayHours { get; set; } = new();   // часове за работа по дни (yyyy-MM-dd → часове; 0 – „не питай“)
     public string PlanSeenDay { get; set; } = "";               // поканата за план е видяна/махната днес (не излиза до утре)
     public string ShutdownSeenDay { get; set; } = "";
     public string PlannedDay { get; set; } = "";                // кой ден е планиран („План за деня“)

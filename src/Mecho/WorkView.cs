@@ -28,7 +28,7 @@ public sealed class WorkView : Border
     private enum Side { None, Details, Plan, Shutdown }
 
     private readonly PetWindow _pet;
-    private readonly StackPanel _strip = new() { Orientation = Orientation.Horizontal };
+    private readonly StackPanel _strip = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(6, 0, 0, 0) };
     private readonly ScrollViewer _dayScroll;
     private readonly Border _someday = new();
     private readonly Border _side;
@@ -74,7 +74,23 @@ public sealed class WorkView : Border
     }
 
     private DateTime Today => _pet.TaskToday;
-    private int CapacityMinutes => Math.Clamp(_pet.Save.PlannerHours, 1, 20) * 60;
+    /// <summary>Часовете за работа в деня (в минути) – само ако си ги казала за него; иначе null.</summary>
+    private int? CapacityFor(DateTime day) =>
+        _pet.Save.DayHours.TryGetValue(day.ToString("yyyy-MM-dd"), out int h) && h > 0 ? Math.Clamp(h, 1, 20) * 60 : null;
+
+    private void SetDayHours(DateTime day, int hours)
+    {
+        _pet.Save.DayHours[day.ToString("yyyy-MM-dd")] = Math.Clamp(hours, 0, 20);
+        if (hours > 0) _pet.Save.PlannerHours = hours;   // следващия път се предлага същото
+        // Старите дни не се пазят вечно.
+        foreach (var old in _pet.Save.DayHours.Keys.Where(k => DateTime.TryParse(k, out var d) && d < Today.AddDays(-60)).ToList())
+            _pet.Save.DayHours.Remove(old);
+        _pet.Persist();
+        Refresh(true);
+    }
+
+    /// <summary>Кой ден се гледа в „Днес“ (◀ ▶ сменят деня).</summary>
+    private DateTime? _todayDay;
 
     public WorkView(PetWindow pet)
     {
@@ -174,7 +190,8 @@ public sealed class WorkView : Border
             BorderBrush = WoodLight,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(6 * U, 6 * U, 6 * U, 2 * U),
+            // Отстъпът е вътре в лентата – дните се режат точно на рамката, не преди нея.
+            Padding = new Thickness(0, 6 * U, 0, 2 * U),
             ClipToBounds = true,
             Child = new Grid { Children = { _dayScroll, _backLeft, _backRight } },
         });
@@ -278,6 +295,7 @@ public sealed class WorkView : Border
         Commit();
         // „План за деня“ и „Край на деня“ са само в „Днес“ – в другите изгледи се затварят.
         if (view != View.Today && _sideMode is Side.Plan or Side.Shutdown) _sideMode = Side.None;
+        if (view == View.Today) _todayDay = null;   // „Днес“ винаги почва от днешния ден
         _view = view;
         _pet.Save.WorkView = (int)view;
         _todayView.Visibility = view == View.Today ? Visibility.Visible : Visibility.Collapsed;
@@ -612,7 +630,7 @@ public sealed class WorkView : Border
         var today = Today;
         switch (_view)
         {
-            case View.Today: BuildToday(state, today, force); break;
+            case View.Today: BuildToday(state, _todayDay ?? today, force); break;
             case View.Review: BuildReview(state, today, force); break;
             case View.Backlog: BuildBacklog(state, today, force); break;
             case View.Calendar: BuildCalendar(state, today, force); break;
@@ -638,7 +656,7 @@ public sealed class WorkView : Border
         foreach (var t in state.History.Reverse())
             if ((t.Day ?? t.DoneAt?.Date) is { } d && d >= _from && d < last) Put(d, t);
 
-        string common = $"{today:yyyyMMdd}#{_filter}#{_starOnly}#{_query}#{_pet.Save.PlannerHideDone}#{_pet.Save.PlannerHours}#{_pet.Save.UiTheme}#{(_pet.InFocus ? _pet.FocusTask?.Id : null)}";
+        string common = $"{today:yyyyMMdd}#{_filter}#{_starOnly}#{_query}#{_pet.Save.PlannerHideDone}#{string.Join(",", _pet.Save.DayHours.Select(x => x.Key + x.Value))}#{_pet.Save.UiTheme}#{(_pet.InFocus ? _pet.FocusTask?.Id : null)}";
         // Избраната задача е само в подписа на нейната колона (иначе всеки клик строи всички дни).
         string Selected(List<TaskItem> tasks) => _sideMode == Side.Details && _selected is { } s && tasks.Any(t => t.Id == s) ? "#S" + s : "";
         if (force)
@@ -836,8 +854,8 @@ public sealed class WorkView : Border
         // Време: планирано спрямо часовете за деня (свършеното – запълнено).
         int planned = tasks.Sum(t => t.Minutes);
         int doneMinutes = tasks.Where(t => t.Done).Sum(t => t.Minutes);
-        if (day != null && planned > 0)
-            head.Children.Add(LoadBar(planned, doneMinutes, CapacityMinutes, compact: true));
+        if (day is { } dayCap && planned > 0 && CapacityFor(dayCap) is { } cap)
+            head.Children.Add(LoadBar(planned, doneMinutes, cap, compact: true));
 
         int rolled = tasks.Count(t => !t.Done && t.Rolled > 0);
         if (isToday && rolled > 0)
@@ -1001,6 +1019,10 @@ public sealed class WorkView : Border
             : $"Планирани {TaskCards.Duration(planned)} от {capacity / 60}ч за работа. Зелено – свършеното.");
         return panel;
     }
+
+    private IEnumerable<PixelPopup.Entry> HourEntries(DateTime day) =>
+        Enumerable.Range(1, 20).Select(h => new PixelPopup.Entry(h + (h == 1 ? " час" : " часа"), null, () => SetDayHours(day, h), On: CapacityFor(day) == h * 60))
+            .Append(new PixelPopup.Entry("Без часове", "close", () => SetDayHours(day, 0), On: CapacityFor(day) == null));
 
     /// <summary>„Подреди“: нарежда несвършените задачи от деня (и ги записва в този ред).</summary>
     private Func<IEnumerable<PixelPopup.Entry>> SortEntries(DateTime? day) => () =>
@@ -1256,6 +1278,7 @@ public sealed class WorkView : Border
     {
         Commit();
         _sideMode = side;
+        SideWidth();
         if (side != Side.Details) _selected = null;
         _sideShown = "";
         Refresh(true);
@@ -1286,13 +1309,13 @@ public sealed class WorkView : Border
         {
             // В „Днес“ вдясно – денят по часове (като в Sunsama): задачите се пускат в часовете.
             _todayTimeline ??= new DayTimeline(_pet, OpenCard, headers: false);
-            _todayTimeline.SetDays(new[] { Today });
+            _todayTimeline.SetDays(new[] { _todayDay ?? Today });
             if (_sideShown != "timeline")
             {
                 _sideShown = "timeline";
                 _commits.Clear();
                 var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6 * U) };
-                head.Children.Add(new TextBlock { Text = "Днес по часове", FontWeight = FontWeights.Bold, FontSize = Body * 1.15 });
+                head.Children.Add(new TextBlock { Text = "По часове", FontWeight = FontWeights.Bold, FontSize = Body * 1.15 });
                 var box = new DockPanel();
                 DockPanel.SetDock(head, Dock.Top);
                 box.Children.Add(head);
@@ -1368,8 +1391,9 @@ public sealed class WorkView : Border
         var review = _pet.WeekReviewFor(monday);
         string key = today.ToString("yyyy-MM-dd");
         int hour = DateTime.Now.Hour;
+        bool realToday = today == Today;   // покани (план, край на деня…) – само за истинския днешен ден
         string sig = string.Join("|", tasks.Select(t => t.Signature + _pet.TaskOnBoard(t))) + $"#{today:yyyyMMdd}#{hour >= 17}#{hour < 15}"
-            + $"#{_pet.Save.PlannedDay}#{_pet.Save.ShutdownDay}#{_pet.Save.PlanSeenDay}#{_pet.Save.ShutdownSeenDay}#{_pet.Save.PlannerHours}#{_pet.Save.UiTheme}#{_selected}#{_sideMode}"
+            + $"#{_pet.Save.PlannedDay}#{_pet.Save.ShutdownDay}#{_pet.Save.PlanSeenDay}#{_pet.Save.ShutdownSeenDay}#{CapacityFor(today)}#{_pet.Save.DayHours.ContainsKey(key)}#{Today:yyyyMMdd}#{_pet.Save.UiTheme}#{_selected}#{_sideMode}"
             + string.Join(",", review.Goals.Select(g => g.Text + g.Done)) + review.Done + (_pet.InFocus ? _pet.FocusTask?.Id : null)
             + string.Join(",", WeekReviewFor(monday.AddDays(-7)).Done)
             + "#due:" + string.Join(",", BacklogDue(state, today).Select(t => t.Signature));
@@ -1378,14 +1402,24 @@ public sealed class WorkView : Border
         var p = _todayPanel;
         p.Children.Clear();
 
-        // Денят и колко е запълнен.
-        p.Children.Add(new TextBlock
+        // Денят (◀ ▶ – друг ден, „Днес“ – обратно) и колко е запълнен.
+        var dayRow = new DockPanel();
+        var dayNav = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        dayNav.Children.Add(HeaderChip("", () => { _todayDay = today.AddDays(-1); Refresh(true); }, "Ден назад"));
+        ((Border)dayNav.Children[^1]).Child = Icon("nav_prev");
+        if (!realToday) dayNav.Children.Add(HeaderChip("Днес", () => { _todayDay = null; Refresh(true); }, "Обратно към днес"));
+        dayNav.Children.Add(HeaderChip("", () => { _todayDay = today.AddDays(1); Refresh(true); }, "Ден напред"));
+        ((Border)dayNav.Children[^1]).Child = Icon("nav_next");
+        DockPanel.SetDock(dayNav, Dock.Right);
+        dayRow.Children.Add(dayNav);
+        dayRow.Children.Add(new TextBlock
         {
-            Text = Capital(today.ToString("dddd, d MMMM", Bg)),
+            Text = realToday ? "Днес, " + today.ToString("d MMMM", Bg) : Capital(today.ToString("dddd, d MMMM", Bg)),
             FontWeight = FontWeights.Bold,
             FontSize = Body * 1.4,
             TextWrapping = TextWrapping.Wrap,
         });
+        p.Children.Add(dayRow);
         int done = tasks.Count(t => t.Done), all = tasks.Count;
         int planned = tasks.Sum(t => t.Minutes), doneMinutes = tasks.Where(t => t.Done).Sum(t => t.Minutes);
         p.Children.Add(new TextBlock
@@ -1395,25 +1429,55 @@ public sealed class WorkView : Border
             Margin = new Thickness(0, 2 * U, 0, 0),
             TextWrapping = TextWrapping.Wrap,
         });
-        // Колко часа работа днес – цъкни и избери (до 20).
-        var loadRow = new DockPanel { MaxWidth = 460 * U, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 2 * U, 0, 0) };
-        Border hoursChip = null!;
-        hoursChip = Chip("", () => PixelPopup.Show(hoursChip, "Часове за работа днес", () =>
-            Enumerable.Range(1, 20).Select(h => new PixelPopup.Entry(h + (h == 1 ? " час" : " часа"), null, () =>
+        // Колко часа работа в деня: пита веднъж (за днес и следващите); казано ли е – лента и копче за смяна.
+        var capacity = CapacityFor(today);
+        bool asked = _pet.Save.DayHours.ContainsKey(key);
+        if (capacity is { } cap)
+        {
+            var loadRow = new DockPanel { MaxWidth = 460 * U, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 2 * U, 0, 0) };
+            Border hoursChip = null!;
+            hoursChip = Chip("", () => PixelPopup.Show(hoursChip, "Часове за работа", () => HourEntries(today)));
+            hoursChip.Child = IconText("clock", $"{cap / 60}ч работа", bold: true);
+            hoursChip.ToolTip = Tip("Колко часа работа имаш в този ден – цъкни, за да ги смениш");
+            hoursChip.Padding = new Thickness(7, 2, 7, 3);
+            hoursChip.VerticalAlignment = VerticalAlignment.Top;
+            hoursChip.Margin = new Thickness(10 * U, 4 * U, 0, 0);
+            DockPanel.SetDock(hoursChip, Dock.Right);
+            loadRow.Children.Add(hoursChip);
+            loadRow.Children.Add(LoadBar(planned, doneMinutes, cap, compact: false));
+            p.Children.Add(loadRow);
+        }
+        else if (!asked && today >= Today)
+        {
+            // Веднъж за деня: колко часа имаш? (✕ – този ден без часове, не пита пак)
+            var ask = new WrapPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
+            ask.Children.Add(new TextBlock { Text = realToday ? "Колко часа работа имаш днес?" : "Колко часа работа ще имаш?", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8 * U, 4 * U) });
+            foreach (int h in new[] { 2, 4, 6, 8 })
             {
-                _pet.Save.PlannerHours = h;
-                _pet.Persist();
-                Refresh(true);
-            }, On: _pet.Save.PlannerHours == h))));
-        hoursChip.Child = IconText("clock", $"{CapacityMinutes / 60}ч работа", bold: true);
-        hoursChip.ToolTip = Tip("Колко часа работа имаш днес – цъкни, за да ги смениш");
-        hoursChip.Padding = new Thickness(7, 2, 7, 3);
-        hoursChip.VerticalAlignment = VerticalAlignment.Top;
-        hoursChip.Margin = new Thickness(10 * U, 4 * U, 0, 0);
-        DockPanel.SetDock(hoursChip, Dock.Right);
-        loadRow.Children.Add(hoursChip);
-        loadRow.Children.Add(LoadBar(planned, doneMinutes, CapacityMinutes, compact: false));
-        p.Children.Add(loadRow);
+                int hh = h;
+                var chip = Small(h + "ч", () => SetDayHours(today, hh));
+                SetOn(chip, _pet.Save.PlannerHours == h);
+                ask.Children.Add(chip);
+            }
+            Border other = null!;
+            other = Small("Друго…", () => PixelPopup.Show(other, "Часове за работа", () => HourEntries(today)));
+            ask.Children.Add(other);
+            var no = SmallIcon("close", () => SetDayHours(today, 0));
+            no.ToolTip = Tip("Без часове за този ден (няма да пита пак)");
+            ask.Children.Add(no);
+            p.Children.Add(ask);
+        }
+        else
+        {
+            // Без часове – само малко копче, ако решиш да ги сложиш.
+            Border set = null!;
+            set = Small("", () => PixelPopup.Show(set, "Часове за работа", () => HourEntries(today)));
+            set.Child = IconText("clock", "Часове за работа", bold: true);
+            set.HorizontalAlignment = HorizontalAlignment.Left;
+            set.Margin = new Thickness(0, 6 * U, 0, 0);
+            set.Opacity = 0.8;
+            p.Children.Add(set);
+        }
 
         // Целите за седмицата (от прегледа) – цъкаш и стават отметнати.
         if (review.Goals.Count > 0)
@@ -1444,16 +1508,16 @@ public sealed class WorkView : Border
             else _pet.Save.ShutdownSeenDay = key;
             _pet.Persist();
         }
-        if (_pet.Save.PlannedDay != key && _pet.Save.PlanSeenDay != key && hour < 15)
+        if (realToday && _pet.Save.PlannedDay != key && _pet.Save.PlanSeenDay != key && hour < 15)
             p.Children.Add(Invite("sun", "Добро утро! Да планираме деня – вчерашните и какво да вземем от Backlog.", "План за деня",
                 () => { Seen(true); ShowSide(Side.Plan); }, () => { Seen(true); Refresh(true); }));
-        else if (_pet.Save.ShutdownDay != key && _pet.Save.ShutdownSeenDay != key && hour >= 17)
+        else if (realToday && _pet.Save.ShutdownDay != key && _pet.Save.ShutdownSeenDay != key && hour >= 17)
             p.Children.Add(Invite("moon", "Денят свършва. Да видим какво стана и какво остава за утре.", "Край на деня",
                 () => { Seen(false); ShowSide(Side.Shutdown); }, () => { Seen(false); Refresh(true); }));
         // От Backlog: на които им дойде времето (като в Sunsama – питане дали да ги вземем).
         var dueTasks = BacklogDue(state, today);
-        if (dueTasks.Count > 0) p.Children.Add(DueCard(dueTasks, today));
-        if (lastNotReviewed)
+        if (realToday && dueTasks.Count > 0) p.Children.Add(DueCard(dueTasks, today));
+        if (realToday && lastNotReviewed)
             p.Children.Add(Invite("book", "Нова седмица! Да прегледаме миналата и да сложим цели за тази.", "Преглед", () =>
             {
                 _reviewWeek = lastMonday;
@@ -1784,52 +1848,199 @@ public sealed class WorkView : Border
     // ───────────────────────── Календар ─────────────────────────
 
     private DayTimeline? _todayTimeline, _weekTimeline;
-    private DateTime? _calendarWeek;
+    private DateTime? _calDate;
+    private int _calMode = 1;   // 0 – ден, 1 – седмица, 2 – месец
     private TextBlock? _calendarTitle;
+    private readonly List<(int Mode, Border Chip)> _calModeChips = new();
+    private Border _calBody = new();
+    private Grid? _monthGrid;
+    private string _monthShown = "";
 
     /// <summary>
-    /// „Календар“: седмицата по часове – всички задачи с час (влачат се от ден в ден и от час в
-    /// час). Тук ще се виждат и срещите от Google Календар.
+    /// „Календар“: Ден, Седмица или Месец. В деня и седмицата – по часове (задачите с час се
+    /// влачат, без час – бледо предложено време); в месеца – задачите по дни (влачат се от ден в
+    /// ден, цъкнеш деня – изгледът „Ден“). Тук ще се виждат и срещите от Google Календар.
     /// </summary>
     private void BuildCalendar(TasksState state, DateTime today, bool force)
     {
-        var monday = _calendarWeek ?? WeekOf(today);
+        var at = _calDate ?? today;
         if (_weekTimeline == null)
         {
             _weekTimeline = new DayTimeline(_pet, OpenCard, headers: true);
-            var bar = new DockPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
-            var nav = new StackPanel { Orientation = Orientation.Horizontal };
-            var prev = HeaderChip("", () => { _calendarWeek = (_calendarWeek ?? WeekOf(Today)).AddDays(-7); Refresh(true); }, "Седмица назад");
+            var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8 * U) };
+            foreach (var (mode, name) in new[] { (0, "Ден"), (1, "Седмица"), (2, "Месец") })
+            {
+                int m = mode;
+                var chip = HeaderChip(name, () => { _calMode = m; Refresh(true); }, name);
+                chip.Margin = new Thickness(0, 0, 4, 4);
+                _calModeChips.Add((m, chip));
+                bar.Children.Add(chip);
+            }
+            var nav = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(12 * U, 0, 0, 4) };
+            var prev = HeaderChip("", () => { _calDate = CalStep(_calDate ?? Today, -1); Refresh(true); }, "Назад");
             prev.Child = Icon("nav_prev");
-            var todayChip = HeaderChip("Днес", () => { _calendarWeek = null; Refresh(true); }, "Тази седмица");
-            var next = HeaderChip("", () => { _calendarWeek = (_calendarWeek ?? WeekOf(Today)).AddDays(7); Refresh(true); }, "Седмица напред");
+            var todayChip = HeaderChip("Днес", () => { _calDate = null; Refresh(true); }, "Към днес");
+            var next = HeaderChip("", () => { _calDate = CalStep(_calDate ?? Today, 1); Refresh(true); }, "Напред");
             next.Child = Icon("nav_next");
             foreach (var b in new[] { prev, todayChip, next }) nav.Children.Add(b);
             _calendarTitle = new TextBlock { FontWeight = FontWeights.Bold, FontSize = Body * 1.15, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10 * U, 0, 0, 0) };
             nav.Children.Add(_calendarTitle);
-            DockPanel.SetDock(nav, Dock.Left);
+            nav.ToolTip = Tip("Влачи задачите в часовете; двойно цъкване – нова задача в този час.");
             bar.Children.Add(nav);
-nav.ToolTip = Tip("Влачи задачите от „Днес“ и „Седмица“ в часовете; двойно цъкване – нова задача.");
             var root = new DockPanel();
             DockPanel.SetDock(bar, Dock.Top);
             root.Children.Add(bar);
-            root.Children.Add(new Border
+            _calBody = new Border
             {
                 BorderBrush = WoodLight,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(4 * U, 6 * U, 4 * U, 2 * U),
-                Child = _weekTimeline,
-            });
+            };
+            root.Children.Add(_calBody);
             _calendarHost.Child = root;
         }
-        var sunday = monday.AddDays(6);
-        if (_calendarTitle != null)
-            _calendarTitle.Text = monday.Month == sunday.Month
-                ? $"{monday.Day} – {sunday.ToString("d MMMM yyyy", Bg)}"
-                : $"{monday.ToString("d MMM", Bg)} – {sunday.ToString("d MMM yyyy", Bg)}";
-        _weekTimeline.SetDays(Enumerable.Range(0, 7).Select(i => monday.AddDays(i)));
+        foreach (var (m, chip) in _calModeChips) SetOn(chip, m == _calMode);
+
+        if (_calMode == 2)
+        {
+            var first = new DateTime(at.Year, at.Month, 1);
+            string name = first.ToString("MMMM yyyy", Bg);
+            if (_calendarTitle != null) _calendarTitle.Text = char.ToUpper(name[0], Bg) + name[1..];
+            BuildMonth(state, first, today, force);
+            if (_calBody.Child != _monthGrid) _calBody.Child = _monthGrid;
+            return;
+        }
+        if (_calBody.Child != _weekTimeline) _calBody.Child = _weekTimeline;
+        if (_calMode == 0)
+        {
+            if (_calendarTitle != null) _calendarTitle.Text = Capital(at.ToString("dddd, d MMMM yyyy", Bg));
+            _weekTimeline.SetDays(new[] { at });
+        }
+        else
+        {
+            var monday = WeekOf(at);
+            var sunday = monday.AddDays(6);
+            if (_calendarTitle != null)
+                _calendarTitle.Text = monday.Month == sunday.Month
+                    ? $"{monday.Day} – {sunday.ToString("d MMMM yyyy", Bg)}"
+                    : $"{monday.ToString("d MMM", Bg)} – {sunday.ToString("d MMM yyyy", Bg)}";
+            _weekTimeline.SetDays(Enumerable.Range(0, 7).Select(i => monday.AddDays(i)));
+        }
         _weekTimeline.Refresh(force);
+    }
+
+    /// <summary>Напред/назад с ден, седмица или месец (според изгледа).</summary>
+    private DateTime CalStep(DateTime from, int dir) => _calMode switch
+    {
+        0 => from.AddDays(dir),
+        1 => from.AddDays(7 * dir),
+        _ => new DateTime(from.Year, from.Month, 1).AddMonths(dir),
+    };
+
+    /// <summary>Месецът: 7 колони (от понеделник), във всеки ден – задачите му (до 4 и „+още“).</summary>
+    private void BuildMonth(TasksState state, DateTime first, DateTime today, bool force)
+    {
+        int shift = ((int)first.DayOfWeek + 6) % 7;
+        var start = first.AddDays(-shift);
+        int weeks = (int)Math.Ceiling((shift + DateTime.DaysInMonth(first.Year, first.Month)) / 7.0);
+        var days = Enumerable.Range(0, weeks * 7).Select(i => start.AddDays(i)).ToList();
+        string sig = $"{first:yyyyMM}#{today:yyyyMMdd}#{_pet.Save.UiTheme}#{TaskTags.Version}#" + string.Join("|", days.SelectMany(d => state.OnDay(d)).Select(t => t.Signature));
+        if (!force && sig == _monthShown && _monthGrid != null) return;
+        _monthShown = sig;
+        var grid = new Grid();
+        for (int c = 0; c < 7; c++) grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (int r = 0; r < weeks; r++) grid.RowDefinitions.Add(new RowDefinition());
+        string[] names = { "Пон", "Вт", "Ср", "Чет", "Пет", "Съб", "Нед" };
+        for (int c = 0; c < 7; c++)
+        {
+            var h = new TextBlock { Text = names[c], Foreground = Muted, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 4 * U) };
+            Grid.SetColumn(h, c);
+            grid.Children.Add(h);
+        }
+        for (int i = 0; i < days.Count; i++)
+        {
+            var d = days[i];
+            var tasks = state.OnDay(d).ToList();
+            bool inMonth = d.Month == first.Month;
+            var cell = new DockPanel { Background = Brushes.Transparent };
+            var num = new TextBlock
+            {
+                Text = d.Day.ToString(),
+                FontWeight = d == today ? FontWeights.Bold : FontWeights.Normal,
+                Foreground = inMonth ? Ink : Muted,
+                Margin = new Thickness(4 * U, 2 * U, 0, 2 * U),
+            };
+            var numBox = new Border
+            {
+                Child = num,
+                Background = d == today ? Honey : Brushes.Transparent,
+                CornerRadius = new CornerRadius(3),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(0, 0, 4 * U, 0),
+            };
+            DockPanel.SetDock(numBox, Dock.Top);
+            cell.Children.Add(numBox);
+            var list = new StackPanel();
+            foreach (var t in tasks.Take(4))
+            {
+                var task = t;
+                var tag = TaskTags.Find(t.Tag);
+                var chip = new Border
+                {
+                    Background = tag != null ? TaskTags.BrushOf(t.Tag, 70) : Cream,
+                    BorderBrush = tag != null ? TaskTags.BrushOf(t.Tag) : WoodLight,
+                    BorderThickness = new Thickness(Math.Max(2, P / 2), 0, 0, 0),
+                    CornerRadius = new CornerRadius(2),
+                    Margin = new Thickness(2 * U, 0, 2 * U, 2 * U),
+                    Padding = new Thickness(3 * U, 0, 2 * U, 1),
+                    Opacity = t.Done ? 0.5 : 1,
+                    Cursor = Cursors.Hand,
+                    Tag = t,
+                    Child = new TextBlock
+                    {
+                        Text = (t.Start is { } st ? st.ToString("H:mm") + " " : "") + t.Title,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        TextDecorations = t.Done ? TextDecorations.Strikethrough : null,
+                        FontSize = Body * 0.9,
+                    },
+                    ToolTip = Tip(t.Title),
+                };
+                TaskCards.Clickable(chip, () => OpenCard(task));
+                list.Children.Add(chip);
+            }
+            if (tasks.Count > 4) list.Children.Add(new TextBlock { Text = $"+ още {tasks.Count - 4}", Foreground = Muted, Margin = new Thickness(4 * U, 0, 0, 2 * U), FontSize = Body * 0.9 });
+            cell.Children.Add(list);
+            var day = d;
+            cell.MouseLeftButtonUp += (_, e) =>
+            {
+                if (e.Handled) return;
+                _calDate = day;
+                _calMode = 0;
+                Refresh(true);
+            };
+            cell.Cursor = Cursors.Hand;
+            var box = new Border
+            {
+                BorderBrush = WoodLight,
+                BorderThickness = new Thickness(i % 7 == 0 ? 0 : 1, 1, 0, 0),
+                Background = inMonth ? Brushes.Transparent : PaperDark,
+                MinHeight = 64 * U,
+                ClipToBounds = true,
+                Child = cell,
+            };
+            // Задача, пусната в ден – става за този ден.
+            TaskCards.DropTarget(box, list, (id, before) =>
+            {
+                if (_pet.Save.Tasks.FirstOrDefault(t => t.Id == id) is { } task && task.Day != day) _pet.MoveTask(task, day);
+            });
+            Grid.SetColumn(box, i % 7);
+            Grid.SetRow(box, i / 7 + 1);
+            grid.Children.Add(box);
+        }
+        _monthGrid = grid;
+        _calBody.Child = grid;
     }
 
     // ───────────────────────── Преглед на седмицата ─────────────────────────
@@ -2686,6 +2897,7 @@ nav.ToolTip = Tip("Влачи задачите от „Днес“ и „Сед�
     internal bool Ready => _ready;
     internal int TimelineBlocks => _todayTimeline?.BlockCount ?? -1;
     internal int CalendarBlocks => _weekTimeline?.BlockCount ?? -1;
+    internal void TestCalendarMode(int mode) { _calMode = mode; Refresh(true); }
     internal int TodayCards => FindCards(_todayPanel);
     internal void TestScrollToDay(DateTime day) => ScrollToDay(day, smooth: false);
     internal void TestSelect(Guid? id) { if (id is { } x && _pet.Save.Tasks.FirstOrDefault(t => t.Id == x) is { } t) OpenCard(t); }

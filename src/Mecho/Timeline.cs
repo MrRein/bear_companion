@@ -100,13 +100,47 @@ internal sealed class DayTimeline : DockPanel
         return state.Open.Concat(state.History).Where(t => t.Start is { } s && s.Date == day);
     }
 
+    /// <summary>Несвършените задачи от деня без час (показват се бледо – предложено време).</summary>
+    private IEnumerable<TaskItem> Unscheduled(DateTime day) =>
+        day < _pet.TaskToday ? Enumerable.Empty<TaskItem>() : _pet.TaskState.Open.Where(t => t.Day == day && t.Start == null && !t.Done);
+
+    /// <summary>
+    /// Предложеното време за задачите без час: една след друга от сега (днес) или от 9:00
+    /// (следващите дни), без да се застъпват със сложените в графика.
+    /// </summary>
+    private List<(TaskItem Task, DateTime Start)> Projected(DateTime day)
+    {
+        var busy = Scheduled(day).Where(t => !t.Done).Select(t => (From: t.Start!.Value, To: t.Start!.Value.AddMinutes(Length(t)))).OrderBy(x => x.From).ToList();
+        var now = DateTime.Now;
+        var at = day == _pet.TaskToday
+            ? now.Date.AddHours(now.Hour).AddMinutes((now.Minute / Snap + 1) * Snap)
+            : day.AddHours(9);
+        var list = new List<(TaskItem, DateTime)>();
+        foreach (var t in Unscheduled(day))
+        {
+            int len = Length(t);
+            bool moved = true;
+            while (moved)
+            {
+                moved = false;
+                foreach (var b in busy)
+                    if (at < b.To && at.AddMinutes(len) > b.From) { at = b.To; moved = true; }
+            }
+            if (at.Date != day) break;   // не се събира до края на деня
+            list.Add((t, at));
+            at = at.AddMinutes(len);
+        }
+        return list;
+    }
+
     public void Refresh(bool force = false)
     {
         if (!IsVisible && !force) return;
         if (_mode != Mode.None || TaskCards.Dragging) return;
         var now = DateTime.Now;
         string sig = string.Join(",", _days.Select(d => d.ToString("yyyyMMdd"))) + $"#{now:yyyyMMddHHmm}#{_pet.Save.UiTheme}#{TaskTags.Version}#"
-            + string.Join("|", _days.SelectMany(Scheduled).Select(t => t.Signature + t.Done));
+            + string.Join("|", _days.SelectMany(Scheduled).Select(t => t.Signature + t.Done))
+            + "#u:" + string.Join("|", _days.SelectMany(Unscheduled).Select(t => t.Signature));
         if (!force && sig == _shown) return;
         _shown = sig;
         Build();
@@ -162,6 +196,8 @@ internal sealed class DayTimeline : DockPanel
         }
         _body.Children.Add(labels);
 
+        _ghostStart.Clear();
+        _timeLabels.Clear();
         _canvases = new Canvas[n];
         for (int i = 0; i < n; i++)
         {
@@ -190,7 +226,8 @@ internal sealed class DayTimeline : DockPanel
             _canvases[i] = canvas;
             WireCanvas(canvas, index);
 
-            foreach (var t in Scheduled(day).OrderBy(t => t.Start)) canvas.Children.Add(Block(t));
+            foreach (var t in Scheduled(day).OrderBy(t => t.Start)) canvas.Children.Add(Block(t, t.Start!.Value, ghost: false));
+            foreach (var (t, at) in Projected(day)) canvas.Children.Add(Block(t, at, ghost: true));
 
             // Сега.
             if (day == today)
@@ -202,9 +239,17 @@ internal sealed class DayTimeline : DockPanel
                 Canvas.SetTop(line, y - line.Height / 2);
                 Canvas.SetTop(dot, y - dot.Height / 2);
                 Canvas.SetLeft(dot, -dot.Width / 2);
+                // Надпис: колко е часът сега (червената черта).
+                var nowText = new TextBlock { Text = "сега " + now.ToString("H:mm"), Foreground = Bad, FontWeight = FontWeights.Bold, FontSize = Body * 0.8, IsHitTestVisible = false, Tag = "now" };
+                Canvas.SetTop(nowText, y - 15 * U);
                 canvas.Children.Add(line);
                 canvas.Children.Add(dot);
-                canvas.SizeChanged += (_, _) => line.Width = canvas.ActualWidth;
+                canvas.Children.Add(nowText);
+                canvas.SizeChanged += (_, _) =>
+                {
+                    line.Width = canvas.ActualWidth;
+                    Canvas.SetLeft(nowText, Math.Max(4, canvas.ActualWidth - 70 * U));
+                };
             }
         }
         _scroll.Content = _body;
@@ -235,9 +280,10 @@ internal sealed class DayTimeline : DockPanel
     private static int Length(TaskItem t) => t.Minutes > 0 ? t.Minutes : 30;
 
     /// <summary>Блокче за задача: цвят на етикета, отметка, име, часът; долу – дръжка за дължината.</summary>
-    private Border Block(TaskItem t)
+    private readonly Dictionary<Border, DateTime> _ghostStart = new();
+
+    private Border Block(TaskItem t, DateTime start, bool ghost)
     {
-        var start = t.Start!.Value;
         double height = Math.Max(Length(t) / 60.0 * HourH - 2, 14 * U);
         var tag = TaskTags.Find(t.Tag);
         var text = new StackPanel();
@@ -275,10 +321,25 @@ internal sealed class DayTimeline : DockPanel
             Child = grid,
             ClipToBounds = true,
             Cursor = Cursors.Hand,
-            Opacity = t.Done ? 0.55 : 1,
+            Opacity = t.Done ? 0.55 : ghost ? 0.6 : 1,
             Tag = t,
-            ToolTip = Tip($"{t.Title}\n{Range(start, Length(t))}" + (t.Minutes == 0 ? " (без казано време – 30 мин)" : "")),
+            ToolTip = Tip($"{t.Title}\n{Range(start, Length(t))}" + (t.Minutes == 0 ? " (без казано време – 30 мин)" : "")
+                + (ghost ? "\nПредложено време – хвани и пусни, за да я сложиш в графика." : "")),
         };
+        if (ghost)
+        {
+            // Предложените – с пунктир (рисуван) и по-бледи.
+            block.BorderBrush = new DrawingBrush
+            {
+                TileMode = TileMode.Tile,
+                Viewport = new Rect(0, 0, 6, 6),
+                ViewportUnits = BrushMappingMode.Absolute,
+                Drawing = new GeometryDrawing(tag != null ? TaskTags.BrushOf(t.Tag) : WoodDark, null, new RectangleGeometry(new Rect(0, 0, 3, 3))),
+            };
+            block.Background = tag != null ? TaskTags.BrushOf(t.Tag, 45) : Paper;
+            time.Text = "~" + time.Text;
+            _ghostStart[block] = start;
+        }
         Canvas.SetTop(block, Y(start) + 1);
         _timeLabels[block] = time;
 
@@ -412,7 +473,8 @@ internal sealed class DayTimeline : DockPanel
             double h = Math.Max(HourH * Snap / 60.0, SnapY(_origHeight + 2 + dy) - 2);
             _block.Height = Math.Min(h, 24 * HourH - Canvas.GetTop(_block));
             int minutes = (int)Math.Round((_block.Height + 2) / HourH * 60 / Snap) * Snap;
-            if (_timeLabel != null) _timeLabel.Text = Range(_task.Start!.Value, minutes);
+            var from = _task.Start ?? (_ghostStart.TryGetValue(_block, out var g) ? g : DateTime.Today);
+            if (_timeLabel != null) _timeLabel.Text = Range(from, minutes);
             AutoScroll(e.GetPosition(_scroll).Y);
         }
     }
@@ -443,7 +505,8 @@ internal sealed class DayTimeline : DockPanel
         {
             int minutes = (int)Math.Round((block.Height + 2) / HourH * 60 / Snap) * Snap;
             minutes = Math.Clamp(minutes, Snap, TasksModule.MaxMinutes);
-            if (minutes != t.Minutes) _pet.ScheduleTask(t, t.Start, minutes);
+            var at = t.Start ?? (_ghostStart.TryGetValue(block, out var g) ? g : (DateTime?)null);
+            if (minutes != t.Minutes || t.Start == null) _pet.ScheduleTask(t, at, minutes);
             else Refresh(true);
         }
         _shown = "";
