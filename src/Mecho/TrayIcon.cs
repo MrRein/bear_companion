@@ -117,6 +117,8 @@ public sealed class TrayIcon : IDisposable
         {
             if (e.Button != Forms.MouseButtons.Left) return;
             if (_save.TrayClickHides) Toggle();
+            // Отворено ли е (или току-що се затвори от самото цъкане) – затваря се, не се отваря пак.
+            else if (_pet.MenuOpenOrJustClosed) _pet.CloseMenu();
             else OpenMenu();
         };
     }

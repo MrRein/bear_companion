@@ -316,6 +316,12 @@ internal sealed class NewTaskWindow : FloatWindow
 
     public static void Show(PetWindow pet, DateTime? day, string? tag = null, bool star = false, Window? near = null, int bucket = 0, DateTime? start = null)
     {
+        // Отворена ли е вече за същия ден – второто цъкане я затваря.
+        if (_current != null && _current._day == day && start == null && _current._title.Text.Trim().Length == 0)
+        {
+            _current.Close();
+            return;
+        }
         if (_current != null)
         {
             _current._day = day;
@@ -450,13 +456,18 @@ internal sealed class TaskCardWindow : FloatWindow
     internal TextBox NotesBox => _notes;
     internal void TestSave() => SaveText();
 
+    // Цъкнеш ли пак същата задача – картата се затваря (а не се отваря отново).
+    private static Guid _closedId;
+    private static DateTime _closedAt;
+
     public static void Show(PetWindow pet, TaskItem task, Window? near = null)
     {
         if (Windows.TryGetValue(task.Id, out var open))
         {
-            open.Activate();
+            open.Close();
             return;
         }
+        if (_closedId == task.Id && (DateTime.Now - _closedAt).TotalMilliseconds < 400) return;
         var w = new TaskCardWindow(pet, task);
         w.Place(near ?? pet.MenuWin);
         w.Show();
@@ -573,6 +584,8 @@ internal sealed class TaskCardWindow : FloatWindow
             SaveText();
             Pet.CareChanged -= OnChanged;
             Windows.Remove(_id);
+            _closedId = _id;
+            _closedAt = DateTime.Now;
         };
         void OnChanged(object? s, EventArgs e)
         {

@@ -279,6 +279,12 @@ public sealed partial class PetWindow
     }
 
 
+    /// <summary>Затваря менюто (ако е отворено).</summary>
+    public void CloseMenu()
+    {
+        if (MenuIsOpen) _menu!.Hide();
+    }
+
     /// <summary>Менюто е отворено или току-що се затвори (цъкането другаде го затваря, преди копчето да разбере).</summary>
     public bool MenuOpenOrJustClosed => MenuIsOpen || Now - _menuClosedAt < 0.3;
 
