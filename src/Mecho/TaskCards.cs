@@ -186,6 +186,17 @@ internal static class TaskCards
 
     public static readonly string[] SizeNames = { "малка", "средна", "голяма" };
 
+    /// <summary>Името на сложността (0 – „никаква“: без лешници).</summary>
+    public static string SizeName(int size) => size switch { 3 => "голяма", 2 => "средна", 1 => "малка", _ => "никаква" };
+
+    public static int RewardOf(int size) => size switch { 3 => 5, 2 => 3, 1 => 1, _ => 0 };
+
+    /// <summary>Изборът на сложност: Никаква, Малка, Средна, Голяма (с колко лешника носи).</summary>
+    public static IEnumerable<PixelPopup.Entry> SizeEntries(int current, Action<int> pick) =>
+        Enumerable.Range(0, 4).Select(n => new PixelPopup.Entry(Capital(SizeName(n)), n == 0 ? "close" : SizeIcon(n), () => pick(n), On: current == n, Reward: RewardOf(n)));
+
+    public static string Capital(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..];
+
     /// <summary>Сложността като лешници: един, два, купчинка.</summary>
     public static string SizeIcon(int size) => size switch { 3 => "nut3", 2 => "nut2", _ => "nut1" };
 
@@ -266,6 +277,7 @@ internal static class TaskCards
     public static FrameworkElement SizeDots(int size)
     {
         // Сложността – като лешници: един, два, купчинка.
+        if (size <= 0) return new Border { Width = 0, Height = 0 };   // „никаква“ – без лешник
         var icon = Icon(SizeIcon(Math.Clamp(size, 1, 3)));
         icon.VerticalAlignment = VerticalAlignment.Center;
         icon.Margin = new Thickness(0, 0, 8 * U, 0);
@@ -532,7 +544,7 @@ internal static class TaskCards
             }));
 
     public static Func<IEnumerable<PixelPopup.Entry>> PriorityEntries(PetWindow pet, TaskItem t) => () =>
-        Priorities.Select(x => new PixelPopup.Entry(x.Name, null, () => pet.MarkTask(Fresh(pet, t), priority: x.Level), On: Fresh(pet, t).Level == x.Level, Dot: x.Color));
+        Priorities.Select(x => new PixelPopup.Entry(x.Name, FlagIcon(x.Level), () => pet.MarkTask(Fresh(pet, t), priority: x.Level), On: Fresh(pet, t).Level == x.Level));
 
     /// <summary>Знаменцето за приоритета (Нормално – бяло).</summary>
     public static string FlagIcon(int level) => level switch { 2 => "flag_high", 1 => "flag_mid", -1 => "flag_low", _ => "flag" };
@@ -560,8 +572,7 @@ internal static class TaskCards
             list.Add(new("Приоритет", "flag", null, Sub: PriorityEntries(pet, t)));
             list.Add(new("Етикет", "pin", null, Sub: TagEntries(pet, t)));
             list.Add(new("Колко време", "clock", null, Sub: TimeEntries(pet, t)));
-            list.Add(new("Големина", "nut", null, Sub: () => Enumerable.Range(1, 3).Select(i =>
-                new PixelPopup.Entry(SizeNames[i - 1], null, () => pet.MarkTask(Fresh(pet, t), size: i), On: Fresh(pet, t).Size == i))));
+            list.Add(new("Сложност", "nut", null, Sub: () => SizeEntries(Fresh(pet, t).Size, n => pet.MarkTask(Fresh(pet, t), size: n))));
             bool onBoard = pet.TaskOnBoard(cur);
             list.Add(new(onBoard ? "Махни от таблото" : "Сложи в таблото", onBoard ? "unpin" : "pin", () => pet.SetTaskOnBoard(Fresh(pet, t), !onBoard)));
             list.Add(new("Направи копие", "copy", () => pet.DuplicateTask(Fresh(pet, t))));

@@ -305,7 +305,7 @@ internal sealed class NewTaskWindow : FloatWindow
     private readonly TextBox _title;
     private readonly WrapPanel _meta = new();
     private DateTime? _day;
-    private int _minutes, _size = 1, _priority, _bucket;
+    private int _minutes, _size, _priority, _bucket;   // сложност 0 – „никаква“ (докато не избереш)
     private DateTime? _start;
     private string _tag;
 
@@ -401,15 +401,13 @@ internal sealed class NewTaskWindow : FloatWindow
                 }))),
             "Етикет", tag?.Color, on: tag != null));
         var pr = TaskCards.PriorityOf(_priority);
-        _meta.Children.Add(MetaChip("flag", _priority == 0 ? "Приоритет" : pr.Name, chip =>
+        _meta.Children.Add(MetaChip(TaskCards.FlagIcon(_priority), _priority == 0 ? "Приоритет" : pr.Name, chip =>
             PixelPopup.Show(chip, "Приоритет", () => TaskCards.Priorities
-                .Select(x => new PixelPopup.Entry(x.Name, null, () => { _priority = x.Level; FillMeta(); }, On: _priority == x.Level, Dot: x.Color))),
-            "Приоритет", _priority == 0 ? null : pr.Color, on: _priority != 0));
-        _meta.Children.Add(MetaChip(TaskCards.SizeIcon(_size), TaskCards.SizeNames[_size - 1], chip =>
-            PixelPopup.Show(chip, "Сложност", () => Enumerable.Range(1, 3)
-                .Select(n => new PixelPopup.Entry(TaskCards.SizeNames[n - 1], TaskCards.SizeIcon(n),
-                    () => { _size = n; FillMeta(); }, On: _size == n, Reward: n switch { 3 => 5, 2 => 3, _ => 1 }))),
-            "Сложност – колко лешника носи", on: _size > 1));
+                .Select(x => new PixelPopup.Entry(x.Name, TaskCards.FlagIcon(x.Level), () => { _priority = x.Level; FillMeta(); }, On: _priority == x.Level))),
+            "Приоритет", on: _priority != 0));
+        _meta.Children.Add(MetaChip(_size > 0 ? TaskCards.SizeIcon(_size) : "nut", _size > 0 ? TaskCards.Capital(TaskCards.SizeName(_size)) : "Сложност", chip =>
+            PixelPopup.Show(chip, "Сложност", () => TaskCards.SizeEntries(_size, n => { _size = n; FillMeta(); })),
+            "Сложност – колко лешника носи", on: _size > 0));
     }
 
     private void Add()
@@ -713,9 +711,9 @@ internal sealed class TaskCardWindow : FloatWindow
         Prop("Време", Value("hourglass", t.Minutes > 0 ? TaskCards.Duration(t.Minutes) : "не е казано",
             b => PixelPopup.Show(b, "Колко време?", TaskCards.TimeEntries(Pet, t)), muted: t.Minutes == 0,
             tip: t.Spent > 0 ? $"Работено досега: {TaskCards.Duration(t.Spent)}" : null));
-        Prop("Сложност", Value(TaskCards.SizeIcon(t.Size), Capital(TaskCards.SizeNames[Math.Clamp(t.Size, 1, 3) - 1]),
-            t.Done ? null : b => PixelPopup.Show(b, "Сложност", () => Enumerable.Range(1, 3).Select(n =>
-                new PixelPopup.Entry(TaskCards.SizeNames[n - 1], TaskCards.SizeIcon(n), () => Pet.MarkTask(t, size: n), On: t.Size == n, Reward: n switch { 3 => 5, 2 => 3, _ => 1 }))), reward: t.Reward));
+        Prop("Сложност", Value(t.Size > 0 ? TaskCards.SizeIcon(t.Size) : "close", Capital(TaskCards.SizeName(t.Size)),
+            t.Done ? null : b => PixelPopup.Show(b, "Сложност", () => TaskCards.SizeEntries(t.Size, n => Pet.MarkTask(t, size: n))),
+            muted: t.Size == 0, reward: t.Reward));
 
         // Подзадачите.
         var steps = t.StepList;

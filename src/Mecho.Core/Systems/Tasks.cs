@@ -53,7 +53,8 @@ public sealed record TaskEntry(Guid Id, string Title, string Description, int Si
         _ => null,
     };
 
-    public int Reward => Size switch { 3 => 5, 2 => 3, _ => 1 };
+    /// <summary>Лешниците за свършването: 0 – „никаква“ сложност, 1 – малка, 3 – средна, 5 – голяма.</summary>
+    public int Reward => Size switch { 3 => 5, 2 => 3, 1 => 1, _ => 0 };
 
     /// <summary>Приоритетът: 2 – Важно (= Star), 1 – Средно, 0 – Нормално, -1 – Ниско.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -183,7 +184,7 @@ public sealed class TasksModule : GameModule
             if (title.Length > MaxTitle) title = title[..MaxTitle];
             DateTime? day = c.Someday ? null : (c.Day ?? Clock.Today()).Date;
             var id = Guid.NewGuid();
-            var t = new TaskEntry(id, title, (c.Description ?? "").Trim(), Math.Clamp(c.Size, 1, 3), false, null, false,
+            var t = new TaskEntry(id, title, (c.Description ?? "").Trim(), Math.Clamp(c.Size, 0, 3), false, null, false,
                 day, CleanTag(c.Tag), c.Star || c.Priority >= 2, Math.Clamp(c.Minutes, 0, MaxMinutes),
                 Created: Clock.Now, Priority: Math.Clamp(c.Priority, -1, 2), Due: c.Due?.Date,
                 Bucket: day == null ? Math.Clamp(c.Bucket, 0, 5) : 0, BucketAt: day == null ? Clock.Today() : null);
@@ -205,7 +206,7 @@ public sealed class TasksModule : GameModule
                 bool firstBig = t.Size >= 3 && !t.PageRolled;
                 var done = t with { Done = true, DoneAt = Clock.Now, PageRolled = t.PageRolled || t.Size >= 3 };
                 Store.Set(s with { Open = s.Open.Replace(t, done), DoneTotal = s.DoneTotal + 1 });
-                Send(new EarnNuts(t.Reward, "задача"));
+                if (t.Reward > 0) Send(new EarnNuts(t.Reward, "задача"));
                 Emit(new TaskCompleted(t.Id, t.Size, t.Reward, firstBig));
             }
             else
@@ -226,7 +227,7 @@ public sealed class TasksModule : GameModule
             string title = c.Title.Trim();
             if (title.Length == 0) return CommandResult.Rejected("празно име");
             if (title.Length > MaxTitle) title = title[..MaxTitle];
-            var edited = t with { Title = title, Size = Math.Clamp(c.Size, 1, 3), Description = (c.Description ?? "").Trim() };
+            var edited = t with { Title = title, Size = Math.Clamp(c.Size, 0, 3), Description = (c.Description ?? "").Trim() };
             Store.Set(s with { Open = s.Open.Replace(t, edited) });
             return CommandResult.Done;
         });
@@ -319,7 +320,7 @@ public sealed class TasksModule : GameModule
                 Star = c.Star ?? t.Star,
                 Minutes = c.Minutes is { } m ? Math.Clamp(m, 0, MaxMinutes) : t.Minutes,
                 // Големината (а с нея и наградата) – само докато не е свършена.
-                Size = c.Size is { } z && !t.Done ? Math.Clamp(z, 1, 3) : t.Size,
+                Size = c.Size is { } z && !t.Done ? Math.Clamp(z, 0, 3) : t.Size,
                 Due = c.ClearDue ? null : c.Due?.Date ?? t.Due,
             };
             if (c.Priority is { } p)

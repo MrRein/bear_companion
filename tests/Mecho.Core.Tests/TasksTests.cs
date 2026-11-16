@@ -215,6 +215,18 @@ public class TasksTests
     }
 
     [Fact]
+    public void Size_none_gives_no_nuts()
+    {
+        var (e, _, _) = Started();
+        int before = e.Store.Get<WalletState>().Nuts;
+        e.Bus.Send(new AddTask("без сложност", 0));
+        Assert.Equal((0, 0), (Last(e).Size, Last(e).Reward));
+        e.Bus.Send(new SetTaskDone(Last(e).Id, true));
+        Assert.True(Last(e).Done);
+        Assert.Equal(before, e.Store.Get<WalletState>().Nuts);
+    }
+
+    [Fact]
     public void Unfinished_tasks_roll_over_to_today()
     {
         var (e, clock, signals) = Started(new DateTime(2026, 11, 16, 23, 59, 0));
