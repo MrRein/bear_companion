@@ -1860,7 +1860,7 @@ public sealed class WorkView : Border
         var nextReview = _pet.WeekReviewFor(monday.AddDays(7));
         string sig = $"{monday:yyyyMMdd}#{today:yyyyMMdd}#" + string.Join("|", tasks.Select(t => t.Signature))
             + string.Join(",", review.Goals.Select(g => g.Text + g.Done)) + review.Done + "#" + string.Join(",", nextReview.Goals.Select(g => g.Text + g.Done))
-            + "#" + string.Join(",", state.Open.Where(t => !t.Done && t.Rolled >= 2).Select(t => t.Signature)) + _pet.Save.UiTheme;
+            + "#" + string.Join(",", state.Open.Where(t => !t.Done && t.Rolled >= 2).Select(t => t.Signature)) + _pet.Save.UiTheme + "#step" + _reviewStep;
         if (!force && sig == _reviewShown) return;
         if (_reviewDirty && _reviewView.IsKeyboardFocusWithin) return;   // пише се – не се строи наново
         _reviewShown = sig;
@@ -1871,9 +1871,9 @@ public sealed class WorkView : Border
         // Коя седмица.
         var head = new DockPanel { Margin = new Thickness(0, 0, 0, 10 * U) };
         var nav = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        var prev = SmallIcon("nav_prev", () => { CommitReview(); _reviewWeek = monday.AddDays(-7); Refresh(true); });
+        var prev = SmallIcon("nav_prev", () => { CommitReview(); _reviewWeek = monday.AddDays(-7); _reviewStep = 0; Refresh(true); });
         prev.ToolTip = Tip("Предишната седмица");
-        var next = SmallIcon("nav_next", () => { CommitReview(); _reviewWeek = monday.AddDays(7); Refresh(true); });
+        var next = SmallIcon("nav_next", () => { CommitReview(); _reviewWeek = monday.AddDays(7); _reviewStep = 0; Refresh(true); });
         next.ToolTip = Tip("Следващата седмица");
         next.Visibility = monday.AddDays(7) > WeekOf(today) ? Visibility.Collapsed : Visibility.Visible;
         nav.Children.Add(prev);
@@ -1892,6 +1892,21 @@ public sealed class WorkView : Border
         head.Children.Add(titleBox);
         p.Children.Add(head);
 
+        // Като в Sunsama: три стъпки – какво свърши, как мина, целите за следващата; после „Приключи“.
+        _commitReview = null;
+        string[] stepNames = { "1. Какво свърших", "2. Как мина седмицата", "3. Следващата седмица" };
+        var stepRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 10 * U) };
+        for (int i = 0; i < stepNames.Length; i++)
+        {
+            int si = i;
+            var chip = Small(stepNames[i], () => { CommitReview(); _reviewStep = si; Refresh(true); });
+            SetOn(chip, _reviewStep == i);
+            stepRow.Children.Add(chip);
+        }
+        p.Children.Add(stepRow);
+
+        if (_reviewStep == 0)
+        {
         // Числата.
         var done = tasks.Where(t => t.Done).ToList();
         int spent = tasks.Sum(t => t.Spent);
@@ -1904,71 +1919,55 @@ public sealed class WorkView : Border
         tiles.Children.Add(StatTile("history", $"{rolled}", "пренасяни"));
         p.Children.Add(tiles);
 
-        // По дни – стълбчета.
-        p.Children.Add(Label("По дни"));
-        int most = Math.Max(1, days.Max(d => state.OnDay(d).Count()));
-        var bars = new UniformGrid { Rows = 1, Height = 110 * U };
+        // Продуктивност по дни – колко часа работа (работеното по задачите; ако го няма – времето на свършените).
+        int Worked(DateTime d) => state.OnDay(d).Sum(t => t.Spent > 0 ? t.Spent : t.Done ? t.Minutes : 0);
+        p.Children.Add(Label("Работа по дни"));
+        int most = Math.Max(30, days.Max(Worked));
+        var bars = new UniformGrid { Rows = 1, Height = 120 * U };
         foreach (var d in days)
         {
-            var onDay = state.OnDay(d).ToList();
-            int dn = onDay.Count(t => t.Done), an = onDay.Count;
+            int minutes = Worked(d);
             var col = new DockPanel { Margin = new Thickness(3 * U, 0, 3 * U, 0) };
             var name = new TextBlock { Text = Capital(d.ToString("ddd", Bg)), HorizontalAlignment = HorizontalAlignment.Center, Foreground = d == today ? Ink : Muted, FontWeight = d == today ? FontWeights.Bold : FontWeights.Normal };
             DockPanel.SetDock(name, Dock.Bottom);
             col.Children.Add(name);
-            var countText = new TextBlock { Text = an == 0 ? "" : $"{dn}/{an}", HorizontalAlignment = HorizontalAlignment.Center, Foreground = Muted };
-            DockPanel.SetDock(countText, Dock.Top);
-            col.Children.Add(countText);
-            var stack = new Grid { VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center, Width = 18 * U };
-            double h = 70 * U;
-            if (an > 0)
+            var hours = new TextBlock { Text = minutes == 0 ? "" : TaskCards.Duration(minutes), HorizontalAlignment = HorizontalAlignment.Center, Foreground = Muted };
+            DockPanel.SetDock(hours, Dock.Top);
+            col.Children.Add(hours);
+            var bar = new Border
             {
-                stack.Children.Add(new Border { Height = h * an / most, Background = Empty, BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)), VerticalAlignment = VerticalAlignment.Bottom });
-                if (dn > 0) stack.Children.Add(new Border { Height = h * dn / most, Background = Good, BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)), VerticalAlignment = VerticalAlignment.Bottom });
-            }
-            stack.ToolTip = Tip($"{Capital(d.ToString("dddd, d MMMM", Bg))}: свършени {dn} от {an}");
-            col.Children.Add(stack);
+                Width = 16 * U,
+                Height = Math.Max(minutes > 0 ? 3 * U : 0, 80 * U * minutes / most),
+                Background = Honey,
+                BorderBrush = Ink,
+                BorderThickness = new Thickness(minutes > 0 ? Math.Max(1, P / 2) : 0),
+                VerticalAlignment = VerticalAlignment.Bottom,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ToolTip = Tip($"{Capital(d.ToString("dddd, d MMMM", Bg))}: {TaskCards.Duration(minutes)}"),
+            };
+            col.Children.Add(bar);
             bars.Children.Add(col);
         }
         p.Children.Add(bars);
 
-        // По етикети.
-        var byTag = tasks.GroupBy(t => t.Tag).Select(g => (Tag: g.Key, Done: g.Count(t => t.Done), All: g.Count(), Spent: g.Sum(t => t.Spent)))
-            .OrderByDescending(x => x.Done).ThenByDescending(x => x.All).ToList();
-        if (byTag.Count > 0 && !(byTag.Count == 1 && byTag[0].Tag.Length == 0))
+        // Как прекара времето – кръг по етикети.
+        var byTime = tasks.Where(t => t.Spent > 0 || t.Done).GroupBy(t => t.Tag)
+            .Select(g => (Tag: g.Key, Minutes: g.Sum(t => t.Spent > 0 ? t.Spent : t.Minutes))).Where(x => x.Minutes > 0)
+            .OrderByDescending(x => x.Minutes).ToList();
+        p.Children.Add(Label("Как прекара времето"));
+        var donutRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8 * U) };
+        donutRow.Children.Add(Donut(byTime.Select(x => (x.Tag.Length > 0 && TaskTags.Find(x.Tag) is { } info ? info.Color : Color.FromRgb(170, 160, 150), (double)x.Minutes)).ToList()));
+        var legend = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14 * U, 0, 0, 0) };
+        if (byTime.Count == 0) legend.Children.Add(MenuWindow.MutedText("Още няма отбелязано време."));
+        foreach (var x in byTime)
         {
-            p.Children.Add(Label("По етикети"));
-            int top = Math.Max(1, byTag.Max(x => x.All));
-            foreach (var x in byTag)
-            {
-                var row = new Grid { Margin = new Thickness(0, 0, 0, 4 * U) };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120 * U) });
-                row.ColumnDefinitions.Add(new ColumnDefinition());
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                var label = new StackPanel { Orientation = Orientation.Horizontal };
-                if (x.Tag.Length > 0) label.Children.Add(TaskTags.Swatch(x.Tag));
-                label.Children.Add(new TextBlock { Text = TaskTags.Find(x.Tag)?.Name ?? "без етикет", TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center });
-                row.Children.Add(label);
-                var track = new Grid { Height = 2 * P, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6 * U, 0, 8 * U, 0) };
-                track.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(x.All, 0.0001), GridUnitType.Star) });
-                track.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(top - x.All, 0.0001), GridUnitType.Star) });
-                var fill = new Grid();
-                fill.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(x.Done, 0.0001), GridUnitType.Star) });
-                fill.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(x.All - x.Done, 0.0001), GridUnitType.Star) });
-                var a = new Border { Background = x.Tag.Length > 0 ? TaskTags.BrushOf(x.Tag) : Muted };
-                var b = new Border { Background = x.Tag.Length > 0 ? TaskTags.BrushOf(x.Tag, 80) : Empty };
-                Grid.SetColumn(b, 1);
-                fill.Children.Add(a);
-                fill.Children.Add(b);
-                track.Children.Add(new Border { BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)), Child = fill });
-                Grid.SetColumn(track, 1);
-                row.Children.Add(track);
-                var numbers = new TextBlock { Text = $"{x.Done}/{x.All}" + (x.Spent > 0 ? $" · {TaskCards.Duration(x.Spent)}" : ""), Foreground = Muted, VerticalAlignment = VerticalAlignment.Center };
-                Grid.SetColumn(numbers, 2);
-                row.Children.Add(numbers);
-                p.Children.Add(row);
-            }
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 3 * U) };
+            row.Children.Add(TaskTags.ColorSquare(TaskTags.Find(x.Tag)?.Color ?? Color.FromRgb(170, 160, 150)));
+            row.Children.Add(new TextBlock { Text = (TaskTags.Find(x.Tag)?.Name ?? "без етикет") + "  ·  " + TaskCards.Duration(x.Minutes), VerticalAlignment = VerticalAlignment.Center });
+            legend.Children.Add(row);
         }
+        donutRow.Children.Add(legend);
+        p.Children.Add(donutRow);
 
         // Свършеното – по дни (кратко).
         if (done.Count > 0)
@@ -2014,6 +2013,9 @@ public sealed class WorkView : Border
                     })));
         }
 
+        }
+        if (_reviewStep == 1)
+        {
         // Целите на тази седмица – постигнати ли са.
         if (review.Goals.Count > 0)
         {
@@ -2032,6 +2034,9 @@ public sealed class WorkView : Border
         good.LostKeyboardFocus += (_, _) => CommitReview();
         better.LostKeyboardFocus += (_, _) => CommitReview();
 
+        }
+        if (_reviewStep == 2)
+        {
         // Целите за следващата седмица.
         var nextMonday = monday.AddDays(7);
         p.Children.Add(Label($"Целите за следващата седмица (до {PetWindow.MaxWeekGoals}) – виждат се в „Днес“"));
@@ -2060,17 +2065,73 @@ public sealed class WorkView : Border
             }
         }
 
-        var finish = Button(review.Done ? "Прегледът е направен ✓" : "Готово – прегледът е направен", () =>
+        }
+
+        // ← Назад / Напред → (на последната – „Приключи седмицата“).
+        var footer = new DockPanel { Margin = new Thickness(0, 18 * U, 0, 0) };
+        if (_reviewStep > 0)
         {
-            CommitReview();
-            _pet.FinishWeekReview(monday);
-        }, primary: !review.Done, icon: "book");
-        finish.Margin = new Thickness(0, 16 * U, 0, 0);
-        finish.HorizontalAlignment = HorizontalAlignment.Left;
-        p.Children.Add(finish);
+            var back = Button("", () => { CommitReview(); _reviewStep--; Refresh(true); });
+            back.Content = Icon("nav_prev");
+            back.ToolTip = Tip("Назад");
+            DockPanel.SetDock(back, Dock.Left);
+            footer.Children.Add(back);
+        }
+        Button forward;
+        if (_reviewStep < 2)
+            forward = Button("Напред", () => { CommitReview(); _reviewStep++; Refresh(true); }, primary: true, icon: "nav_next");
+        else
+            forward = Button(review.Done ? "Седмицата е приключена ✓" : "Приключи седмицата", () =>
+            {
+                CommitReview();
+                _pet.FinishWeekReview(monday);
+            }, primary: !review.Done, icon: "check");
+        forward.HorizontalAlignment = HorizontalAlignment.Stretch;
+        footer.Children.Add(forward);
+        p.Children.Add(footer);
     }
 
     private Action? _commitReview;
+    private int _reviewStep;
+
+    /// <summary>Кръг (поничка) от части – цвят и колко.</summary>
+    private static FrameworkElement Donut(List<(Color Color, double Value)> parts)
+    {
+        double size = 120 * U, thick = 22 * U, r = (size - thick) / 2;
+        var canvas = new Canvas { Width = size, Height = size };
+        double total = parts.Sum(x => x.Value);
+        if (total <= 0 || parts.Count == 1)
+        {
+            var ring = new System.Windows.Shapes.Ellipse
+            {
+                Width = size - thick,
+                Height = size - thick,
+                Stroke = total <= 0 ? Empty : new SolidColorBrush(parts[0].Color),
+                StrokeThickness = thick,
+            };
+            Canvas.SetLeft(ring, thick / 2);
+            Canvas.SetTop(ring, thick / 2);
+            canvas.Children.Add(ring);
+            return canvas;
+        }
+        double angle = -90;
+        var c = new Point(size / 2, size / 2);
+        Point At(double deg) => new(c.X + r * Math.Cos(deg * Math.PI / 180), c.Y + r * Math.Sin(deg * Math.PI / 180));
+        foreach (var (color, value) in parts)
+        {
+            double sweep = value / total * 360;
+            var fig = new PathFigure { StartPoint = At(angle), IsClosed = false };
+            fig.Segments.Add(new ArcSegment(At(angle + sweep - 0.01), new Size(r, r), 0, sweep > 180, SweepDirection.Clockwise, true));
+            canvas.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = new PathGeometry(new[] { fig }),
+                Stroke = new SolidColorBrush(color),
+                StrokeThickness = thick,
+            });
+            angle += sweep;
+        }
+        return canvas;
+    }
     private bool _reviewDirty, _reviewFocusGoal;
 
     private void CommitReview()
