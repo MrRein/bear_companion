@@ -1231,9 +1231,12 @@ public sealed partial class PetWindow : Window
         }
         // Кликът върху мечока първо затваря панела (той губи фокус); да не го отворим пак веднага.
         if (fromClick && _menuOpenAtPress) return false;
-        OpenMenuPage(MenuWindow.IsPage(_save.MenuPage) ? _save.MenuPage : MenuWindow.PageBear);
+        OpenLastPage();
         return true;
     }
+
+    /// <summary>Менюто – на последната страница, на която си била (иначе „Мечо“).</summary>
+    public void OpenLastPage() => OpenMenuPage(MenuWindow.IsPage(_save.MenuPage) ? _save.MenuPage : MenuWindow.PageBear);
 
     /// <summary>
     /// Показва скрития мечок: първо нарежда кадъра и прозореца на мястото, където е сега,

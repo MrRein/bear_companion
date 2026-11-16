@@ -290,7 +290,7 @@ public sealed partial class PetWindow
             if (MenuIsOpen) _menu!.Hide();
             return;
         }
-        OpenMenu(tab);
+        OpenLastPage();   // последната страница, на която си била
     }
 
     /// <summary>„Редактирай…“ от таблото: „Работа“, с подробностите на задачата.</summary>
