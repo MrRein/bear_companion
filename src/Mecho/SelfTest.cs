@@ -341,13 +341,19 @@ public sealed partial class PetWindow
                 if (DailyOffer.Today(t, force: true).Count(k => k.StartsWith("skin:couch")) > 1) throw new Exception("повече от един диван");
             t.Owned.Remove(Kitchen.Couch);
             t.OfferItems = first.ToList();
+            // „Купуват“ се дрехите, тапетите и пижамите; другото (скинове…) не е купено и може да излезе пак.
+            var bought = new List<string>();
             foreach (var k in first)
+            {
                 if (DailyOffer.Resolve(k) is Garment g) t.OwnedClothes.Add(g.Id);
                 else if (DailyOffer.Resolve(k) is Backdrop b) t.Owned.Add("bg_" + b.Id);
                 else if (DailyOffer.Resolve(k) is PajamaSet p) t.OwnedClothes.Add(p.Key);
+                else continue;
+                bought.Add(k);
+            }
             t.OfferDay = "2000-01-01";
             var next = DailyOffer.Today(t);
-            if (next.Any(first.Contains)) throw new Exception("купено излезе пак");
+            if (next.Any(bought.Contains)) throw new Exception("купено излезе пак: " + string.Join(",", next.Where(bought.Contains)));
             if (DailyOffer.Today(t).Any(k => k.StartsWith("skin:"))) throw new Exception("скин без диван/легло");
             t.OfferItems = new List<string> { "skin:pot:copper" };
             t.OfferDay = DateTime.Today.ToString("yyyy-MM-dd");
