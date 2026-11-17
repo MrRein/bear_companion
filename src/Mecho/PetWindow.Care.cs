@@ -377,22 +377,6 @@ public sealed partial class PetWindow
 
     // ───────────────────────── Храна ─────────────────────────
 
-    public void Pet()
-    {
-        if (BusyEating()) return;
-        if (IsResting)
-        {
-            Say(R.Any("sleep.petted"), 3);
-            return;
-        }
-        Say(Lines.Pick(Lines.Petted, _save.OwnerName), 3);
-        Emote("heart");
-        TodayRec.Petted++;
-        Joy(JoyPetted);
-        PetEnergy();
-        React("happy");
-    }
-
     /// <summary>Може ли да пусне анимация, без да прекъсне дивана, влаченето или съня.</summary>
     private bool CanAnimateFreely => !OnCouchMission && !_onTrampoline && !IsAsleep && _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce);
 

@@ -1289,6 +1289,26 @@ public sealed partial class PetWindow
                 foreach (var k in new[] { "hunger", "tired" })
                     if (!R.Has($"need.{k}.{l}")) throw new Exception($"няма реплики need.{k}.{l}");
         }, 100);
+        await step("погалване: само когато иска; скритият брояч дава лешници", () =>
+        {
+            if (BusyEating() || IsResting || IsAsleep) return;
+            _save.PetOpenUntil = DateTime.MinValue;
+            int count = _save.PetCount;
+            Pet();
+            if (_save.PetCount != count) throw new Exception("погали се, без да иска");
+            _save.PetGoal = _save.PetCount + 1;
+            _save.PetOpenUntil = DateTime.Now.AddMinutes(5);
+            if (!WantsPetting) throw new Exception("не иска, а трябва");
+            int nuts = _save.Hazelnuts;
+            Pet();
+            int got = _save.Hazelnuts - nuts;
+            if (got is < 1 or > 3) throw new Exception("наградата не е 1–3 лешника: " + got);
+            if (_save.PetCount != 0 || _save.PetGoal < 5) throw new Exception("броячът не започна отначало");
+            if (WantsPetting) throw new Exception("след погалването пак иска");
+            _save.PetTimes = "0";
+            UpdatePetting();
+            if (!WantsPetting) throw new Exception("дошлият час не отвори погалването");
+        }, 300);
         await step("подарък в лапите", () =>
         {
             _giftWindow?.Close();

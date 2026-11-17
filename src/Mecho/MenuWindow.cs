@@ -1159,6 +1159,7 @@ public sealed class MenuWindow : Window
     }
 
     private HomeTile _sosTile = null!;
+    private bool? _petWanted;
     private Grid _cards = null!;
     private Border _nowCard = null!, _todayCard = null!;
     private UniformGrid _actionGrid = null!;
@@ -1377,7 +1378,15 @@ public sealed class MenuWindow : Window
         else SetTile(_quietTile, "Тихо", "quiet");
         TileState(_quietTile, _quietOpen);
         TileState(_placeTile, _placeOpen);
-        TileState(_petTile, false);
+        // Погали: светва (с „!“) само когато иска; иначе е бледо – ще поиска по-късно.
+        bool wants = _pet.WantsPetting;
+        TileState(_petTile, false, wants);
+        if (_petWanted != wants)
+        {
+            _petWanted = wants;
+            _petTile.Button.Opacity = wants ? 1 : 0.55;
+            _petTile.Button.ToolTip = Tip(wants ? "Иска да го погалиш!" : "Ще поиска да го погалиш по-късно – няколко пъти на ден");
+        }
         TileState(_stopTile, false);
         TileState(_sosTile, false);
         UpdateBearCards(s);
@@ -1791,24 +1800,17 @@ public sealed class MenuWindow : Window
 
     private static Brush? GainHatch;
 
-    /// <summary>Медени диагонални райета (пиксел по пиксел) – „толкова ще добави“.</summary>
-    private static Color _gainHatchColor;
-
+    /// <summary>
+    /// „Толкова ще добави“: ясно синьо с по-светло петънце горе (различно от зеленото,
+    /// жълтото и червеното на сегашното ниво и от празното).
+    /// </summary>
     private static Brush MakeGainHatch()
     {
-        var c = (Honey as SolidColorBrush)?.Color ?? Colors.Gold;
-        if (GainHatch != null && _gainHatchColor == c) return GainHatch;   // темата не се е сменила
-        _gainHatchColor = c;
-        var light = Color.FromRgb((byte)((c.R + 255) / 2), (byte)((c.G + 255) / 2), (byte)((c.B + 255) / 2));
+        if (GainHatch != null) return GainHatch;
         var g = new DrawingGroup();
-        g.Children.Add(new GeometryDrawing(new SolidColorBrush(light), null, new RectangleGeometry(new Rect(0, 0, 4, 4))));
-        var dark = new SolidColorBrush(c);
-        for (int i = 0; i < 4; i++)
-        {
-            g.Children.Add(new GeometryDrawing(dark, null, new RectangleGeometry(new Rect(i, 3 - i, 1, 1))));
-            g.Children.Add(new GeometryDrawing(dark, null, new RectangleGeometry(new Rect((i + 1) % 4, 3 - i, 1, 1))));
-        }
-        var brush = new DrawingBrush(g) { TileMode = TileMode.Tile, Viewport = new Rect(0, 0, P * 2, P * 2), ViewportUnits = BrushMappingMode.Absolute, Stretch = Stretch.Fill };
+        g.Children.Add(new GeometryDrawing(new SolidColorBrush(Color.FromRgb(0x3E, 0x8E, 0xDE)), null, new RectangleGeometry(new Rect(0, 0, 4, 4))));
+        g.Children.Add(new GeometryDrawing(new SolidColorBrush(Color.FromRgb(0x9C, 0xD2, 0xFF)), null, new RectangleGeometry(new Rect(0, 0, 4, 1))));
+        var brush = new DrawingBrush(g) { Stretch = Stretch.Fill };
         RenderOptions.SetBitmapScalingMode(brush, BitmapScalingMode.NearestNeighbor);
         RenderOptions.SetEdgeMode(brush, EdgeMode.Aliased);
         brush.Freeze();
@@ -1827,7 +1829,7 @@ public sealed class MenuWindow : Window
         i0.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(i0);
         // Звена (като лентите за ситост/енергия): сегашното в цвят, колкото ще добави
-        // храната – на медени райета, останалото – празно. (Без анимация: тя кара
+        // храната – в синьо, останалото – празно. (Без анимация: тя кара
         // прозореца да се рисува постоянно.)
         string dot = now >= 50 ? "dot_good" : now >= 25 ? "dot_okay" : "dot_bad";
         var cells = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -1845,7 +1847,7 @@ public sealed class MenuWindow : Window
             };
             if (UiSkin.Has("dot_empty") && !gainCell) UiSkin.Set(link, i < have ? dot : "dot_empty");
             if (gainCell)
-                link.Background = MakeGainHatch();   // медени райета – ясно различни от празното
+                link.Background = MakeGainHatch();   // синьо – ясно различно от нивото и от празното
             cells.Children.Add(link);
         }
         row.Children.Add(cells);

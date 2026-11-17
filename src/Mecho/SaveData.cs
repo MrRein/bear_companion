@@ -126,7 +126,12 @@ public sealed class SaveData
     public string FavFood { get; set; } = "";                   // любимата храна за днес (виж PetWindow.Memory.cs)
     public string FavFoodDay { get; set; } = "";
     public string WishTimes { get; set; } = "";                // днешните желания, които още не са се появили (минути от полунощ)
-    public Dictionary<string, DateTime> WishUntil { get; set; } = new();   // докога трае всяко появило се желание
+    public Dictionary<string, DateTime> WishUntil { get; set; } = new();
+    public string PetDay { get; set; } = "";                   // за кой ден са PetTimes
+    public string PetTimes { get; set; } = "";                 // кога днес ще поиска да го погалиш (минути от полунощ), още непоявилите се
+    public DateTime PetOpenUntil { get; set; }                 // докога може да се погали сега (иначе не иска)
+    public int PetCount { get; set; }                          // скрит брояч на погалванията
+    public int PetGoal { get; set; }                           // скритото число: стигнеш ли го – лешници (0 – още не е избрано)   // докога трае всяко появило се желание
     public string OddCraving { get; set; } = "";               // тайното странно желание за днес (храна), "" – няма
     public string OddCravingDay { get; set; } = "";
     public int OddCravingMeal { get; set; }                     // за кое хранене (Kitchen.Meal)

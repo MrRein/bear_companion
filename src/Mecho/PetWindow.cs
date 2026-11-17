@@ -363,6 +363,7 @@ public sealed partial class PetWindow : Window
             UpdateButterfly(dt);
             P("пеперуда");
             UpdateGifts(now);
+            UpdatePetting();
             P("подаръци");
             UpdateLife(now);
             P("живот (гости, приказки)");

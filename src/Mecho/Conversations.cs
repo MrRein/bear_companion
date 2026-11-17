@@ -413,7 +413,7 @@ public static class Conversations
         Reply("Не сега", "Мъдростта ще почака. Тя е търпелива."));
 
     private static ChatQuestion Hug(PetWindow pet) => new("Искаш ли мечешка прегръдка?",
-        new ChatOption("🤗 Да!", p => { p.Pet(); }),
+        new ChatOption("🤗 Да!", p => { p.Pet(invited: true); }),
         Reply("Сега не", "Добре. Пазя я за после. Тя не изтича."));
 
     private static ChatQuestion Music(PetWindow pet) => new("Какво слушаш, докато рисуваш?",
