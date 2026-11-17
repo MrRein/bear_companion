@@ -198,7 +198,7 @@ public sealed class TasksModule : GameModule
         });
         Handle<SetTaskDone>(c =>
         {
-            var s = State<TasksState>();
+            var s = Revive(State<TasksState>(), c.Id);
             if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
             if (t.Done == c.Done) return CommandResult.Done;
             if (c.Done)
@@ -221,7 +221,7 @@ public sealed class TasksModule : GameModule
         });
         Handle<EditTask>(c =>
         {
-            var s = State<TasksState>();
+            var s = Revive(State<TasksState>(), c.Id);
             if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
             if (t.Done) return CommandResult.Rejected("свършена е");
             string title = c.Title.Trim();
@@ -233,7 +233,7 @@ public sealed class TasksModule : GameModule
         });
         Handle<DeleteTask>(c =>
         {
-            var s = State<TasksState>();
+            var s = Revive(State<TasksState>(), c.Id);
             if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
             Store.Set(s with { Open = s.Open.Remove(t), Focus = s.Focus == c.Id ? null : s.Focus });
             Emit(new TaskDeleted(c.Id));
@@ -248,7 +248,7 @@ public sealed class TasksModule : GameModule
         });
         Handle<MoveTask>(c =>
         {
-            var s = State<TasksState>();
+            var s = Revive(State<TasksState>(), c.Id);
             if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
             if (c.Before == c.Id) return CommandResult.Done;
             var moved = t with
@@ -271,7 +271,7 @@ public sealed class TasksModule : GameModule
         });
         Handle<SetTaskBucket>(c =>
         {
-            var s = State<TasksState>();
+            var s = Revive(State<TasksState>(), c.Id);
             if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
             var moved = t with { Day = null, Start = null, Bucket = Math.Clamp(c.Bucket, 0, 5), BucketAt = Clock.Today() };
             var list = s.Open.Remove(t);
@@ -281,7 +281,7 @@ public sealed class TasksModule : GameModule
         });
         Handle<ScheduleTask>(c =>
         {
-            var s = State<TasksState>();
+            var s = Revive(State<TasksState>(), c.Id);
             if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
             var start = c.Start is { } st ? new DateTime(st.Year, st.Month, st.Day, st.Hour, st.Minute / 5 * 5, 0) : (DateTime?)null;
             var scheduled = t with
@@ -312,7 +312,7 @@ public sealed class TasksModule : GameModule
         });
         Handle<MarkTask>(c =>
         {
-            var s = State<TasksState>();
+            var s = Revive(State<TasksState>(), c.Id);
             if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
             var marked = t with
             {
@@ -355,7 +355,7 @@ public sealed class TasksModule : GameModule
         });
         Handle<DuplicateTask>(c =>
         {
-            var s = State<TasksState>();
+            var s = Revive(State<TasksState>(), c.Id);
             if (s.Find(c.Id) is not { } t) return CommandResult.Rejected("няма такава задача");
             var copy = t with
             {
@@ -425,7 +425,7 @@ public sealed class TasksModule : GameModule
     /// <summary>Сменя задачата (change връща null – нищо не се сменя).</summary>
     private CommandResult Change(Guid id, Func<TaskEntry, TaskEntry?> change)
     {
-        var s = State<TasksState>();
+        var s = Revive(State<TasksState>(), id);
         if (s.Find(id) is not { } t) return CommandResult.Rejected("няма такава задача");
         if (change(t) is { } next && next != t) Store.Set(s with { Open = s.Open.Replace(t, next) });
         return CommandResult.Done;
@@ -438,6 +438,20 @@ public sealed class TasksModule : GameModule
     {
         string t = (tag ?? "").Trim();
         return t.Length > MaxTag ? t[..MaxTag] : t;
+    }
+
+    /// <summary>
+    /// Свършена задача от минал ден вече е в историята. Пипнеш ли я (местиш, отмаркираш,
+    /// слагаш в графика…), тя се връща в Open – след последната от деня си. Само в копието
+    /// на състоянието: записва се, ако командата мине.
+    /// </summary>
+    private static TasksState Revive(TasksState s, Guid id)
+    {
+        if (s.Find(id) != null) return s;
+        if (s.History.FirstOrDefault(t => t.Id == id) is not { } old) return s;
+        var t = old.Day == null && old.DoneAt is { } at ? old with { Day = at.Date } : old;
+        int last = s.Open.FindLastIndex(x => x.Day == t.Day);
+        return s with { Open = s.Open.Insert(last < 0 ? s.Open.Count : last + 1, t), History = s.History.Remove(old) };
     }
 
     /// <summary>Несвършените от минал ден – за днес, на същото място в реда.</summary>

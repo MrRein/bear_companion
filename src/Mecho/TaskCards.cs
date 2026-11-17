@@ -133,6 +133,24 @@ internal static class TaskTags
         return Brushes[id] = brush;
     }
 
+    /// <summary>
+    /// Плътен (непрозрачен) светъл тон на етикета: цветът, смесен с хартията. За блоковете в
+    /// „По часове“ и календара – линиите отдолу не прозират през тях.
+    /// </summary>
+    public static Brush SoftBrushOf(string key, double mix = 0.45)
+    {
+        var paper = (Ui.Cream as SolidColorBrush)?.Color ?? Colors.White;
+        string id = key + "/soft" + mix + "/" + paper;
+        if (Brushes.TryGetValue(id, out var b)) return b;
+        var found = Find(key);
+        if (found == null) return Ui.Cream;
+        var c = found.Color;
+        byte M(byte a, byte p) => (byte)Math.Round(p + (a - p) * mix);
+        var brush = new SolidColorBrush(Color.FromRgb(M(c.R, paper.R), M(c.G, paper.G), M(c.B, paper.B)));
+        brush.Freeze();
+        return Brushes[id] = brush;
+    }
+
     /// <summary>Квадратче в цвета на етикета – само цвят, без рамка.</summary>
     public static Border Swatch(string key) => ColorSquare(Find(key)?.Color ?? Colors.Transparent);
 

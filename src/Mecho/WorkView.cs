@@ -1754,7 +1754,7 @@ public sealed class WorkView : Border
             var block = new Border
             {
                 Height = height,
-                Background = tag != null ? TaskTags.BrushOf(t.Tag, 90) : Cream,
+                Background = tag != null ? TaskTags.SoftBrushOf(t.Tag) : Cream,
                 BorderBrush = tag != null ? TaskTags.BrushOf(t.Tag) : WoodDark,
                 BorderThickness = new Thickness(Math.Max(2, P), 1, 1, 1),
                 CornerRadius = new CornerRadius(3),
@@ -2077,7 +2077,7 @@ public sealed class WorkView : Border
                 var tag = TaskTags.Find(t.Tag);
                 var chip = new Border
                 {
-                    Background = tag != null ? TaskTags.BrushOf(t.Tag, 70) : Cream,
+                    Background = tag != null ? TaskTags.SoftBrushOf(t.Tag) : Cream,
                     BorderBrush = tag != null ? TaskTags.BrushOf(t.Tag) : WoodLight,
                     BorderThickness = new Thickness(Math.Max(2, P / 2), 0, 0, 0),
                     CornerRadius = new CornerRadius(2),

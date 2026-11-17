@@ -951,10 +951,12 @@ public sealed class MenuWindow : Window
         }
         else
         {
-            // Малки еднакви плочки (не се разтягат по ширината).
-            b.Padding = new Thickness(4 * U, 6 * U, 4 * U, 6 * U);
-            b.MinWidth = 96 * U;
+            // Еднакви плочки в мрежата: една височина, ширината – равна част от реда.
+            b.Padding = new Thickness(2 * U, 4 * U, 2 * U, 4 * U);
+            b.Height = 70 * U;
+            b.HorizontalAlignment = HorizontalAlignment.Stretch;
             t.Label.TextWrapping = TextWrapping.NoWrap;
+            t.Label.TextTrimming = TextTrimming.CharacterEllipsis;
             b.Margin = new Thickness(0, 0, 6 * U, 6 * U);
         }
         if (tip != null) b.ToolTip = Tip(tip);
@@ -1074,16 +1076,33 @@ public sealed class MenuWindow : Window
             Refresh(true);
         }, tip: "Спира каквото прави сега");
 
-        // Малки плочки на две групи: грижата за него и какво да прави.
-        WrapPanel Group(string title, params HomeTile[] tiles)
+        // SOS: мечокът дава нещо за мотивация (листът е motivation.md в GitHub).
+        _sosTile = MakeTile("heart", "SOS", () =>
         {
-            p.Children.Add(new TextBlock { Text = title, Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(2 * U, 6 * U, 0, 4 * U) });
-            var wrap = new WrapPanel();
-            foreach (var t in tiles) wrap.Children.Add(t.Button);
-            p.Children.Add(wrap);
-            return wrap;
-        }
-        Group("Грижа", _sleepTile, _petTile, _walkTile, _quietTile);
+            Hide();
+            _pet.Sos();
+        }, tip: "Нещо мило за кураж, когато ти е трудно");
+
+        // Две карти: какво прави сега (и какво му се яде) и какво сме правили днес.
+        _cards = new Grid { Margin = new Thickness(0, 0, 0, 2 * U) };
+        _cards.ColumnDefinitions.Add(new ColumnDefinition());
+        _cards.ColumnDefinitions.Add(new ColumnDefinition());
+        _cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        _cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        _nowCard = InfoCard("Сега", "bear", BuildNowCard());
+        _todayCard = InfoCard("Днес заедно", "sun", _todayBox);
+        _cards.Children.Add(_nowCard);
+        _cards.Children.Add(_todayCard);
+        p.Children.Add(_cards);
+
+        // Всичко, което може да прави – еднакви плочки в мрежа.
+        p.Children.Add(new TextBlock { Text = "Заедно", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(2 * U, 4 * U, 0, 4 * U) });
+        _actionGrid = new UniformGrid { Columns = 5 };
+        foreach (var t in new[] { _sleepTile, _petTile, _walkTile, _quietTile, _relaxTile, _workTile, _drawTile, _placeTile, _stopTile, _sosTile })
+            _actionGrid.Children.Add(t.Button);
+        p.Children.Add(_actionGrid);
+        p.SizeChanged += (_, _) => LayoutBearTab(p.ActualWidth);
+
         // Изборите под плочките (отворен е най-много един).
         _sleepOptions.Margin = new Thickness(0);
         p.Children.Add(Pocket(_sleepOptions));
@@ -1128,22 +1147,184 @@ public sealed class MenuWindow : Window
             _quietOptions.Children.Add(chip);
         }
         p.Children.Add(Pocket(_quietOptions));
-        Group("Заедно", _relaxTile, _workTile, _drawTile, _placeTile, _stopTile);
         _placeOptions.Margin = new Thickness(0);
         p.Children.Add(Pocket(_placeOptions));
 
-        // SOS: мечокът дава нещо за мотивация (листът е motivation.md в GitHub).
-        var sos = Chip("", () =>
-        {
-            Hide();
-            _pet.Sos();
-        });
-        sos.Child = IconText("heart", "SOS: мотивация", bold: true);
-        sos.Margin = new Thickness(0, 10 * U, 0, 0);
-        sos.HorizontalAlignment = HorizontalAlignment.Left;
-        sos.ToolTip = Tip("Нещо мило за кураж, когато ти е трудно");
-        p.Children.Add(sos);
         return TabScroll(p, 600 * U);
+    }
+
+    private HomeTile _sosTile = null!;
+    private Grid _cards = null!;
+    private Border _nowCard = null!, _todayCard = null!;
+    private UniformGrid _actionGrid = null!;
+    private readonly Border _nowIcon = new() { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 8, 0) };
+    private readonly TextBlock _nowTitle = new() { FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _nowSub = new() { Foreground = Muted, TextWrapping = TextWrapping.Wrap };
+    private readonly StackPanel _wishBox = new() { Margin = new Thickness(0, 8, 0, 0) };
+    private readonly StackPanel _todayBox = new();
+    private string _nowKey = "", _wishKey = "", _todayKey = "";
+    private double _bearWidth;
+
+    /// <summary>Карта с малко заглавие (иконка + име) и съдържание.</summary>
+    private static Border InfoCard(string title, string icon, UIElement body)
+    {
+        var stack = new StackPanel();
+        var head = IconText(icon, title, bold: true);
+        head.Margin = new Thickness(0, 0, 0, 6 * U);
+        stack.Children.Add(head);
+        stack.Children.Add(body);
+        return new Border
+        {
+            Background = Cream,
+            BorderBrush = WoodDark,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(10 * U, 8 * U, 10 * U, 10 * U),
+            Margin = new Thickness(0, 0, 8 * U, 8 * U),
+            Child = stack,
+        };
+    }
+
+    private UIElement BuildNowCard()
+    {
+        var stack = new StackPanel();
+        var row = new DockPanel();
+        DockPanel.SetDock(_nowIcon, Dock.Left);
+        row.Children.Add(_nowIcon);
+        var text = new StackPanel();
+        text.Children.Add(_nowTitle);
+        text.Children.Add(_nowSub);
+        row.Children.Add(text);
+        stack.Children.Add(row);
+        stack.Children.Add(_wishBox);
+        return stack;
+    }
+
+    /// <summary>Широко – картите една до друга и повече плочки на ред; тясно – една под друга.</summary>
+    private void LayoutBearTab(double width)
+    {
+        if (width <= 0 || Math.Abs(width - _bearWidth) < 1) return;
+        _bearWidth = width;
+        bool wide = width >= 470 * U;
+        Grid.SetColumn(_todayCard, wide ? 1 : 0);
+        Grid.SetRow(_todayCard, wide ? 0 : 1);
+        Grid.SetColumnSpan(_nowCard, wide ? 1 : 2);
+        Grid.SetColumnSpan(_todayCard, wide ? 1 : 2);
+        FitActionGrid();
+    }
+
+    /// <summary>Колко плочки на ред: колкото се събират (поне ~100 px всяка), редовете – по равно.</summary>
+    private void FitActionGrid()
+    {
+        if (_actionGrid == null || _bearWidth <= 0) return;
+        int n = _actionGrid.Children.Cast<UIElement>().Count(c => c.Visibility != Visibility.Collapsed);
+        if (n == 0) return;
+        int cols = Math.Clamp((int)(_bearWidth / (104 * U)), 3, n);
+        int rows = (n + cols - 1) / cols;
+        cols = (n + rows - 1) / rows;
+        if (_actionGrid.Columns != cols) _actionGrid.Columns = cols;
+    }
+
+    private static string Capital(string text) => text.Length == 0 ? text : char.ToUpper(text[0]) + text[1..];
+
+    /// <summary>„Сега“: какво прави и какво му се яде; „Днес заедно“: задачи, фокус, гушкане, хапнато.</summary>
+    private void UpdateBearCards(SaveData s)
+    {
+        // Какво прави сега.
+        string icon, title, sub;
+        var fun = _pet.CurrentFun;
+        if (_pet.IsAsleep) (icon, title, sub) = ("moon", "Спи", "Ззз… събуди го от „Събуди“, ако ти липсва.");
+        else if (_pet.OnWalk) (icon, title, sub) = ("walk", "На разходка е", "Ще се върне сам – или го повикай.");
+        else if (fun != null)
+            (icon, title, sub) = (fun.Icon, "„" + Capital(fun.Doing) + "…“",
+                Scenes.Work.Contains(fun) ? "Работи до теб" : "Почива си");
+        else if (_pet.WorksRandomly) (icon, title, sub) = ("tasks", "Работи до теб", "Сам сменя заниманията.");
+        else if (_pet.RelaxesRandomly) (icon, title, sub) = ("relax", "Почива си", "Сам си избира какво да прави.");
+        else (icon, title, sub) = ("bear", "Мотае се наоколо", "Дай му занимание отдолу.");
+        if (_pet.IsQuiet) sub += " Тихо е.";
+        string key = icon + "|" + title + "|" + sub;
+        if (key != _nowKey)
+        {
+            _nowKey = key;
+            _nowIcon.Child = Icon(icon, 2);
+            _nowTitle.Text = title;
+            _nowSub.Text = sub;
+        }
+
+        // Какво му се яде – картинките на желанията; цъкнеш ли – Храна с желанията.
+        var wishes = _pet.Wishes().Take(4).ToArray();
+        string wk = string.Join(",", wishes.Select(f => f.Id));
+        if (wk != _wishKey)
+        {
+            _wishKey = wk;
+            _wishBox.Children.Clear();
+            if (wishes.Length > 0)
+            {
+                _wishBox.Children.Add(new TextBlock { Text = "Иска му се", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 3 * U) });
+                var row = new WrapPanel();
+                foreach (var f in wishes)
+                {
+                    var food = f;
+                    var img = Pixel(_pet.FoodMenuImage(f), 2);
+                    var chip = new Border
+                    {
+                        Background = Paper,
+                        BorderBrush = WoodDark,
+                        BorderThickness = Flat,
+                        CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(3 * U),
+                        Margin = new Thickness(0, 0, 4 * U, 4 * U),
+                        Child = img,
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        ToolTip = Tip(food.Name + " – сготви му"),
+                    };
+                    chip.MouseLeftButtonUp += (_, _) =>
+                    {
+                        _foodCat = Wish;
+                        ShowPage(PageFood);
+                    };
+                    row.Children.Add(chip);
+                }
+                _wishBox.Children.Add(row);
+            }
+        }
+
+        // Днес заедно.
+        var rec = _pet.TodayRecord;
+        var (done, all, _) = _pet.TodayLoad();
+        int focus = (int)Math.Round(s.WorkMinutesToday);
+        string tk = $"{done}/{all}|{focus}|{rec.Petted}|{string.Join(",", rec.Foods)}";
+        if (tk == _todayKey) return;
+        _todayKey = tk;
+        _todayBox.Children.Clear();
+        void Line(string ic, string text)
+        {
+            var line = IconText(ic, text);
+            line.Margin = new Thickness(0, 0, 0, 5 * U);
+            _todayBox.Children.Add(line);
+        }
+        Line("tasks", all == 0 ? "Няма задачи за днес" : $"Задачи: {done} от {all}");
+        Line("hourglass", focus == 0 ? "Още не сме работили" : focus < 60 ? $"Работихме {focus} мин" : $"Работихме {focus / 60} ч {focus % 60:00} мин");
+        Line("heart", rec.Petted == 0 ? "Още не е погален" : rec.Petted == 1 ? "Погален веднъж" : $"Погален {rec.Petted} пъти");
+        var eaten = rec.Foods.Select(id => Kitchen.Foods.FirstOrDefault(f => f.Id == id)).Where(f => f != null).Cast<Food>().ToList();
+        if (eaten.Count == 0) Line("food", "Още не е хапнал");
+        else
+        {
+            var row = new WrapPanel { Margin = new Thickness(0, 0, 0, 2 * U) };
+            var label = IconText("food", "Хапна:");
+            label.Margin = new Thickness(0, 0, 6 * U, 0);
+            label.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(label);
+            foreach (var f in eaten.Take(8))
+            {
+                var img = Pixel(_pet.FoodMenuImage(f), 1);
+                img.Margin = new Thickness(0, 0, 3 * U, 0);
+                img.VerticalAlignment = VerticalAlignment.Center;
+                img.ToolTip = Tip(f.Name);
+                row.Children.Add(img);
+            }
+            _todayBox.Children.Add(row);
+        }
     }
 
     /// <summary>Плочките в „Мечо“ според това какво прави и от какво има нужда.</summary>
@@ -1178,6 +1359,9 @@ public sealed class MenuWindow : Window
         TileState(_placeTile, _placeOpen);
         TileState(_petTile, false);
         TileState(_stopTile, false);
+        TileState(_sosTile, false);
+        UpdateBearCards(s);
+        FitActionGrid();
     }
 
     /// <summary>
@@ -1596,36 +1780,41 @@ public sealed class MenuWindow : Window
         i0.Margin = new Thickness(0, 0, 4, 0);
         i0.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(i0);
-        // Звена (като лентите за ситост/енергия, но по-малки): сегашното в цвят, колкото ще
-        // добави храната – в мед, останалото – празно. Съседните делят един контур.
+        // Звена (като лентите за ситост/енергия): сегашното в цвят, колкото ще добави
+        // храната – медени и примигват (да се вижда, че идват), останалото – празно.
         string dot = now >= 50 ? "dot_good" : now >= 25 ? "dot_okay" : "dot_bad";
         var cells = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        System.Windows.Media.Animation.DoubleAnimation? pulse = null;
         for (int i = 0; i < segments; i++)
         {
+            bool gainCell = i >= have && i < will;
             var link = new Border
             {
-                Width = 4 * P,
-                Height = 4 * P,
+                Width = 5 * P,
+                Height = 5 * P,
                 Margin = new Thickness(0, 0, i < segments - 1 ? -P : 0, 0),
                 BorderBrush = Ink,
                 BorderThickness = Flat,
-                Background = i < have ? colour : i < will ? Honey : Empty,
+                Background = i < have ? colour : gainCell ? Honey : Empty,
             };
-            if (UiSkin.Has("dot_empty")) UiSkin.Set(link, i < have ? dot : i < will ? "dot_honey" : "dot_empty");
+            if (UiSkin.Has("dot_empty") && !gainCell) UiSkin.Set(link, i < have ? dot : "dot_empty");
+            if (gainCell)
+            {
+                // Медено с бяло петънце горе – ясно различно от празното.
+                link.Child = new Border { Background = Cream, Width = P, Height = P, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(P, P, 0, 0), Opacity = 0.8 };
+                pulse ??= new System.Windows.Media.Animation.DoubleAnimation(1, 0.45, TimeSpan.FromMilliseconds(650))
+                {
+                    AutoReverse = true,
+                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+                };
+                link.BeginAnimation(OpacityProperty, pulse);
+            }
             cells.Children.Add(link);
         }
         row.Children.Add(cells);
-        // Колко добавя – и с число (медените звена се губят до жълтото „средно“).
         int gain = (int)Math.Round(Math.Min(100, after) - now);
-        if (gain > 0)
-            row.Children.Add(new TextBlock
-            {
-                Text = "+" + gain,
-                FontWeight = FontWeights.Bold,
-                Foreground = Ink,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(6 * U, 0, 0, 0),
-            });
+        row.ToolTip = Tip(gain > 0 ? $"Сега {Math.Round(now)}/100 → {Math.Round(Math.Min(100, after))}/100 {what}" + (note != null ? "\n" + note : "") : (note ?? what));
+        row.Background = Brushes.Transparent;
         return row;
     }
 

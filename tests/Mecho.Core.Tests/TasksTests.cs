@@ -103,6 +103,24 @@ public class TasksTests
     }
 
     [Fact]
+    public void Yesterdays_done_task_can_be_moved_and_reopened()
+    {
+        var (e, clock, _) = Started(new DateTime(2026, 10, 18, 23, 59, 0));
+        e.Bus.Send(new AddTask("вчерашна", 1));
+        var id = Last(e).Id;
+        e.Bus.Send(new SetTaskDone(id, true));
+        Next(e, clock);
+        Assert.Single(e.Store.Get<TasksState>().History);
+        var today = new DateTime(2026, 10, 19);
+        Assert.True(e.Bus.Send(new MoveTask(id, today)).Ok);
+        var s = e.Store.Get<TasksState>();
+        Assert.Empty(s.History);
+        Assert.Equal(today, s.Find(id)!.Day);
+        Assert.True(e.Bus.Send(new SetTaskDone(id, false)).Ok);
+        Assert.False(e.Store.Get<TasksState>().Find(id)!.Done);
+    }
+
+    [Fact]
     public void Tasks_survive_save_and_load()
     {
         var (e, _, _) = Started();

@@ -12,6 +12,9 @@ public sealed partial class PetWindow
 {
     private static string DayKey(DateTime d) => d.ToString("yyyy-MM-dd");
 
+    /// <summary>Днешният запис – за картата „Днес заедно“ в менюто.</summary>
+    public DayRecord TodayRecord => TodayRec;
+
     /// <summary>Днешният запис (създава се, ако още го няма).</summary>
     private DayRecord TodayRec
     {

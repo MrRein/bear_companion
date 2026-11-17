@@ -364,7 +364,7 @@ internal sealed class DayTimeline : DockPanel
         var block = new Border
         {
             Height = height,
-            Background = tag != null ? TaskTags.BrushOf(t.Tag, 95) : Cream,
+            Background = tag != null ? TaskTags.SoftBrushOf(t.Tag) : Cream,
             BorderBrush = tag != null ? TaskTags.BrushOf(t.Tag) : WoodDark,
             BorderThickness = new Thickness(Math.Max(2, P), 1, 1, 1),
             CornerRadius = new CornerRadius(3),
@@ -387,7 +387,7 @@ internal sealed class DayTimeline : DockPanel
                 ViewportUnits = BrushMappingMode.Absolute,
                 Drawing = new GeometryDrawing(tag != null ? TaskTags.BrushOf(t.Tag) : WoodDark, null, new RectangleGeometry(new Rect(0, 0, 3, 3))),
             };
-            block.Background = tag != null ? TaskTags.BrushOf(t.Tag, 70) : Cream;
+            block.Background = tag != null ? TaskTags.SoftBrushOf(t.Tag, 0.3) : Cream;
             time.Text = "~" + time.Text;
             _ghostStart[block] = start;
         }
