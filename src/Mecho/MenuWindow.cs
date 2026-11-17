@@ -953,7 +953,7 @@ public sealed class MenuWindow : Window
         {
             // Еднакви плочки в мрежата: една височина, ширината – равна част от реда.
             b.Padding = new Thickness(2 * U, 4 * U, 2 * U, 4 * U);
-            b.Height = 70 * U;
+            b.MinHeight = 62 * U;   // мрежата (UniformGrid) ги прави еднакво високи
             b.HorizontalAlignment = HorizontalAlignment.Stretch;
             t.Label.TextWrapping = TextWrapping.NoWrap;
             t.Label.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -1089,7 +1089,7 @@ public sealed class MenuWindow : Window
         _cards.ColumnDefinitions.Add(new ColumnDefinition());
         _cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        _nowCard = InfoCard("Сега", "bear", BuildNowCard());
+        _nowCard = InfoCard("Сега", null, BuildNowCard());
         _todayCard = InfoCard("Днес заедно", "sun", _todayBox);
         _cards.Children.Add(_nowCard);
         _cards.Children.Add(_todayCard);
@@ -1166,7 +1166,7 @@ public sealed class MenuWindow : Window
     private double _bearWidth;
 
     /// <summary>Карта с малко заглавие (иконка + име) и съдържание.</summary>
-    private static Border InfoCard(string title, string icon, UIElement body)
+    private static Border InfoCard(string title, string? icon, UIElement body)
     {
         var stack = new StackPanel();
         var head = IconText(icon, title, bold: true);

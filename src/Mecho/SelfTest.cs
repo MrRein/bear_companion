@@ -1304,6 +1304,8 @@ public sealed partial class PetWindow
             if (!OpenHeldGift()) throw new Exception("цъкането не го подаде");
             if (_giftWindow == null) throw new Exception("подаръкът не долетя");
         }, 2500);
+        // На бавна машина анимацията закъснява – още малко време, ако още не е отворен.
+        if (_save.GiftPending) await step("подарък: още малко", () => { }, 3000);
         await step("подарък: отворен", () =>
         {
             if (_save.GiftPending) throw new Exception("подаръкът не се отвори сам");
