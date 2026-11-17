@@ -1101,7 +1101,6 @@ public sealed class MenuWindow : Window
         foreach (var t in new[] { _sleepTile, _petTile, _walkTile, _quietTile, _relaxTile, _workTile, _drawTile, _placeTile, _stopTile, _sosTile })
             _actionGrid.Children.Add(t.Button);
         p.Children.Add(_actionGrid);
-        p.SizeChanged += (_, _) => LayoutBearTab(p.ActualWidth);
 
         // Изборите под плочките (отворен е най-много един).
         _sleepOptions.Margin = new Thickness(0);
@@ -1150,7 +1149,11 @@ public sealed class MenuWindow : Window
         _placeOptions.Margin = new Thickness(0);
         p.Children.Add(Pocket(_placeOptions));
 
-        return TabScroll(p, 600 * U);
+        // Ширината – от целия свитък (не се мени, когато се покаже плъзгачът – иначе
+        // подредбата и плъзгачът се гонят безкрай). Плъзгачът е отстрани, заделяме му място.
+        var scroll = TabScroll(p, 600 * U);
+        scroll.SizeChanged += (_, e) => { if (e.WidthChanged) LayoutBearTab(scroll.ActualWidth - 24 * U); };
+        return scroll;
     }
 
     private HomeTile _sosTile = null!;
@@ -1203,7 +1206,7 @@ public sealed class MenuWindow : Window
     /// <summary>Широко – картите една до друга и повече плочки на ред; тясно – една под друга.</summary>
     private void LayoutBearTab(double width)
     {
-        if (width <= 0 || Math.Abs(width - _bearWidth) < 1) return;
+        if (width <= 0 || Math.Abs(width - _bearWidth) < 4) return;
         _bearWidth = width;
         bool wide = width >= 470 * U;
         Grid.SetColumn(_todayCard, wide ? 1 : 0);

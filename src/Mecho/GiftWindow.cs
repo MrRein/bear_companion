@@ -28,6 +28,9 @@ public sealed class GiftWindow : Window
 
     /// <summary>Отваря се сам, щом кацне в средата (мечокът го подаде).</summary>
     public void OpenWhenLanded() => _openWhenLanded = true;
+
+    /// <summary>За самопроверката: докъде е стигнал.</summary>
+    internal string DebugState => $"t={_t:0.00}, сам={_openWhenLanded}, отворен={_opened}, таймер={_timer.IsEnabled}";
     private DateTime _openedAt;
 
     public GiftWindow(PetWindow pet, BitmapSource closed, BitmapSource open, double scale)

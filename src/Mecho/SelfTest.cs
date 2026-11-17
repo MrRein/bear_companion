@@ -1308,7 +1308,7 @@ public sealed partial class PetWindow
         if (_save.GiftPending) await step("подарък: още малко", () => { }, 3000);
         await step("подарък: отворен", () =>
         {
-            if (_save.GiftPending) throw new Exception("подаръкът не се отвори сам");
+            if (_save.GiftPending) throw new Exception($"подаръкът не се отвори сам (прозорец: {(_giftWindow == null ? "няма" : _giftWindow.IsVisible ? "вижда се" : "скрит")}, {_giftWindow?.DebugState}, път: {_giftRun})");
             _chat?.Hide();
         }, 500);
         await step("подарък: прекъснат – оставя го в средата", () =>
