@@ -1098,7 +1098,8 @@ public sealed class MenuWindow : Window
         // Всичко, което може да прави – еднакви плочки в мрежа.
         p.Children.Add(new TextBlock { Text = "Заедно", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(2 * U, 4 * U, 0, 4 * U) });
         _actionGrid = new UniformGrid { Columns = 5 };
-        foreach (var t in new[] { _sleepTile, _petTile, _walkTile, _quietTile, _relaxTile, _workTile, _drawTile, _placeTile, _stopTile, _sosTile })
+        _actionTiles = new[] { _sleepTile, _petTile, _walkTile, _quietTile, _relaxTile, _workTile, _drawTile, _placeTile, _stopTile, _sosTile };
+        foreach (var t in _actionTiles)
             _actionGrid.Children.Add(t.Button);
         p.Children.Add(_actionGrid);
 
@@ -1160,6 +1161,8 @@ public sealed class MenuWindow : Window
     private Grid _cards = null!;
     private Border _nowCard = null!, _todayCard = null!;
     private UniformGrid _actionGrid = null!;
+    private HomeTile[] _actionTiles = Array.Empty<HomeTile>();
+    private string _fitKey = "";
     private readonly Border _nowIcon = new() { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 8, 0) };
     private readonly TextBlock _nowTitle = new() { FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _nowSub = new() { Foreground = Muted, TextWrapping = TextWrapping.Wrap };
@@ -1222,7 +1225,20 @@ public sealed class MenuWindow : Window
         if (_actionGrid == null || _bearWidth <= 0) return;
         int n = _actionGrid.Children.Cast<UIElement>().Count(c => c.Visibility != Visibility.Collapsed);
         if (n == 0) return;
-        int cols = Math.Clamp((int)(_bearWidth / (118 * U)), 3, n);
+        string key = n + "|" + _bearWidth + "|" + string.Join(",", _actionTiles.Select(t => t.Label.Text));
+        if (key == _fitKey) return;
+        _fitKey = key;
+        // Най-дългата дума трябва да се събира на един ред (думите не се пречупват).
+        double word = 0;
+        foreach (var t in _actionTiles)
+            foreach (var w in t.Label.Text.Split(' '))
+            {
+                var probe = new TextBlock { Text = w, FontWeight = t.Label.FontWeight, FontSize = t.Label.FontSize, FontFamily = t.Label.FontFamily };
+                probe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                word = Math.Max(word, probe.DesiredSize.Width);
+            }
+        double tile = Math.Max(96 * U, word + 22 + 5 * U);   // + рамката на бутона и разстоянието
+        int cols = Math.Clamp((int)(_bearWidth / tile), 3, n);
         int rows = (n + cols - 1) / cols;
         cols = (n + rows - 1) / rows;
         if (_actionGrid.Columns != cols) _actionGrid.Columns = cols;
