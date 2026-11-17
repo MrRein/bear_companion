@@ -517,7 +517,7 @@ public sealed class MenuWindow : Window
         // Най-вдясно: квадратче с Х – затваря менюто (и с Esc, и като цъкнеш другаде).
         var close = Chip("", Hide);
         close.Child = Icon("close", 2);
-        close.Padding = new Thickness(4 * U);
+        close.Padding = new Thickness(2 * U);
         close.Margin = new Thickness(6 * U, 0, 0, 0);
         close.VerticalAlignment = VerticalAlignment.Center;
         close.ToolTip = Tip("Затвори менюто (Esc)");
@@ -1516,7 +1516,7 @@ public sealed class MenuWindow : Window
             foreach (var e in events.Skip(events.Count - show))
             {
                 var row = new DockPanel { Margin = new Thickness(0, 0, 0, 3 * U) };
-                var time = new TextBlock { Text = e.At.ToString("H:mm"), Foreground = Muted, Width = 34 * U, VerticalAlignment = VerticalAlignment.Center };
+                var time = new TextBlock { Text = e.At.ToString("H:mm"), Foreground = Muted, MinWidth = 40 * U, Margin = new Thickness(0, 0, 4 * U, 0), VerticalAlignment = VerticalAlignment.Center };
                 DockPanel.SetDock(time, Dock.Left);
                 row.Children.Add(time);
                 var ic = Icon(e.Icon);
