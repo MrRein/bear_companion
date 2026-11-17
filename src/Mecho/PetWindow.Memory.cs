@@ -59,6 +59,7 @@ public sealed partial class PetWindow
     private void RecordPomodoro(double minutes)
     {
         TodayRec.Pomodoros++;
+        Log("hourglass", $"Работихме {minutes:0} мин");
         TodayRec.WorkMinutes += minutes;
     }
 
@@ -68,6 +69,7 @@ public sealed partial class PetWindow
     {
         var r = TodayRec;
         r.TasksDone = Math.Max(0, r.TasksDone + (done ? 1 : -1));
+        if (done) Log(t.Size >= 3 ? "star" : "tasks", "Свърши: " + t.Title);
         if (t.Size >= 3) r.BigTasks = Math.Max(0, r.BigTasks + (done ? 1 : -1));
     }
 
@@ -75,6 +77,7 @@ public sealed partial class PetWindow
     {
         var r = TodayRec;
         if (!r.Foods.Contains(f.Id)) r.Foods.Add(f.Id);
+        Log("food", "Хапна " + f.Name.ToLowerInvariant());
     }
 
     /// <summary>Легна за деня: след полунощ се брои към вчерашния ден.</summary>

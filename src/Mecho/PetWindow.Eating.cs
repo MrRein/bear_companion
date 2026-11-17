@@ -313,7 +313,7 @@ public sealed partial class PetWindow
         {
             TodayRec.WishGifts++;
             int nuts = 1 + _rng.Next(3);
-            _save.Hazelnuts += nuts;
+            GainNuts(nuts, "желание");
             Persist();
             NotifyCare();
             Say(Fill("wish.nuts", ("ястие", food.Name.ToLowerInvariant())) + $" +{nuts} 🌰", 6);

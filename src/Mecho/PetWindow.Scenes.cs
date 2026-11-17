@@ -220,6 +220,7 @@ public sealed partial class PetWindow
             Say($"Нямам {item?.Name.ToLowerInvariant()}…", 3);
             return;
         }
+        if (!Scenes.Work.Contains(scene)) FulfilDesire("rest");
         if (HobbyBlocked(scene))
         {
             Say(R.Any("event.blocked"), 3);
@@ -342,6 +343,7 @@ public sealed partial class PetWindow
             Say(R.Any("work.first"), 3);
             return;
         }
+        FulfilDesire("rest");
         _save.StayPut = true;
         _save.StayScene = RandomRelax;
         _save.AutoMode = false;

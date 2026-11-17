@@ -102,6 +102,7 @@ public sealed partial class PetWindow : Window
         // Ядрото (шина, състояние, модули) – първо, защото всичко след това чете и пише
         // данните през него (виж Engine/CoreSetup.cs и ARCHITECTURE.md).
         CoreEngine = Engine.CoreSetup.Build(this, save, a => Dispatcher.BeginInvoke(a));
+        WireDiary();    // Мечешкият дневник: лешниците за деня
         WireWork();     // мечо-доро и таймер: ядрото засича края, мечокът реагира
         WirePlanner();  // задачите от минали дни се пренасят за днес – мечокът казва
         WireEvents();   // събития (пижамен ден, болен ден, Коледа, пеперуда…)
@@ -1561,6 +1562,7 @@ public sealed partial class PetWindow : Window
 
     public void Say(string text, double seconds = 4)
     {
+        NoteSaid(text);
         Ui.SetRichText(_bubbleText, text);
         _bubble.Visibility = Visibility.Visible;
         // Нарежда балончето веднага (не на следващия кадър): иначе се мяркаше на

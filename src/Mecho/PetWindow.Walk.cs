@@ -38,6 +38,11 @@ public sealed partial class PetWindow
         if (_inScene) LeaveScene();
         _save.StayPut = false;
         _walkingOut = true;
+        if (!solo)
+        {
+            Log("walk", $"Разходка ({minutes:0} мин)");
+            FulfilDesire("walk");
+        }
         _save.WalkUntil = DateTime.Now.AddMinutes(minutes);
         // Вечер и много му се спи: ще посънча навън – разходката се брои за сън.
         _save.WalkNap = !solo && !fullscreen && (LateForBed || DateTime.Now.Hour >= 19) && _save.Energy < TiredBelow;

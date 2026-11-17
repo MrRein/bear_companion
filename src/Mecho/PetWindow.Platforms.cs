@@ -37,6 +37,7 @@ public sealed partial class PetWindow
     /// <summary>„Рисувай“: върху екрана на мечока се отваря платно с четка, гума и цветове.</summary>
     public void OpenDrawing()
     {
+        FulfilDesire("draw");
         if (_drawWindow != null)
         {
             _drawWindow.Activate();

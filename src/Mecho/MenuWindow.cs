@@ -1090,8 +1090,8 @@ public sealed class MenuWindow : Window
         _cards.ColumnDefinitions.Add(new ColumnDefinition());
         _cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        _nowCard = InfoCard("Сега", null, BuildNowCard());
-        _todayCard = InfoCard("Днес заедно", "sun", _todayBox);
+        _nowCard = InfoCard("В бърлогата", null, BuildNowCard());
+        _todayCard = InfoCard("Мечешки дневник", "book", BuildDiaryCard());
         _cards.Children.Add(_nowCard);
         _cards.Children.Add(_todayCard);
         p.Children.Add(_cards);
@@ -1168,9 +1168,16 @@ public sealed class MenuWindow : Window
     private readonly Border _nowIcon = new() { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 8, 0) };
     private readonly TextBlock _nowTitle = new() { FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _nowSub = new() { Foreground = Muted, TextWrapping = TextWrapping.Wrap };
-    private readonly StackPanel _wishBox = new() { Margin = new Thickness(0, 8, 0, 0) };
+    private readonly StackPanel _timerBox = new() { Margin = new Thickness(0, 8, 0, 0) };
+    private readonly TextBlock _timerText = new() { FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center };
+    private readonly StackPanel _wantsBox = new();
+    private readonly StackPanel _saidBox = new();
     private readonly StackPanel _todayBox = new();
-    private string _nowKey = "", _wishKey = "", _todayKey = "";
+    private readonly StackPanel _bearGoalBox = new() { Margin = new Thickness(0, 0, 0, 8) };
+    private readonly StackPanel _nutsBox = new() { Margin = new Thickness(0, 0, 0, 8) };
+    private readonly StackPanel _diaryBox = new();
+    private string _nowKey = "", _timerKey = "", _wantsKey = "", _saidKey = "", _bearGoalKey = "", _nutsKey = "", _diaryKey = "";
+    private bool _saidOpen, _diaryOpen;
     private double _bearWidth;
 
     /// <summary>Карта с малко заглавие (иконка + име) и съдържание.</summary>
@@ -1193,6 +1200,7 @@ public sealed class MenuWindow : Window
         };
     }
 
+    /// <summary>„В бърлогата“: какво прави (и докога), таймерът, какво иска, последно казаното.</summary>
     private UIElement BuildNowCard()
     {
         var stack = new StackPanel();
@@ -1204,8 +1212,35 @@ public sealed class MenuWindow : Window
         text.Children.Add(_nowSub);
         row.Children.Add(text);
         stack.Children.Add(row);
-        stack.Children.Add(_wishBox);
+        stack.Children.Add(_timerBox);
+        stack.Children.Add(_wantsBox);
+        stack.Children.Add(_saidBox);
         return stack;
+    }
+
+    /// <summary>„Мечешки дневник“: целта за деня, лешниците днес и какво сме правили.</summary>
+    private UIElement BuildDiaryCard()
+    {
+        _todayBox.Children.Add(_bearGoalBox);
+        _todayBox.Children.Add(_nutsBox);
+        _todayBox.Children.Add(_diaryBox);
+        return _todayBox;
+    }
+
+    /// <summary>Малко копче с иконка и текст (желанията, „Спри“).</summary>
+    private Border SmallAction(string icon, string text, Action click, string? tip = null)
+    {
+        var chip = Chip("", click);
+        chip.Child = IconText(icon, text);
+        chip.Margin = new Thickness(0, 0, 6 * U, 5 * U);
+        if (tip != null) chip.ToolTip = Tip(tip);
+        return chip;
+    }
+
+    private static string Ago(DateTime at)
+    {
+        var d = DateTime.Now - at;
+        return d.TotalMinutes < 1 ? "току-що" : d.TotalMinutes < 60 ? $"преди {(int)d.TotalMinutes} мин" : $"в {at:H:mm}";
     }
 
     /// <summary>Широко – картите една до друга и повече плочки на ред; тясно – една под друга.</summary>
@@ -1248,44 +1283,105 @@ public sealed class MenuWindow : Window
 
     private static string Capital(string text) => text.Length == 0 ? text : char.ToUpper(text[0]) + text[1..];
 
-    /// <summary>„Сега“: какво прави и какво му се яде; „Днес заедно“: задачи, фокус, гушкане, хапнато.</summary>
+    /// <summary>Картите „В бърлогата“ и „Мечешки дневник“ (всяка част се прерисува само ако се е сменила).</summary>
     private void UpdateBearCards(SaveData s)
     {
-        // Какво прави сега.
+        // ── Какво прави (и докога) ──
         string icon, title, sub;
         var fun = _pet.CurrentFun;
-        if (_pet.IsAsleep) (icon, title, sub) = ("moon", "Спи", "Ззз… събуди го от „Събуди“, ако ти липсва.");
-        else if (_pet.OnWalk) (icon, title, sub) = ("walk", "На разходка е", "Ще се върне сам – или го повикай.");
+        if (_pet.IsAsleep) (icon, title, sub) = ("moon", "Спи", "Ззз…");
+        else if (_pet.OnWalk)
+            (icon, title, sub) = ("walk", "На разходка е", _pet.WalkLeft > TimeSpan.Zero ? $"Връща се към {DateTime.Now + _pet.WalkLeft:H:mm}" : "Тръгва…");
         else if (fun != null)
-            (icon, title, sub) = (fun.Icon, "„" + Capital(fun.Doing) + "…“",
-                Scenes.Work.Contains(fun) ? "Работи до теб" : "Почива си");
+        {
+            double left = _pet.SceneLeftSeconds;
+            string when = left > 0 ? $"още ~{Math.Max(1, (int)Math.Ceiling(left / 60))} мин" : "докато не го вдигнеш";
+            (icon, title, sub) = (fun.Icon, "„" + Capital(fun.Doing) + "…“", (Scenes.Work.Contains(fun) ? "Работи до теб · " : "") + when);
+        }
         else if (_pet.WorksRandomly) (icon, title, sub) = ("tasks", "Работи до теб", "Сам сменя заниманията.");
         else if (_pet.RelaxesRandomly) (icon, title, sub) = ("relax", "Почива си", "Сам си избира какво да прави.");
         else (icon, title, sub) = ("bear", "Мотае се наоколо", "Дай му занимание отдолу.");
-        if (_pet.IsQuiet) sub += " Тихо е.";
-        string key = icon + "|" + title + "|" + sub;
-        if (key != _nowKey)
+        if (_pet.IsQuiet) sub += " · Тихо е.";
+        if (icon + title != _nowKey)
         {
-            _nowKey = key;
+            _nowKey = icon + title;
             _nowIcon.Child = Icon(icon, 2);
             _nowTitle.Text = title;
-            _nowSub.Text = sub;
+        }
+        if (_nowSub.Text != sub) _nowSub.Text = sub;
+
+        // ── Таймер / фокус (с „Спри“) ──
+        string timerKind = _pet.PomodoroFocus ? "focus" : s.PomodoroPhase == PomodoroPhase.Break ? "break" : _pet.TimerRunning ? "timer" : "";
+        if (timerKind != _timerKey)
+        {
+            _timerKey = timerKind;
+            _timerBox.Children.Clear();
+            if (timerKind.Length > 0)
+            {
+                var row = new DockPanel();
+                var stop = SmallAction("stop", "Спри", () =>
+                {
+                    if (timerKind == "timer") _pet.StopTimer();
+                    else _pet.StopPomodoro();
+                    Refresh(true);
+                });
+                stop.Margin = new Thickness(6 * U, 0, 0, 0);
+                DockPanel.SetDock(stop, Dock.Right);
+                row.Children.Add(stop);
+                var ic = Icon(timerKind == "break" ? "relax" : "hourglass");
+                ic.Margin = new Thickness(0, 0, 6, 0);
+                ic.VerticalAlignment = VerticalAlignment.Center;
+                DockPanel.SetDock(ic, Dock.Left);
+                row.Children.Add(ic);
+                row.Children.Add(_timerText);
+                _timerBox.Children.Add(row);
+            }
+        }
+        if (timerKind.Length > 0)
+        {
+            var left = timerKind == "timer" ? _pet.TimerLeft : (s.PomodoroEndsAt > DateTime.Now ? s.PomodoroEndsAt - DateTime.Now : TimeSpan.Zero);
+            string clock = left.TotalHours >= 1 ? $"{(int)left.TotalHours}:{left.Minutes:00}:{left.Seconds:00}" : $"{(int)left.TotalMinutes}:{left.Seconds:00}";
+            string what = timerKind == "focus" ? "Фокус" : timerKind == "break" ? "Почивка" : s.TimerLabel.Length > 0 ? s.TimerLabel : "Таймер";
+            string t = $"{what} · остават {clock}";
+            if (_timerText.Text != t) _timerText.Text = t;
         }
 
-        // Какво му се яде – картинките на желанията; цъкнеш ли – Храна с желанията.
+        // ── Какво иска: гушка, разходка, диванче, рисуване; какво му се яде ──
+        bool wantsPet = _pet.WantsPetting;
+        string? desire = _pet.CurrentDesire;
         var wishes = _pet.Wishes().Take(4).ToArray();
-        string wk = string.Join(",", wishes.Select(f => f.Id));
-        if (wk != _wishKey)
+        string wk = $"{wantsPet}|{desire}|{string.Join(",", wishes.Select(f => f.Id))}";
+        if (wk != _wantsKey)
         {
-            _wishKey = wk;
-            _wishBox.Children.Clear();
-            if (wishes.Length > 0)
+            _wantsKey = wk;
+            _wantsBox.Children.Clear();
+            if (wantsPet || desire != null || wishes.Length > 0)
             {
-                _wishBox.Children.Add(new TextBlock { Text = "Иска му се", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 3 * U) });
-                var row = new WrapPanel();
+                _wantsBox.Children.Add(new TextBlock { Text = "Иска", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 8, 0, 3 * U) });
+                var wrap = new WrapPanel();
+                if (wantsPet) wrap.Children.Add(SmallAction("heart", "Гушка", () => { _pet.Pet(); Refresh(true); }, "Погали го"));
+                if (desire != null)
+                    wrap.Children.Add(SmallAction(PetWindow.DesireIcon(desire), PetWindow.DesireText(desire).Replace("Иска ", "").Replace("да ", ""), () =>
+                    {
+                        switch (desire)
+                        {
+                            case "walk":
+                                _walkOpen = true;
+                                _sleepOpen = _quietOpen = _placeOpen = false;
+                                Refresh(false);
+                                break;
+                            case "rest":
+                                _pet.RelaxRandom();
+                                Refresh(true);
+                                break;
+                            case "draw":
+                                Hide();
+                                _pet.OpenDrawing();
+                                break;
+                        }
+                    }, PetWindow.DesireText(desire)));
                 foreach (var f in wishes)
                 {
-                    var food = f;
                     var img = Pixel(_pet.FoodMenuImage(f), 2);
                     var chip = new Border
                     {
@@ -1293,58 +1389,147 @@ public sealed class MenuWindow : Window
                         BorderBrush = WoodDark,
                         BorderThickness = Flat,
                         CornerRadius = new CornerRadius(3),
-                        Padding = new Thickness(3 * U),
-                        Margin = new Thickness(0, 0, 4 * U, 4 * U),
+                        Padding = new Thickness(2 * U),
+                        Margin = new Thickness(0, 0, 5 * U, 5 * U),
                         Child = img,
                         Cursor = System.Windows.Input.Cursors.Hand,
-                        ToolTip = Tip(food.Name + " – сготви му"),
+                        ToolTip = Tip("Иска му се: " + f.Name + " – сготви му"),
+                        VerticalAlignment = VerticalAlignment.Center,
                     };
                     chip.MouseLeftButtonUp += (_, _) =>
                     {
                         _foodCat = Wish;
                         ShowPage(PageFood);
                     };
-                    row.Children.Add(chip);
+                    wrap.Children.Add(chip);
                 }
-                _wishBox.Children.Add(row);
+                _wantsBox.Children.Add(wrap);
             }
         }
 
-        // Днес заедно.
-        var rec = _pet.TodayRecord;
-        var (done, all, _) = _pet.TodayLoad();
-        int focus = (int)Math.Round(s.WorkMinutesToday);
-        string tk = $"{done}/{all}|{focus}|{rec.Petted}|{string.Join(",", rec.Foods)}";
-        if (tk == _todayKey) return;
-        _todayKey = tk;
-        _todayBox.Children.Clear();
-        void Line(string ic, string text)
+        // ── Последно казано (цъкнеш ли – и предишните) ──
+        var said = _pet.Said;
+        string sk = said.Count == 0 ? "" : $"{said.Count}|{said[^1].At:HHmmss}|{_saidOpen}|{Ago(said[^1].At)}";
+        if (sk != _saidKey)
         {
-            var line = IconText(ic, text);
-            line.Margin = new Thickness(0, 0, 0, 5 * U);
-            _todayBox.Children.Add(line);
-        }
-        Line("tasks", all == 0 ? "Няма задачи за днес" : $"Задачи: {done} от {all}");
-        Line("hourglass", focus == 0 ? "Още не сме работили" : focus < 60 ? $"Работихме {focus} мин" : $"Работихме {focus / 60} ч {focus % 60:00} мин");
-        Line("heart", rec.Petted == 0 ? "Още не е погален" : rec.Petted == 1 ? "Погален веднъж" : $"Погален {rec.Petted} пъти");
-        var eaten = rec.Foods.Select(id => Kitchen.Foods.FirstOrDefault(f => f.Id == id)).Where(f => f != null).Cast<Food>().ToList();
-        if (eaten.Count == 0) Line("food", "Още не е хапнал");
-        else
-        {
-            var row = new WrapPanel { Margin = new Thickness(0, 0, 0, 2 * U) };
-            var label = IconText("food", "Хапна:");
-            label.Margin = new Thickness(0, 0, 6 * U, 0);
-            label.VerticalAlignment = VerticalAlignment.Center;
-            row.Children.Add(label);
-            foreach (var f in eaten.Take(8))
+            _saidKey = sk;
+            _saidBox.Children.Clear();
+            if (said.Count > 0)
             {
-                var img = Pixel(_pet.FoodMenuImage(f), 1);
-                img.Margin = new Thickness(0, 0, 3 * U, 0);
-                img.VerticalAlignment = VerticalAlignment.Center;
-                img.ToolTip = Tip(f.Name);
-                row.Children.Add(img);
+                _saidBox.Children.Add(new TextBlock { Text = "Последно каза", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 8, 0, 3 * U) });
+                var shown = _saidOpen ? said.Reverse().Take(5).ToList() : new List<(DateTime At, string Text)> { said[^1] };
+                foreach (var (at, text) in shown)
+                {
+                    var line = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 3 * U) };
+                    line.Inlines.Add(new System.Windows.Documents.Run("„" + text + "“") { FontStyle = FontStyles.Italic });
+                    line.Inlines.Add(new System.Windows.Documents.Run("  " + Ago(at)) { Foreground = Muted });
+                    _saidBox.Children.Add(line);
+                }
+                if (said.Count > 1)
+                {
+                    var more = new TextBlock
+                    {
+                        Text = _saidOpen ? "▴ по-малко" : $"▾ още {Math.Min(4, said.Count - 1)}",
+                        Foreground = Muted,
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                    };
+                    more.MouseLeftButtonUp += (_, _) =>
+                    {
+                        _saidOpen = !_saidOpen;
+                        _saidKey = "";
+                        UpdateBearCards(_pet.Save);
+                    };
+                    _saidBox.Children.Add(more);
+                }
             }
-            _todayBox.Children.Add(row);
+        }
+
+        // ── Мечешката цел за деня ──
+        var goal = _pet.TodayGoal;
+        string gk = $"{goal.Text}|{goal.Have}|{goal.Paid}";
+        if (gk != _bearGoalKey)
+        {
+            _bearGoalKey = gk;
+            _bearGoalBox.Children.Clear();
+            var head = new DockPanel();
+            var reward = goal.Paid ? (FrameworkElement)IconText("check", "Изпълнена", bold: true) : IconText("nut", "+" + goal.Reward, bold: true);
+            reward.VerticalAlignment = VerticalAlignment.Top;
+            DockPanel.SetDock(reward, Dock.Right);
+            head.Children.Add(reward);
+            var name = IconText("star", "Мечешка цел", bold: true);
+            head.Children.Add(name);
+            _bearGoalBox.Children.Add(head);
+            _bearGoalBox.Children.Add(new TextBlock { Text = goal.Text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2 * U, 0, 3 * U) });
+            const int segments = 10;
+            int filled = (int)Math.Floor((double)goal.Have / goal.Target * segments);
+            var track = new StackPanel { Orientation = Orientation.Horizontal };
+            for (int i = 0; i < segments; i++)
+                track.Children.Add(new Border
+                {
+                    Width = 4 * P, Height = 4 * P, Margin = new Thickness(0, 0, i < segments - 1 ? -P : 0, 0),
+                    BorderBrush = Ink, BorderThickness = Flat,
+                    Background = i < filled ? Good : Empty,
+                }.Skinned(i < filled ? "cell_good" : "cell_empty"));
+            string progress = goal.Target >= 60 ? $"{goal.Have / 60}ч {goal.Have % 60:00}м / {goal.Target / 60}ч" : $"{goal.Have}/{goal.Target}";
+            track.Children.Add(new TextBlock { Text = progress, Foreground = Muted, Margin = new Thickness(6 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+            _bearGoalBox.Children.Add(track);
+        }
+
+        // ── Лешници днес ──
+        var nuts = _pet.NutsToday;
+        string nk = nuts.Total + "|" + string.Join(",", nuts.By.Select(b => b.Why + b.Nuts));
+        if (nk != _nutsKey)
+        {
+            _nutsKey = nk;
+            _nutsBox.Children.Clear();
+            _nutsBox.Children.Add(IconText("nut", nuts.Total == 0 ? "Днес още няма лешници" : $"Днес: +{nuts.Total} лешника", bold: nuts.Total > 0));
+            if (nuts.By.Length > 0)
+                _nutsBox.Children.Add(new TextBlock
+                {
+                    Text = string.Join(" · ", nuts.By.Select(b => $"{b.Why} {b.Nuts}")),
+                    Foreground = Muted,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 2 * U, 0, 0),
+                });
+        }
+
+        // ── Дневникът на деня ──
+        var events = _pet.TodayRecord.Events;
+        string dk = $"{events.Count}|{(events.Count > 0 ? events[^1].At.Ticks : 0)}|{_diaryOpen}";
+        if (dk != _diaryKey)
+        {
+            _diaryKey = dk;
+            _diaryBox.Children.Clear();
+            _diaryBox.Children.Add(new TextBlock { Text = "Днес", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 3 * U) });
+            if (events.Count == 0)
+                _diaryBox.Children.Add(MutedText("Още нищо – денят тепърва започва."));
+            int show = _diaryOpen ? events.Count : Math.Min(5, events.Count);
+            if (events.Count > show)
+            {
+                var more = new TextBlock { Text = $"▾ още {events.Count - show} по-рано", Foreground = Muted, Cursor = System.Windows.Input.Cursors.Hand, Margin = new Thickness(0, 0, 0, 3 * U) };
+                more.MouseLeftButtonUp += (_, _) => { _diaryOpen = true; _diaryKey = ""; UpdateBearCards(_pet.Save); };
+                _diaryBox.Children.Add(more);
+            }
+            foreach (var e in events.Skip(events.Count - show))
+            {
+                var row = new DockPanel { Margin = new Thickness(0, 0, 0, 3 * U) };
+                var time = new TextBlock { Text = e.At.ToString("H:mm"), Foreground = Muted, Width = 34 * U, VerticalAlignment = VerticalAlignment.Center };
+                DockPanel.SetDock(time, Dock.Left);
+                row.Children.Add(time);
+                var ic = Icon(e.Icon);
+                ic.Margin = new Thickness(0, 0, 5, 0);
+                ic.VerticalAlignment = VerticalAlignment.Center;
+                DockPanel.SetDock(ic, Dock.Left);
+                row.Children.Add(ic);
+                row.Children.Add(new TextBlock { Text = e.Text, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, ToolTip = Tip(e.Text) });
+                _diaryBox.Children.Add(row);
+            }
+            if (_diaryOpen && events.Count > 5)
+            {
+                var less = new TextBlock { Text = "▴ по-малко", Foreground = Muted, Cursor = System.Windows.Input.Cursors.Hand };
+                less.MouseLeftButtonUp += (_, _) => { _diaryOpen = false; _diaryKey = ""; UpdateBearCards(_pet.Save); };
+                _diaryBox.Children.Add(less);
+            }
         }
     }
 

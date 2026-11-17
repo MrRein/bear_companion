@@ -1305,6 +1305,30 @@ public sealed partial class PetWindow
             if (got is < 1 or > 3) throw new Exception("наградата не е 1–3 лешника: " + got);
             if (_save.PetCount != 0 || _save.PetGoal < 5) throw new Exception("броячът не започна отначало");
             if (WantsPetting) throw new Exception("след погалването пак иска");
+            if (!NutsToday.By.Any(b => b.Why == "погалване")) throw new Exception("лешниците от погалването не са в „Днес“");
+            if (!TodayRecord.Events.Any(e => e.Text == "Погален")) throw new Exception("погалването не е в дневника");
+            // Мечешката цел: стигнеш ли я – лешници веднъж.
+            var rec = TodayRecord;
+            var (goal, paid, foods) = (rec.Goal, rec.GoalPaid, rec.Foods.ToList());
+            rec.Goal = "foods3";
+            rec.GoalPaid = false;
+            rec.Foods.AddRange(new[] { "t1", "t2", "t3" });
+            int before = _save.Hazelnuts;
+            CheckBearGoal();
+            if (!rec.GoalPaid || _save.Hazelnuts <= before) throw new Exception("целта не даде лешници");
+            int after = _save.Hazelnuts;
+            CheckBearGoal();
+            if (_save.Hazelnuts != after) throw new Exception("целта плати два пъти");
+            (rec.Goal, rec.GoalPaid) = (goal, paid);
+            rec.Foods.Clear();
+            rec.Foods.AddRange(foods);
+            // Желание: появява се в часа си и се изпълнява с разходка/диван.
+            _save.Desire = "rest";
+            _save.DesireUntil = DateTime.Now.AddMinutes(5);
+            if (CurrentDesire != "rest") throw new Exception("желанието не се вижда");
+            int met = rec.DesiresMet;
+            FulfilDesire("rest");
+            if (CurrentDesire != null || rec.DesiresMet != met + 1) throw new Exception("желанието не се изпълни");
             _save.PetTimes = "0";
             UpdatePetting();
             if (!WantsPetting) throw new Exception("дошлият час не отвори погалването");

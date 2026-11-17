@@ -43,6 +43,12 @@ public sealed partial class PetWindow
     private void UpdatePetting()
     {
         PlanPetting();
+        UpdateDesires();
+        if (DateTime.Now >= _nextGoalCheck)
+        {
+            _nextGoalCheck = DateTime.Now.AddSeconds(3);
+            CheckBearGoal();
+        }
         if (_save.PetTimes.Length == 0 || IsAsleep || ChatIsOpen) return;
         var times = _save.PetTimes.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList();
         int now = (int)DateTime.Now.TimeOfDay.TotalMinutes;
@@ -77,6 +83,7 @@ public sealed partial class PetWindow
         }
         _save.PetOpenUntil = DateTime.MinValue;
         TodayRec.Petted++;
+        Log("heart", "Погален");
         Joy(JoyPetted);
         PetEnergy();
         React("happy");
@@ -89,7 +96,7 @@ public sealed partial class PetWindow
             _save.PetGoal = NewPetGoal();
             double roll = _rng.NextDouble();
             int nuts = roll < 0.1 ? 3 : roll < 0.45 ? 2 : 1;   // 3 – рядко (10%)
-            _save.Hazelnuts += nuts;
+            GainNuts(nuts, "погалване");
             Say(R.Pick("pet.reward", _save.OwnerName) + $" +{nuts} 🌰", 7);
             Emote("sparkle", 4);
         }

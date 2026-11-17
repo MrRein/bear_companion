@@ -194,6 +194,7 @@ public sealed partial class PetWindow
             return;
         }
         _save.GiftPending = false;
+        Log("gift", "Отвори подарък");
         // Дрехи, аксесоари и тапети – само ако има гардероб.
         bool wardrobe = DailyOffer.HasWardrobe(_save);
         var clothes = Clothes.All.Where(g => wardrobe && !g.Hidden && !Clothes.Owns(_save, g)).Select(g => (object)g);
@@ -214,7 +215,7 @@ public sealed partial class PetWindow
         else if (prizes.Count == 0)
         {
             int nuts = 5 + _rng.Next(11);
-            _save.Hazelnuts += nuts;
+            GainNuts(nuts, "подарък");
             window.Reveal(_lib.GetProp("nut", 5, 6, 0).Image, 8, $"{nuts} лешника!", wardrobe ? "Имаш вече всичко, затова лешници." : "С гардероб тук може да има и дрехи.");
             Later(1.2, () => Say(R.Text("gift.got.nuts", _save.OwnerName, ("число", nuts.ToString())), 4));
         }
