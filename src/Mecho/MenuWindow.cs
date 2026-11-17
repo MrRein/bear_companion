@@ -514,6 +514,16 @@ public sealed class MenuWindow : Window
             ShowPage(PageShop);
             e.Handled = true;
         };
+        // Най-вдясно: квадратче с Х – затваря менюто (и с Esc, и като цъкнеш другаде).
+        var close = Chip("", Hide);
+        close.Child = Icon("close", 2);
+        close.Padding = new Thickness(4 * U);
+        close.Margin = new Thickness(6 * U, 0, 0, 0);
+        close.VerticalAlignment = VerticalAlignment.Center;
+        close.ToolTip = Tip("Затвори менюто (Esc)");
+        close.MouseLeftButtonDown += (_, e) => e.Handled = true;   // да не мести менюто
+        DockPanel.SetDock(close, Dock.Right);
+        bar.Children.Add(close);
         DockPanel.SetDock(nuts, Dock.Right);
         bar.Children.Add(nuts);
         _where.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(13, 18, 28), ShadowDepth = 1.5, Direction = 315, BlurRadius = 0, Opacity = 1 };
@@ -558,23 +568,6 @@ public sealed class MenuWindow : Window
                 list.Children.Add(_workBox);
             }
         }
-        // Под „Още“ – „Затвори“ (менюто се затваря и с Esc и като цъкнеш другаде).
-        var closeRow = new DockPanel();
-        var closeIcon = Icon("close", 2);
-        closeIcon.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(closeIcon, Dock.Left);
-        closeRow.Children.Add(closeIcon);
-        var closeName = new TextBlock { Text = "Затвори", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8 * U, 0, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
-        closeRow.Children.Add(closeName);
-        var close = Chip("", Hide);
-        close.Child = closeRow;
-        close.Padding = new Thickness(8 * U, 5 * U, 10 * U, 6 * U);
-        close.Margin = new Thickness(0, 10 * U, 0, 5 * U);
-        close.HorizontalAlignment = HorizontalAlignment.Stretch;
-        close.ToolTip = Tip("Затвори менюто (Esc)");
-        ToolTipService.SetIsEnabled(close, false);
-        _navItems["close"] = (close, closeName);
-        list.Children.Add(close);
         var scroll = new ScrollViewer
         {
             Content = list,
@@ -825,6 +818,8 @@ public sealed class MenuWindow : Window
 
         var stats = new StackPanel { Margin = new Thickness(16 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         _mood = new TextBlock { FontSize = Ui.Title, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 10 * U), TextWrapping = TextWrapping.Wrap };
+        // Главното съобщение („Добре е“, „Много е уморен“…) вече не се показва – лентите стигат.
+        _mood.Visibility = Visibility.Collapsed;
         stats.Children.Add(_mood);
         // Времето навън: пикселна иконка (слънце, облак, дъжд…) и градусите; думите – при посочване.
         _weather = new TextBlock { FontSize = Ui.Body, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
@@ -933,7 +928,6 @@ public sealed class MenuWindow : Window
             Padding = new Thickness(5 * U, 0, 5 * U, 1 * U),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
-            IsHitTestVisible = false,
             Visibility = Visibility.Collapsed,
             Child = new TextBlock { Text = "!", Foreground = Cream, FontWeight = FontWeights.Bold },
         };
@@ -961,6 +955,8 @@ public sealed class MenuWindow : Window
             b.Margin = new Thickness(0, 0, 5 * U, 5 * U);
         }
         if (tip != null) b.ToolTip = Tip(tip);
+        // „!“ – на еднакво разстояние от ъгъла на всеки бутон (отменя отстъпа на съдържанието).
+        t.Badge.Margin = new Thickness(0, -b.Padding.Top + 4 * U, -b.Padding.Right + 4 * U, 0);
         t.Button = b;
         SetTile(t, label, icon);
         return t;
@@ -978,8 +974,15 @@ public sealed class MenuWindow : Window
     }
 
     /// <summary>Натисната (включено/отворено) или „трябва му“ (медена, с „!“).</summary>
-    private static void TileState(HomeTile t, bool on, bool need = false)
+    private static void TileState(HomeTile t, bool on, bool need = false, string? why = null)
     {
+        // Посочиш ли „!“ – защо е там.
+        if (need && why != null && !Equals((t.Badge.ToolTip as ToolTip)?.Tag, why))
+        {
+            var tip = Tip(why);
+            tip.Tag = why;
+            t.Badge.ToolTip = tip;
+        }
         bool honey = need && !on;
         string state = on ? "on" : honey ? "honey" : "";
         if (t.Button.Tag as string != state)
@@ -1008,8 +1011,8 @@ public sealed class MenuWindow : Window
         _bigTiles = new Grid();
         _bigTiles.ColumnDefinitions.Add(new ColumnDefinition());
         _bigTiles.ColumnDefinitions.Add(new ColumnDefinition());
-        _foodTile = MakeTile("food", "Храна", () => ShowPage(PageFood), 4, "Сготви нещо", "Храната: готви, хапва и пие");
-        _wardrobeTile = MakeTile("wardrobe", "Гардероб", () => ShowPage(PageWardrobe), 4, "Облечи го", "Дрехите на Мечо");
+        _foodTile = MakeTile("food", "Храна", () => ShowPage(PageFood), 4, tip: "Храната: готви, хапва и пие");
+        _wardrobeTile = MakeTile("wardrobe", "Гардероб", () => ShowPage(PageWardrobe), 4, tip: "Дрехите на Мечо");
         Grid.SetColumn(_wardrobeTile.Button, 1);
         _bigTiles.Children.Add(_foodTile.Button);
         _bigTiles.Children.Add(_wardrobeTile.Button);
@@ -1539,20 +1542,20 @@ public sealed class MenuWindow : Window
         bool hungry = s.Fullness < 35;
         var wish = _pet.Wishes().FirstOrDefault();
         SetTile(_foodTile, "Храна", "food", wish != null ? "Иска му се: " + wish.Name : "Сготви нещо");
-        TileState(_foodTile, false, hungry && !_pet.IsAsleep && !_pet.OnWalk);
+        TileState(_foodTile, false, hungry && !_pet.IsAsleep && !_pet.OnWalk, "Гладен е – нахрани го");
         bool wardrobe = DailyOffer.HasWardrobe(s);
         _wardrobeTile.Button.Visibility = wardrobe ? Visibility.Visible : Visibility.Collapsed;
         Grid.SetColumnSpan(_foodTile.Button, wardrobe ? 1 : 2);
         int worn = Clothes.Shelves.Count(slot => Clothes.Worn(s, slot) != null);
         bool cold = _pet.NeedsWarmerClothes;
         SetTile(_wardrobeTile, "Гардероб", "wardrobe", cold ? "Студено му е!" : worn == 0 ? "Облечи го" : "Облечени: " + worn);
-        TileState(_wardrobeTile, false, cold && !_pet.OnWalk);
+        TileState(_wardrobeTile, false, cold && !_pet.OnWalk, "Студено му е – облечи го по-топло");
 
         if (_pet.IsAsleep) SetTile(_sleepTile, "Събуди", "sun");
         else SetTile(_sleepTile, "Приспи", "moon");
         _sleepTile.Button.IsEnabled = _pet.CanSleep || _pet.IsAsleep;
         bool tired = !_pet.IsAsleep && s.Energy < PetWindow.TiredBelow && _pet.CanSleep;
-        TileState(_sleepTile, _sleepOpen, tired);
+        TileState(_sleepTile, _sleepOpen, tired, "Уморен е – приспи го");
 
         SetTile(_walkTile, _pet.OnWalk ? "Повикай" : "Разходка", "walk");
         TileState(_walkTile, _walkOpen || _pet.OnWalk);
@@ -1565,7 +1568,7 @@ public sealed class MenuWindow : Window
         TileState(_placeTile, _placeOpen);
         // Погали: светва (с „!“) само когато иска; иначе е бледо – ще поиска по-късно.
         bool wants = _pet.WantsPetting;
-        TileState(_petTile, false, wants);
+        TileState(_petTile, false, wants, "Иска гушка – погали го");
         if (_petWanted != wants)
         {
             _petWanted = wants;

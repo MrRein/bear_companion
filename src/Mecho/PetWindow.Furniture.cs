@@ -19,7 +19,11 @@ public sealed partial class PetWindow
     /// Спи в леглото: то е сложено на земята и мечокът е върху него (отиде до него или
     /// сам го сложи, преди да легне – GoToBed). Тогава леглото се рисува под него.
     /// </summary>
-    private bool BedOn => _state == BearState.Sleep && !_inScene && FurniturePlaced(Kitchen.Bed) && Math.Abs(_x - BedX) <= SpriteWidth * 0.3;
+    private bool BedOn => (_state == BearState.Sleep && !_inScene && FurniturePlaced(Kitchen.Bed) && Math.Abs(_x - BedX) <= SpriteWidth * 0.3)
+        || (_dragBed && Lifted && FurniturePlaced(Kitchen.Bed));   // вдигнат заспал в леглото – леглото идва с него
+
+    /// <summary>Вдигна го, докато спи в леглото: носи се заедно с леглото и каца с него.</summary>
+    private bool _dragBed;
 
     private double BedX => FurnishingOf(Kitchen.Bed)?.Window?.CenterX ?? PlacementOf(Kitchen.Bed).X;
 

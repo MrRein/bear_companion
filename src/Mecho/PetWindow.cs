@@ -714,6 +714,12 @@ public sealed partial class PetWindow : Window
         if (_dragAsleep)
         {
             _dragAsleep = false;
+            if (_dragBed)
+            {
+                // Леглото каца с него – там, където го пусна.
+                _dragBed = false;
+                CoreEngine.Bus.Send(new Mecho.Core.MoveItem(Kitchen.Bed, _x));
+            }
             EnterSleep(_dragAway);
             return;
         }
@@ -962,6 +968,7 @@ public sealed partial class PetWindow : Window
         FinishHand();   // носеше нещо от „Неща на Мечо“ – появява се
         if (_dragAsleep)
         {
+            _dragBed = BedOn;
             SetState(BearState.Drag, "sleep");
             return;
         }

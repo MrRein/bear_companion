@@ -456,15 +456,20 @@ public sealed partial class PetWindow
     // ── Леглото ──
 
     /// <summary>
-    /// Ляга да спи: има ли легло – отива до него (сложено е) или първо го слага до себе си
-    /// (doing) и ляга в него; после yawn → sleep.
+    /// Ляга да спи – бавно и сънено: протяга се и се прозява; има ли легло – слага го (ако
+    /// още не е сложено), отива до него, пак се протяга и чак тогава ляга.
     /// </summary>
     private void GoToBed()
     {
+        // Протягане: ръцете горе (първите кадри от „йога“).
+        void Stretch(Action next) => Play("yoga", length: 1.4, after: next);
+        void StretchAndSleep() => Play("yoga", length: 1.4, then: "sleep");
+
         var bed = FurnishingOf(Kitchen.Bed);
         if (bed == null || !Kitchen.Owns(_save, Kitchen.Bed))
         {
-            Play("yawn", then: "sleep");
+            if (InstantModes) Play("yawn", then: "sleep");
+            else Stretch(() => Play("yawn", then: "sleep"));
             return;
         }
         double w = FurnitureWidth(bed);
@@ -481,25 +486,30 @@ public sealed partial class PetWindow
             int side = c >= _x ? 1 : -1;
             var area = AreaAt(c, _y - 1);
             double stand = Math.Clamp(c - side * (w / 2 + SpriteWidth * 0.3), area.Left + SpriteWidth / 2, area.Right - SpriteWidth / 2);
-            WalkTo(stand, () =>
+            Stretch(() => Play("yawn", after: () => WalkTo(stand, () =>
             {
                 _facingLeft = c < _x;
                 Play("doing", length: 1.4, after: () =>
                 {
                     CoreEngine.Bus.Send(new PlaceItem(Kitchen.Bed, PlacedBy.Bear, c));
-                    WalkTo(c, () => Play("yawn", then: "sleep"));
+                    WalkTo(c, StretchAndSleep);
                 });
-            });
+            })));
             return;
         }
         double bx = PlacementOf(Kitchen.Bed).X;
-        if (InstantModes || double.IsNaN(bx) || Math.Abs(_x - bx) <= PixelSize * 2)
+        if (InstantModes || double.IsNaN(bx))
         {
             if (InstantModes && !double.IsNaN(bx)) _x = bx;
             Play("yawn", then: "sleep");
             return;
         }
-        WalkTo(bx, () => Play("yawn", then: "sleep"));
+        if (Math.Abs(_x - bx) <= PixelSize * 2)
+        {
+            Stretch(() => Play("yawn", then: "sleep"));
+            return;
+        }
+        Stretch(() => Play("yawn", after: () => WalkTo(bx, StretchAndSleep)));
     }
 
     /// <summary>Цъкна леглото → „Лягай да спиш“: колко да спи (като в менюто) или свое число минути.</summary>
