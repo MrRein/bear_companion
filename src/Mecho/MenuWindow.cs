@@ -952,12 +952,12 @@ public sealed class MenuWindow : Window
         else
         {
             // Еднакви плочки в мрежата: една височина, ширината – равна част от реда.
-            b.Padding = new Thickness(2 * U, 4 * U, 2 * U, 4 * U);
+            b.Padding = new Thickness(0, 4 * U, 0, 4 * U);
             b.MinHeight = 62 * U;   // мрежата (UniformGrid) ги прави еднакво високи
             b.HorizontalAlignment = HorizontalAlignment.Stretch;
-            t.Label.TextWrapping = TextWrapping.NoWrap;
-            t.Label.TextTrimming = TextTrimming.CharacterEllipsis;
-            b.Margin = new Thickness(0, 0, 6 * U, 6 * U);
+            t.Label.TextWrapping = TextWrapping.Wrap;   // „Почивай си“ – на два реда, ако не се събира
+            t.Label.Margin = new Thickness(2, 0, 2, 0);
+            b.Margin = new Thickness(0, 0, 5 * U, 5 * U);
         }
         if (tip != null) b.ToolTip = Tip(tip);
         t.Button = b;
@@ -1222,7 +1222,7 @@ public sealed class MenuWindow : Window
         if (_actionGrid == null || _bearWidth <= 0) return;
         int n = _actionGrid.Children.Cast<UIElement>().Count(c => c.Visibility != Visibility.Collapsed);
         if (n == 0) return;
-        int cols = Math.Clamp((int)(_bearWidth / (104 * U)), 3, n);
+        int cols = Math.Clamp((int)(_bearWidth / (118 * U)), 3, n);
         int rows = (n + cols - 1) / cols;
         cols = (n + rows - 1) / rows;
         if (_actionGrid.Columns != cols) _actionGrid.Columns = cols;
