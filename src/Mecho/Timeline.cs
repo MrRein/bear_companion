@@ -29,6 +29,9 @@ internal sealed class DayTimeline : DockPanel
     /// <summary>Колко е висок един час: расте с прозореца (поне 46, иначе ~1/11 от видимото).</summary>
     private double HourH => _hourH > 0 ? _hourH : 46 * U;
     private double _hourH;
+
+    /// <summary>Разстояние от чертата горе до 0:00 (часът не се допира до нея).</summary>
+    private static double TopPad => 14 * U;
     private const double LabelW = 44;
 
     private readonly PetWindow _pet;
@@ -206,7 +209,7 @@ internal sealed class DayTimeline : DockPanel
             _head.Children.Add(cell);
         }
 
-        _body = new Grid { Height = 24 * HourH + 8 * U, Background = Brushes.Transparent };
+        _body = new Grid { Height = 24 * HourH + TopPad + 8 * U, Background = Brushes.Transparent };
         _body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(LabelW * U) });
         for (int i = 0; i < n; i++) _body.ColumnDefinitions.Add(new ColumnDefinition());
 
@@ -216,7 +219,7 @@ internal sealed class DayTimeline : DockPanel
         {
             var label = new TextBlock { Text = $"{h % 24}:00", Foreground = Muted, FontSize = Body * 0.85 };
             Canvas.SetLeft(label, 2);
-            Canvas.SetTop(label, h * HourH - 7 * U + 4 * U);
+            Canvas.SetTop(label, h * HourH - 7 * U + TopPad);
             if (h < 24) labels.Children.Add(label);
         }
         _body.Children.Add(labels);
@@ -228,7 +231,7 @@ internal sealed class DayTimeline : DockPanel
         {
             int index = i;
             var day = _days[i];
-            var canvas = new Canvas { Background = Brushes.Transparent, ClipToBounds = true, Margin = new Thickness(0, 4 * U, 0, 0), AllowDrop = true, Tag = day };
+            var canvas = new Canvas { Background = Brushes.Transparent, ClipToBounds = true, Margin = new Thickness(0, TopPad, 0, 0), AllowDrop = true, Tag = day };
             // Часовите черти (половината – по-бледа).
             for (int h = 0; h < 24; h++)
             {
@@ -255,7 +258,7 @@ internal sealed class DayTimeline : DockPanel
             canvas.SizeChanged += (_, _) => { night1.Width = night2.Width = canvas.ActualWidth; LayoutBlocks(); };
 
             Grid.SetColumn(canvas, i + 1);
-            var frame = new Border { BorderBrush = WoodLight, BorderThickness = new Thickness(1, 0, 0, 0), IsHitTestVisible = false, Margin = new Thickness(0, 4 * U, 0, 0) };
+            var frame = new Border { BorderBrush = WoodLight, BorderThickness = new Thickness(1, 0, 0, 0), IsHitTestVisible = false, Margin = new Thickness(0, TopPad, 0, 0) };
             Grid.SetColumn(frame, i + 1);
             _body.Children.Add(frame);
             _body.Children.Add(canvas);
@@ -369,7 +372,7 @@ internal sealed class DayTimeline : DockPanel
             Child = grid,
             ClipToBounds = true,
             Cursor = Cursors.Hand,
-            Opacity = t.Done ? 0.6 : ghost ? 0.85 : 1,
+            Opacity = t.Done ? 0.6 : 1,   // несвършените – плътни (и предложените)
             Tag = t,
             ToolTip = Tip($"{t.Title}\n{Range(start, Length(t))}" + (t.Minutes == 0 ? " (без казано време – 30 мин)" : "")
                 + (ghost ? "\nПредложено време – хвани и пусни, за да я сложиш в графика." : "")),
@@ -384,7 +387,7 @@ internal sealed class DayTimeline : DockPanel
                 ViewportUnits = BrushMappingMode.Absolute,
                 Drawing = new GeometryDrawing(tag != null ? TaskTags.BrushOf(t.Tag) : WoodDark, null, new RectangleGeometry(new Rect(0, 0, 3, 3))),
             };
-            block.Background = tag != null ? TaskTags.BrushOf(t.Tag, 45) : Paper;
+            block.Background = tag != null ? TaskTags.BrushOf(t.Tag, 70) : Cream;
             time.Text = "~" + time.Text;
             _ghostStart[block] = start;
         }

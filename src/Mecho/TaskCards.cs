@@ -193,7 +193,7 @@ internal static class TaskCards
 
     /// <summary>Изборът на сложност: Никаква, Малка, Средна, Голяма (с колко лешника носи).</summary>
     public static IEnumerable<PixelPopup.Entry> SizeEntries(int current, Action<int> pick) =>
-        Enumerable.Range(0, 4).Select(n => new PixelPopup.Entry(Capital(SizeName(n)), n == 0 ? "close" : SizeIcon(n), () => pick(n), On: current == n, Reward: RewardOf(n)));
+        Enumerable.Range(0, 4).Select(n => new PixelPopup.Entry(Capital(SizeName(n)), n == 0 ? null : SizeIcon(n), () => pick(n), On: n > 0 && current == n, Reward: RewardOf(n)));
 
     public static string Capital(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..];
 

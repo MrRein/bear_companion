@@ -884,23 +884,44 @@ public sealed class MenuWindow : Window
 
     private HomeTile MakeTile(string icon, string label, Action click, int size = 3, string? sub = null, string? tip = null)
     {
-        var t = new HomeTile { Size = size };
-        var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        t.IconHost = new Border { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2 * U, 0, 5 * U) };
+        bool wide = size >= 4;
+        var t = new HomeTile { Size = wide ? 3 : 2 };
+        t.IconHost = new Border
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = wide ? new Thickness(2 * U, 0, 10 * U, 0) : new Thickness(0, 2 * U, 0, 4 * U),
+        };
         t.Label = new TextBlock
         {
             FontWeight = FontWeights.Bold,
-            TextAlignment = TextAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            TextWrapping = TextWrapping.Wrap,   // „Почивай си“ в тясна плочка – на два реда
-            FontSize = size >= 4 ? Ui.Title : Ui.Body,
+            TextAlignment = wide ? TextAlignment.Left : TextAlignment.Center,
+            HorizontalAlignment = wide ? HorizontalAlignment.Left : HorizontalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = wide ? Ui.Title : Ui.Body,
         };
-        stack.Children.Add(t.IconHost);
-        stack.Children.Add(t.Label);
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(t.Label);
         if (sub != null)
         {
-            t.Sub = new TextBlock { Text = sub, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 2 * U, 0, 0) };
-            stack.Children.Add(t.Sub);
+            t.Sub = new TextBlock { Text = sub, Foreground = Muted, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 1 * U, 0, 0) };
+            text.Children.Add(t.Sub);
+        }
+        Panel stack;
+        if (wide)
+        {
+            var row = new DockPanel { LastChildFill = true };
+            DockPanel.SetDock(t.IconHost, Dock.Left);
+            row.Children.Add(t.IconHost);
+            row.Children.Add(text);
+            stack = row;
+        }
+        else
+        {
+            var col = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            col.Children.Add(t.IconHost);
+            col.Children.Add(text);
+            stack = col;
         }
         t.Badge = new Border
         {
@@ -920,11 +941,22 @@ public sealed class MenuWindow : Window
         grid.Children.Add(t.Badge);
         var b = Button("", click);
         b.Content = grid;
-        b.Padding = new Thickness(6 * U, (size >= 4 ? 12 : 8) * U, 6 * U, (size >= 4 ? 12 : 8) * U);
-        b.HorizontalAlignment = HorizontalAlignment.Stretch;
         b.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-        b.VerticalAlignment = VerticalAlignment.Stretch;
-        b.Margin = new Thickness(0, 0, 8 * U, 8 * U);
+        b.VerticalContentAlignment = VerticalAlignment.Stretch;
+        if (wide)
+        {
+            b.Padding = new Thickness(8 * U, 8 * U, 8 * U, 8 * U);
+            b.HorizontalAlignment = HorizontalAlignment.Stretch;
+            b.Margin = new Thickness(0, 0, 8 * U, 8 * U);
+        }
+        else
+        {
+            // Малки еднакви плочки (не се разтягат по ширината).
+            b.Padding = new Thickness(4 * U, 6 * U, 4 * U, 6 * U);
+            b.Width = 92 * U;
+            b.Height = 76 * U;
+            b.Margin = new Thickness(0, 0, 6 * U, 6 * U);
+        }
         if (tip != null) b.ToolTip = Tip(tip);
         t.Button = b;
         SetTile(t, label, icon);
@@ -1042,13 +1074,16 @@ public sealed class MenuWindow : Window
             Refresh(true);
         }, tip: "Спира каквото прави сега");
 
-        var actions = new UniformGrid { Columns = 4, Margin = new Thickness(0, 4 * U, 0, 0) };
-        foreach (var t in new[] { _sleepTile, _petTile, _walkTile, _relaxTile, _workTile, _drawTile, _quietTile, _placeTile, _stopTile })
-            actions.Children.Add(t.Button);
-        // Тясно – три на ред.
-        actions.SizeChanged += (_, _) => actions.Columns = actions.ActualWidth < 480 * U ? 3 : 4;
-        p.Children.Add(actions);
-
+        // Малки плочки на две групи: грижата за него и какво да прави.
+        WrapPanel Group(string title, params HomeTile[] tiles)
+        {
+            p.Children.Add(new TextBlock { Text = title, Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(2 * U, 6 * U, 0, 4 * U) });
+            var wrap = new WrapPanel();
+            foreach (var t in tiles) wrap.Children.Add(t.Button);
+            p.Children.Add(wrap);
+            return wrap;
+        }
+        Group("Грижа", _sleepTile, _petTile, _walkTile, _quietTile);
         // Изборите под плочките (отворен е най-много един).
         _sleepOptions.Margin = new Thickness(0);
         p.Children.Add(Pocket(_sleepOptions));
@@ -1093,6 +1128,7 @@ public sealed class MenuWindow : Window
             _quietOptions.Children.Add(chip);
         }
         p.Children.Add(Pocket(_quietOptions));
+        Group("Заедно", _relaxTile, _workTile, _drawTile, _placeTile, _stopTile);
         _placeOptions.Margin = new Thickness(0);
         p.Children.Add(Pocket(_placeOptions));
 
@@ -1114,7 +1150,8 @@ public sealed class MenuWindow : Window
     private void UpdateBearTiles(SaveData s)
     {
         bool hungry = s.Fullness < 35;
-        SetTile(_foodTile, "Храна", "food", hungry ? "Гладен е!" : "Сготви нещо");
+        var wish = _pet.Wishes().FirstOrDefault();
+        SetTile(_foodTile, "Храна", "food", wish != null ? "Иска му се: " + wish.Name : "Сготви нещо");
         TileState(_foodTile, false, hungry && !_pet.IsAsleep && !_pet.OnWalk);
         bool wardrobe = DailyOffer.HasWardrobe(s);
         _wardrobeTile.Button.Visibility = wardrobe ? Visibility.Visible : Visibility.Collapsed;
@@ -3391,7 +3428,6 @@ public sealed class MenuWindow : Window
         _portraitBg.Source = _modelBg.Source = _pet.BackdropImage(_pet.CurrentBackdrop);
         BuildGoal();
         _mood.Text = _pet.IsAsleep ? "Ззз… спи сладко" :
-            s.Fullness < 25 ? "Гладен е!" :
             s.Energy < PetWindow.TiredBelow ? "Много е уморен" :
             s.Fullness >= 70 && s.Energy >= 60 ? "Щастлив е!" : "Добре е";
         SetBar(_fullBar, _fullText, s.Fullness, s.Fullness switch

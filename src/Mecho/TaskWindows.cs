@@ -306,6 +306,7 @@ internal sealed class NewTaskWindow : FloatWindow
     private readonly WrapPanel _meta = new();
     private DateTime? _day;
     private int _minutes, _size, _priority, _bucket;   // сложност 0 – „никаква“ (докато не избереш)
+    private bool _priorityChosen;                        // избран ли е приоритет (и „Нормално“ се отбелязва)
     private DateTime? _start;
     private string _tag;
 
@@ -372,6 +373,13 @@ internal sealed class NewTaskWindow : FloatWindow
         };
         Loaded += (_, _) => Dispatcher.BeginInvoke(() => { _title.Focus(); Keyboard.Focus(_title); }, DispatcherPriority.Input);
         Closed += (_, _) => _current = null;
+        // Тук има „Добави“: цъкнеш ли извън прозорчето – затваря се, без да записва нищо.
+        Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            if (!IsLoaded || IsActive || SelfTest.Running) return;
+            if (PixelPopup.Last is { IsOpen: true }) return;   // избира се от изскачащо меню
+            Close();
+        }, DispatcherPriority.Input);
     }
 
     private void FillMeta()
@@ -401,10 +409,11 @@ internal sealed class NewTaskWindow : FloatWindow
                 }))),
             "Етикет", tag?.Color, on: tag != null));
         var pr = TaskCards.PriorityOf(_priority);
-        _meta.Children.Add(MetaChip(TaskCards.FlagIcon(_priority), _priority == 0 ? "Приоритет" : pr.Name, chip =>
+        _meta.Children.Add(MetaChip(TaskCards.FlagIcon(_priority), _priorityChosen || _priority != 0 ? pr.Name : "Приоритет", chip =>
             PixelPopup.Show(chip, "Приоритет", () => TaskCards.Priorities
-                .Select(x => new PixelPopup.Entry(x.Name, TaskCards.FlagIcon(x.Level), () => { _priority = x.Level; FillMeta(); }, On: _priority == x.Level))),
-            "Приоритет", on: _priority != 0));
+                .Select(x => new PixelPopup.Entry(x.Name, TaskCards.FlagIcon(x.Level), () => { _priority = x.Level; _priorityChosen = true; FillMeta(); },
+                    On: (_priorityChosen || _priority != 0) && _priority == x.Level))),
+            "Приоритет", on: _priorityChosen || _priority != 0));
         _meta.Children.Add(MetaChip(_size > 0 ? TaskCards.SizeIcon(_size) : "nut", _size > 0 ? TaskCards.Capital(TaskCards.SizeName(_size)) : "Сложност", chip =>
             PixelPopup.Show(chip, "Сложност", () => TaskCards.SizeEntries(_size, n => { _size = n; FillMeta(); })),
             "Сложност – колко лешника носи", on: _size > 0));

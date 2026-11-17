@@ -1473,33 +1473,36 @@ public sealed class WorkView : Border
         int left = tasks.Where(t => !t.Done).Sum(t => t.Minutes);
         var end = EndFor(today);
         bool asked = EndAsked(today);
-        // Един подреден ред (пренася се като текст): свършени · задачите · до колко работиш (цъкаш – сменяш).
-        var info = new TextBlock { Margin = new Thickness(0, 2 * U, 0, 0), Foreground = Muted, TextWrapping = TextWrapping.Wrap };
-        void Add(string text) => info.Inlines.Add(new System.Windows.Documents.Run(text));
-        void AddLink(string text, bool bold)
+        // Два подредени реда:  „Задачи 0/4 · 1ч 30м“  и  „Време до 20:00 ▾ · остават 3ч 10м“.
+        int dayMinutes = tasks.Sum(t => t.Minutes);
+        TextBlock Line() => new() { Margin = new Thickness(0, 2 * U, 0, 0), Foreground = Muted, TextWrapping = TextWrapping.Wrap };
+        var line1 = Line();
+        line1.Inlines.Add(new System.Windows.Documents.Run("Задачи "));
+        line1.Inlines.Add(new System.Windows.Documents.Run($"{done}/{all}") { FontWeight = FontWeights.Bold, Foreground = Ink });
+        if (dayMinutes > 0)
         {
-            var link = new TextBlock { Text = text, Foreground = bold ? Ink : Muted, FontWeight = bold ? FontWeights.Bold : FontWeights.Normal, Cursor = Cursors.Hand, ToolTip = Tip("До колко работиш – цъкни, за да го смениш") };
-            TaskCards.Clickable(link, () => PixelPopup.Show(link, "До колко ще работиш?", () => EndEntries(today)));
-            info.Inlines.Add(new System.Windows.Documents.InlineUIContainer(link) { BaselineAlignment = BaselineAlignment.TextBottom });
+            line1.Inlines.Add(new System.Windows.Documents.Run("  ·  "));
+            line1.Inlines.Add(new System.Windows.Documents.Run(TaskCards.Duration(dayMinutes)) { FontWeight = FontWeights.Bold, Foreground = Ink });
         }
-        Add(all == 0 ? "Още няма задачи" : $"Свършени {done} от {all}");
-        if (left > 0) Add($"  ·  задачи: {TaskCards.Duration(left)}");
-        if (end is { } e)
+        p.Children.Add(line1);
+        if (asked || today < Today)
         {
-            Add("  ·  ");
-            AddLink($"до {Clock(e)} ▾", bold: true);
-            if (realToday)
+            var line2 = Line();
+            line2.Inlines.Add(new System.Windows.Documents.Run("Време до "));
+            var link = new TextBlock { Text = (end is { } e0 ? Clock(e0) : "—") + " ▾", Foreground = Ink, FontWeight = FontWeights.Bold, Cursor = Cursors.Hand, ToolTip = Tip("До колко работиш – цъкни, за да го смениш") };
+            TaskCards.Clickable(link, () => PixelPopup.Show(link, "До колко ще работиш?", () => EndEntries(today)));
+            line2.Inlines.Add(new System.Windows.Documents.InlineUIContainer(link) { BaselineAlignment = BaselineAlignment.TextBottom });
+            if (end is { } e && realToday)
             {
                 int now = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
-                if (e > now) Add($"  ·  остават {TaskCards.Duration(e - now)}");
+                if (e > now)
+                {
+                    line2.Inlines.Add(new System.Windows.Documents.Run("  ·  остават "));
+                    line2.Inlines.Add(new System.Windows.Documents.Run(TaskCards.Duration(e - now)) { FontWeight = FontWeights.Bold, Foreground = Ink });
+                }
             }
+            p.Children.Add(line2);
         }
-        else if (asked || today < Today)
-        {
-            Add("  ·  ");
-            AddLink("до колко? ▾", bold: false);
-        }
-        p.Children.Add(info);
         if (!asked && today >= Today)
         {
             // В началото на деня: до колко ще работиш? (или „Не знам“ – тогава не казва нищо)
@@ -2183,7 +2186,7 @@ public sealed class WorkView : Border
 
         // Като в Sunsama: три стъпки – какво свърши, как мина, целите за следващата; после „Приключи“.
         _commitReview = null;
-        string[] stepNames = { "1. Какво свърших", "2. Как мина седмицата", "3. Следващата седмица" };
+        string[] stepNames = { "1. Какво свърших", "2. Как мина седмицата", "3. Следващата седмица", "Минали седмици" };
         var stepRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 10 * U) };
         for (int i = 0; i < stepNames.Length; i++)
         {
@@ -2359,6 +2362,66 @@ public sealed class WorkView : Border
             }
         }
 
+        }
+
+        // Минали седмици: прегледите с целите и мислите (най-новите отгоре).
+        if (_reviewStep == 3)
+        {
+            var past = _pet.Save.WeekReviews
+                .Select(kv => (Monday: DateTime.TryParse(kv.Key, out var m) ? m.Date : DateTime.MinValue, Review: kv.Value))
+                .Where(x => x.Monday != DateTime.MinValue && (x.Review.Done || x.Review.Goals.Count > 0 || x.Review.Good.Length > 0 || x.Review.Better.Length > 0))
+                .OrderByDescending(x => x.Monday).ToList();
+            if (past.Count == 0) p.Children.Add(MenuWindow.MutedText("Още няма прегледи. Като направиш преглед на седмица, ще го видиш тук."));
+            foreach (var (wk, r) in past)
+            {
+                var sun = wk.AddDays(6);
+                var box = new StackPanel();
+                var head2 = new DockPanel();
+                var open = Small("Отвори", () => { CommitReview(); _reviewWeek = wk; _reviewStep = 0; Refresh(true); });
+                DockPanel.SetDock(open, Dock.Right);
+                head2.Children.Add(open);
+                head2.Children.Add(new TextBlock
+                {
+                    Text = (wk.Month == sun.Month ? $"{wk.Day} – {sun.ToString("d MMMM yyyy", Bg)}" : $"{wk.ToString("d MMM", Bg)} – {sun.ToString("d MMM yyyy", Bg)}") + (r.Done ? "  ✓" : ""),
+                    FontWeight = FontWeights.Bold,
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+                box.Children.Add(head2);
+                if (r.Goals.Count > 0)
+                {
+                    box.Children.Add(new TextBlock { Text = "Цели", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6 * U, 0, 2 * U) });
+                    foreach (var g in r.Goals)
+                    {
+                        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 2 * U) };
+                        var mark = Icon(g.Done ? "check" : "close");
+                        mark.Opacity = g.Done ? 1 : 0.4;
+                        mark.Margin = new Thickness(0, 0, 6, 0);
+                        mark.VerticalAlignment = VerticalAlignment.Center;
+                        row.Children.Add(mark);
+                        row.Children.Add(new TextBlock { Text = g.Text, TextWrapping = TextWrapping.Wrap, Foreground = g.Done ? Ink : Muted });
+                        box.Children.Add(row);
+                    }
+                }
+                void Thought(string label, string text)
+                {
+                    if (text.Length == 0) return;
+                    box.Children.Add(new TextBlock { Text = label, Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6 * U, 0, 2 * U) });
+                    box.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
+                }
+                Thought("Какво мина добре", r.Good);
+                Thought("Какво да е различно", r.Better);
+                p.Children.Add(new Border
+                {
+                    Background = Cream,
+                    BorderBrush = WoodDark,
+                    BorderThickness = Flat,
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(10 * U, 8 * U, 8 * U, 8 * U),
+                    Margin = new Thickness(0, 0, 0, 8 * U),
+                    Child = box,
+                });
+            }
+            return;
         }
 
         // ← Назад / Напред → (на последната – „Приключи седмицата“).

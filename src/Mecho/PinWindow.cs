@@ -76,7 +76,7 @@ public sealed class PinWindow : Window
         Foreground = Ink;
         UseLayoutRounding = true;
         SnapsToDevicePixels = true;
-        MinWidth = 220 * U;
+        MinWidth = 260 * U;
         MinHeight = 90 * U;
         TextOptions.SetTextRenderingMode(this, TextRenderingMode.Aliased);
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
@@ -92,7 +92,7 @@ public sealed class PinWindow : Window
             s.Y = double.NaN;
             s.Centered = true;
         }
-        Width = s.W > 0 ? s.W : 300 * U;
+        Width = s.W > 0 ? s.W : 360 * U;   // по-широко – задачите не се късат по средата на думата
         Height = s.H > 0 ? s.H : DefaultHeight;
         var area = SystemParameters.WorkArea;
         // Всички монитори заедно – запомненото място на втория монитор не скача на главния.
@@ -123,14 +123,22 @@ public sealed class PinWindow : Window
             DockPanel.SetDock(b, Dock.Right);
             header.Children.Add(b);
         }
-        var title = IconText(kind == Tasks ? "tasks" : "notes", Title, bold: true);
-        _titleText = title.Children.OfType<TextBlock>().LastOrDefault();
+        // Иконка и име; тясно ли е – името се съкращава с „…“ (не се скрива под копчетата).
+        var title = new DockPanel { LastChildFill = true };
+        var titleIcon = Icon(kind == Tasks ? "tasks" : "notes");
+        titleIcon.Margin = new Thickness(0, 0, 6, 0);
+        titleIcon.VerticalAlignment = VerticalAlignment.Center;
+        DockPanel.SetDock(titleIcon, Dock.Left);
+        title.Children.Add(titleIcon);
+        _titleText = new TextBlock { Text = Title, FontWeight = FontWeights.Bold, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+        title.Children.Add(_titleText);
         title.VerticalAlignment = VerticalAlignment.Center;
         // На дървената рамка – бели букви.
         System.Windows.Documents.TextElement.SetForeground(title, Brushes.White);
         _count.Foreground = Brushes.White;
-        header.Children.Add(title);
-        header.Children.Add(_count);
+        DockPanel.SetDock(_count, Dock.Right);
+        title.Children.Insert(1, _count);
+        header.Children.Add(title);   // последното – взима останалото място (името се съкращава)
         header.MouseLeftButtonDown += (_, e) =>
         {
             if (e.ClickCount == 2)
@@ -206,8 +214,8 @@ public sealed class PinWindow : Window
 
         // Смалено: само картинката (бележката / работата) без фон, с колко има в нея.
         var picture = Icon(kind == Tasks ? "tasks" : "notes");
-        picture.Width *= 4;
-        picture.Height *= 4;
+        picture.Width *= 3;
+        picture.Height *= 3;
         _iconBadge = new Border
         {
             Background = Honey,
@@ -278,7 +286,7 @@ public sealed class PinWindow : Window
             Width = Width / _zoom * z;
             Height = Height / _zoom * z;
         }
-        MinWidth = 220 * U * z;
+        MinWidth = 260 * U * z;
         MinHeight = State.Collapsed ? 0 : 90 * U * z;
         _zoom = z;
     }
@@ -355,7 +363,7 @@ public sealed class PinWindow : Window
             Content = _full;
             SizeToContent = SizeToContent.Manual;
             ResizeMode = ResizeMode.CanResizeWithGrip;
-            MinWidth = 220 * U * _zoom;
+            MinWidth = 260 * U * _zoom;
             MinHeight = 90 * U * _zoom;
             Width = width;
             Height = height;
