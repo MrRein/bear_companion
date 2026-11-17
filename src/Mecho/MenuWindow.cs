@@ -1772,6 +1772,32 @@ public sealed class MenuWindow : Window
         };
     }
 
+    private static Brush? GainHatch;
+
+    /// <summary>Медени диагонални райета (пиксел по пиксел) – „толкова ще добави“.</summary>
+    private static Color _gainHatchColor;
+
+    private static Brush MakeGainHatch()
+    {
+        var c = (Honey as SolidColorBrush)?.Color ?? Colors.Gold;
+        if (GainHatch != null && _gainHatchColor == c) return GainHatch;   // темата не се е сменила
+        _gainHatchColor = c;
+        var light = Color.FromRgb((byte)((c.R + 255) / 2), (byte)((c.G + 255) / 2), (byte)((c.B + 255) / 2));
+        var g = new DrawingGroup();
+        g.Children.Add(new GeometryDrawing(new SolidColorBrush(light), null, new RectangleGeometry(new Rect(0, 0, 4, 4))));
+        var dark = new SolidColorBrush(c);
+        for (int i = 0; i < 4; i++)
+        {
+            g.Children.Add(new GeometryDrawing(dark, null, new RectangleGeometry(new Rect(i, 3 - i, 1, 1))));
+            g.Children.Add(new GeometryDrawing(dark, null, new RectangleGeometry(new Rect((i + 1) % 4, 3 - i, 1, 1))));
+        }
+        var brush = new DrawingBrush(g) { TileMode = TileMode.Tile, Viewport = new Rect(0, 0, P * 2, P * 2), ViewportUnits = BrushMappingMode.Absolute, Stretch = Stretch.Fill };
+        RenderOptions.SetBitmapScalingMode(brush, BitmapScalingMode.NearestNeighbor);
+        RenderOptions.SetEdgeMode(brush, EdgeMode.Aliased);
+        brush.Freeze();
+        return GainHatch = brush;
+    }
+
     private static UIElement GainBar(string icon, double now, double after, string what, string? note = null)
     {
         const int segments = 10;
@@ -1784,10 +1810,10 @@ public sealed class MenuWindow : Window
         i0.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(i0);
         // Звена (като лентите за ситост/енергия): сегашното в цвят, колкото ще добави
-        // храната – медени и примигват (да се вижда, че идват), останалото – празно.
+        // храната – на медени райета, останалото – празно. (Без анимация: тя кара
+        // прозореца да се рисува постоянно.)
         string dot = now >= 50 ? "dot_good" : now >= 25 ? "dot_okay" : "dot_bad";
         var cells = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        System.Windows.Media.Animation.DoubleAnimation? pulse = null;
         for (int i = 0; i < segments; i++)
         {
             bool gainCell = i >= have && i < will;
@@ -1802,16 +1828,7 @@ public sealed class MenuWindow : Window
             };
             if (UiSkin.Has("dot_empty") && !gainCell) UiSkin.Set(link, i < have ? dot : "dot_empty");
             if (gainCell)
-            {
-                // Медено с бяло петънце горе – ясно различно от празното.
-                link.Child = new Border { Background = Cream, Width = P, Height = P, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(P, P, 0, 0), Opacity = 0.8 };
-                pulse ??= new System.Windows.Media.Animation.DoubleAnimation(1, 0.45, TimeSpan.FromMilliseconds(650))
-                {
-                    AutoReverse = true,
-                    RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
-                };
-                link.BeginAnimation(OpacityProperty, pulse);
-            }
+                link.Background = MakeGainHatch();   // медени райета – ясно различни от празното
             cells.Children.Add(link);
         }
         row.Children.Add(cells);
