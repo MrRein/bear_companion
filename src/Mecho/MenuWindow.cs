@@ -953,8 +953,8 @@ public sealed class MenuWindow : Window
         {
             // Малки еднакви плочки (не се разтягат по ширината).
             b.Padding = new Thickness(4 * U, 6 * U, 4 * U, 6 * U);
-            b.Width = 92 * U;
-            b.Height = 76 * U;
+            b.MinWidth = 96 * U;
+            t.Label.TextWrapping = TextWrapping.NoWrap;
             b.Margin = new Thickness(0, 0, 6 * U, 6 * U);
         }
         if (tip != null) b.ToolTip = Tip(tip);
