@@ -117,6 +117,7 @@ public sealed class MenuWindow : Window
     private string _timerKind = "work";
     private readonly List<(string Kind, Border Chip)> _kindChips = new();
     private Button _updateButton = null!;
+    private readonly TextBlock _updateStatus = new() { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4, -4, 0, 10) };
 
     public MenuWindow(PetWindow pet)
     {
@@ -3500,6 +3501,8 @@ public sealed class MenuWindow : Window
             b.HorizontalContentAlignment = HorizontalAlignment.Left;
             b.Margin = new Thickness(0, 0, 0, 8);
             p.Children.Add(b);
+            // Под „Провери за обновление“ – какво става (версията, проверявам, свалям…).
+            if (b == _updateButton) p.Children.Add(_updateStatus);
         }
         // Размер: мащаб на всичко (менюто, „Работа“, таблата) и началният размер на менюто.
         p.Children.Add(new TextBlock { Text = "Размер", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6, 0, 4) });
@@ -3771,6 +3774,8 @@ public sealed class MenuWindow : Window
         if (_pet.Updater.IsAvailable) SetButton(_updateButton, "Обнови", "update");
         else SetButton(_updateButton, "Провери за обновление", "update");
         _updateButton.IsEnabled = !_pet.Updater.IsBusy;
+        string status = _pet.Updater.Status.Length > 0 ? _pet.Updater.Status : "Версия " + Updater.CurrentName;
+        if (_updateStatus.Text != status) _updateStatus.Text = status;
     }
 
     // ───────────────────────── Малки помощници ─────────────────────────

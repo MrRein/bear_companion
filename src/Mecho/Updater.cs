@@ -47,6 +47,9 @@ public sealed class Updater
     public bool IsAvailable => LatestVersion > CurrentVersion && _zipUrl != null;
     public bool IsBusy { get; private set; }
 
+    /// <summary>Какво става сега – вижда се под бутона в „Още“ (не само в балончето).</summary>
+    public string Status { get; private set; } = "";
+
     private string? _zipUrl, _hashUrl;
 
     private static HttpClient CreateClient()
@@ -59,6 +62,7 @@ public sealed class Updater
 
     public async Task<Result> CheckAsync()
     {
+        Status = "Проверявам…";
         try
         {
             using var doc = JsonDocument.Parse(await Http.GetStringAsync(LatestUrl));
@@ -75,10 +79,14 @@ public sealed class Updater
             LatestVersion = latest;
             string title = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
             LatestName = title.StartsWith("Версия ") ? title["Версия ".Length..].Trim() : latest.ToString();
+            Status = IsAvailable ? $"Има нова версия: {LatestName} (сега: {CurrentName})"
+                : $"Най-новата е: {CurrentName} (проверено в {DateTime.Now:H:mm})";
             return IsAvailable ? Result.Available : Result.UpToDate;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Status = "Не успях да проверя: " + Reason(ex);
+            CrashLog.Note("Проверката за обновление не успя: " + ex);
             return Result.Failed;
         }
     }
@@ -100,9 +108,24 @@ public sealed class Updater
             Directory.CreateDirectory(work);
 
             string zip = Path.Combine(work, "Mecho.zip");
-            await using (var stream = await Http.GetStreamAsync(_zipUrl))
-            await using (var file = File.Create(zip))
-                await stream.CopyToAsync(file);
+            Status = "Свалям новата версия…";
+            using (var response = await Http.GetAsync(_zipUrl, HttpCompletionOption.ResponseHeadersRead))
+            {
+                response.EnsureSuccessStatusCode();
+                long total = response.Content.Headers.ContentLength ?? 0;
+                await using var stream = await response.Content.ReadAsStreamAsync();
+                await using var file = File.Create(zip);
+                var buffer = new byte[81920];
+                long got = 0;
+                int read;
+                while ((read = await stream.ReadAsync(buffer)) > 0)
+                {
+                    await file.WriteAsync(buffer.AsMemory(0, read));
+                    got += read;
+                    if (total > 0) Status = $"Свалям новата версия… {got * 100 / total}%";
+                }
+            }
+            Status = "Слагам новата версия…";
 
             // Отпечатъкът (SHA-256) от версията трябва да съвпада – иначе архивът е
             // повреден или подменен и не се инсталира. (Старите версии нямат отпечатък.)
@@ -115,6 +138,7 @@ public sealed class Updater
                 if (expected.Length == 0 || actual != expected)
                 {
                     CrashLog.Note($"Обновяването е спряно: отпечатъкът на Mecho.zip не съвпада ({actual} ≠ {expected}).");
+                    Status = "Не успях: свалената версия е повредена. Пробвай пак.";
                     return false;
                 }
             }
@@ -163,8 +187,10 @@ public sealed class Updater
             });
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Status = "Не успях да обновя: " + Reason(ex);
+            CrashLog.Note("Обновяването не успя: " + ex);
             return false;
         }
         finally
@@ -172,6 +198,16 @@ public sealed class Updater
             IsBusy = false;
         }
     }
+
+    /// <summary>Кратко защо – за хората.</summary>
+    private static string Reason(Exception ex) => ex switch
+    {
+        HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden } => "GitHub не отговаря (твърде много проверки – пробвай след час).",
+        HttpRequestException => "няма връзка с GitHub (интернет?).",
+        TaskCanceledException => "GitHub не отговори навреме.",
+        UnauthorizedAccessException or IOException => "нямам право да пиша в папката (" + ex.Message + ")",
+        _ => ex.Message,
+    };
 
     private static string Escape(string path) => path.Replace("'", "''");
 
