@@ -103,6 +103,7 @@ public sealed partial class PetWindow
             else if (!wasDay) TodayRec.NapWoken = true;
             // Сутрин по-рано от времето си: не се сърди.
             Say(early ? R.Pick("sleep.wokeearly", _save.OwnerName) : Lines.Pick(Lines.WokeUp, _save.OwnerName), 4);
+            NoteWoke(morning: wasDay);
             Play("happy");
         }
         NotifyCare();
@@ -132,6 +133,7 @@ public sealed partial class PetWindow
         _save.SleepForDay = false;
         _save.SleepingByChoice = false;
         Say(forDay ? R.Pick("sleep.morning", _save.OwnerName) : R.Pick("nap.woke", _save.OwnerName), 5);
+        NoteWoke(morning: forDay);
         Play("happy");
         NotifyCare();
         Persist();

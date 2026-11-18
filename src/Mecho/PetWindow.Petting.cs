@@ -44,6 +44,7 @@ public sealed partial class PetWindow
     {
         PlanPetting();
         UpdateDesires();
+        NoteBusy();
         if (DateTime.Now >= _nextGoalCheck)
         {
             _nextGoalCheck = DateTime.Now.AddSeconds(3);

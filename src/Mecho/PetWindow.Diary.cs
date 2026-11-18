@@ -32,6 +32,7 @@ public sealed partial class PetWindow
     /// <summary>Записва нещо в днешния дневник.</summary>
     private void Log(string icon, string text)
     {
+        NoteTouched();
         var events = TodayRec.Events;
         events.Add(new DayEvent { At = DateTime.Now, Icon = icon, Text = text });
         if (events.Count > 40) events.RemoveRange(0, events.Count - 40);
@@ -166,6 +167,7 @@ public sealed partial class PetWindow
         _save.DesireUntil = DateTime.MinValue;
         TodayRec.DesiresMet++;
         Joy(JoyPetted);
+        NoteContent();
         Log(DesireOf(kind)?.Icon ?? "heart", "Изпълни желанието му: " + (DesireOf(kind)?.Done ?? kind));
         Emote("heart", 3);
         if (!CountWish()) Later(1.5, () => Say(R.Pick("desire.met", _save.OwnerName), 4));
@@ -258,6 +260,7 @@ public sealed partial class PetWindow
     {
         _save.MissionDone = true;
         _save.MissionDoneDay = DayKey(DateTime.Today);
+        NoteProud();
         GainNuts(reward, "мисия");
         Log("star", "Мисията изпълнена: " + text.ToLowerInvariant());
         Say(R.Pick("goal.done", _save.OwnerName) + $" +{reward} 🌰", 7);

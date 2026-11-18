@@ -70,6 +70,7 @@ public sealed partial class PetWindow
         var r = TodayRec;
         r.TasksDone = Math.Max(0, r.TasksDone + (done ? 1 : -1));
         if (done) Log(t.Size >= 3 ? "star" : "tasks", "Свърши: " + t.Title);
+        if (done && t.Size >= 3) NoteProud();
         if (t.Size >= 3) r.BigTasks = Math.Max(0, r.BigTasks + (done ? 1 : -1));
     }
 
@@ -78,6 +79,7 @@ public sealed partial class PetWindow
         var r = TodayRec;
         if (!r.Foods.Contains(f.Id)) r.Foods.Add(f.Id);
         Log("food", "Хапна " + f.Name.ToLowerInvariant());
+        NoteAte(f);
         FulfilDesire("eat");
         if (Kitchen.IsDrink(f)) FulfilDesire("drink");
         if (Kitchen.CategoryOf(f) == "Сладко") FulfilDesire("sweet");

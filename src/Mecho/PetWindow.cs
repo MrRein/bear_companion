@@ -1101,6 +1101,7 @@ public sealed partial class PetWindow : Window
             return;
         }
         if (_chatOpenAtPress) return;
+        NoteTouched();
         FulfilDesire("talk");   // цъкна го да си поговорите
         if (OpenHeldGift()) return;   // държи подарък: цъкаш го и се отваря
         if (!InFocus && TakeOffer()) return;

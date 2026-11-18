@@ -1222,34 +1222,14 @@ public sealed class MenuWindow : Window
         };
     }
 
-    /// <summary>Сянката към гръбчето: по-тъмно до средата на книжката (side: -1 лява, 1 дясна, 0 – без).</summary>
-    private static Brush PageBrush(int side)
-    {
-        var paper = (Cream as SolidColorBrush)?.Color ?? Colors.White;
-        if (side == 0) return Cream;
-        var dark = Color.FromRgb((byte)(paper.R * 0.82), (byte)(paper.G * 0.8), (byte)(paper.B * 0.76));
-        var g = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
-        if (side < 0)
-        {
-            g.GradientStops.Add(new GradientStop(paper, 0));
-            g.GradientStops.Add(new GradientStop(paper, 0.86));
-            g.GradientStops.Add(new GradientStop(dark, 1));
-        }
-        else
-        {
-            g.GradientStops.Add(new GradientStop(dark, 0));
-            g.GradientStops.Add(new GradientStop(paper, 0.14));
-            g.GradientStops.Add(new GradientStop(paper, 1));
-        }
-        g.Freeze();
-        return g;
-    }
+    /// <summary>Страниците са равен цвят (без сянка към гръбчето).</summary>
+    private static Brush PageBrush(int side) => Cream;
 
     /// <summary>„За Мечо“: как се чувства, какво прави, какво иска.</summary>
     private UIElement BuildNowCard()
     {
         var stack = new StackPanel();
-        var mood = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
+        var mood = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         DockPanel.SetDock(_moodIcon, Dock.Left);
         mood.Children.Add(_moodIcon);
         mood.Children.Add(_moodText);
@@ -1257,10 +1237,14 @@ public sealed class MenuWindow : Window
         var row = new DockPanel();
         DockPanel.SetDock(_nowIcon, Dock.Left);
         row.Children.Add(_nowIcon);
-        var text = new StackPanel();
-        text.Children.Add(_nowTitle);
-        text.Children.Add(_nowSub);
-        row.Children.Add(text);
+        _nowSub.VerticalAlignment = VerticalAlignment.Center;
+        _nowSub.TextWrapping = TextWrapping.NoWrap;
+        _nowSub.Margin = new Thickness(6 * U, 0, 0, 0);
+        DockPanel.SetDock(_nowSub, Dock.Right);
+        row.Children.Add(_nowSub);
+        _nowTitle.VerticalAlignment = VerticalAlignment.Center;
+        row.Children.Add(_nowTitle);
+        row.Margin = new Thickness(0, 0, 0, 8);
         stack.Children.Add(row);
         stack.Children.Add(_wantsBox);
         return stack;
@@ -1273,16 +1257,6 @@ public sealed class MenuWindow : Window
         _todayBox.Children.Add(_timerBox);
         _todayBox.Children.Add(_bearGoalBox);
         return _todayBox;
-    }
-
-    /// <summary>Малко копче с иконка и текст (желанията).</summary>
-    private Border SmallAction(string icon, string text, Action click, string? tip = null)
-    {
-        var chip = Chip("", click);
-        chip.Child = IconText(icon, text);
-        chip.Margin = new Thickness(0, 0, 6 * U, 5 * U);
-        if (tip != null) chip.ToolTip = Tip(tip);
-        return chip;
     }
 
     /// <summary>Светъл мед (посочено балонче, мечо-доро) и светло зелено (почивка) – по темата.</summary>
@@ -1325,41 +1299,70 @@ public sealed class MenuWindow : Window
         return b;
     }
 
-    /// <summary>Балонче като тези над мечока: заоблено, с опашчица долу вляво; отдолу – кога.
-    /// maxLines &gt; 0 – дългото се отрязва с „…“.</summary>
-    private static FrameworkElement SpeechBubble(string text, string when, int maxLines = 0, Border? hoverTarget = null)
+    /// <summary>
+    /// Балонче за „последно казано“: закръглено, с плътна рамка и сянка, опашчица вляво
+    /// (към иконката); часът – ситно, долу вдясно вътре.
+    /// </summary>
+    private static Grid ChatBubble(string text, string when, int maxLines = 0)
     {
-        var stack = new StackPanel { Margin = new Thickness(0, 0, 0, 4 * U), Background = Brushes.Transparent };
         var tb = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap };
         if (maxLines > 0)
         {
             tb.TextTrimming = TextTrimming.WordEllipsis;
             tb.MaxHeight = Body * 1.35 * maxLines + 2;
         }
-        var box = hoverTarget ?? new Border();
-        box.Background = Cream;
-        box.BorderBrush = Ink;
-        box.BorderThickness = Flat;
-        box.CornerRadius = new CornerRadius(7);
-        box.Padding = new Thickness(8 * U, 4 * U, 8 * U, 5 * U);
-        box.Child = tb;
-        stack.Children.Add(box);
-        var tailRow = new StackPanel { Orientation = Orientation.Horizontal };
+        var inner = new StackPanel();
+        inner.Children.Add(tb);
+        inner.Children.Add(new TextBlock { Text = when, Foreground = Muted, FontSize = Body * 0.8, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 2 * U, 0, 0) });
+        var box = new Border
+        {
+            Background = Cream,
+            BorderBrush = Ink,
+            BorderThickness = new Thickness(Math.Max(2, P)),
+            CornerRadius = new CornerRadius(9),
+            Padding = new Thickness(10 * U, 6 * U, 10 * U, 5 * U),
+            Margin = new Thickness(7 * U, 0, 0, 0),
+            Effect = HardShadow(),
+            Child = inner,
+        };
         var tail = new System.Windows.Shapes.Path
         {
-            Data = Geometry.Parse("M0,0 L10,0 L2,8 Z"),
-            Fill = box.Background,
+            Data = Geometry.Parse("M8,0 L0,5 L8,10 Z"),
+            Fill = Cream,
             Stroke = Ink,
-            StrokeThickness = Flat.Top,
-            Margin = new Thickness(12 * U, -Flat.Top, 6 * U, 0),
-            SnapsToDevicePixels = true,
+            StrokeThickness = Math.Max(2, P),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 8 * U, 0, 0),
         };
-        tailRow.Children.Add(tail);
-        tailRow.Children.Add(new TextBlock { Text = when, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center });
-        stack.Children.Add(tailRow);
-        stack.Tag = tail;
-        return stack;
+        var grid = new Grid { Background = Brushes.Transparent, Margin = new Thickness(0, 0, 0, 6 * U) };
+        grid.Children.Add(box);
+        grid.Children.Add(tail);
+        return grid;
     }
+
+    /// <summary>Какво прави – в трето лице, кратко („Чете книжка“).</summary>
+    private static string DoingNow(Scene scene) => scene.Id switch
+    {
+        "reading" => "Чете книжка",
+        "gaming" => "Играе на компютъра",
+        "painting" => "Рисува корица",
+        "yoga" => "Прави йога",
+        "plant" => "Грижи се за цветето",
+        "music" => "Слуша музика",
+        "knit" => "Плете",
+        "guitar" => "Свири на китара",
+        "board" => "Измисля настолна игра",
+        "boardplay" => "Играе настолна игра",
+        "paintfun" => "Рисува",
+        "desk" => "Работи на бюрото",
+        "write" => "Пише в тефтера",
+        "trampoline" => "Скача на батута",
+        "drink" => "Пие си питието",
+        "sit" => "Седи си",
+        "focus" => "Работи с теб",
+        _ => Capital(scene.Name),
+    };
 
     /// <summary>Изскачащият прозорец с последните балончета (най-новото долу).</summary>
     private void ShowSaidPopup(FrameworkElement anchor)
@@ -1367,10 +1370,10 @@ public sealed class MenuWindow : Window
         PixelPopup.ShowCustom(anchor, close =>
         {
             var root = new StackPanel { Width = 300 * U, Margin = new Thickness(6 * U, 4 * U, 6 * U, 4 * U) };
-            root.Children.Add(IconText("bear", "Какво каза Мечо", bold: true));
+            root.Children.Add(IconText("history", "Какво каза Мечо", bold: true));
             var list = new StackPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
             foreach (var (at, text) in _pet.Said)
-                list.Children.Add(SpeechBubble(text, Ago(at)));
+                list.Children.Add(ChatBubble(text, Ago(at)));
             var scroll = new ScrollViewer { Content = list, MaxHeight = 380 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             scroll.Loaded += (_, _) => scroll.ScrollToEnd();
             root.Children.Add(scroll);
@@ -1431,97 +1434,35 @@ public sealed class MenuWindow : Window
 
     private static string Capital(string text) => text.Length == 0 ? text : char.ToUpper(text[0]) + text[1..];
 
-    /// <summary>
-    /// Как се чувства: личицето му (от анимацията – прозява се, спи, тъжен, щастлив), малка
-    /// емоция в ъгъла (студ, глад, болест) и думи – може и две неща („Уморен е и му се спи ·
-    /// огладнява“).
-    /// </summary>
-    private (string Anim, int Frame, string? Emote, string Text) Mood(SaveData s)
-    {
-        var parts = new List<string>();
-        string anim = "idle";
-        int frame = 0;
-        string? emote = null;
-        void Face(string a, int f, string? e = null)
-        {
-            if (parts.Count > 0) return;   // личицето – по най-важното
-            anim = a;
-            frame = f;
-            emote = e;
-        }
-        if (_pet.IsAsleep) { Face("sleep", 0, "emote_zzz"); parts.Add("Спи сладко"); }
-        if (_pet.IsSick) { Face("tired", 0, "emote_sweat"); parts.Add("Болничък е"); }
-        if (!_pet.IsAsleep)
-        {
-            if (s.Energy < 15) { Face("yawn", 7); parts.Add("Капнал е – едва си държи очите"); }
-            else if (s.Energy < PetWindow.TiredBelow) { Face("yawn", 7); parts.Add("Уморен е и му се спи"); }
-            else if (s.Energy < 50) { Face("yawn", 5); parts.Add("Малко е сънлив"); }
-        }
-        if (s.Fullness < 25) { Face("sad", 0, "emote_hungry"); parts.Add(parts.Count > 0 ? "гладен" : "Гладен е – коремчето му къркори"); }
-        else if (s.Fullness < 50) { Face("idle", 0, "emote_hungry"); parts.Add(parts.Count > 0 ? "огладнява" : "Огладнява"); }
-        if (_pet.NeedsWarmerClothes) { Face("sad", 0, "emote_cold"); parts.Add(parts.Count > 0 ? "студено му е" : "Студено му е"); }
-        if (parts.Count == 0)
-        {
-            if (_pet.WantsPetting || _pet.CurrentDesire != null) { Face("happy", 0, "emote_heart"); parts.Add("Иска малко внимание"); }
-            else if (s.Fullness >= 70 && s.Energy >= 60) { Face("happy", 0); parts.Add("Щастлив е!"); }
-            else { Face("idle", 0); parts.Add("Добре е"); }
-        }
-        string text = parts[0] + (parts.Count > 1 ? " · " + string.Join(", ", parts.Skip(1)) : "");
-        return (anim, frame, emote, text);
-    }
-
     /// <summary>Картите „За Мечо“ и „Дневниче“ (всяка част се прерисува само ако се е сменила).</summary>
     private void UpdateBearCards(SaveData s)
     {
-        // ── Как се чувства: личицето, емоция в ъгъла, думи ──
-        var mood = Mood(s);
-        string moodKey = $"{mood.Anim}|{mood.Frame}|{mood.Emote}|{mood.Text}|{s.Outfit.Count}";
+        // ── Как се чувства: цветно личице (червено → зелено) и едно изречение ──
+        var (moodLevel, moodText) = _pet.MoodNow;
+        string moodKey = moodLevel + "|" + moodText;
         if (moodKey != _moodKey)
         {
             _moodKey = moodKey;
-            var face = new Grid();
-            var img = Pixel(_pet.MoodFace(mood.Anim, mood.Frame), 2);
-            face.Children.Add(new Border
-            {
-                Background = Paper,
-                BorderBrush = WoodDark,
-                BorderThickness = Flat,
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(2),
-                Child = img,
-            });
-            if (mood.Emote != null)
-            {
-                var em = Icon(mood.Emote);
-                em.HorizontalAlignment = HorizontalAlignment.Right;
-                em.VerticalAlignment = VerticalAlignment.Top;
-                em.Margin = new Thickness(0, -6 * U, -6 * U, 0);
-                face.Children.Add(em);
-            }
-            _moodIcon.Child = face;
-            _moodIcon.Margin = new Thickness(0, 0, 10 * U, 0);
+            _moodIcon.Child = Icon("mood" + moodLevel, 2);
+            _moodIcon.Margin = new Thickness(0, 0, 8 * U, 0);
             _moodText.Inlines.Clear();
-            _moodText.Inlines.Add(new System.Windows.Documents.Run("Как се чувства") { Foreground = Muted, FontWeight = FontWeights.Bold });
-            _moodText.Inlines.Add(new System.Windows.Documents.LineBreak());
-            _moodText.Inlines.Add(new System.Windows.Documents.Run(mood.Text) { FontWeight = FontWeights.Bold });
+            _moodText.Text = moodText;
+            _moodText.FontWeight = FontWeights.Bold;
         }
 
-        // ── Какво прави (и докога) ──
-        string icon, title, sub;
+        // ── Какво прави (вдясно – колко още) ──
+        string icon, title, sub = "";
         var fun = _pet.CurrentFun;
-        if (_pet.IsAsleep) (icon, title, sub) = ("moon", "Спи", "Ззз…");
-        else if (_pet.OnWalk)
-            (icon, title, sub) = ("walk", "На разходка е", _pet.WalkLeft > TimeSpan.Zero ? $"Връща се към {DateTime.Now + _pet.WalkLeft:H:mm}" : "Тръгва…");
+        if (_pet.IsAsleep) (icon, title, sub) = ("moon", "Спи", _pet.WakeText.StartsWith("в ") ? "до " + _pet.WakeText[2..] : _pet.WakeText.Replace("след ", "~"));
+        else if (_pet.OnWalk) (icon, title, sub) = ("walk", "На разходка", _pet.WalkLeft > TimeSpan.Zero ? $"до {DateTime.Now + _pet.WalkLeft:H:mm}" : "");
         else if (fun != null)
         {
             double left = _pet.SceneLeftSeconds;
-            string when = left > 0 ? $"още ~{Math.Max(1, (int)Math.Ceiling(left / 60))} мин" : "докато не го вдигнеш";
-            (icon, title, sub) = (fun.Icon, "„" + Capital(fun.Doing) + "…“", (Scenes.Work.Contains(fun) ? "Работи до теб · " : "") + when);
+            (icon, title, sub) = (fun.Icon, DoingNow(fun), left > 0 ? $"~{Math.Max(1, (int)Math.Ceiling(left / 60))} мин" : "");
         }
-        else if (_pet.WorksRandomly) (icon, title, sub) = ("tasks", "Работи до теб", "Сам сменя заниманията.");
-        else if (_pet.RelaxesRandomly) (icon, title, sub) = ("relax", "Почива си", "Сам си избира какво да прави.");
-        else (icon, title, sub) = ("bear", "Мотае се наоколо", "Дай му занимание отдолу.");
-        if (_pet.IsQuiet) sub += " · Тихо е.";
+        else if (_pet.WorksRandomly) (icon, title) = ("tasks", "Работи до теб");
+        else if (_pet.RelaxesRandomly) (icon, title) = ("relax", "Почива си");
+        else (icon, title) = ("bear", "Мотае се наоколо");
         if (icon + title != _nowKey)
         {
             _nowKey = icon + title;
@@ -1604,7 +1545,8 @@ public sealed class MenuWindow : Window
             if (_timerClock.Text != clock) _timerClock.Text = clock;
         }
 
-        // ── Какво иска: гушка, някое от желанията му, какво му се яде ──
+        // ── Какво иска: сърчице + какво (гушка, разходка…); сърчице + храните. Не се цъка оттук –
+        // правиш го там, където се прави (плочките отдолу, Храна).
         bool wantsPet = _pet.WantsPetting;
         string? desire = _pet.CurrentDesire;
         var wishes = _pet.Wishes().Take(4).ToArray();
@@ -1613,41 +1555,41 @@ public sealed class MenuWindow : Window
         {
             _wantsKey = wk;
             _wantsBox.Children.Clear();
-            if (wantsPet || desire != null || wishes.Length > 0)
+            var wanted = new List<string>();
+            if (wantsPet) wanted.Add("Гушка");
+            if (PetWindow.DesireOf(desire) is { } d) wanted.Add(Capital(d.Done));
+            if (wanted.Count > 0)
             {
-                _wantsBox.Children.Add(new TextBlock { Text = "Иска", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 10, 0, 3 * U) });
-                var wrap = new WrapPanel();
-                if (wantsPet) wrap.Children.Add(SmallAction("heart", "Да го погалиш", () => { _pet.Pet(); Refresh(true); }, "Иска да го погалиш – цъкни"));
-                if (PetWindow.DesireOf(desire) is { } d)
-                    wrap.Children.Add(SmallAction(d.Icon, Capital(d.Text.Replace("Иска ", "")), () => DoDesire(d.Kind), d.Text + " – цъкни"));
+                var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+                var heart = Icon("heart", 2);
+                heart.Margin = new Thickness(0, 0, 8 * U, 0);
+                heart.VerticalAlignment = VerticalAlignment.Center;
+                DockPanel.SetDock(heart, Dock.Left);
+                row.Children.Add(heart);
+                row.Children.Add(new TextBlock { Text = string.Join(" · ", wanted), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
+                row.ToolTip = Tip("Иска – направи го от плочките отдолу");
+                _wantsBox.Children.Add(row);
+            }
+            if (wishes.Length > 0)
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal };
+                var heart = Icon("heart", 2);
+                heart.Margin = new Thickness(0, 0, 8 * U, 0);
+                heart.VerticalAlignment = VerticalAlignment.Center;
+                row.Children.Add(heart);
                 foreach (var f in wishes)
                 {
                     var img = Pixel(_pet.FoodMenuImage(f), 2);
-                    var chip = new Border
-                    {
-                        Background = Paper,
-                        BorderBrush = WoodDark,
-                        BorderThickness = Flat,
-                        CornerRadius = new CornerRadius(3),
-                        Padding = new Thickness(2 * U),
-                        Margin = new Thickness(0, 0, 5 * U, 5 * U),
-                        Child = img,
-                        Cursor = System.Windows.Input.Cursors.Hand,
-                        ToolTip = Tip("Иска му се: " + f.Name + " – сготви му"),
-                        VerticalAlignment = VerticalAlignment.Center,
-                    };
-                    chip.MouseLeftButtonUp += (_, _) =>
-                    {
-                        _foodCat = Wish;
-                        ShowPage(PageFood);
-                    };
-                    wrap.Children.Add(chip);
+                    img.Margin = new Thickness(0, 0, 6 * U, 0);
+                    img.VerticalAlignment = VerticalAlignment.Center;
+                    img.ToolTip = Tip("Иска му се: " + f.Name + " (в Храна)");
+                    row.Children.Add(img);
                 }
-                _wantsBox.Children.Add(wrap);
+                _wantsBox.Children.Add(row);
             }
         }
 
-        // ── Последно казано: балонче (дългото – отрязано); цъкнеш ли – последните 10 ──
+        // ── Последно казано: иконка „история“ и балончето (дългото – отрязано); цъкнеш ли – последните 10 ──
         var said = _pet.Said;
         string sk = said.Count == 0 ? "" : $"{said.Count}|{said[^1].At:HHmmss}|{Ago(said[^1].At)}";
         if (sk != _saidKey)
@@ -1656,46 +1598,48 @@ public sealed class MenuWindow : Window
             _saidBox.Children.Clear();
             if (said.Count > 0)
             {
-                var head = new DockPanel { Margin = new Thickness(0, 0, 0, 3 * U) };
-                if (said.Count > 1)
-                {
-                    var more = new TextBlock { Text = $"още {said.Count - 1} ▸", Foreground = Muted };
-                    DockPanel.SetDock(more, Dock.Right);
-                    head.Children.Add(more);
-                }
-                head.Children.Add(new TextBlock { Text = "Последно каза", Foreground = Muted, FontWeight = FontWeights.Bold });
-                _saidBox.Children.Add(head);
-                var box = new Border();
-                var bubble = SpeechBubble(said[^1].Text, Ago(said[^1].At), maxLines: 2, hoverTarget: box);
+                var row = new DockPanel();
+                var hist = Icon("history", 2);
+                hist.VerticalAlignment = VerticalAlignment.Top;
+                hist.Margin = new Thickness(0, 4 * U, 8 * U, 0);
+                DockPanel.SetDock(hist, Dock.Left);
+                row.Children.Add(hist);
+                var bubble = ChatBubble(said[^1].Text, Ago(said[^1].At), maxLines: 2);
                 bubble.Cursor = System.Windows.Input.Cursors.Hand;
-                bubble.ToolTip = Tip("Цъкни – какво още е казал");
-                var tail = (System.Windows.Shapes.Path)bubble.Tag;
-                bubble.MouseEnter += (_, _) => { box.Background = HoneySoft; tail.Fill = HoneySoft; box.BorderBrush = WoodDark; };
-                bubble.MouseLeave += (_, _) => { box.Background = Cream; tail.Fill = Cream; box.BorderBrush = Ink; };
+                bubble.ToolTip = Tip(said.Count > 1 ? $"Цъкни – още {said.Count - 1}" : "Цъкни");
+                var (box, tail) = ((Border)((Grid)bubble).Children[0], (System.Windows.Shapes.Path)((Grid)bubble).Children[1]);
+                bubble.MouseEnter += (_, _) => { box.Background = HoneySoft; tail.Fill = HoneySoft; };
+                bubble.MouseLeave += (_, _) => { box.Background = Cream; tail.Fill = Cream; };
                 bubble.MouseLeftButtonUp += (_, _) => ShowSaidPopup(box);
-                _saidBox.Children.Add(bubble);
+                row.Children.Add(bubble);
+                _saidBox.Children.Add(row);
             }
         }
 
-        // ── Мисия (голяма цел за няколко дни) ──
+        // ── Мисия: залепено „поленце“ – медна рамка, звезда, лента, награда в ъгъла ──
         var goal = _pet.CurrentMission;
-        string gk = $"{goal.Text}|{goal.Have}|{goal.Done}|{goal.Days}";
+        string gk = $"{goal.Text}|{goal.Have}|{goal.Done}";
         if (gk != _bearGoalKey)
         {
             _bearGoalKey = gk;
             _bearGoalBox.Children.Clear();
+            var inner = new StackPanel();
             var head = new DockPanel();
-            var reward = goal.Done ? (FrameworkElement)IconText("check", "Изпълнена", bold: true) : IconText("nut", "+" + goal.Reward, bold: true);
-            reward.VerticalAlignment = VerticalAlignment.Top;
-            reward.ToolTip = Tip(goal.Done ? "Новата мисия почва утре" : $"Изпълниш ли я – {goal.Reward} лешника");
+            var reward = goal.Done ? (FrameworkElement)Icon("check", 2) : IconText("nut", "+" + goal.Reward, bold: true);
+            reward.VerticalAlignment = VerticalAlignment.Center;
+            reward.ToolTip = Tip(goal.Done ? "Изпълнена – новата мисия почва утре" : $"Изпълниш ли я – {goal.Reward} лешника");
             DockPanel.SetDock(reward, Dock.Right);
             head.Children.Add(reward);
-            head.Children.Add(IconText("star", "Мисия", bold: true));
-            _bearGoalBox.Children.Add(head);
-            _bearGoalBox.Children.Add(new TextBlock { Text = goal.Text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2 * U, 0, 3 * U) });
+            var star = Icon("star", 2);
+            star.Margin = new Thickness(0, 0, 8 * U, 0);
+            star.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(star, Dock.Left);
+            head.Children.Add(star);
+            head.Children.Add(new TextBlock { Text = goal.Text, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
+            inner.Children.Add(head);
             const int segments = 10;
             int filled = (int)Math.Floor((double)goal.Have / goal.Target * segments);
-            var track = new StackPanel { Orientation = Orientation.Horizontal };
+            var track = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6 * U, 0, 0) };
             for (int i = 0; i < segments; i++)
                 track.Children.Add(new Border
                 {
@@ -1703,49 +1647,20 @@ public sealed class MenuWindow : Window
                     BorderBrush = Ink, BorderThickness = Flat,
                     Background = i < filled ? Good : Empty,
                 }.Skinned(i < filled ? "cell_good" : "cell_empty"));
-            string progress = goal.Target >= 60 ? $"{goal.Have / 60} от {goal.Target / 60} ч" : $"{goal.Have} от {goal.Target}";
+            string progress = goal.Target >= 60 ? $"{goal.Have / 60}/{goal.Target / 60} ч" : $"{goal.Have}/{goal.Target}";
             track.Children.Add(new TextBlock { Text = progress, Foreground = Muted, Margin = new Thickness(6 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
-            _bearGoalBox.Children.Add(track);
-            _bearGoalBox.Children.Add(new TextBlock
+            inner.Children.Add(track);
+            _bearGoalBox.Children.Add(new Border
             {
-                Text = goal.Done ? "Браво! Новата мисия почва утре." : goal.Days <= 1 ? "Почна днес – има време, няколко дни." : $"Ден {goal.Days} от мисията.",
-                Foreground = Muted,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 3 * U, 0, 0),
+                Background = HoneySoft,
+                BorderBrush = Honey,
+                BorderThickness = new Thickness(Math.Max(2, P)),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10 * U, 7 * U, 10 * U, 8 * U),
+                Child = new Border { Child = inner },
+                ToolTip = Tip(goal.Done ? "Мисията е изпълнена – новата почва утре" : "Мисия – за няколко дни"),
             });
         }
-
-    }
-
-    /// <summary>Цъкна желанието в „За Мечо“: прави го (или отваря където се прави).</summary>
-    private void DoDesire(string kind)
-    {
-        switch (kind)
-        {
-            case "walk":
-                _walkOpen = true;
-                _sleepOpen = _quietOpen = _placeOpen = false;
-                Refresh(false);
-                return;
-            case "nap":
-                _sleepOpen = true;
-                _walkOpen = _quietOpen = _placeOpen = false;
-                Refresh(false);
-                return;
-            case "rest": _pet.RelaxRandom(); break;
-            case "draw": Hide(); _pet.OpenDrawing(); return;
-            case "focus": _pet.StartFocus(); break;
-            case "dice": _pet.RollDice(); break;
-            case "talk": Hide(); _pet.StartTalk(); return;
-            case "dress": ShowPage(PageWardrobe); return;
-            case "eat": _foodCat = "Всичко"; ShowPage(PageFood); return;
-            case "drink": _foodCat = "Напитки"; ShowPage(PageFood); return;
-            case "sweet": _foodCat = "Сладко"; ShowPage(PageFood); return;
-            default:
-                if (kind.StartsWith("scene:")) _pet.Relax(Scenes.ById(kind[6..]));
-                break;
-        }
-        Refresh(true);
     }
 
     /// <summary>Плочките в „Мечо“ според това какво прави и от какво има нужда.</summary>
