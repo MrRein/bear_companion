@@ -58,7 +58,9 @@ public sealed partial class PetWindow
         {
             var f = _dresser.Frame(_lib, anim, frame, EffectiveOutfit);
             int k = Math.Max(1, f.PixelWidth / 32);
-            var face = new System.Windows.Media.Imaging.CroppedBitmap(f, new System.Windows.Int32Rect(4 * k, 1 * k, 24 * k, 19 * k));
+            // Кадърът е с HatRoom пиксела място за шапка отгоре: главата е под него (с малко от шапката).
+            int top = Math.Max(0, Dresser.HatRoom - 4);
+            var face = new System.Windows.Media.Imaging.CroppedBitmap(f, new System.Windows.Int32Rect(4 * k, top * k, 24 * k, Math.Min(24, f.PixelHeight / k - top) * k));
             face.Freeze();
             return face;
         }
