@@ -1561,23 +1561,11 @@ public sealed class WorkView : Border
             p.Children.Add(goals);
         }
 
-        // Покана: план (сутрин), край на деня (вечер), преглед на седмицата (пет–нед или пон за миналата).
+        // Покана: преглед на седмицата (пет–нед или пон за миналата).
         var lastMonday = monday.AddDays(-7);
         bool lastNotReviewed = today.DayOfWeek == DayOfWeek.Monday && !WeekReviewFor(lastMonday).Done
             && Enumerable.Range(0, 7).Any(i => state.OnDay(lastMonday.AddDays(i)).Any());
-        // Веднъж на ден: отвориш ли я или я махнеш (✕) – до утре не излиза.
-        void Seen(bool plan)
-        {
-            if (plan) _pet.Save.PlanSeenDay = key;
-            else _pet.Save.ShutdownSeenDay = key;
-            _pet.Persist();
-        }
-        if (realToday && _pet.Save.PlannedDay != key && _pet.Save.PlanSeenDay != key && hour < 15)
-            p.Children.Add(Invite("sun", "Добро утро! Да планираме деня – вчерашните и какво да вземем от Чакащи.", "План за деня",
-                () => { Seen(true); ShowSide(Side.Plan); }, () => { Seen(true); Refresh(true); }));
-        else if (realToday && _pet.Save.ShutdownDay != key && _pet.Save.ShutdownSeenDay != key && hour >= 17)
-            p.Children.Add(Invite("moon", "Денят свършва. Да видим какво стана и какво остава за утре.", "Край на деня",
-                () => { Seen(false); ShowSide(Side.Shutdown); }, () => { Seen(false); Refresh(true); }));
+        // „План за деня“ и „Край на деня“ са махнати (не се показват покани за тях).
         // От Backlog: на които им дойде времето (като в Sunsama – питане дали да ги вземем).
         var dueTasks = BacklogDue(state, today);
         if (realToday && dueTasks.Count > 0) p.Children.Add(DueCard(dueTasks, today));

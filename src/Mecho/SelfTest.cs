@@ -1714,19 +1714,11 @@ public sealed partial class PetWindow
             MoveTask(_save.Tasks.Single(x => x.Id == back.Id), today);
             if (p.DueCount != 0) throw new Exception("задачата остана в „Дойде времето“");
 
-            // „План за деня“ – веднъж: ✕ го маха до утре.
-            _save.PlannedDay = _save.PlanSeenDay = "";
+            // „План за деня“ и „Край на деня“ ги няма – и поканите им не излизат.
+            _save.PlannedDay = _save.PlanSeenDay = _save.ShutdownDay = _save.ShutdownSeenDay = "";
             p.Refresh(true);
             p.UpdateLayout();
-            if (DateTime.Now.Hour < 15)
-            {
-                var invite = p.TodayPart("invite:План за деня") ?? throw new Exception("поканата за план не излезе");
-                var x = FindTagged(invite, "dismiss") ?? throw new Exception("поканата няма ✕");
-                Click(x);
-                p.Refresh(true);
-                p.UpdateLayout();
-                if (p.TodayHas("invite:План за деня")) throw new Exception("поканата за план се върна след ✕");
-            }
+            if (p.TodayHas("invite:План за деня") || p.TodayHas("invite:Край на деня")) throw new Exception("поканата за план/край на деня пак излиза");
 
             // Часовете за деня: пита, докато не кажеш; после – лента.
             _save.DayEnd.Remove(today.ToString("yyyy-MM-dd"));
