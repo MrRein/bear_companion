@@ -50,33 +50,41 @@ public sealed class DevWindow : Window
         header.Children.Add(close);
         header.Children.Add(new TextBlock { Text = "DEVELOPER", FontSize = Ui.Title, FontWeight = FontWeights.Bold, Foreground = Cream, VerticalAlignment = VerticalAlignment.Center });
 
-        var body = new StackPanel { Width = 640 };
-        body.Children.Add(_status);
-        foreach (var group in pet.DevCommands().GroupBy(c => c.Group))
+        // Раздели вляво, търсачка горе, групите на раздела вдясно (подредени по име).
+        _commands = pet.DevCommands().ToList();
+        var body = new StackPanel { Width = 600 };
+        _body = body;
+        _search.TextChanged += (_, _) => Fill();
+        var searchRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+        searchRow.Children.Add(MenuWindow.WithHint(_search, "Търси бутон (напр. гушка, подарък, сън)…"));
+        var top = new StackPanel();
+        top.Children.Add(_status);
+        top.Children.Add(searchRow);
+        var cats = new StackPanel { Width = 150, Margin = new Thickness(0, 0, 10, 0) };
+        foreach (var cat in Categories.Select(c => c.Name).Append(Other).Distinct())
         {
-            var ribbon = Ribbon(group.Key);
-            ribbon.Margin = new Thickness(0, 10, 0, 6);
-            body.Children.Add(ribbon);
-            var wrap = new WrapPanel();
-            foreach (var (_, label, act) in group)
+            if (!_commands.Any(c => CategoryOf(c.Group) == cat)) continue;
+            var name = cat;
+            var chip = Chip(name, () =>
             {
-                var b = Button(label, () =>
-                {
-                    try { act(); }
-                    catch (Exception ex)
-                    {
-                        CrashLog.Write(ex);
-                        MessageBox.Show(ex.Message, "Грешка");
-                    }
-                    UpdateStatus();
-                });
-                b.Padding = new Thickness(8, 3, 8, 4);
-                wrap.Children.Add(b);
-            }
-            body.Children.Add(wrap);
+                _category = name;
+                _search.Text = "";
+                Fill();
+            });
+            chip.Margin = new Thickness(0, 0, 0, 4);
+            chip.HorizontalAlignment = HorizontalAlignment.Stretch;
+            _catChips[name] = chip;
+            cats.Children.Add(chip);
         }
-
-        var scroll = new ScrollViewer { Content = body, MaxHeight = SystemParameters.WorkArea.Height * 0.8, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        if (!_catChips.ContainsKey(_category)) _category = _catChips.Keys.First();
+        Fill();
+        var columns = new DockPanel();
+        DockPanel.SetDock(top, Dock.Top);
+        columns.Children.Add(top);
+        DockPanel.SetDock(cats, Dock.Left);
+        columns.Children.Add(cats);
+        var scroll = new ScrollViewer { Content = body, Height = SystemParameters.WorkArea.Height * 0.7, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        columns.Children.Add(scroll);
         var root = new DockPanel();
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
@@ -87,7 +95,7 @@ public sealed class DevWindow : Window
             BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(0, 0, 6, 6),
             Padding = new Thickness(12),
-            Child = scroll,
+            Child = columns,
         });
         Content = new Border
         {
@@ -108,12 +116,75 @@ public sealed class DevWindow : Window
         UpdateStatus();
     }
 
+    private readonly TextBox _search = MenuWindow.NewTextInput();
+    private List<(string Group, string Label, Action Act)> _commands = new();
+    private StackPanel _body = null!;
+    private readonly Dictionary<string, Border> _catChips = new();
+    private static string _category = "Мечо";
+
+    private const string Other = "Друго";
+
+    /// <summary>Разделите и кои групи са в тях (по имената на групите).</summary>
+    private static readonly (string Name, string[] Groups)[] Categories =
+    {
+        ("Мечо", new[] { "Мечо прави…", "Анимации", "Емоции", "Разходка", "Кътчета и работа", "Сън и падане", "Сам решава" }),
+        ("Грижи и желания", new[] { "Нужди", "Гушки и желания", "Храна", "Умора и вид на деня", "Растението", "Радио, хранилка, бюро", "Лампа, звук, енергия", "Спомени и желания" }),
+        ("Табът „Мечо“", new[] { "Мисия", "Дневниче и балончета" }),
+        ("Лешници и подаръци", new[] { "Лешници", "Подаръци", "Подарък в лапите", "Отключване и прогрес", "Гардероб, тапети и магазин", "Скинове, пижами, меню" }),
+        ("Разговори", new[] { "Разговори и въпроси", "Реплики", "Програмите на Тут", "Живот" }),
+        ("Работа", new[] { "Задачи", "Закачени и задачи", "Таймер и обновяване" }),
+        ("Свят и събития", new[] { "Времето и печицата", "Събития (пижамен ден, болен ден, Коледа…)", "Предмети на земята (какво прави с тях)" }),
+        ("Система", new[] { "Ядро (шина, модули, състояние)", "Скорост (засичане)", "Файлове", "Премигване (тест)" }),
+    };
+
+    private static string CategoryOf(string group) => Categories.FirstOrDefault(c => c.Groups.Contains(group)).Name ?? Other;
+
+    /// <summary>Показва групите на избрания раздел – или всичко, което съвпада с търсенето.</summary>
+    private void Fill()
+    {
+        string q = _search.Text.Trim();
+        foreach (var (name, chip) in _catChips) SetOn(chip, q.Length == 0 && name == _category);
+        _body.Children.Clear();
+        var shown = _commands.Where(c => q.Length > 0
+            ? c.Label.Contains(q, StringComparison.CurrentCultureIgnoreCase) || c.Group.Contains(q, StringComparison.CurrentCultureIgnoreCase)
+            : CategoryOf(c.Group) == _category);
+        bool any = false;
+        foreach (var group in shown.GroupBy(c => c.Group).OrderBy(g => g.Key, StringComparer.CurrentCulture))
+        {
+            any = true;
+            var ribbon = Ribbon(group.Key + (q.Length > 0 ? "  ·  " + CategoryOf(group.Key) : ""));
+            ribbon.Margin = new Thickness(0, 4, 0, 6);
+            _body.Children.Add(ribbon);
+            var wrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            foreach (var (_, label, act) in group)
+            {
+                var b = Button(label, () =>
+                {
+                    try { act(); }
+                    catch (Exception ex)
+                    {
+                        CrashLog.Write(ex);
+                        MessageBox.Show(ex.Message, "Грешка");
+                    }
+                    UpdateStatus();
+                });
+                b.Padding = new Thickness(8, 3, 8, 4);
+                b.Margin = new Thickness(0, 0, 6, 6);
+                wrap.Children.Add(b);
+            }
+            _body.Children.Add(wrap);
+        }
+        if (!any) _body.Children.Add(MenuWindow.MutedText("Няма такъв бутон."));
+    }
+
     private void UpdateStatus()
     {
         var s = _pet.Save;
         string gift = s.GiftPending ? "чака да се отвори" : s.GiftAt == DateTime.MinValue ? "днес няма / вече е" : $"в {s.GiftAt:HH:mm}";
         _status.Text = (_pet.DevMode ? "DEV MODE (има всичко) · " : "") + $"Лешници {s.Hazelnuts} · Ситост {s.Fullness:0} · Енергия {s.Energy:0} · Подарък: {gift} · " +
-                       $"Купени: {s.Owned.Count} неща, {s.OwnedClothes.Count} дрехи · Задачи общо {s.TasksDoneTotal}\n{_pet.EnergyDebug}";
+                       $"Купени: {s.Owned.Count} неща, {s.OwnedClothes.Count} дрехи · Задачи общо {s.TasksDoneTotal}\n{_pet.EnergyDebug}\n" +
+                       $"Желание: {(_pet.CurrentDesire ?? (_pet.WantsPetting ? "гушка" : "няма"))} · брояч {s.PetCount}/{s.PetGoal} · гушки днес в {s.PetTimes} · желания в {s.DesireTimes.Split(';').Last()} · " +
+                       $"Мисия: {_pet.CurrentMission.Text} {_pet.CurrentMission.Have}/{_pet.CurrentMission.Target}";
     }
 }
 
@@ -639,6 +710,88 @@ public sealed partial class PetWindow
         yield return (files, "Папката със записа", () => OpenPath(SaveData.Folder));
         yield return (files, "crash.log", () => OpenPath(CrashLog.Path));
         yield return (files, "Презареди рисунките", ReloadArt);
+        foreach (var c in DevCommandsMore()) yield return c;
+    }
+
+    /// <summary>Новите неща: желания и гушки, мисия, дневниче, сън и падане, задачи, таймер, обновяване.</summary>
+    private IEnumerable<(string Group, string Label, Action Act)> DevCommandsMore()
+    {
+        const string wish = "Гушки и желания", mission = "Мисия", diary = "Дневниче и балончета", sleep = "Сън и падане",
+            tasks = "Задачи", timer = "Таймер и обновяване";
+
+        yield return (wish, "Иска гушка сега (40 мин)", () => { _save.PetOpenUntil = DateTime.Now.AddMinutes(40); Emote("heart", 3); NotifyCare(); });
+        yield return (wish, "Следващото изпълнено желание дава лешници", () => { _save.PetGoal = _save.PetCount + 1; Say("Следващото желание е със специална награда 🌰", 3); });
+        yield return (wish, "Изпълни сегашното желание", () => { if (CurrentDesire is { } k) FulfilDesire(k); else Say("Сега нищо не искам.", 2); });
+        yield return (wish, "Без желание", () => { _save.Desire = ""; _save.PetOpenUntil = DateTime.MinValue; NotifyCare(); });
+        yield return (wish, "Нови часове за желанията днес", () => { _save.DesireTimes = ""; _save.PetDay = ""; PlanDesires(); PlanPetting(); Say("Нови часове: " + _save.DesireTimes.Split(';').Last() + " · гушки: " + _save.PetTimes, 6); });
+        foreach (var d in Desires)
+        {
+            var desire = d;
+            bool ok = desire.Possible?.Invoke(this) ?? true;
+            yield return (wish, (ok ? "" : "(няма го) ") + desire.Text, () => StartDesire(desire.Kind));
+        }
+
+        yield return (mission, "Изпълни мисията сега", () =>
+        {
+            var g = CurrentMission;
+            if (g.Done) { Say("Вече е изпълнена – новата почва утре.", 3); return; }
+            PayMission(g.Text, g.Reward);
+        });
+        yield return (mission, "Нова мисия (случайна)", () => { _save.MissionId = ""; _save.MissionDone = false; Say("Нова мисия: " + CurrentMission.Text, 4); NotifyCare(); });
+        yield return (mission, "Мисията почна преди 3 дни", () => { _save.MissionStart = DayKey(DateTime.Today.AddDays(-3)); NotifyCare(); });
+
+        yield return (diary, "Примерен ден в дневничето", () =>
+        {
+            Log("food", "Хапна палачинки");
+            Log("tasks", "Свърши: Пример за задача");
+            Log("hourglass", "Работихме 25 мин");
+            Log("walk", "Разходка (10 мин)");
+            Log("heart", "Погален");
+            Log("gift", "Отвори подарък");
+            NotifyCare();
+        });
+        yield return (diary, "Изчисти днешното дневниче", () => { TodayRec.Events.Clear(); NotifyCare(); });
+        yield return (diary, "Кажи 10 неща (за балончетата)", () =>
+        {
+            for (int i = 1; i <= 10; i++) NoteSaid(i % 3 == 0 ? $"Реплика {i}: това е по-дълго изречение, за да се види как се отрязва балончето в менюто, когато не се събира на два реда." : $"Реплика {i}: {Lines.Pick(Lines.Petted, _save.OwnerName)}");
+            NotifyCare();
+        });
+
+        yield return (sleep, "Приспи (протяга се, леглото, ляга)", () => { if (IsAsleep) WakeUp(); Sleep(20); });
+        yield return (sleep, "Лягай за деня", SleepForDay);
+        yield return (sleep, "Събуди", WakeUp);
+        yield return (sleep, "Сутрин: забравен цяла нощ – зареди енергията", () =>
+        {
+            _save.Energy = 100;
+            Later(1, () => Say(R.Pick("morning.recharged", _save.OwnerName), 5));
+            NotifyCare();
+        });
+        yield return (sleep, "Чете и го вдигаш → тупва по дупе", () =>
+        {
+            if (!_inScene) Relax(Scenes.Reading);
+            Later(1.5, () =>
+            {
+                LiftUp();
+                _y = Math.Max(Area.Top + SpriteHeight, _y - 160);
+                _fallFrom = _y;
+                _vy = 0;
+                SetState(BearState.Falling, _anim);
+            });
+        });
+
+        yield return (tasks, "Автоматично пренасяне: вкл/изкл", () => { AutoRoll = !AutoRoll; Say(AutoRoll ? "Пренасям недовършените сам." : "Недовършените остават в деня си.", 3); });
+        yield return (tasks, "3 недовършени задачи за вчера", () =>
+        {
+            for (int i = 1; i <= 3; i++) AddTask($"Вчерашна задача {i}", 1, day: DateTime.Today.AddDays(-1), quiet: true);
+            NotifyCare();
+        });
+        yield return (tasks, "Пренеси сега", () => { CoreEngine.Bus.Send(new Mecho.Core.RollOverTasks()); NotifyCare(); });
+
+        yield return (timer, "Мечо-доро сега", StartFocus);
+        yield return (timer, "Таймер 2 мин", () => StartTimer(2, "Чай", "other"));
+        yield return (timer, "Работен таймер 5 мин", () => StartTimer(5, "Тест", "work"));
+        yield return (timer, "Скрий мечока (табелката с таймера)", () => { if (!TimerRunning && _save.PomodoroPhase == PomodoroPhase.Off) StartTimer(5, "Тест", "other"); Hide(); });
+        yield return (timer, "Провери за обновление", () => _ = CheckForUpdates(manual: true));
     }
 
     private void AddNuts(int n)

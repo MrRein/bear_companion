@@ -251,11 +251,16 @@ public sealed partial class PetWindow
     {
         var g = CurrentMission;
         if (g.Done || g.Have < g.Target) return;
+        PayMission(g.Text, g.Reward);
+    }
+
+    private void PayMission(string text, int reward)
+    {
         _save.MissionDone = true;
         _save.MissionDoneDay = DayKey(DateTime.Today);
-        GainNuts(g.Reward, "мисия");
-        Log("star", "Мисията изпълнена: " + g.Text.ToLowerInvariant());
-        Say(R.Pick("goal.done", _save.OwnerName) + $" +{g.Reward} 🌰", 7);
+        GainNuts(reward, "мисия");
+        Log("star", "Мисията изпълнена: " + text.ToLowerInvariant());
+        Say(R.Pick("goal.done", _save.OwnerName) + $" +{reward} 🌰", 7);
         Emote("sparkle", 4);
     }
 
