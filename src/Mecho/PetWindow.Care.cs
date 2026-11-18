@@ -660,6 +660,7 @@ public sealed partial class PetWindow
     /// <summary>Работата почна (Тут я пусна или е следващата от поредицата).</summary>
     private void FocusBegan()
     {
+        FulfilDesire("focus");
         // Ако е уморен, EnterWorkMode казва „ти поработи, аз ще посънча“ и той дрямва.
         EndBreakRelax();
         // Казва и колко лешника ще донесе (само тук: тогава наистина ги получаваш).
@@ -842,8 +843,6 @@ public sealed partial class PetWindow
     /// Скрит ли е мечокът, а тече мечо-доро или таймер: малка табелка в долния десен
     /// ъгъл (над часовника) показва колко остава. Клик върху нея връща мечока.
     /// </summary>
-    private Brush? _badgeBack;
-
     private void UpdateTimerBadge(System.Collections.Generic.List<string> parts)
     {
         // „Таймери“ (десен бутон на иконката) е изключено: скрит мечок – без табелка.
@@ -856,7 +855,6 @@ public sealed partial class PetWindow
         if (_timerBadge == null)
         {
             var pill = Ui.Pill(_timerBadgeRow);
-            _badgeBack = pill.Background;
             pill.Cursor = System.Windows.Input.Cursors.Hand;
             pill.ToolTip = Ui.Tip("Мечокът е скрит, но времето тече. Цъкни, за да го покажеш.");
             _timerBadge = new Window
@@ -895,11 +893,8 @@ public sealed partial class PetWindow
                 t.FontWeight = FontWeights.Bold;
             }, nudge: 1);
         }
-        if (_timerBadge.Content is Border badge)
-        {
-            var back = _save.PomodoroPhase == PomodoroPhase.Break || (RestTimer && _save.PomodoroPhase == PomodoroPhase.Off) ? TagBreak : _badgeBack;
-            if (!ReferenceEquals(badge.Background, back)) badge.Background = back;
-        }
+        // Рамката е нарисуваната (като табелката с лешниците) – не се боядисва с плосък цвят;
+        // почивката личи по ☕ в текста.
         if (!_timerBadge.IsVisible) _timerBadge.Show();
         // Над часовника: долният десен ъгъл на главния екран (над лентата със задачите).
         var area = SystemParameters.WorkArea;

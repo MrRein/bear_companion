@@ -78,6 +78,9 @@ public sealed partial class PetWindow
         var r = TodayRec;
         if (!r.Foods.Contains(f.Id)) r.Foods.Add(f.Id);
         Log("food", "Хапна " + f.Name.ToLowerInvariant());
+        FulfilDesire("eat");
+        if (Kitchen.IsDrink(f)) FulfilDesire("drink");
+        if (Kitchen.CategoryOf(f) == "Сладко") FulfilDesire("sweet");
     }
 
     /// <summary>Легна за деня: след полунощ се брои към вчерашния ден.</summary>

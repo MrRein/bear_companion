@@ -834,6 +834,7 @@ public sealed partial class PetWindow : Window
     {
         if (IsAsleep || _state is BearState.Drag or BearState.Falling || BusyEating()) return;
         int n = _rng.Next(1, 7);
+        FulfilDesire("dice");
         if (!OnCouchMission) Play("dice");
         Say(Lines.DiceRoll(n));
     }
@@ -1100,6 +1101,7 @@ public sealed partial class PetWindow : Window
             return;
         }
         if (_chatOpenAtPress) return;
+        FulfilDesire("talk");   // цъкна го да си поговорите
         if (OpenHeldGift()) return;   // държи подарък: цъкаш го и се отваря
         if (!InFocus && TakeOffer()) return;
         if (TakeLunchQuestion()) return;

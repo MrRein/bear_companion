@@ -221,6 +221,7 @@ public sealed partial class PetWindow
             return;
         }
         if (!Scenes.Work.Contains(scene)) FulfilDesire("rest");
+        FulfilDesire("scene:" + scene.Id);
         if (HobbyBlocked(scene))
         {
             Say(R.Any("event.blocked"), 3);

@@ -146,6 +146,7 @@ public sealed partial class PetWindow
     public void Wear(Garment g, string? line = null)
     {
         if (!Clothes.Owns(_save, g)) return;
+        FulfilDesire("dress");
         RememberLook();
         _save.Outfit[g.SlotId] = g.Id;
         TodayRec.Clothes++;

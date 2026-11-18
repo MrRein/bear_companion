@@ -87,20 +87,8 @@ public sealed partial class PetWindow
         Joy(JoyPetted);
         PetEnergy();
         React("happy");
-        // Скритият брояч.
-        if (_save.PetGoal <= 0) _save.PetGoal = NewPetGoal();
-        _save.PetCount++;
-        if (_save.PetCount >= _save.PetGoal)
-        {
-            _save.PetCount = 0;
-            _save.PetGoal = NewPetGoal();
-            double roll = _rng.NextDouble();
-            int nuts = roll < 0.1 ? 3 : roll < 0.45 ? 2 : 1;   // 3 – рядко (10%)
-            GainNuts(nuts, "погалване");
-            Say(R.Pick("pet.reward", _save.OwnerName) + $" +{nuts} 🌰", 7);
-            Emote("sparkle", 4);
-        }
-        else
+        // Скритият брояч (общ за гушките и всички други желания).
+        if (!CountWish())
         {
             Say(Lines.Pick(Lines.Petted, _save.OwnerName), 3);
             Emote("heart");

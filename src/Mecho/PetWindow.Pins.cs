@@ -113,5 +113,5 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Кратко име на задачата за табелката над мечока.</summary>
-    private string FocusTaskShort => FocusTask is { } t ? (t.Title.Length > 18 ? t.Title[..17] + "…" : t.Title) : "";
+    public string FocusTaskShort => FocusTask is { } t ? (t.Title.Length > 18 ? t.Title[..17] + "…" : t.Title) : "";
 }

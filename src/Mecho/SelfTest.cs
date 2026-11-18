@@ -1305,23 +1305,24 @@ public sealed partial class PetWindow
             if (got is < 1 or > 3) throw new Exception("наградата не е 1–3 лешника: " + got);
             if (_save.PetCount != 0 || _save.PetGoal < 5) throw new Exception("броячът не започна отначало");
             if (WantsPetting) throw new Exception("след погалването пак иска");
-            if (!NutsToday.By.Any(b => b.Why == "погалване")) throw new Exception("лешниците от погалването не са в „Днес“");
             if (!TodayRecord.Events.Any(e => e.Text == "Погален")) throw new Exception("погалването не е в дневника");
-            // Мечешката цел: стигнеш ли я – лешници веднъж.
+            // Мисията: стигнеш ли я – лешници веднъж, новата почва от утре.
             var rec = TodayRecord;
-            var (goal, paid, foods) = (rec.Goal, rec.GoalPaid, rec.Foods.ToList());
-            rec.Goal = "foods3";
-            rec.GoalPaid = false;
-            rec.Foods.AddRange(new[] { "t1", "t2", "t3" });
+            var (mid, mstart, mdone, mday) = (_save.MissionId, _save.MissionStart, _save.MissionDone, _save.MissionDoneDay);
+            _save.MissionId = "pet12";
+            _save.MissionStart = DateTime.Today.ToString("yyyy-MM-dd");
+            _save.MissionDone = false;
+            int petted = rec.Petted;
+            rec.Petted = 12;
             int before = _save.Hazelnuts;
             CheckBearGoal();
-            if (!rec.GoalPaid || _save.Hazelnuts <= before) throw new Exception("целта не даде лешници");
+            if (!_save.MissionDone || _save.Hazelnuts <= before) throw new Exception("мисията не даде лешници");
             int after = _save.Hazelnuts;
             CheckBearGoal();
-            if (_save.Hazelnuts != after) throw new Exception("целта плати два пъти");
-            (rec.Goal, rec.GoalPaid) = (goal, paid);
-            rec.Foods.Clear();
-            rec.Foods.AddRange(foods);
+            if (_save.Hazelnuts != after) throw new Exception("мисията плати два пъти");
+            if (CurrentMission.Text != "Погали го 12 пъти") throw new Exception("новата мисия почна още днес");
+            rec.Petted = petted;
+            (_save.MissionId, _save.MissionStart, _save.MissionDone, _save.MissionDoneDay) = (mid, mstart, mdone, mday);
             // Желание: появява се в часа си и се изпълнява с разходка/диван.
             _save.Desire = "rest";
             _save.DesireUntil = DateTime.Now.AddMinutes(5);
