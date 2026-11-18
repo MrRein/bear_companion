@@ -1556,8 +1556,8 @@ public sealed class MenuWindow : Window
             _wantsKey = wk;
             _wantsBox.Children.Clear();
             var wanted = new List<string>();
-            if (wantsPet) wanted.Add("Гушка");
-            if (PetWindow.DesireOf(desire) is { } d) wanted.Add(Capital(d.Done));
+            if (wantsPet) wanted.Add("Да го погалиш");
+            if (PetWindow.DesireOf(desire) is { } d) wanted.Add(Capital(d.Text.Replace("Иска ", "")));   // „Да хапне нещо“, „На разходка“
             if (wanted.Count > 0)
             {
                 var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
