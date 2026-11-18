@@ -728,7 +728,7 @@ public sealed partial class PetWindow
         {
             var desire = d;
             bool ok = desire.Possible?.Invoke(this) ?? true;
-            yield return (wish, (ok ? "" : "(няма го) ") + desire.Text, () => StartDesire(desire.Kind));
+            yield return (wish, (ok ? "Желание: " : "(няма го) Желание: ") + desire.Text, () => StartDesire(desire.Kind));
         }
 
         yield return (mission, "Изпълни мисията сега", () =>

@@ -76,27 +76,27 @@ public sealed partial class PetWindow
 
     public static readonly Desire[] Desires =
     {
-        new("walk", "Иска на разходка", "walk", "разходка"),
-        new("rest", "Иска да полегне на диванчето", "relax", "почивка на диванчето"),
-        new("draw", "Иска да порисувате заедно", "pencil", "рисуване заедно", p => Kitchen.Owns(p._save, Kitchen.Easel)),
-        new("scene:reading", "Иска да почете книжка", "book", "четене", p => p.SceneOk("reading")),
-        new("scene:gaming", "Иска да поиграе на компютъра", "game", "игра на компютъра", p => p.SceneOk("gaming")),
-        new("scene:yoga", "Иска да прави йога", "yoga", "йога", p => p.SceneOk("yoga")),
-        new("scene:plant", "Иска да се погрижи за цветето", "plant", "грижа за цветето", p => p.SceneOk("plant")),
-        new("scene:music", "Иска да послуша музика", "music", "музика", p => p.SceneOk("music")),
-        new("scene:knit", "Иска да поплете", "yarn", "плетене", p => p.SceneOk("knit")),
-        new("scene:guitar", "Иска да посвири на китара", "guitar", "свирене на китара", p => p.SceneOk("guitar")),
-        new("scene:boardplay", "Иска да поиграе на настолна игра", "dice", "настолна игра", p => p.SceneOk("boardplay")),
-        new("scene:paintfun", "Иска да порисува за удоволствие", "easel", "рисуване за удоволствие", p => p.SceneOk("paintfun")),
-        new("scene:write", "Иска да запише идеите си в тефтера", "notes", "идеи в тефтера", p => p.SceneOk("write")),
-        new("nap", "Иска да подремне", "moon", "дрямка", p => p._save.Energy < 85),
-        new("focus", "Иска да поработите заедно", "hourglass", "работа заедно", p => !p.InFocus),
-        new("eat", "Иска да хапне нещо", "food", "хапване", p => p._save.Fullness < 80),
-        new("drink", "Иска нещо за пиене", "tea", "нещо за пиене"),
-        new("sweet", "Иска нещо сладко", "honey", "нещо сладко"),
-        new("dice", "Иска да хвърли зарчето", "dice", "зарче"),
-        new("talk", "Иска да си поговорите", "question", "разговор"),
-        new("dress", "Иска да се преоблече", "wardrobe", "ново облекло", p => DailyOffer.HasWardrobe(p._save)),
+        new("walk", "Разхожда му се", "walk", "разходка"),
+        new("rest", "Седи му се на дивана", "relax", "почивка на диванчето"),
+        new("draw", "Рисува му се", "pencil", "рисуване заедно", p => Kitchen.Owns(p._save, Kitchen.Easel)),
+        new("scene:reading", "Чете му се книжка", "book", "четене", p => p.SceneOk("reading")),
+        new("scene:gaming", "Играе му се на компютъра", "game", "игра на компютъра", p => p.SceneOk("gaming")),
+        new("scene:yoga", "Прави му се йога", "yoga", "йога", p => p.SceneOk("yoga")),
+        new("scene:plant", "Грижи му се за цветето", "plant", "грижа за цветето", p => p.SceneOk("plant")),
+        new("scene:music", "Слуша му се музика", "music", "музика", p => p.SceneOk("music")),
+        new("scene:knit", "Плете му се", "yarn", "плетене", p => p.SceneOk("knit")),
+        new("scene:guitar", "Свири му се на китара", "guitar", "свирене на китара", p => p.SceneOk("guitar")),
+        new("scene:boardplay", "Играе му се настолна игра", "dice", "настолна игра", p => p.SceneOk("boardplay")),
+        new("scene:paintfun", "Рисува му се на статива", "easel", "рисуване за удоволствие", p => p.SceneOk("paintfun")),
+        new("scene:write", "Пише му се в тефтера", "notes", "идеи в тефтера", p => p.SceneOk("write")),
+        new("nap", "Спи му се", "moon", "дрямка", p => p._save.Energy < 85),
+        new("focus", "Работи му се с теб", "hourglass", "работа заедно", p => !p.InFocus),
+        new("eat", "Яде му се", "food", "хапване", p => p._save.Fullness < 80),
+        new("drink", "Пие му се нещо", "tea", "нещо за пиене"),
+        new("sweet", "Яде му се нещо сладко", "honey", "нещо сладко"),
+        new("dice", "Хвърля му се зарче", "dice", "зарче"),
+        new("talk", "Говори му се с теб", "question", "разговор"),
+        new("dress", "Преоблича му се", "wardrobe", "ново облекло", p => DailyOffer.HasWardrobe(p._save)),
     };
 
     private bool SceneOk(string id) => Scenes.All.FirstOrDefault(x => x.Id == id) is { } sc && Scenes.IsUnlocked(sc, _save);
@@ -154,7 +154,7 @@ public sealed partial class PetWindow
         if (!IsQuiet && DesireOf(kind) is { } d)
         {
             string key = "desire." + kind.Replace("scene:", "");
-            string line = R.Has(key) ? R.Pick(key, _save.OwnerName) : d.Text.Replace("Иска", "Искам") + "…";
+            string line = R.Has(key) ? R.Pick(key, _save.OwnerName) : d.Text + "…";
             Mutter(line, 5);
         }
     }
