@@ -1088,16 +1088,31 @@ public sealed class MenuWindow : Window
         }, tip: "Нещо мило за кураж, когато ти е трудно");
 
         // Две карти: какво прави сега (и какво му се яде) и какво сме правили днес.
-        _cards = new Grid { Margin = new Thickness(0, 0, 0, 2 * U) };
+        // Двете страници – като разтворена книжка: „За Мечо“ вляво, „Дневниче“ вдясно.
+        _cards = new Grid();
         _cards.ColumnDefinitions.Add(new ColumnDefinition());
+        _cards.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _cards.ColumnDefinitions.Add(new ColumnDefinition());
         _cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _cards.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        _nowCard = InfoCard("За Мечо", "bear", BuildNowCard());
-        _todayCard = InfoCard("Дневниче", "book", BuildDiaryCard());
+        _nowCard = BookPage("За Мечо", BuildNowCard());
+        _todayCard = BookPage("Дневниче", BuildDiaryCard());
+        _spine = new Border { Width = 4, Background = new LinearGradientBrush(Color.FromRgb(90, 55, 30), Color.FromRgb(150, 100, 60), 0) };
+        Grid.SetColumn(_spine, 1);
         _cards.Children.Add(_nowCard);
+        _cards.Children.Add(_spine);
         _cards.Children.Add(_todayCard);
-        p.Children.Add(_cards);
+        p.Children.Add(new Border
+        {
+            // Корицата: тъмна кожа с ръб; страниците отгоре.
+            Background = new SolidColorBrush(Color.FromRgb(122, 74, 42)),
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(5 * U, 5 * U, 5 * U, 7 * U),
+            Margin = new Thickness(0, 0, 8 * U, 10 * U),
+            Child = _cards,
+        });
 
         // Всичко, което може да прави – еднакви плочки в мрежа.
         p.Children.Add(new TextBlock { Text = "Заедно", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(2 * U, 4 * U, 0, 4 * U) });
@@ -1180,36 +1195,61 @@ public sealed class MenuWindow : Window
     private readonly StackPanel _wantsBox = new();
     private readonly StackPanel _saidBox = new();
     private readonly StackPanel _todayBox = new();
-    private readonly StackPanel _bearGoalBox = new() { Margin = new Thickness(0, 0, 0, 10) };
-    private readonly StackPanel _diaryBox = new();
-    private string _nowKey = "", _moodKey = "", _timerKey = "", _wantsKey = "", _saidKey = "", _bearGoalKey = "", _diaryKey = "";
+    private readonly StackPanel _bearGoalBox = new() { Margin = new Thickness(0, 12, 0, 0) };
+    private string _nowKey = "", _moodKey = "", _timerKey = "", _wantsKey = "", _saidKey = "", _bearGoalKey = "";
     private double _bearWidth;
 
-    /// <summary>Карта с малко заглавие (иконка + име) и съдържание.</summary>
-    private static Border InfoCard(string title, string? icon, UIElement body)
+    private Border _spine = null!;
+
+    /// <summary>Страница от книжката: заглавие в средата с черта под него, после съдържанието.</summary>
+    private static Border BookPage(string title, UIElement body)
     {
         var stack = new StackPanel();
-        var head = IconText(icon, title, bold: true);
-        head.Margin = new Thickness(0, 0, 0, 6 * U);
+        var head = new TextBlock { Text = title, FontWeight = FontWeights.Bold, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Center };
         stack.Children.Add(head);
+        stack.Children.Add(new Border
+        {
+            Height = P,
+            Background = UiSkin.Line("dash") ?? WoodLight,
+            Margin = new Thickness(20 * U, 3 * U, 20 * U, 8 * U),
+        });
         stack.Children.Add(body);
         return new Border
         {
             Background = Cream,
-            BorderBrush = WoodDark,
-            BorderThickness = Flat,
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(10 * U, 8 * U, 10 * U, 10 * U),
-            Margin = new Thickness(0, 0, 8 * U, 8 * U),
+            Padding = new Thickness(12 * U, 8 * U, 12 * U, 12 * U),
             Child = stack,
         };
     }
 
-    /// <summary>„За Мечо“: как се чувства, какво прави, таймерът, какво иска, последно казаното.</summary>
+    /// <summary>Сянката към гръбчето: по-тъмно до средата на книжката (side: -1 лява, 1 дясна, 0 – без).</summary>
+    private static Brush PageBrush(int side)
+    {
+        var paper = (Cream as SolidColorBrush)?.Color ?? Colors.White;
+        if (side == 0) return Cream;
+        var dark = Color.FromRgb((byte)(paper.R * 0.82), (byte)(paper.G * 0.8), (byte)(paper.B * 0.76));
+        var g = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
+        if (side < 0)
+        {
+            g.GradientStops.Add(new GradientStop(paper, 0));
+            g.GradientStops.Add(new GradientStop(paper, 0.86));
+            g.GradientStops.Add(new GradientStop(dark, 1));
+        }
+        else
+        {
+            g.GradientStops.Add(new GradientStop(dark, 0));
+            g.GradientStops.Add(new GradientStop(paper, 0.14));
+            g.GradientStops.Add(new GradientStop(paper, 1));
+        }
+        g.Freeze();
+        return g;
+    }
+
+    /// <summary>„За Мечо“: как се чувства, какво прави, какво иска.</summary>
     private UIElement BuildNowCard()
     {
         var stack = new StackPanel();
-        var mood = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+        var mood = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
         DockPanel.SetDock(_moodIcon, Dock.Left);
         mood.Children.Add(_moodIcon);
         mood.Children.Add(_moodText);
@@ -1222,17 +1262,16 @@ public sealed class MenuWindow : Window
         text.Children.Add(_nowSub);
         row.Children.Add(text);
         stack.Children.Add(row);
-        stack.Children.Add(_timerBox);
         stack.Children.Add(_wantsBox);
-        stack.Children.Add(_saidBox);
         return stack;
     }
 
-    /// <summary>„Дневниче“: мисията и последното от деня (цъкнеш ли – целият ден).</summary>
+    /// <summary>„Дневниче“: последно казаното, таймерът, мисията.</summary>
     private UIElement BuildDiaryCard()
     {
+        _todayBox.Children.Add(_saidBox);
+        _todayBox.Children.Add(_timerBox);
         _todayBox.Children.Add(_bearGoalBox);
-        _todayBox.Children.Add(_diaryBox);
         return _todayBox;
     }
 
@@ -1339,54 +1378,6 @@ public sealed class MenuWindow : Window
         });
     }
 
-    /// <summary>Изскачащият прозорец с целия ден: точка и черта за всяко нещо, по ред.</summary>
-    private void ShowDayPopup(FrameworkElement anchor)
-    {
-        PixelPopup.ShowCustom(anchor, close =>
-        {
-            var root = new StackPanel { Width = 300 * U, Margin = new Thickness(6 * U, 4 * U, 6 * U, 4 * U) };
-            root.Children.Add(IconText("book", "Денят ни – " + DateTime.Today.ToString("d MMMM", new System.Globalization.CultureInfo("bg-BG")), bold: true));
-            var list = new StackPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
-            var events = _pet.TodayRecord.Events;
-            if (events.Count == 0) list.Children.Add(MutedText("Още нищо – денят тепърва започва."));
-            for (int i = 0; i < events.Count; i++)
-            {
-                var e = events[i];
-                var row = new Grid();
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42 * U) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22 * U) });
-                row.ColumnDefinitions.Add(new ColumnDefinition());
-                var time = new TextBlock { Text = e.At.ToString("H:mm"), Foreground = Muted, Margin = new Thickness(0, 3 * U, 0, 0) };
-                row.Children.Add(time);
-                // Чертата през деня и точката (иконката) върху нея.
-                var rail = new Grid();
-                if (i < events.Count - 1 || i > 0)
-                    rail.Children.Add(new Border
-                    {
-                        Width = Math.Max(2, P / 2),
-                        Background = WoodLight,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        Margin = new Thickness(0, i == 0 ? 10 * U : 0, 0, i == events.Count - 1 ? 14 * U : 0),
-                    });
-                var ic = Icon(e.Icon);
-                ic.HorizontalAlignment = HorizontalAlignment.Center;
-                ic.VerticalAlignment = VerticalAlignment.Top;
-                ic.Margin = new Thickness(0, 2 * U, 0, 0);
-                rail.Children.Add(new Border { Background = Cream, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Child = ic });
-                Grid.SetColumn(rail, 1);
-                row.Children.Add(rail);
-                var txt = new TextBlock { Text = e.Text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(6 * U, 3 * U, 0, 8 * U) };
-                Grid.SetColumn(txt, 2);
-                row.Children.Add(txt);
-                list.Children.Add(row);
-            }
-            var scroll = new ScrollViewer { Content = list, MaxHeight = 420 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            scroll.Loaded += (_, _) => scroll.ScrollToEnd();
-            root.Children.Add(scroll);
-            return root;
-        });
-    }
-
     private static string Ago(DateTime at)
     {
         var d = DateTime.Now - at;
@@ -1399,10 +1390,17 @@ public sealed class MenuWindow : Window
         if (width <= 0 || Math.Abs(width - _bearWidth) < 4) return;
         _bearWidth = width;
         bool wide = width >= 470 * U;
-        Grid.SetColumn(_todayCard, wide ? 1 : 0);
+        // Широко – разтворена книжка (две страници с гръбче); тясно – страниците една под друга.
+        Grid.SetColumn(_todayCard, wide ? 2 : 0);
         Grid.SetRow(_todayCard, wide ? 0 : 1);
-        Grid.SetColumnSpan(_nowCard, wide ? 1 : 2);
-        Grid.SetColumnSpan(_todayCard, wide ? 1 : 2);
+        Grid.SetColumnSpan(_nowCard, wide ? 1 : 3);
+        Grid.SetColumnSpan(_todayCard, wide ? 1 : 3);
+        _spine.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+        _nowCard.Background = PageBrush(wide ? -1 : 0);
+        _todayCard.Background = PageBrush(wide ? 1 : 0);
+        _nowCard.CornerRadius = wide ? new CornerRadius(4, 0, 0, 4) : new CornerRadius(4);
+        _todayCard.CornerRadius = wide ? new CornerRadius(0, 4, 4, 0) : new CornerRadius(4);
+        _todayCard.Margin = wide ? new Thickness(0) : new Thickness(0, 5 * U, 0, 0);
         FitActionGrid();
     }
 
@@ -1433,29 +1431,79 @@ public sealed class MenuWindow : Window
 
     private static string Capital(string text) => text.Length == 0 ? text : char.ToUpper(text[0]) + text[1..];
 
-    /// <summary>Как се чувства: иконка-емоция и дума.</summary>
-    private (string Icon, string Text) Mood(SaveData s) =>
-        _pet.IsAsleep ? ("emote_zzz", "Спи сладко")
-        : _pet.IsSick ? ("emote_sweat", "Болничък е")
-        : s.Fullness < 25 ? ("emote_hungry", "Гладен е")
-        : s.Energy < PetWindow.TiredBelow ? ("emote_sad", "Уморен е")
-        : _pet.NeedsWarmerClothes ? ("emote_cold", "Студено му е")
-        : s.Fullness >= 70 && s.Energy >= 60 ? ("emote_happy", "Щастлив е")
-        : _pet.WantsPetting || _pet.CurrentDesire != null ? ("emote_heart", "Иска внимание")
-        : ("emote_sparkle", "Добре е");
+    /// <summary>
+    /// Как се чувства: личицето му (от анимацията – прозява се, спи, тъжен, щастлив), малка
+    /// емоция в ъгъла (студ, глад, болест) и думи – може и две неща („Уморен е и му се спи ·
+    /// огладнява“).
+    /// </summary>
+    private (string Anim, int Frame, string? Emote, string Text) Mood(SaveData s)
+    {
+        var parts = new List<string>();
+        string anim = "idle";
+        int frame = 0;
+        string? emote = null;
+        void Face(string a, int f, string? e = null)
+        {
+            if (parts.Count > 0) return;   // личицето – по най-важното
+            anim = a;
+            frame = f;
+            emote = e;
+        }
+        if (_pet.IsAsleep) { Face("sleep", 0, "emote_zzz"); parts.Add("Спи сладко"); }
+        if (_pet.IsSick) { Face("tired", 0, "emote_sweat"); parts.Add("Болничък е"); }
+        if (!_pet.IsAsleep)
+        {
+            if (s.Energy < 15) { Face("yawn", 7); parts.Add("Капнал е – едва си държи очите"); }
+            else if (s.Energy < PetWindow.TiredBelow) { Face("yawn", 7); parts.Add("Уморен е и му се спи"); }
+            else if (s.Energy < 50) { Face("yawn", 5); parts.Add("Малко е сънлив"); }
+        }
+        if (s.Fullness < 25) { Face("sad", 0, "emote_hungry"); parts.Add(parts.Count > 0 ? "гладен" : "Гладен е – коремчето му къркори"); }
+        else if (s.Fullness < 50) { Face("idle", 0, "emote_hungry"); parts.Add(parts.Count > 0 ? "огладнява" : "Огладнява"); }
+        if (_pet.NeedsWarmerClothes) { Face("sad", 0, "emote_cold"); parts.Add(parts.Count > 0 ? "студено му е" : "Студено му е"); }
+        if (parts.Count == 0)
+        {
+            if (_pet.WantsPetting || _pet.CurrentDesire != null) { Face("happy", 0, "emote_heart"); parts.Add("Иска малко внимание"); }
+            else if (s.Fullness >= 70 && s.Energy >= 60) { Face("happy", 0); parts.Add("Щастлив е!"); }
+            else { Face("idle", 0); parts.Add("Добре е"); }
+        }
+        string text = parts[0] + (parts.Count > 1 ? " · " + string.Join(", ", parts.Skip(1)) : "");
+        return (anim, frame, emote, text);
+    }
 
     /// <summary>Картите „За Мечо“ и „Дневниче“ (всяка част се прерисува само ако се е сменила).</summary>
     private void UpdateBearCards(SaveData s)
     {
-        // ── Как се чувства ──
-        var (mIcon, mText) = Mood(s);
-        if (mIcon + mText != _moodKey)
+        // ── Как се чувства: личицето, емоция в ъгъла, думи ──
+        var mood = Mood(s);
+        string moodKey = $"{mood.Anim}|{mood.Frame}|{mood.Emote}|{mood.Text}|{s.Outfit.Count}";
+        if (moodKey != _moodKey)
         {
-            _moodKey = mIcon + mText;
-            _moodIcon.Child = Icon(mIcon, 2);
+            _moodKey = moodKey;
+            var face = new Grid();
+            var img = Pixel(_pet.MoodFace(mood.Anim, mood.Frame), 2);
+            face.Children.Add(new Border
+            {
+                Background = Paper,
+                BorderBrush = WoodDark,
+                BorderThickness = Flat,
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(2),
+                Child = img,
+            });
+            if (mood.Emote != null)
+            {
+                var em = Icon(mood.Emote);
+                em.HorizontalAlignment = HorizontalAlignment.Right;
+                em.VerticalAlignment = VerticalAlignment.Top;
+                em.Margin = new Thickness(0, -6 * U, -6 * U, 0);
+                face.Children.Add(em);
+            }
+            _moodIcon.Child = face;
+            _moodIcon.Margin = new Thickness(0, 0, 10 * U, 0);
             _moodText.Inlines.Clear();
-            _moodText.Inlines.Add(new System.Windows.Documents.Run("Как се чувства: ") { Foreground = Muted });
-            _moodText.Inlines.Add(new System.Windows.Documents.Run(mText) { FontWeight = FontWeights.Bold });
+            _moodText.Inlines.Add(new System.Windows.Documents.Run("Как се чувства") { Foreground = Muted, FontWeight = FontWeights.Bold });
+            _moodText.Inlines.Add(new System.Windows.Documents.LineBreak());
+            _moodText.Inlines.Add(new System.Windows.Documents.Run(mood.Text) { FontWeight = FontWeights.Bold });
         }
 
         // ── Какво прави (и докога) ──
@@ -1608,7 +1656,7 @@ public sealed class MenuWindow : Window
             _saidBox.Children.Clear();
             if (said.Count > 0)
             {
-                var head = new DockPanel { Margin = new Thickness(0, 10, 0, 3 * U) };
+                var head = new DockPanel { Margin = new Thickness(0, 0, 0, 3 * U) };
                 if (said.Count > 1)
                 {
                     var more = new TextBlock { Text = $"още {said.Count - 1} ▸", Foreground = Muted };
@@ -1667,53 +1715,6 @@ public sealed class MenuWindow : Window
             });
         }
 
-        // ── Последното от деня (цъкнеш ли – целият ден) ──
-        var events = _pet.TodayRecord.Events;
-        string dk = $"{events.Count}|{(events.Count > 0 ? events[^1].At.Ticks : 0)}";
-        if (dk != _diaryKey)
-        {
-            _diaryKey = dk;
-            _diaryBox.Children.Clear();
-            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 3 * U) };
-            if (events.Count > 1)
-            {
-                var more = new TextBlock { Text = $"целият ден ▸", Foreground = Muted };
-                DockPanel.SetDock(more, Dock.Right);
-                head.Children.Add(more);
-            }
-            head.Children.Add(new TextBlock { Text = "Последно", Foreground = Muted, FontWeight = FontWeights.Bold });
-            _diaryBox.Children.Add(head);
-            if (events.Count == 0) _diaryBox.Children.Add(MutedText("Още нищо – денят тепърва започва."));
-            else
-            {
-                var e = events[^1];
-                var row = new DockPanel();
-                var time = new TextBlock { Text = e.At.ToString("H:mm"), Foreground = Muted, Margin = new Thickness(0, 0, 6 * U, 0), VerticalAlignment = VerticalAlignment.Center };
-                DockPanel.SetDock(time, Dock.Left);
-                row.Children.Add(time);
-                var ic = Icon(e.Icon);
-                ic.Margin = new Thickness(0, 0, 5, 0);
-                ic.VerticalAlignment = VerticalAlignment.Center;
-                DockPanel.SetDock(ic, Dock.Left);
-                row.Children.Add(ic);
-                row.Children.Add(new TextBlock { Text = e.Text, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center });
-                var card = new Border
-                {
-                    Background = Paper,
-                    BorderBrush = WoodDark,
-                    BorderThickness = Flat,
-                    CornerRadius = new CornerRadius(4),
-                    Padding = new Thickness(6 * U, 4 * U, 6 * U, 4 * U),
-                    Child = row,
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    ToolTip = Tip("Цъкни – целият ден"),
-                };
-                card.MouseEnter += (_, _) => card.Background = HoneySoft;
-                card.MouseLeave += (_, _) => card.Background = Paper;
-                card.MouseLeftButtonUp += (_, _) => ShowDayPopup(card);
-                _diaryBox.Children.Add(card);
-            }
-        }
     }
 
     /// <summary>Цъкна желанието в „За Мечо“: прави го (или отваря където се прави).</summary>

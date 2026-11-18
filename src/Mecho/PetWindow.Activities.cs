@@ -51,6 +51,20 @@ public sealed partial class PetWindow
     /// Портретът в менюто с изражение по това как е: спи, гладен (тъжен), уморен, щастлив
     /// (сит и бодър) или обикновен.
     /// </summary>
+    /// <summary>Личицето му (главата) от кадър на анимация – за „Как се чувства“: прозява се, спи, тъжен…</summary>
+    public System.Windows.Media.Imaging.BitmapSource MoodFace(string anim, int frame)
+    {
+        try
+        {
+            var f = _dresser.Frame(_lib, anim, frame, EffectiveOutfit);
+            int k = Math.Max(1, f.PixelWidth / 32);
+            var face = new System.Windows.Media.Imaging.CroppedBitmap(f, new System.Windows.Int32Rect(4 * k, 1 * k, 24 * k, 19 * k));
+            face.Freeze();
+            return face;
+        }
+        catch (Exception) { return Portrait; }
+    }
+
     public System.Windows.Media.Imaging.BitmapSource MoodPortrait
     {
         get
