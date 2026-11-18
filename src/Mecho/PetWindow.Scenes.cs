@@ -491,6 +491,7 @@ public sealed partial class PetWindow
 
     private void LeaveScene()
     {
+        _landing = false;
         if (_scene != null && Scenes.All.Contains(_scene)) _lastFun = _scene;
         if (_scene == Scenes.Music) EndMusic();
         PutPlantAway();

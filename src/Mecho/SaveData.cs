@@ -127,6 +127,7 @@ public sealed class SaveData
     public string FavFoodDay { get; set; } = "";
     public string WishTimes { get; set; } = "";                // днешните желания, които още не са се появили (минути от полунощ)
     public Dictionary<string, DateTime> WishUntil { get; set; } = new();
+    public string MorningCharged { get; set; } = "";         // в кой ден вече се е „наспал“ сутрин (пуснат цяла нощ)
     public string PetDay { get; set; } = "";                   // за кой ден са PetTimes
     public string PetTimes { get; set; } = "";                 // кога днес ще поиска да го погалиш (минути от полунощ), още непоявилите се
     public DateTime PetOpenUntil { get; set; }                 // докога може да се погали сега (иначе не иска)

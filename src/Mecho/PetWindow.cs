@@ -732,7 +732,20 @@ public sealed partial class PetWindow : Window
         if (_inScene)
         {
             if (hard && DragTalk()) Say(Lines.Pick(Lines.LandedInScene, _save.OwnerName));
-            ResumeScene();
+            if (InstantModes)
+            {
+                ResumeScene();
+                return;
+            }
+            // Тупва по дупе, малко се съвзема (0–5 с) и чак тогава продължава заниманието.
+            _landing = true;
+            _landedAt = Now;
+            double pause = _rng.NextDouble() * 5;
+            Play("fall", after: () =>
+            {
+                if (pause < 0.3) LandedBack();
+                else Play("idle", length: pause, after: LandedBack);
+            });
         }
         // Тръгнал беше да спи: пак отива да легне.
         else if (GoingToBedAgain()) { }
@@ -950,6 +963,7 @@ public sealed partial class PetWindow : Window
     private void LiftUp()
     {
         _trip = null;
+        _landing = false;
         if (_walkingOut)
         {
             // Хванат на излизане: остава.
@@ -995,7 +1009,7 @@ public sealed partial class PetWindow : Window
 
     /// <summary>Седалката на кътчето се рисува под него (не и докато виси във въздуха).</summary>
     // Докато ходи (връща се от разходка, идва от ръба), столчето не е под него – иначе „ходи по стола“.
-    private bool SeatShown => _inScene && _seatProp != null && !Lifted && _state != BearState.Walk;
+    private bool SeatShown => _inScene && _seatProp != null && !Lifted && !_landing && _state != BearState.Walk;
 
     private double _liftedAt = -1;
 
@@ -1028,6 +1042,17 @@ public sealed partial class PetWindow : Window
     }
 
     private bool _dragAsleep, _dragAway;
+
+    /// <summary>Тупна по дупе след вдигане по време на занимание и се съвзема (без столчето под него).</summary>
+    private bool _landing;
+    private double _landedAt;
+
+    private void LandedBack()
+    {
+        _landing = false;
+        if (_inScene && _sceneUntil > 0) _sceneUntil += Math.Max(0, Now - _landedAt);   // времето за съвземане не се брои
+        ResumeScene();
+    }
 
     private void OnMouseUp(object sender, MouseButtonEventArgs e)
     {

@@ -121,6 +121,22 @@ public class TasksTests
     }
 
     [Fact]
+    public void Auto_roll_can_be_turned_off()
+    {
+        var (e, clock, _) = Started(new DateTime(2026, 10, 18, 23, 59, 0));
+        e.Bus.Send(new SetAutoRoll(false));
+        e.Bus.Send(new AddTask("вчерашна", 1));
+        Next(e, clock);
+        var t = Assert.Single(e.Store.Get<TasksState>().Open);
+        Assert.Equal(new DateTime(2026, 10, 18), t.Day);
+        Assert.Equal(0, t.Rolled);
+        e.Bus.Send(new SetAutoRoll(true));
+        t = Assert.Single(e.Store.Get<TasksState>().Open);
+        Assert.Equal(new DateTime(2026, 10, 19), t.Day);
+        Assert.Equal(1, t.Rolled);
+    }
+
+    [Fact]
     public void Tasks_survive_save_and_load()
     {
         var (e, _, _) = Started();

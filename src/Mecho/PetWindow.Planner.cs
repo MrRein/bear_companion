@@ -13,6 +13,18 @@ public sealed partial class PetWindow
 
     public TasksState TaskState => CoreEngine.Store.Get<TasksState>();
 
+    /// <summary>Несвършените от минали дни идват сами за днес (да/не).</summary>
+    public bool AutoRoll
+    {
+        get => !TaskState.NoAutoRoll;
+        set
+        {
+            if (!CoreEngine.Bus.Send(new SetAutoRoll(value)).Ok) return;
+            NotifyCare();
+            Persist();
+        }
+    }
+
     /// <summary>„Работа“ (в менюто): отворена ли е сега.</summary>
     public bool PlannerIsOpen => _menu is { IsOpen: true } m && m.IsWorkPage;
 

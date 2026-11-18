@@ -1240,6 +1240,35 @@ public sealed class MenuWindow : Window
         return chip;
     }
 
+    /// <summary>Балонче като тези над мечока: заоблено, с опашчица долу вляво; отдолу – кога.</summary>
+    private static FrameworkElement SpeechBubble(string text, string when)
+    {
+        var stack = new StackPanel { Margin = new Thickness(0, 0, 0, 4 * U), Background = Brushes.Transparent };
+        var box = new Border
+        {
+            Background = Cream,
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(7),
+            Padding = new Thickness(8 * U, 4 * U, 8 * U, 5 * U),
+            Child = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap },
+        };
+        stack.Children.Add(box);
+        var tailRow = new StackPanel { Orientation = Orientation.Horizontal };
+        tailRow.Children.Add(new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse("M0,0 L10,0 L2,8 Z"),
+            Fill = Cream,
+            Stroke = Ink,
+            StrokeThickness = Flat.Top,
+            Margin = new Thickness(12 * U, -Flat.Top, 6 * U, 0),
+            SnapsToDevicePixels = true,
+        });
+        tailRow.Children.Add(new TextBlock { Text = when, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center });
+        stack.Children.Add(tailRow);
+        return stack;
+    }
+
     private static string Ago(DateTime at)
     {
         var d = DateTime.Now - at;
@@ -1420,29 +1449,20 @@ public sealed class MenuWindow : Window
             if (said.Count > 0)
             {
                 _saidBox.Children.Add(new TextBlock { Text = "Последно каза", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 8, 0, 3 * U) });
-                var shown = _saidOpen ? said.Reverse().Take(5).ToList() : new List<(DateTime At, string Text)> { said[^1] };
+                // Като балончетата му: последното; цъкнеш ли го – последните 6 (най-новото долу).
+                var shown = _saidOpen ? said.Skip(Math.Max(0, said.Count - 6)).ToList() : new List<(DateTime At, string Text)> { said[^1] };
                 foreach (var (at, text) in shown)
                 {
-                    var line = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 3 * U) };
-                    line.Inlines.Add(new System.Windows.Documents.Run("„" + text + "“") { FontStyle = FontStyles.Italic });
-                    line.Inlines.Add(new System.Windows.Documents.Run("  " + Ago(at)) { Foreground = Muted });
-                    _saidBox.Children.Add(line);
-                }
-                if (said.Count > 1)
-                {
-                    var more = new TextBlock
-                    {
-                        Text = _saidOpen ? "▴ по-малко" : $"▾ още {Math.Min(4, said.Count - 1)}",
-                        Foreground = Muted,
-                        Cursor = System.Windows.Input.Cursors.Hand,
-                    };
-                    more.MouseLeftButtonUp += (_, _) =>
+                    var bubble = SpeechBubble(text, Ago(at));
+                    bubble.Cursor = System.Windows.Input.Cursors.Hand;
+                    bubble.ToolTip = Tip(_saidOpen ? "Скрий предишните" : "Покажи какво още е казал");
+                    bubble.MouseLeftButtonUp += (_, _) =>
                     {
                         _saidOpen = !_saidOpen;
                         _saidKey = "";
                         UpdateBearCards(_pet.Save);
                     };
-                    _saidBox.Children.Add(more);
+                    _saidBox.Children.Add(bubble);
                 }
             }
         }
@@ -1572,6 +1592,8 @@ public sealed class MenuWindow : Window
         if (_petWanted != wants)
         {
             _petWanted = wants;
+            _petTile.Button.IsEnabled = wants;   // не иска – не се цъка изобщо
+            ToolTipService.SetShowOnDisabled(_petTile.Button, true);
             _petTile.Button.Opacity = wants ? 1 : 0.55;
             _petTile.Button.ToolTip = Tip(wants ? "Иска да го погалиш!" : "Ще поиска да го погалиш по-късно – няколко пъти на ден");
         }

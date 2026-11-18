@@ -933,13 +933,33 @@ public sealed class WorkView : Border
         if (day != null && planned > 0)
             head.Children.Add(new TextBlock { Text = "задачи: " + TaskCards.Duration(planned), Foreground = Muted, Margin = new Thickness(0, 2 * U, 0, 0) });
 
+        // Жълтото часовниче: пренесените (или, без автоматично пренасяне – останалите в минали
+        // дни). Цъкнеш ли го – „Автоматично пренасяне: Да / Не“.
         int rolled = tasks.Count(t => !t.Done && t.Rolled > 0);
-        if (isToday && rolled > 0)
+        bool auto = _pet.AutoRoll;
+        int stayed = auto ? 0 : _pet.TaskState.Open.Count(t => !t.Done && t.Day is { } d && d < Today);
+        if (isToday && (rolled > 0 || stayed > 0))
         {
-            var info = IconText("history", rolled == 1 ? "1 пренесена от вчера" : $"{rolled} пренесени от минали дни");
+            string text = rolled > 0
+                ? (rolled == 1 ? "1 пренесена от вчера" : $"{rolled} пренесени от минали дни")
+                : (stayed == 1 ? "1 недовършена остана в минал ден" : $"{stayed} недовършени останаха в минали дни");
+            var info = IconText("history", text + "  ▾");
             info.Opacity = 0.75;
             info.Margin = new Thickness(0, 4 * U, 0, 0);
-            info.ToolTip = Tip("Недовършени от минали дни – дойдоха сами за днес. „План за деня“ помага да решиш какво да правиш с тях.");
+            info.Background = Brushes.Transparent;
+            info.Cursor = Cursors.Hand;
+            info.ToolTip = Tip(auto
+                ? "Недовършени от минали дни – дойдоха сами за днес. Цъкни: автоматично пренасяне да/не."
+                : "Автоматичното пренасяне е изключено – недовършените остават в деня си. Цъкни, за да го включиш.");
+            info.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                PixelPopup.Show(info, "Автоматично пренасяне", () => new PixelPopup.Entry[]
+                {
+                    new("Да – недовършените идват за днес", "history", () => { _pet.AutoRoll = true; Refresh(true); }, On: _pet.AutoRoll),
+                    new("Не – остават в деня си", "close", () => { _pet.AutoRoll = false; Refresh(true); }, On: !_pet.AutoRoll),
+                });
+            };
             head.Children.Add(info);
         }
         head.MouseRightButtonUp += (_, e) =>

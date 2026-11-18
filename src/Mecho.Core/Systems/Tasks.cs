@@ -84,7 +84,8 @@ public sealed record TaskEntry(Guid Id, string Title, string Description, int Si
 public sealed record TaskStep(Guid Id, string Title, bool Done);
 
 /// <summary>Open – днешните (и несвършените), History – свършените от минали дни, Focus – текущата.</summary>
-public sealed record TasksState(ImmutableList<TaskEntry> Open, ImmutableList<TaskEntry> History, int DoneTotal, Guid? Focus) : IStateSlice
+/// <remarks>NoAutoRoll – несвършените от минал ден НЕ идват сами за днес (остават в деня си).</remarks>
+public sealed record TasksState(ImmutableList<TaskEntry> Open, ImmutableList<TaskEntry> History, int DoneTotal, Guid? Focus, bool NoAutoRoll = false) : IStateSlice
 {
     public static TasksState Empty { get; } = new(ImmutableList<TaskEntry>.Empty, ImmutableList<TaskEntry>.Empty, 0, null);
 
@@ -137,6 +138,8 @@ public sealed record MarkTask(Guid Id, string? Tag = null, bool? Star = null, in
     int? Priority = null, DateTime? Due = null, bool ClearDue = false) : IGameCommand;
 /// <summary>Несвършените от минали дни → за днес (става и само в полунощ и при пускане).</summary>
 public sealed record RollOverTasks : IGameCommand;
+/// <summary>Автоматично пренасяне на несвършените от минали дни: да/не. Включиш ли го – пренася веднага.</summary>
+public sealed record SetAutoRoll(bool On) : IGameCommand;
 public sealed record SetTaskDone(Guid Id, bool Done) : IGameCommand;
 public sealed record DeleteTask(Guid Id) : IGameCommand;
 /// <summary>Поправя име, описание и трудност на несвършена задача (същата задача, същото място).</summary>
@@ -395,6 +398,14 @@ public sealed class TasksModule : GameModule
             RollOver();
             return CommandResult.Done;
         });
+        Handle<SetAutoRoll>(c =>
+        {
+            var s = State<TasksState>();
+            if (s.NoAutoRoll == !c.On) return CommandResult.Done;
+            Store.Set(s with { NoAutoRoll = !c.On });
+            if (c.On) RollOver();
+            return CommandResult.Done;
+        });
         Handle<ArchiveDoneTasks>(_ =>
         {
             Archive();
@@ -405,7 +416,7 @@ public sealed class TasksModule : GameModule
             ArgumentNullException.ThrowIfNull(c.Value);
             var v = c.Value;
             Store.Set(new TasksState(v.Open ?? ImmutableList<TaskEntry>.Empty, (v.History ?? ImmutableList<TaskEntry>.Empty).Take(MaxHistory).ToImmutableList(),
-                Math.Max(0, v.DoneTotal), v.Focus));
+                Math.Max(0, v.DoneTotal), v.Focus, v.NoAutoRoll));
             return CommandResult.Done;
         });
 
@@ -458,6 +469,7 @@ public sealed class TasksModule : GameModule
     private void RollOver()
     {
         var s = State<TasksState>();
+        if (s.NoAutoRoll) return;
         var today = Clock.Today();
         int count = 0;
         var open = s.Open.Select(t =>

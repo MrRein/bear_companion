@@ -226,6 +226,28 @@ public sealed partial class PetWindow
 
     private bool _deepTired;
 
+    /// <summary>Кога е пусната програмата (за сутрешното зареждане).</summary>
+    private readonly DateTime _launchedAt = DateTime.Now;
+
+    /// <summary>
+    /// Забравен е пуснат цяла нощ (програмата върви от преди 4 ч): към 7 сутринта се „наспива“
+    /// – енергията е пълна, за да не е уморен сутринта. Веднъж на ден.
+    /// </summary>
+    private void MorningRecharge()
+    {
+        var now = DateTime.Now;
+        if (now.Hour < 7 || now.Hour >= 12 || IsAsleep) return;
+        string today = now.ToString("yyyy-MM-dd");
+        if (_save.MorningCharged == today) return;
+        _save.MorningCharged = today;
+        if (_launchedAt > now.Date.AddHours(4) || _save.Energy >= 95) return;
+        _save.Energy = 100;
+        _deepTired = false;
+        if (!SelfTest.Running && !IsQuiet) Later(2, () => Say(R.Pick("morning.recharged", _save.OwnerName), 5));
+        NotifyCare();
+        Persist();
+    }
+
     /// <summary>Вика се от UpdateCare: мени енергията и следи ситуациите през деня.</summary>
     private void UpdateEnergy(double dt, double now)
     {
@@ -236,6 +258,7 @@ public sealed partial class PetWindow
         if (rate > 0) e = Math.Max(e, Math.Min(EnergyCap, e + rate * dt / 3600));
         else e += rate * dt / 3600;
         _save.Energy = Math.Clamp(e, 0, 100);
+        MorningRecharge();
 
         if (_save.Energy < 15) _deepTired = true;
         if (IsAsleep) _deepTired = false;
