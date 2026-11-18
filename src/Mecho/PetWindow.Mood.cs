@@ -14,8 +14,8 @@ public sealed partial class PetWindow
     private DateTime _proudUntil, _contentUntil, _stuffedUntil, _restedUntil, _sleepyUntil;
     private DateTime _lastTouch = DateTime.Now, _lastBusy = DateTime.Now;
 
-    private void NoteProud() => _proudUntil = DateTime.Now.AddMinutes(30);
-    private void NoteContent() => _contentUntil = DateTime.Now.AddMinutes(30);
+    private void NoteProud() => _proudUntil = DateTime.Now.AddHours(2);
+    private void NoteContent() => _contentUntil = DateTime.Now.AddMinutes(90);
     private void NoteTouched() => _lastTouch = DateTime.Now;
 
     /// <summary>Вика се всеки кадър: прави ли нещо (за „Скучае“).</summary>
@@ -28,15 +28,15 @@ public sealed partial class PetWindow
     /// <summary>Хапна: преял ли е (току-що догоре) и доволен ли е (желаното или любимото).</summary>
     private void NoteAte(Food f)
     {
-        if (_save.Fullness >= 97) _stuffedUntil = DateTime.Now.AddMinutes(20);
+        if (_save.Fullness >= 97) _stuffedUntil = DateTime.Now.AddMinutes(60);
         if (_save.WishList.Contains(f.Id) || _save.FavFood == f.Id) NoteContent();
     }
 
     /// <summary>Събуди се: сутрин – сънен; след дрямка – отпочинал.</summary>
     private void NoteWoke(bool morning)
     {
-        if (morning) _sleepyUntil = DateTime.Now.AddMinutes(20);
-        else if (_save.Energy >= 80) _restedUntil = DateTime.Now.AddMinutes(30);
+        if (morning) _sleepyUntil = DateTime.Now.AddMinutes(45);
+        else if (_save.Energy >= 80) _restedUntil = DateTime.Now.AddMinutes(90);
     }
 
     /// <summary>Едно изречение и ниво 1 (много зле) – 5 (щастлив).</summary>
