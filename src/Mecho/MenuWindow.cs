@@ -1172,7 +1172,7 @@ public sealed class MenuWindow : Window
     private readonly TextBlock _nowTitle = new() { FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _nowSub = new() { Foreground = Muted, TextWrapping = TextWrapping.Wrap };
     private readonly Border _moodIcon = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
-    private readonly TextBlock _moodText = new() { VerticalAlignment = VerticalAlignment.Center };
+    private readonly TextBlock _moodText = new() { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
     private readonly StackPanel _timerBox = new();
     private readonly TextBlock _timerKindText = new() { FontWeight = FontWeights.Bold, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock _timerSubText = new() { Foreground = Muted, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -1209,7 +1209,8 @@ public sealed class MenuWindow : Window
     private UIElement BuildNowCard()
     {
         var stack = new StackPanel();
-        var mood = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+        var mood = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+        DockPanel.SetDock(_moodIcon, Dock.Left);
         mood.Children.Add(_moodIcon);
         mood.Children.Add(_moodText);
         stack.Children.Add(mood);
@@ -1661,6 +1662,7 @@ public sealed class MenuWindow : Window
             {
                 Text = goal.Done ? "Браво! Новата мисия почва утре." : goal.Days <= 1 ? "Почна днес – има време, няколко дни." : $"Ден {goal.Days} от мисията.",
                 Foreground = Muted,
+                TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 3 * U, 0, 0),
             });
         }
