@@ -130,34 +130,6 @@ internal sealed class DayTimeline : DockPanel
     private IEnumerable<TaskItem> Unscheduled(DateTime day) =>
         day < _pet.TaskToday ? Enumerable.Empty<TaskItem>() : _pet.TaskState.Open.Where(t => t.Day == day && t.Start == null && !t.Done);
 
-    /// <summary>
-    /// Предложеното време за задачите без час: една след друга от сега (днес) или от 9:00
-    /// (следващите дни), без да се застъпват със сложените в графика.
-    /// </summary>
-    private List<(TaskItem Task, DateTime Start)> Projected(DateTime day)
-    {
-        var busy = Scheduled(day).Where(t => !t.Done).Select(t => (From: t.Start!.Value, To: t.Start!.Value.AddMinutes(Length(t)))).OrderBy(x => x.From).ToList();
-        var now = DateTime.Now;
-        var at = day == _pet.TaskToday
-            ? now.Date.AddHours(now.Hour).AddMinutes((now.Minute / Snap + 1) * Snap)
-            : day.AddHours(9);
-        var list = new List<(TaskItem, DateTime)>();
-        foreach (var t in Unscheduled(day))
-        {
-            int len = Length(t);
-            bool moved = true;
-            while (moved)
-            {
-                moved = false;
-                foreach (var b in busy)
-                    if (at < b.To && at.AddMinutes(len) > b.From) { at = b.To; moved = true; }
-            }
-            if (at.Date != day) break;   // не се събира до края на деня
-            list.Add((t, at));
-            at = at.AddMinutes(len);
-        }
-        return list;
-    }
 
     public void Refresh(bool force = false)
     {

@@ -160,7 +160,7 @@ public sealed class MenuWindow : Window
                 WorkView.View.Review => PageReview,
                 WorkView.View.Backlog => PageBacklog,
                 WorkView.View.Calendar => PageCalendar,
-                _ => _page is PagePlan or PageShutdown ? _page : PageToday,
+                _ => PageToday,
             };
             if (page == _page || !IsWorkPage) return;
             _page = page;
@@ -284,7 +284,7 @@ public sealed class MenuWindow : Window
     public const int WorkPage = 8;
 
     public const string PageBear = "bear", PageFood = "food", PageWardrobe = "wardrobe", PageShop = "shop",
-        PageToday = "today", PageFocus = "focus", PageNotes = "notes", PagePlan = "plan", PageShutdown = "shutdown",
+        PageToday = "today", PageFocus = "focus", PageNotes = "notes",
         PageWeek = "week", PageReview = "review", PageMore = "more", PageCalendar = "calendar", PageBacklog = "backlog";
 
     /// <summary>Страница: иконка, име, кой таб показва, на кое място в лентата (Group – под „Работа“).</summary>
@@ -306,8 +306,6 @@ public sealed class MenuWindow : Window
         new(PageFood, "food", "Храна", FoodTab, false),
         new(PageWardrobe, "wardrobe", "Гардероб", WardrobeTab, false),
         // Поканите в „Днес“ (от иконката до часовника):
-        new(PagePlan, "sun", "План за деня", WorkPage, false, Work: true),
-        new(PageShutdown, "moon", "Край на деня", WorkPage, false, Work: true),
     };
 
     public static bool IsPage(string? id) => Pages.Any(p => p.Id == id);
@@ -333,8 +331,7 @@ public sealed class MenuWindow : Window
         var page = Pages.FirstOrDefault(p => p.Id == id) ?? Pages[0];
         if (page.Tab == WardrobeTab && !DailyOffer.HasWardrobe(_pet.Save)) page = Pages[0];
         _page = page.Id;
-        // „План за деня“ и „Край на деня“ не се помнят – иначе всяко отваряне на менюто пак ги вади.
-        _pet.Save.MenuPage = page.Id is PagePlan or PageShutdown ? PageToday : page.Id;
+        _pet.Save.MenuPage = page.Id;
         if (page.Work) _workNavOpen = true;
         SelectTab(page.Tab);
         switch (page.Id)
@@ -344,8 +341,6 @@ public sealed class MenuWindow : Window
             case PageReview: Work.SetView(WorkView.View.Review); break;
             case PageCalendar: Work.SetView(WorkView.View.Calendar); break;
             case PageBacklog: Work.SetView(WorkView.View.Backlog); break;
-            case PagePlan: Work.OpenSide("plan"); break;
-            case PageShutdown: Work.OpenSide("shutdown"); break;
         }
         UpdateNavSelection();
         UpdateHero();
@@ -734,9 +729,9 @@ public sealed class MenuWindow : Window
     private void UpdateNavSelection()
     {
         bool inWork = IsWorkPage;
-        if (inWork) _lastWorkPage = _page is PagePlan or PageShutdown ? PageToday : _page;
+        if (inWork) _lastWorkPage = _page;
         // Храна и Гардероб са в „Мечо“.
-        string selected = _page is PageFood or PageWardrobe ? PageBear : _page is PagePlan or PageShutdown ? PageToday : _page;
+        string selected = _page is PageFood or PageWardrobe ? PageBear : _page;
         foreach (var (id, (item, _)) in _navItems)
             SetOn(item, id == selected || (id == "work" && inWork));
         _workChildren.Visibility = _workNavOpen ? Visibility.Visible : Visibility.Collapsed;
@@ -747,8 +742,6 @@ public sealed class MenuWindow : Window
         {
             PageFood => "Мечо  ›  Храна",
             PageWardrobe => "Мечо  ›  Гардероб",
-            PagePlan => "Работа  ›  План за деня",
-            PageShutdown => "Работа  ›  Край на деня",
             _ when info?.Work == true => "Работа  ›  " + info.Name,
             _ => info?.Name ?? "Мечо",
         };
@@ -1382,6 +1375,19 @@ public sealed class MenuWindow : Window
         return grid;
     }
 
+    /// <summary>Твоят отговор на въпроса му – медено балонче вдясно.</summary>
+    private static FrameworkElement AnswerBubble(string text) => new Border
+    {
+        Background = HoneySoft,
+        BorderBrush = WoodDark,
+        BorderThickness = new Thickness(Math.Max(2, P)),
+        CornerRadius = new CornerRadius(9),
+        Padding = new Thickness(10 * U, 4 * U, 10 * U, 5 * U),
+        Margin = new Thickness(40 * U, -2 * U, 0, 8 * U),
+        HorizontalAlignment = HorizontalAlignment.Right,
+        Child = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.Bold },
+    };
+
     /// <summary>Какво прави – в трето лице, кратко („Чете книжка“).</summary>
     private static string DoingNow(Scene scene) => scene.Id switch
     {
@@ -1413,8 +1419,11 @@ public sealed class MenuWindow : Window
             var root = new StackPanel { Width = 300 * U, Margin = new Thickness(6 * U, 4 * U, 6 * U, 4 * U) };
             root.Children.Add(IconText("history", "Какво каза Мечо", bold: true));
             var list = new StackPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
-            foreach (var (at, text) in _pet.Said)
-                list.Children.Add(ChatBubble(text, Ago(at)));
+            foreach (var line in _pet.Said)
+            {
+                list.Children.Add(ChatBubble(line.Text, Ago(line.At)));
+                if (line.Answer is { Length: > 0 } ans) list.Children.Add(AnswerBubble(ans));
+            }
             var scroll = new ScrollViewer { Content = list, MaxHeight = 380 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             scroll.Loaded += (_, _) => scroll.ScrollToEnd();
             root.Children.Add(scroll);
@@ -1647,7 +1656,7 @@ public sealed class MenuWindow : Window
                 hist.Margin = new Thickness(0, 4 * U, 8 * U, 0);
                 DockPanel.SetDock(hist, Dock.Left);
                 row.Children.Add(hist);
-                var bubble = ChatBubble(said[^1].Text, Ago(said[^1].At), maxLines: 2);
+                var bubble = ChatBubble(said[^1].Text + (said[^1].Answer is { Length: > 0 } a0 ? "\n→ " + a0 : ""), Ago(said[^1].At), maxLines: 2);
                 bubble.Cursor = System.Windows.Input.Cursors.Hand;
                 bubble.ToolTip = Tip(said.Count > 1 ? $"Цъкни – още {said.Count - 1}" : "Цъкни");
                 var (box, tail) = ((Border)((Grid)bubble).Children[0], (System.Windows.Shapes.Path)((Grid)bubble).Children[1]);
@@ -4014,7 +4023,7 @@ public sealed class MenuWindow : Window
             wardrobe.Item.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
 
         // Мечо
-        _portrait.Source = _pet.MoodPortrait;   // изражението: гладен – тъжен, уморен – уморен…
+        _portrait.Source = _pet.Portrait;   // само основното (без различни изражения) – как е, пише в „За Мечо“
         _portraitBg.Source = _modelBg.Source = _pet.BackdropImage(_pet.CurrentBackdrop);
         BuildGoal();
         _mood.Text = _pet.IsAsleep ? "Ззз… спи сладко" :

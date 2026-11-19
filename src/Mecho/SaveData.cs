@@ -133,6 +133,7 @@ public sealed class SaveData
     public string MissionStart { get; set; } = "";             // от кой ден се брои (yyyy-MM-dd)
     public bool MissionDone { get; set; }                      // изпълнена и платена
     public string MissionDoneDay { get; set; } = "";           // кога – новата почва от следващия ден
+    public List<SaidLine> Said { get; set; } = new();          // последните 10 неща, казани от него (и въпросите с избрания отговор)
     public string MorningCharged { get; set; } = "";         // в кой ден вече се е „наспал“ сутрин (пуснат цяла нощ)
     public string PetDay { get; set; } = "";                   // за кой ден са PetTimes
     public string PetTimes { get; set; } = "";                 // кога днес ще поиска да го погалиш (минути от полунощ), още непоявилите се
@@ -976,6 +977,14 @@ public sealed class LegacyTaskItem
 }
 
 /// <summary>Един ден заедно: колко сме работили, какво е ял, кога е легнал… (за спомените).</summary>
+/// <summary>Нещо казано: от мечока (или въпрос) – и избраният отговор, ако е въпрос.</summary>
+public sealed class SaidLine
+{
+    public DateTime At { get; set; }
+    public string Text { get; set; } = "";
+    public string? Answer { get; set; }
+}
+
 /// <summary>Едно нещо от деня в Мечешкия дневник: кога, иконка, какво.</summary>
 public sealed class DayEvent
 {
@@ -1001,7 +1010,6 @@ public sealed class DayRecord
     public DateTime? BedAt { get; set; }       // кога легна за деня
     public double MinFullness { get; set; } = 100;
     public List<DayEvent> Events { get; set; } = new();          // дневникът на деня (Мечешки дневник), най-много 40
-    public Dictionary<string, int> NutsBy { get; set; } = new(); // спечелените лешници днес – по откъде
     public string Goal { get; set; } = "";                       // мечешката цел за деня (id)
     public bool GoalPaid { get; set; }                           // изпълнена е и наградата е дадена
     public int DesiresMet { get; set; }                          // колко негови желания (разходка, диван…) си изпълнил

@@ -97,6 +97,7 @@ public sealed class ChatWindow : Window
             var b = Button(label, () =>
             {
                 Hide();
+                _pet.NoteAnswer(question.Text, Ui.StripEmoji(label));
                 o.Do(_pet);
             });
             b.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -115,6 +116,7 @@ public sealed class ChatWindow : Window
                 string text = _free.Text.Trim();
                 if (text.Length == 0) return;
                 Hide();
+                _pet.NoteAnswer(question.Text, text);
                 free(_pet, text);
             }
             _free.KeyDown -= _freeKey;

@@ -1309,19 +1309,19 @@ public sealed partial class PetWindow
             // Мисията: стигнеш ли я – лешници веднъж, новата почва от утре.
             var rec = TodayRecord;
             var (mid, mstart, mdone, mday) = (_save.MissionId, _save.MissionStart, _save.MissionDone, _save.MissionDoneDay);
-            _save.MissionId = "pet12";
+            _save.MissionId = "desires20";
             _save.MissionStart = DateTime.Today.ToString("yyyy-MM-dd");
             _save.MissionDone = false;
-            int petted = rec.Petted;
-            rec.Petted = 12;
+            int petted = rec.DesiresMet;
+            rec.DesiresMet = 20;
             int before = _save.Hazelnuts;
             CheckBearGoal();
             if (!_save.MissionDone || _save.Hazelnuts <= before) throw new Exception("мисията не даде лешници");
             int after = _save.Hazelnuts;
             CheckBearGoal();
             if (_save.Hazelnuts != after) throw new Exception("мисията плати два пъти");
-            if (CurrentMission.Text != "Погали го 12 пъти") throw new Exception("новата мисия почна още днес");
-            rec.Petted = petted;
+            if (CurrentMission.Text != "Изпълни му 20 желания") throw new Exception("новата мисия почна още днес");
+            rec.DesiresMet = petted;
             (_save.MissionId, _save.MissionStart, _save.MissionDone, _save.MissionDoneDay) = (mid, mstart, mdone, mday);
             // Желание: появява се в часа си и се изпълнява с разходка/диван.
             _save.Desire = "rest";
@@ -1638,28 +1638,6 @@ public sealed partial class PetWindow
             p.TestSearch("");
             p.UpdateLayout();
         }, 500);
-        await step("задачи: план за деня и край на деня", () =>
-        {
-            var p = Work!;
-            p.TestSide("plan");
-            p.UpdateLayout();
-            if (p.SideShown != "Plan") throw new Exception("планът не се отвори");
-            Shot(_menu!, "planner_3_plan");
-            LayoutReport(_menu!, "planner_3_plan");
-            PlannedToday();
-            if (_save.PlannedDay != TaskToday.ToString("yyyy-MM-dd")) throw new Exception("денят не е планиран");
-            p.TestSide("shutdown");
-            p.UpdateLayout();
-            if (p.SideShown != "Shutdown") throw new Exception("краят на деня не се отвори");
-            Shot(_menu!, "planner_4_shutdown");
-            LayoutReport(_menu!, "planner_4_shutdown");
-            ShutdownToday("Тестов ден – мина добре.");
-            if (!_save.DayNotes.ContainsKey(TaskToday.ToString("yyyy-MM-dd"))) throw new Exception("бележката за деня не се запази");
-            _save.DayNotes.Remove(TaskToday.ToString("yyyy-MM-dd"));
-            _save.PlannedDay = _save.ShutdownDay = "";
-            p.TestSide("");
-            HideBubble();
-        }, 600);
         await step("работа: днес и сега", () =>
         {
             var p = Work!;
@@ -1855,7 +1833,7 @@ public sealed partial class PetWindow
             foreach (var small in new[] { false, true })
             {
                 foreach (var page in new[] { MenuWindow.PageBear, MenuWindow.PageFood, MenuWindow.PageShop, MenuWindow.PageNotes, MenuWindow.PageMore,
-                    MenuWindow.PageToday, MenuWindow.PageFocus, MenuWindow.PagePlan, MenuWindow.PageShutdown, MenuWindow.PageWeek,
+                    MenuWindow.PageToday, MenuWindow.PageFocus, MenuWindow.PageWeek,
                     MenuWindow.PageCalendar, MenuWindow.PageBacklog, MenuWindow.PageReview })
                 {
                     _menu!.SelfTestPage(page);

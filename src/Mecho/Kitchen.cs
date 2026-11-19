@@ -142,26 +142,6 @@ public static class Kitchen
         ["waffle_choco"] = "waffle_chocolate", ["waffle_honey"] = "waffle_blueberry", ["icecream_honey"] = "icecream_vanilla",
     };
 
-    /// <summary>
-    /// Какво му се яде днес: 1–2 ястия от тези, които може да се сготвят (уред и
-    /// рецепта ги има). Различно всеки ден, но едно и също през деня.
-    /// </summary>
-    public static Food[] Cravings(SaveData save)
-    {
-        var can = Foods.Where(f => f.Cost > 0 && Regular(f) && CanCook(f, save)).OrderBy(f => f.Id).ToList();
-        if (can.Count == 0) return Array.Empty<Food>();
-        var day = new Random(DateTime.Today.Year * 1000 + DateTime.Today.DayOfYear + 31);
-        // Едно желание на ден; с повече от 8 рецепти понякога 2 или 3 (не всеки ден).
-        int count = 1;
-        if (can.Count > 8)
-        {
-            double roll = day.NextDouble();
-            count = roll < 0.45 ? 1 : roll < 0.8 ? 2 : 3;
-        }
-        return can.OrderBy(_ => day.Next()).Take(count).ToArray();
-    }
-
-    public static bool IsCraving(Food f, SaveData save) => Cravings(save).Contains(f);
 
     // ── Храненията: кое за кога е логично ──
 

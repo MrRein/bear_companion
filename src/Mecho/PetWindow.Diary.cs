@@ -13,18 +13,30 @@ public sealed partial class PetWindow
 {
     // ── Последно казано ──
 
-    private readonly List<(DateTime At, string Text)> _said = new();
-
-    /// <summary>Последните реплики (най-новата – последна), най-много 10.</summary>
-    public IReadOnlyList<(DateTime At, string Text)> Said => _said;
+    /// <summary>Последните 10 казани неща (най-новото – последно); пазят се в записа.</summary>
+    public IReadOnlyList<SaidLine> Said => _save.Said;
 
     private void NoteSaid(string text)
     {
         text = text.Trim();
         if (text.Length == 0) return;
-        if (_said.Count > 0 && _said[^1].Text == text) return;
-        _said.Add((DateTime.Now, text));
-        if (_said.Count > 10) _said.RemoveAt(0);
+        var said = _save.Said;
+        if (said.Count > 0 && said[^1].Text == text && said[^1].Answer == null) return;
+        said.Add(new SaidLine { At = DateTime.Now, Text = text });
+        if (said.Count > 10) said.RemoveRange(0, said.Count - 10);
+    }
+
+    /// <summary>Попита нещо: въпросът влиза в „Последно каза“ (отговорът – щом избереш).</summary>
+    internal void NoteQuestion(string text) => NoteSaid(text);
+
+    /// <summary>Избра отговор на въпроса му: записва се към въпроса.</summary>
+    internal void NoteAnswer(string question, string answer)
+    {
+        var line = _save.Said.LastOrDefault(l => l.Text == question.Trim() && l.Answer == null);
+        if (line == null) return;
+        line.Answer = answer.Trim();
+        Persist();
+        NotifyCare();
     }
 
     // ── Дневникът на деня ──
@@ -53,9 +65,6 @@ public sealed partial class PetWindow
         {
             // Само спечеленото (не върнатото при отказ, не Developer, не старите записи).
             if (c.New <= c.Old || c.Reason is null or "стар код" or "стар запис") return;
-            string why = c.Reason switch { "задача" => "задачи", "работа" => "работа", _ => c.Reason };
-            var by = TodayRec.NutsBy;
-            by[why] = (by.TryGetValue(why, out var n) ? n : 0) + (c.New - c.Old);
             ShowNutsGained(c.New - c.Old);
         });
     }
@@ -71,16 +80,6 @@ public sealed partial class PetWindow
         // Над главата му (малко вдясно – да не закрие емоцията).
         var head = new System.Windows.Point(_bearRect.Left + _bearRect.Width * 0.6, _bearRect.Top + _bearRect.Height * 0.15);
         Dispatcher.BeginInvoke(() => new NutPopWindow(nuts, head).Pop());
-    }
-
-    /// <summary>Спечелените днес лешници (общо и по откъде, най-много първо).</summary>
-    public (int Total, (string Why, int Nuts)[] By) NutsToday
-    {
-        get
-        {
-            var by = TodayRec.NutsBy.OrderByDescending(kv => kv.Value).Select(kv => (kv.Key, kv.Value)).ToArray();
-            return (by.Sum(x => x.Value), by);
-        }
     }
 
     // ── Желания: 20 неща, които понякога иска (плюс гушката – виж PetWindow.Petting.cs) ──
@@ -256,8 +255,7 @@ public sealed partial class PetWindow
         new("work15", "Работете заедно 15 часа", 900, 40, d => (int)d.Sum(r => r.WorkMinutes)),
         new("focus20", "Направете 20 фокуса", 20, 35, d => d.Sum(r => r.Pomodoros)),
         new("foods12", "Опитайте 12 различни ястия", 12, 30, d => d.SelectMany(r => r.Foods).Distinct().Count()),
-        new("pet12", "Погали го 12 пъти", 12, 30, d => d.Sum(r => r.Petted)),
-        new("desires10", "Изпълни 10 негови желания", 10, 35, d => d.Sum(r => r.DesiresMet)),
+        new("desires20", "Изпълни му 20 желания", 20, 40, d => d.Sum(r => r.DesiresMet)),
         new("streak5", "5 дни подред със свършена задача", 5, 40, Streak),
     };
 

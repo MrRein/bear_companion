@@ -32,13 +32,10 @@ public sealed partial class PetWindow
     public void OpenPlanner() => OpenPlanner("");
 
     /// <summary>
-    /// Отваря „Работа“ (менюто става голямо): "" – Днес, "plan" – План за деня, "shutdown" – Край
-    /// на деня, "week" – Седмица, "review" – Преглед на седмицата.
+    /// Отваря „Работа“ (менюто става голямо): "" – Днес, "week" – Седмица, "review" – Преглед на седмицата.
     /// </summary>
     public void OpenPlanner(string side) => OpenMenuPage(side switch
     {
-        "plan" => MenuWindow.PagePlan,
-        "shutdown" => MenuWindow.PageShutdown,
         "week" => MenuWindow.PageWeek,
         "review" => MenuWindow.PageReview,
         _ => MenuWindow.PageToday,
@@ -166,39 +163,6 @@ public sealed partial class PetWindow
         if (FocusTask is { } t && minutes >= 1) CoreEngine.Bus.Send(new AddTaskTime(t.Id, (int)Math.Round(minutes)));
     }
 
-    /// <summary>„План за деня“ е готов: мечокът се радва (веднъж на ден).</summary>
-    public void PlannedToday()
-    {
-        string key = TaskToday.ToString("yyyy-MM-dd");
-        bool first = _save.PlannedDay != key;
-        _save.PlannedDay = key;
-        if (first)
-        {
-            var (_, all, minutes) = TodayLoad();
-            Say(R.Text("tasks.planned", _save.OwnerName, ("брой", all.ToString())) + (minutes > 0 ? $" (~{TaskCards.Duration(minutes)})" : ""), 5);
-            React("happy");
-        }
-        Persist();
-    }
-
-    /// <summary>„Край на деня“: записва как е минал и мечокът казва нещо хубаво.</summary>
-    public void ShutdownToday(string note)
-    {
-        string key = TaskToday.ToString("yyyy-MM-dd");
-        note = note.Trim();
-        if (note.Length > 0) _save.DayNotes[key] = note.Length > 2000 ? note[..2000] : note;
-        else _save.DayNotes.Remove(key);
-        bool first = _save.ShutdownDay != key;
-        _save.ShutdownDay = key;
-        if (first)
-        {
-            var (done, _, _) = TodayLoad();
-            Say(R.Text(done > 0 ? "tasks.shutdown" : "tasks.shutdown.none", _save.OwnerName, ("брой", done.ToString())), 6);
-            React(done > 0 ? "dance" : "happy", done > 0 ? 2 : 0);
-        }
-        NotifyCare();
-        Persist();
-    }
 
     // ── Прегледът на седмицата ──
 

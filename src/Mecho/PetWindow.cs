@@ -364,7 +364,12 @@ public sealed partial class PetWindow : Window
             UpdateButterfly(dt);
             P("пеперуда");
             UpdateGifts(now);
-            UpdatePetting();
+            // Желанията, гушките, мисията: веднъж в секунда стига (не всеки кадър).
+            if (now >= _nextWishTick)
+            {
+                _nextWishTick = now + 1;
+                UpdatePetting();
+            }
             P("подаръци");
             UpdateLife(now);
             P("живот (гости, приказки)");
@@ -1222,6 +1227,7 @@ public sealed partial class PetWindow : Window
         if (MenuIsOpen) _menu!.Hide();
         HideBubble();
         _chat ??= new ChatWindow(this);
+        NoteQuestion(question.Text);
         _chat.Ask(question, _bearRect, Area);
     }
 

@@ -11,7 +11,7 @@ namespace Mecho;
 /// </summary>
 public sealed partial class PetWindow
 {
-    private DateTime _proudUntil, _contentUntil, _stuffedUntil, _restedUntil, _sleepyUntil;
+    private DateTime _proudUntil, _contentUntil, _stuffedUntil, _restedUntil, _sleepyUntil, _sadUntil;
     private DateTime _lastTouch = DateTime.Now, _lastBusy = DateTime.Now;
 
     private void NoteProud() => _proudUntil = DateTime.Now.AddHours(2);
@@ -29,7 +29,7 @@ public sealed partial class PetWindow
     private void NoteAte(Food f)
     {
         if (_save.Fullness >= 97) _stuffedUntil = DateTime.Now.AddMinutes(60);
-        if (_save.WishList.Contains(f.Id) || _save.FavFood == f.Id) NoteContent();
+        if (_save.WishList.Contains(f.Id)) NoteContent();
     }
 
     /// <summary>Събуди се: сутрин – сънен; след дрямка – отпочинал.</summary>
@@ -71,9 +71,10 @@ public sealed partial class PetWindow
                 : now < _stuffedUntil ? ("Преял", 0)
                 : now < _restedUntil ? ("Отпочинал", 1)
                 : now < _sleepyUntil ? ("Сънен", 0)
+                : now < _sadUntil ? ("Тъжничък", -1)
                 : WantsPetting || CurrentDesire != null ? ("Иска внимание", 0)
                 : now - _lastTouch > TimeSpan.FromHours(3) && now - _launchedAt > TimeSpan.FromHours(3) ? ("Самотен", -1)
-                : now - _lastBusy > TimeSpan.FromMinutes(40) ? ("Скучае", -1)
+                : now - _lastBusy > TimeSpan.FromMinutes(90) && now - _lastTouch > TimeSpan.FromMinutes(40) ? ("Скучае", -1)
                 : CurrentFun is { } fun && !Scenes.Work.Contains(fun) || RelaxesRandomly ? ("Спокоен", 0)
                 : null;
 

@@ -13,6 +13,7 @@ namespace Mecho;
 public sealed partial class PetWindow
 {
     private const double PetWindowMinutes = 40;
+    private double _nextWishTick;
 
     /// <summary>Може ли да се погали сега (иска да го погалиш).</summary>
     public bool WantsPetting => DateTime.Now < _save.PetOpenUntil && !IsAsleep && !OnWalk;
@@ -52,8 +53,35 @@ public sealed partial class PetWindow
             _nextGoalCheck = DateTime.Now.AddSeconds(3);
             CheckBearGoal();
         }
+        MissedWishes();
         UpdatePetWish();
         UpdateDesires();
+    }
+
+    /// <summary>
+    /// Желание (или гушка), което никой не изпълни, изтече: казва нещо кратко („Е, няма нищо…“)
+    /// и за малко е тъжничък. Без наказание – просто да личи.
+    /// </summary>
+    private void MissedWishes()
+    {
+        var now = DateTime.Now;
+        bool missed = false;
+        if (_save.Desire.Length > 0 && _save.DesireUntil <= now)
+        {
+            _save.Desire = "";
+            _save.DesireUntil = DateTime.MinValue;
+            missed = true;
+        }
+        if (_save.PetOpenUntil != DateTime.MinValue && _save.PetOpenUntil <= now)
+        {
+            _save.PetOpenUntil = DateTime.MinValue;
+            missed = true;
+        }
+        if (!missed) return;
+        _sadUntil = now.AddMinutes(30);
+        Persist();
+        NotifyCare();
+        if (!IsAsleep && !IsQuiet && !InFocus) Mutter(R.Pick("desire.missed", _save.OwnerName), 4);
     }
 
     /// <summary>Дошъл ли е часът да поиска гушка (само ако е свободен и няма друго желание).</summary>

@@ -25,7 +25,7 @@ namespace Mecho;
 /// </summary>
 public sealed class WorkView : Border
 {
-    private enum Side { None, Details, Plan, Shutdown }
+    private enum Side { None, Details }
 
     private readonly PetWindow _pet;
     private readonly StackPanel _strip = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(6, 0, 0, 0) };
@@ -56,7 +56,6 @@ public sealed class WorkView : Border
     private bool _starOnly;
     private string _query = "";
     private string _sideShown = "";
-    private string? _shutdownDraft;
     private Action? _undo;
     private (bool Has, DateTime? Day) _refocus;
     private enum FocusOn { None, Title, NewStep }
@@ -296,7 +295,6 @@ public sealed class WorkView : Border
     {
         Commit();
         // „План за деня“ и „Край на деня“ са само в „Днес“ – в другите изгледи се затварят.
-        if (view != View.Today && _sideMode is Side.Plan or Side.Shutdown) _sideMode = Side.None;
         if (view == View.Today) _todayDay = null;   // „Днес“ винаги почва от днешния ден
         bool changed = _view != view;
         _view = view;
@@ -428,17 +426,15 @@ public sealed class WorkView : Border
         FocusAdd(Today);
     }
 
-    /// <summary>Отваря от вън плана или края на деня.</summary>
+    /// <summary>Отваря от вън прегледа на седмицата (или затваря страничната карта).</summary>
     public void OpenSide(string side)
     {
-        // Планът и краят на деня са в „Днес“; прегледът – в „Преглед“.
         if (side == "review")
         {
             SetView(View.Review);
             return;
         }
-        if (side is "plan" or "shutdown" && _view != View.Today) SetView(View.Today);
-        ShowSide(side == "plan" ? Side.Plan : side == "shutdown" ? Side.Shutdown : Side.None);
+        ShowSide(Side.None);
     }
 
     // ───────────────────────── Превъртане ─────────────────────────
@@ -1435,12 +1431,7 @@ public sealed class WorkView : Border
         _sideDirty = false;
         _commits.Clear();
         _side.Visibility = Visibility.Visible;
-        var content = _sideMode switch
-        {
-            Side.Details => Details(t!),
-            Side.Plan => Plan(),
-            _ => Shutdown(),
-        };
+        var content = Details(t!);
         _side.Child = SideCard(content);
     }
 
@@ -3046,116 +3037,6 @@ public sealed class WorkView : Border
         }
         row.Children.Add(body);
         return row;
-    }
-
-    // ── План за деня ──
-
-    private UIElement Plan()
-    {
-        var today = Today;
-        var state = _pet.TaskState;
-        var p = new StackPanel();
-        p.Children.Add(SideHeader("План за " + DayName(today) + ", " + today.ToString("d MMMM", Bg), () => ShowSide(Side.None)));
-        p.Children.Add(new TextBlock
-        {
-            Text = "Две кратки стъпки: какво да правим с вчерашните и какво да вземем от Чакащи.",
-            Foreground = Muted,
-            TextWrapping = TextWrapping.Wrap,
-        });
-
-        // 1. От минали дни.
-        var rolled = state.Open.Where(t => !t.Done && t.Day == today && t.Rolled > 0).ToList();
-        p.Children.Add(Label($"1. Пренесени от минали дни · {rolled.Count}"));
-        if (rolled.Count == 0) p.Children.Add(MenuWindow.MutedText("Няма – чисто начало!"));
-        foreach (var t in rolled)
-            p.Children.Add(MiniRow(t,
-                ("Утре", "За утре", () => MoveWithToast(t, today.AddDays(1))),
-                ("Чакащи", "Без ден – в „Чакащи“", () => MoveWithToast(t, null)),
-                ("✕", "Изтрий", () => _pet.DeleteTask(t))));
-
-        // Без време ли са някои – кратка бележка (часовете за работа се сменят в „Днес“).
-        var todays = state.OnDay(today).ToList();
-        int unknown = todays.Count(t => !t.Done && t.Minutes == 0);
-        if (unknown > 0)
-            p.Children.Add(new TextBlock
-            {
-                Text = unknown == 1 ? "1 задача е без време – цъкни я и кажи колко ще отнеме." : $"{unknown} задачи са без време – цъкни ги и кажи колко ще отнемат.",
-                Foreground = Muted,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 4 * U, 0, 0),
-            });
-
-        // 2. От Backlog.
-        var someday = state.Someday.Where(t => t.Bucket != TaskItem.Never).ToList();
-        p.Children.Add(Label($"2. Нещо от Чакащи? · {someday.Count}"));
-        if (someday.Count == 0) p.Children.Add(MenuWindow.MutedText("Няма чакащи задачи."));
-        foreach (var t in someday.OrderBy(t => t.Star ? 0 : 1).Take(12))
-            p.Children.Add(MiniRow(t, ("+ Днес", "Сложи я за днес", () => MoveWithToast(t, today))));
-        if (someday.Count > 12) p.Children.Add(MenuWindow.MutedText($"… и още {someday.Count - 12} (в колоната вляво)."));
-
-        var go = Button("Готово – почваме!", Act(() =>
-        {
-            _pet.PlannedToday();
-            ShowSide(Side.None);
-        }), primary: true, icon: "sun");
-        go.Margin = new Thickness(0, 14 * U, 0, 0);
-        go.HorizontalAlignment = HorizontalAlignment.Stretch;
-        p.Children.Add(go);
-        return p;
-    }
-
-    // ── Край на деня ──
-
-    private UIElement Shutdown()
-    {
-        var today = Today;
-        var state = _pet.TaskState;
-        var p = new StackPanel();
-        p.Children.Add(SideHeader("Край на деня", () => ShowSide(Side.None)));
-
-        var todays = state.OnDay(today).ToList();
-        var done = todays.Where(t => t.Done).ToList();
-        var left = todays.Where(t => !t.Done).ToList();
-        int spent = todays.Sum(t => t.Spent);
-        var summary = RichText(done.Count == 0 ? "Днес нищо не е отметнато – и това е наред."
-            : $"Свършени {done.Count}" + (spent > 0 ? $" · работено {TaskCards.Duration(spent)}" : "") + $" · +{done.Sum(t => t.Reward)} 🌰", bold: true);
-        summary.TextWrapping = TextWrapping.Wrap;
-        p.Children.Add(summary);
-        foreach (var t in done) p.Children.Add(MiniRow(t));
-
-        p.Children.Add(Label($"Остава · {left.Count}"));
-        if (left.Count == 0) p.Children.Add(MenuWindow.MutedText("Нищо не остава. Браво!"));
-        foreach (var t in left)
-            p.Children.Add(MiniRow(t,
-                ("Утре", "За утре", () => MoveWithToast(t, today.AddDays(1))),
-                ("Чакащи", "Без ден – в „Чакащи“", () => MoveWithToast(t, null))));
-        if (left.Count > 1)
-        {
-            var allTomorrow = Button("Всички за утре", Act(() => MoveAll(today, today.AddDays(1))), icon: "arrow_right");
-            allTomorrow.HorizontalAlignment = HorizontalAlignment.Left;
-            allTomorrow.Margin = new Thickness(0, 4 * U, 0, 0);
-            p.Children.Add(allTomorrow);
-        }
-
-        p.Children.Add(Label("Как мина денят? (по избор – вижда се после под деня)"));
-        _pet.Save.DayNotes.TryGetValue(today.ToString("yyyy-MM-dd"), out var old);
-        // Написаното се пази, докато панелът се строи наново (копчетата горе местят задачи).
-        var note = Input(_shutdownDraft ?? old ?? "", multiline: true, 2000);
-        note.TextChanged += (_, _) => _shutdownDraft = note.Text;
-        note.MinHeight = 70 * U;
-        note.MaxHeight = 180 * U;
-        p.Children.Add(note);
-
-        var close = Button("Затвори деня", Act(() =>
-        {
-            _pet.ShutdownToday(note.Text);
-            _shutdownDraft = null;
-            ShowSide(Side.None);
-        }), primary: true, icon: "moon");
-        close.Margin = new Thickness(0, 12 * U, 0, 0);
-        close.HorizontalAlignment = HorizontalAlignment.Stretch;
-        p.Children.Add(close);
-        return p;
     }
 
     // ── За самопроверката ──

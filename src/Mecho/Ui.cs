@@ -169,6 +169,10 @@ public static class Ui
     private static readonly Brush BevelDark = Frozen(new SolidColorBrush(Color.FromArgb(56, 13, 18, 28)));
 
     /// <summary>Твърда пикселна сянка под бутона (без размазване), както под рисунките.</summary>
+    /// <summary>Текст без емоджитата отпред (за записания отговор: „🤗 Да!“ → „Да!“).</summary>
+    public static string StripEmoji(string s) =>
+        new string(s.Where(c => !char.IsSurrogate(c) && c != '\uFE0F' && c != '\u200D' && !(c >= '\u2190' && c <= '\u2BFF')).ToArray()).Trim();
+
     public static System.Windows.Media.Effects.Effect HardShadow() => new System.Windows.Media.Effects.DropShadowEffect
     {
         Color = Color.FromRgb(13, 18, 28), Direction = 270, ShadowDepth = P, BlurRadius = 0, Opacity = 0.22,
