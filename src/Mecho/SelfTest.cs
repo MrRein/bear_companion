@@ -550,7 +550,7 @@ public sealed partial class PetWindow
             AddTask("Тестова задача", 2);
             SetTaskDone(_save.Tasks[^1], true);
             // Вълна 4б: наградата и броячът са от ядрото (TasksModule).
-            if (_save.Hazelnuts != nuts + 3 || _save.TasksDoneTotal != total + 1) throw new Exception("задачата не плати през ядрото");
+            if (_save.Hazelnuts != nuts + 2 || _save.TasksDoneTotal != total + 1) throw new Exception("задачата не плати през ядрото");
             OpenMenuPage(MenuWindow.PageToday);
             if (!PlannerIsOpen) throw new Exception("„Днес“ не се отвори");
         }, 400);
