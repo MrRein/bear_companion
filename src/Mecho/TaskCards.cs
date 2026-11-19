@@ -486,7 +486,12 @@ internal static class TaskCards
         }
         else if (!t.Done)
         {
-            if (o.Unscheduled) card.Background = PaperDark;
+            if (o.Unscheduled)
+            {
+                // Без график: плоска – само оцветено поле, без рамка (като „непопълнена“).
+                card.Background = FlatBrush;
+                card.BorderBrush = Brushes.Transparent;
+            }
             var normal = card.Background;
             card.MouseEnter += (_, _) => card.Background = Hover;
             card.MouseLeave += (_, _) => card.Background = normal;
@@ -872,6 +877,24 @@ internal static class TaskCards
         _activeClearAction = null;
         _activeArea = null;
     }
+
+    /// <summary>Фонът на задачите без график: между картичката и по-тъмната хартия (по темата).</summary>
+    private static Brush FlatBrush
+    {
+        get
+        {
+            var a = (MenuWindow.TileBrush as SolidColorBrush)?.Color ?? Colors.White;
+            var b = (PaperDark as SolidColorBrush)?.Color ?? Colors.Wheat;
+            string key = a + "/" + b;
+            if (_flatKey == key && _flat != null) return _flat;
+            var brush = new SolidColorBrush(Color.FromRgb((byte)((a.R + b.R) / 2), (byte)((a.G + b.G) / 2), (byte)((a.B + b.B) / 2)));
+            brush.Freeze();
+            _flatKey = key;
+            return _flat = brush;
+        }
+    }
+    private static Brush? _flat;
+    private static string _flatKey = "";
 
     /// <summary>Близо до горния/долния ръб при влачене – списъкът сам се превърта.</summary>
     public static void AutoScroll(ScrollViewer scroll, DragEventArgs e)

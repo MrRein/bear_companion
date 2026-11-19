@@ -4259,6 +4259,8 @@ public sealed class MenuWindow : Window
     }
 
     /// <summary>Картичка за задача или бележка.</summary>
+    internal static Brush TileBrush => Tile;
+
     internal static Border Card(UIElement child, bool faded) => new()
     {
         Background = faded ? PaperDark : Tile,
