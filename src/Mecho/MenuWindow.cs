@@ -1222,6 +1222,10 @@ public sealed class MenuWindow : Window
         _placeOptions.Margin = new Thickness(0);
         p.Children.Add(Pocket(_placeOptions));
         // Лентите на „Почивай си“ и „Работи си“: кътчетата и „Ти си избери“.
+        _relaxAny = Wide(Button("Ти си избери", () => { _relaxOpen = false; _pet.RelaxRandom(); Refresh(true); }, primary: true, icon: "dice"));
+        _workAny = Wide(Button("Ти си избери", () => { _workOpen = false; _pet.WorkRandom(); Refresh(true); }, primary: true, icon: "dice"));
+        _relaxAny.ToolTip = Tip("Сам сменя заниманията за почивка (като преди)");
+        _workAny.ToolTip = Tip("Сам сменя работните занимания (като преди)");
         _relaxBox.Children.Add(_relaxGrid);
         _relaxBox.Children.Add(_relaxAny);
         _workBox2.Children.Add(_workGrid);
@@ -1926,10 +1930,6 @@ public sealed class MenuWindow : Window
         bool working = _pet.WorksRandomly;
         FillSceneGrid(_relaxGrid, _relaxOpen, Scenes.Fun, chosen, random);
         FillSceneGrid(_workGrid, _workOpen, Scenes.Work, chosen, working);
-        _relaxAny ??= Wide(Button("Ти си избери", () => { _relaxOpen = false; _pet.RelaxRandom(); Refresh(true); }, primary: true, icon: "dice"));
-        _workAny ??= Wide(Button("Ти си избери", () => { _workOpen = false; _pet.WorkRandom(); Refresh(true); }, primary: true, icon: "dice"));
-        _relaxAny.ToolTip = Tip("Сам сменя заниманията за почивка (като преди)");
-        _workAny.ToolTip = Tip("Сам сменя работните занимания (като преди)");
         _relaxBox.Visibility = _relaxOpen ? Visibility.Visible : Visibility.Collapsed;
         _workBox2.Visibility = _workOpen ? Visibility.Visible : Visibility.Collapsed;
     }
