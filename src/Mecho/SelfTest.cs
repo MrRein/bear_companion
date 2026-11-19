@@ -1750,10 +1750,13 @@ public sealed partial class PetWindow
             if (!tl.TestDrag(human.Id, 30, resize: true)) throw new Exception("блокчето изчезна след местенето");
             var h3 = _save.Tasks.Single(x => x.Id == human.Id);
             if (h3.Minutes != 60 || h3.Start != today.AddHours(10)) throw new Exception($"разтягането: {h3.Start:HH:mm}, {h3.Minutes} мин");
-            // Задачите без час се виждат бледо (ако денят не е към края си).
+            // Задачите без час не са в графика (нито бледо): само избраните.
             tl.Refresh(true);
-            if (DateTime.Now.Hour < 20 && _save.Tasks.Any(x => x.Day == today && x.Start == null && !x.Done) && tl.GhostCount < 1)
-                throw new Exception("задачите без час не се виждат в графика");
+            if (tl.GhostCount > _save.Tasks.Count(x => x.Day == today && x.Done && x.Start == null))
+                throw new Exception("задачи без час се показват в графика");
+            // „Махни от графика“.
+            ScheduleTask(_save.Tasks.Single(x => x.Id == human.Id), null);
+            if (_save.Tasks.Single(x => x.Id == human.Id).Start != null) throw new Exception("не се махна от графика");
 
             // Backlog: „следващата седмица“ отпреди 10 дни – дошло е време.
             var back = AddTask("Задача от Backlog", 1, someday: true, quiet: true, bucket: TaskItem.NextWeek) ?? throw new Exception("задачата за Backlog не се добави");

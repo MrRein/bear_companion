@@ -572,6 +572,27 @@ internal static class TaskCards
             .Append(new PixelPopup.Entry("Не знам", null, () => pet.MarkTask(Fresh(pet, t), minutes: 0), On: Fresh(pet, t).Minutes == 0));
 
     /// <summary>Всичко за задачата: важна, етикет, време, големина, премести, табло, копие, свършена, изтрий.</summary>
+    /// <summary>„График“: от колко часа (през половин час, 6:00–23:30) или „Без график“.</summary>
+    public static IEnumerable<PixelPopup.Entry> ScheduleTimes(TimeSpan? current, Action<TimeSpan?> pick)
+    {
+        yield return new PixelPopup.Entry("Без график", "close", () => pick(null), On: current == null);
+        for (int m = 6 * 60; m <= 23 * 60 + 30; m += 30)
+        {
+            var at = TimeSpan.FromMinutes(m);
+            yield return new PixelPopup.Entry($"{(int)at.TotalHours}:{at.Minutes:00}", null, () => pick(at),
+                On: current is { } c && Math.Abs((c - at).TotalMinutes) < 15);
+        }
+    }
+
+    /// <summary>„График“ на съществуваща задача (за деня ѝ; без ден – за днес).</summary>
+    public static Func<IEnumerable<PixelPopup.Entry>> ScheduleEntries(PetWindow pet, TaskItem t) => () =>
+        ScheduleTimes(Fresh(pet, t).Start?.TimeOfDay, at =>
+        {
+            var cur = Fresh(pet, t);
+            if (at is { } a) pet.ScheduleTask(cur, (cur.Day ?? pet.TaskToday).Add(a), cur.Minutes > 0 ? null : 30);
+            else pet.ScheduleTask(cur, null);
+        });
+
     public static Func<IEnumerable<PixelPopup.Entry>> TaskEntries(PetWindow pet, TaskItem t, Action<TaskItem>? edit) => () =>
     {
         var cur = Fresh(pet, t);
@@ -590,6 +611,8 @@ internal static class TaskCards
             list.Add(new("Приоритет", "flag", null, Sub: PriorityEntries(pet, t)));
             list.Add(new("Етикет", "pin", null, Sub: TagEntries(pet, t)));
             list.Add(new("Колко време", "clock", null, Sub: TimeEntries(pet, t)));
+            list.Add(new(cur.Start is { } st0 ? "График: " + st0.ToString("H:mm") : "График", "calendar", null, Sub: ScheduleEntries(pet, t)));
+            if (cur.Start != null) list.Add(new("Махни от графика", "close", () => pet.ScheduleTask(Fresh(pet, t), null)));
             list.Add(new("Сложност", "nut", null, Sub: () => SizeEntries(Fresh(pet, t).Size, n => pet.MarkTask(Fresh(pet, t), size: n))));
             bool onBoard = pet.TaskOnBoard(cur);
             list.Add(new(onBoard ? "Махни от таблото" : "Сложи в таблото", onBoard ? "unpin" : "pin", () => pet.SetTaskOnBoard(Fresh(pet, t), !onBoard)));

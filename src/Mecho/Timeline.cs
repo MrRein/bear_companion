@@ -266,7 +266,7 @@ internal sealed class DayTimeline : DockPanel
             WireCanvas(canvas, index);
 
             foreach (var t in Scheduled(day).OrderBy(t => t.Start)) canvas.Children.Add(Block(t, t.Start!.Value, ghost: false));
-            foreach (var (t, at) in Projected(day)) canvas.Children.Add(Block(t, at, ghost: true));
+            // Задачите без час НЕ се слагат в графика (нито бледо) – само тези, на които си избрал час.
             // Свършените без час – да свършват в часа, в който са отметнати (може да се местят).
             foreach (var t in DoneUnscheduled(day))
             {

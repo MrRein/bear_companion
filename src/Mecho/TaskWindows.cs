@@ -387,12 +387,18 @@ internal sealed class NewTaskWindow : FloatWindow
         var today = Pet.TaskToday;
         _meta.Children.Clear();
         _meta.Children.Add(MetaChip("clock", DayPicker.Name(_day, today, _bucket), chip =>
-            DayPicker.Show(chip, _day, today, d => { _day = d; FillMeta(); }, pickBucket: b => { _day = null; _bucket = b; FillMeta(); }, currentBucket: _bucket),
+            DayPicker.Show(chip, _day, today, d => { _day = d; _start = _start is { } s0 && d is { } nd ? nd.Add(s0.TimeOfDay) : null; FillMeta(); },
+                pickBucket: b => { _day = null; _start = null; _bucket = b; FillMeta(); }, currentBucket: _bucket),
             "Кога", on: true));
-        if (_start is { } st && _day == st.Date)
-            _meta.Children.Add(MetaChip("calendar", st.ToString("H:mm"), chip =>
-                PixelPopup.Show(chip, "В графика", () => new[] { new PixelPopup.Entry("Без час", "close", () => { _start = null; FillMeta(); }) }),
-                "В графика на деня от този час", on: true));
+        // „График“: от колко часа (само ако има ден). Не избереш ли – не влиза в графика.
+        if (_day != null)
+            _meta.Children.Add(MetaChip("calendar", _start is { } st ? "от " + st.ToString("H:mm") : "График", chip =>
+                PixelPopup.Show(chip, "От колко часа?", () => TaskCards.ScheduleTimes(_start?.TimeOfDay, at =>
+                {
+                    _start = at is { } a && _day is { } d ? d.Add(a) : null;
+                    FillMeta();
+                })),
+                "В графика на деня (По часове) от този час", on: _start != null));
         _meta.Children.Add(MetaChip("hourglass", _minutes > 0 ? TaskCards.Duration(_minutes) : "Време", chip =>
             PixelPopup.Show(chip, "Колко време?", () => TaskCards.Estimates
                 .Select(m => new PixelPopup.Entry(TaskCards.Duration(m), null, () => { _minutes = m; FillMeta(); }, On: _minutes == m))
@@ -703,6 +709,9 @@ internal sealed class TaskCardWindow : FloatWindow
         Prop("Приоритет", Value(TaskCards.FlagIcon(t.Level), pr.Name, b => PixelPopup.Show(b, "Приоритет", TaskCards.PriorityEntries(Pet, t)), muted: t.Level == 0));
         Prop("Кога", Value("clock", DayPicker.Name(t.Day, today, t.Bucket) + (t.Start is { } at ? ", " + at.ToString("H:mm") : ""),
             b => DayPicker.Show(b, t.Day, today, d => Pet.MoveTask(t, d), pickBucket: x => Pet.SetTaskBucket(t, x), currentBucket: t.Bucket)));
+        Prop("График", Value("calendar", t.Start is { } sched ? "от " + sched.ToString("H:mm") : "няма",
+            b => PixelPopup.Show(b, "От колко часа?", TaskCards.ScheduleEntries(Pet, t)), muted: t.Start == null,
+            tip: "В графика на деня (По часове) – само ако избереш час"));
         Prop("Срок", Value("bell", t.Due is { } dd ? Capital(dd.ToString("dddd, d MMMM", Bg)) + (dd < today && !t.Done ? " – мина!" : "") : "няма",
             b =>
             {
