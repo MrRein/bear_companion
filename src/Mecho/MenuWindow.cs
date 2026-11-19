@@ -1093,18 +1093,22 @@ public sealed class MenuWindow : Window
             Refresh(false);
         });
         // „Почивай си“ / „Работи си“: мечокът сам сменя заниманията, докато не спре.
+        // „Почивай си“ / „Работи си“: отваря лента с какво може да прави (или „Ти си избери“).
+        // Прави ли вече нещо от тях – цъкането го спира.
         _relaxTile = MakeTile("relax", "Почивай си", () =>
         {
-            if (_pet.RelaxesRandomly) _pet.GetUp();
-            else _pet.RelaxRandom();
+            if (_pet.RelaxesRandomly || _pet.CurrentFun is { } f && Scenes.Fun.Contains(f)) { _pet.GetUp(); _relaxOpen = false; }
+            else { _relaxOpen = !_relaxOpen; _workOpen = false; }
+            _sleepOpen = _quietOpen = _walkOpen = _placeOpen = false;
             Refresh(true);
-        }, tip: "Сам си избира какво да прави за почивка");
+        }, tip: "Какво да прави за почивка – избери или „Ти си избери“");
         _workTile = MakeTile("tasks", "Работи си", () =>
         {
-            if (_pet.WorksRandomly) _pet.GetUp();
-            else _pet.WorkRandom();
+            if (_pet.WorksRandomly || _pet.CurrentFun is { } f && Scenes.Work.Contains(f)) { _pet.GetUp(); _workOpen = false; }
+            else { _workOpen = !_workOpen; _relaxOpen = false; }
+            _sleepOpen = _quietOpen = _walkOpen = _placeOpen = false;
             Refresh(true);
-        }, tip: "Работи до теб (бюро, книги…)");
+        }, tip: "Какво да работи до теб – избери или „Ти си избери“");
         // Рисувай – само със статива.
         _drawTile = MakeTile("pencil", "Рисувай", () => { Hide(); _pet.OpenDrawing(); });
         // Тихо: за колко (30 мин, 1 ч, 2 ч). Тих ли е – пак говори.
@@ -1217,6 +1221,13 @@ public sealed class MenuWindow : Window
         p.Children.Add(Pocket(_quietOptions));
         _placeOptions.Margin = new Thickness(0);
         p.Children.Add(Pocket(_placeOptions));
+        // Лентите на „Почивай си“ и „Работи си“: кътчетата и „Ти си избери“.
+        _relaxBox.Children.Add(_relaxGrid);
+        _relaxBox.Children.Add(_relaxAny);
+        _workBox2.Children.Add(_workGrid);
+        _workBox2.Children.Add(_workAny);
+        p.Children.Add(Pocket(_relaxBox));
+        p.Children.Add(Pocket(_workBox2));
 
         // Ширината – от целия свитък (не се мени, когато се покаже плъзгачът – иначе
         // подредбата и плъзгачът се гонят безкрай). Плъзгачът е отстрани, заделяме му място.
@@ -1757,8 +1768,8 @@ public sealed class MenuWindow : Window
 
         SetTile(_walkTile, _pet.OnWalk ? "Повикай" : "Разходка", "walk");
         TileState(_walkTile, _walkOpen || _pet.OnWalk);
-        TileState(_relaxTile, _pet.RelaxesRandomly);
-        TileState(_workTile, _pet.WorksRandomly);
+        TileState(_relaxTile, _relaxOpen || _pet.RelaxesRandomly || _pet.CurrentFun is { } rf && Scenes.Fun.Contains(rf));
+        TileState(_workTile, _workOpen || _pet.WorksRandomly || _pet.CurrentFun is { } wf && Scenes.Work.Contains(wf));
         _drawTile.Button.Visibility = Kitchen.Owns(s, Kitchen.Easel) ? Visibility.Visible : Visibility.Collapsed;
         if (_pet.IsQuiet) SetTile(_quietTile, "Говори", "bell");
         else SetTile(_quietTile, "Тихо", "quiet");
@@ -1904,6 +1915,9 @@ public sealed class MenuWindow : Window
     private readonly UniformGrid _workGrid = new() { Columns = 2 };
     private bool _relaxOpen, _workOpen;
 
+    private readonly StackPanel _relaxBox = new(), _workBox2 = new();
+    private Button _relaxAny = null!, _workAny = null!;
+
     private void BuildRelaxButtons()
     {
         var s = _pet.Save;
@@ -1912,6 +1926,12 @@ public sealed class MenuWindow : Window
         bool working = _pet.WorksRandomly;
         FillSceneGrid(_relaxGrid, _relaxOpen, Scenes.Fun, chosen, random);
         FillSceneGrid(_workGrid, _workOpen, Scenes.Work, chosen, working);
+        _relaxAny ??= Wide(Button("Ти си избери", () => { _relaxOpen = false; _pet.RelaxRandom(); Refresh(true); }, primary: true, icon: "dice"));
+        _workAny ??= Wide(Button("Ти си избери", () => { _workOpen = false; _pet.WorkRandom(); Refresh(true); }, primary: true, icon: "dice"));
+        _relaxAny.ToolTip = Tip("Сам сменя заниманията за почивка (като преди)");
+        _workAny.ToolTip = Tip("Сам сменя работните занимания (като преди)");
+        _relaxBox.Visibility = _relaxOpen ? Visibility.Visible : Visibility.Collapsed;
+        _workBox2.Visibility = _workOpen ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>Списъкът (☰) с кътчетата: избраното свети, цъкнеш ли го пак – спира.</summary>
@@ -1919,7 +1939,7 @@ public sealed class MenuWindow : Window
     {
         var s = _pet.Save;
         grid.Children.Clear();
-        grid.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        grid.Visibility = Visibility.Visible;
         foreach (var scene in scenes)
         {
             var sc = scene;
@@ -1927,8 +1947,9 @@ public sealed class MenuWindow : Window
             // Каквото прави сега, свети; цъкнеш ли го пак, спира.
             var b = Wide(Button(sc.Name, () =>
             {
+                _relaxOpen = _workOpen = false;
                 if (_pet.CurrentFun == sc) _pet.GetUp();
-                else _pet.Relax(sc);
+                else _pet.Relax(sc);   // отива там (и слага предмета, ако още не е сложен)
                 Refresh(true);
             }, primary: chosen == sc && !random, icon: unlocked ? sc.Icon : "lock"));
             b.HorizontalContentAlignment = HorizontalAlignment.Left;

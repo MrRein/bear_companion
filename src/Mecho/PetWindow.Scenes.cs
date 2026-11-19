@@ -271,7 +271,6 @@ public sealed partial class PetWindow
         _save.StayPut = true;
         _save.StayScene = RandomWork;
         _save.AutoMode = false;
-        _userModeStart = true;   // Тут го пусна: ако иска точно работно занимание – почва с него
         _save.SleepingByChoice = false;
         BeginModeChange(1, 2.5, R.Pick("mode.work.think", _save.OwnerName));
         _idleSince = Now;
@@ -304,7 +303,6 @@ public sealed partial class PetWindow
     }
 
     internal bool InstantModes = SelfTest.Running;
-    private bool _userModeStart;
 
     /// <summary>Решава какво да прави в режима: случайно занимание (почивай/работи си) или избраното кътче.</summary>
     private void DecideMode()
@@ -312,19 +310,7 @@ public sealed partial class PetWindow
         // Сам е решил (по часовника): блокът свърши – избира пак почивка или работа.
         if (_save.AutoMode && Now > _autoUntil) PickAutoMode();
         Scene? started = null;
-        // Тук го пусна в „Почивай си“/„Работи си“, а той иска точно кътче от тях – почва с него.
-        bool userStart = _userModeStart;
-        _userModeStart = false;
-        if (userStart && CurrentDesire is { } want && want.StartsWith("scene:")
-            && Scenes.All.FirstOrDefault(x => x.Id == want[6..]) is { } wanted && CanDo(wanted)
-            && (RelaxesRandomly && Scenes.Fun.Contains(wanted) || WorksRandomly && Scenes.Work.Contains(wanted)))
-        {
-            FulfilDesire(want);
-            StartScene(wanted, quiet: true);
-            _sceneUntil = Now + (RelaxesRandomly ? 180 + _rng.Next(180) : 600 + _rng.Next(600));
-            started = wanted;
-        }
-        else if (RelaxesRandomly) started = StartRandomRelax(_lastFun);
+        if (RelaxesRandomly) started = StartRandomRelax(_lastFun);
         else if (WorksRandomly) started = StartRandomWork(_lastFun);
         else
         {
@@ -358,11 +344,10 @@ public sealed partial class PetWindow
             Say(R.Any("work.first"), 3);
             return;
         }
-        FulfilDesire("rest");
+        // „Ти си избери“ не изпълнява желания – само конкретното кътче, което избереш ти.
         _save.StayPut = true;
         _save.StayScene = RandomRelax;
         _save.AutoMode = false;
-        _userModeStart = true;   // Тут го пусна: ако иска точно такова кътче – почва с него
         _save.SleepingByChoice = false;
         BeginModeChange(1, 2.5, R.Pick("mode.relax.think", _save.OwnerName));
         _idleSince = Now;

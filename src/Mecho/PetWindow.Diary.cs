@@ -189,8 +189,8 @@ public sealed partial class PetWindow
 
     private string _lastDesire = "";
 
-    /// <summary>След всяко желание (изпълнено или изтекло) – час почивка, преди да поиска друго.</summary>
-    private void WishPause() => _save.WishPauseUntil = DateTime.Now.AddMinutes(60);
+    /// <summary>След всяко желание (изпълнено или изтекло) – 1,5–3 ч без нови желания.</summary>
+    private void WishPause() => _save.WishPauseUntil = DateTime.Now.AddMinutes(90 + _rng.Next(91));   // 1,5–3 ч
 
     /// <summary>Започва да иска нещо (за 60 мин).</summary>
     private void StartDesire(string kind)
