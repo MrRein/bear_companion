@@ -43,20 +43,29 @@ public sealed partial class PetWindow
     private void UpdatePetting()
     {
         PlanPetting();
-        UpdateDesires();
+        // Едно желание наведнъж; при равен час – първо храната, после гушката, после заниманието.
+        EnsureWishes();
+        SpawnDueWishes();
         NoteBusy();
         if (DateTime.Now >= _nextGoalCheck)
         {
             _nextGoalCheck = DateTime.Now.AddSeconds(3);
             CheckBearGoal();
         }
+        UpdatePetWish();
+        UpdateDesires();
+    }
+
+    /// <summary>Дошъл ли е часът да поиска гушка (само ако е свободен и няма друго желание).</summary>
+    private void UpdatePetWish()
+    {
         if (_save.PetTimes.Length == 0 || WantsPetting) return;
         var times = _save.PetTimes.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList();
         int now = (int)DateTime.Now.TimeOfDay.TotalMinutes;
         if (times[0] > now) return;
         // Зает – изчаква да се освободи (до 2 ч).
         bool late = now - times[0] > 120;
-        if (!late && !FreeForWish) return;
+        if (!late && (!FreeForWish || AnyWant)) return;   // зает или има друго желание – изчаква
         times.RemoveAt(0);
         _save.PetTimes = string.Join(",", times);
         if (late) return;

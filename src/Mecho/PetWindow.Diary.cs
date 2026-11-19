@@ -144,13 +144,13 @@ public sealed partial class PetWindow
         int semi = _save.DesireTimes.IndexOf(';');
         if (semi < 0) return;
         var list = _save.DesireTimes[(semi + 1)..].Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
-        if (list.Count == 0 || CurrentDesire != null) return;
+        if (list.Count == 0) return;
         int nowMin = (int)DateTime.Now.TimeOfDay.TotalMinutes;
         if (!int.TryParse(list[0].Split(':')[0], out int at)) at = nowMin;
         if (at > nowMin) return;
         // Зает в часа си – изчаква да се освободи; закъснее ли с над 2 ч – пропада.
         bool late = nowMin - at > 120;
-        if (!late && !FreeForWish) return;
+        if (!late && (!FreeForWish || AnyWant)) return;   // зает или има друго желание – изчаква
         list.RemoveAt(0);
         _save.DesireTimes = _save.DesireTimes[..(semi + 1)] + string.Join(",", list);
         if (late) return;

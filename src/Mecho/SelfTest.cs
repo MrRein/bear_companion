@@ -1330,9 +1330,22 @@ public sealed partial class PetWindow
             int met = rec.DesiresMet;
             FulfilDesire("rest");
             if (CurrentDesire != null || rec.DesiresMet != met + 1) throw new Exception("желанието не се изпълни");
-            _save.PetTimes = "0";
+            // Едно желание наведнъж: докато иска нещо друго, гушката изчаква; после идва.
+            _save.WishUntil.Clear();
+            _save.FoodGroup = "";
+            string nowMin = ((int)DateTime.Now.TimeOfDay.TotalMinutes).ToString();
+            _save.Desire = "walk";
+            _save.DesireUntil = DateTime.Now.AddMinutes(5);
+            _save.PetTimes = nowMin;
             UpdatePetting();
-            if (!WantsPetting) throw new Exception("дошлият час не отвори погалването");
+            if (WantsPetting) throw new Exception("гушката дойде, докато иска разходка");
+            if (_save.PetTimes.Length == 0) throw new Exception("гушката не изчака, а пропадна");
+            _save.Desire = "";
+            if (FreeForWish)
+            {
+                UpdatePetting();
+                if (!WantsPetting) throw new Exception("дошлият час не отвори погалването");
+            }
             _save.PetOpenUntil = DateTime.MinValue;
 
             // Иска да чете: сам не избира четенето (чака теб); твоето „Чети“ го изпълнява.

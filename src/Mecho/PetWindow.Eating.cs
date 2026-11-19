@@ -211,13 +211,29 @@ public sealed partial class PetWindow
         if (_save.WishTimes.Length == 0) return;
         var now = DateTime.Now;
         int minute = now.Hour * 60 + now.Minute;
-        var times = _save.WishTimes.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList();
-        var due = times.Where(t => t <= minute).ToList();
-        if (due.Count == 0) return;
-        _save.WishTimes = string.Join(",", times.Except(due));
-        // Програмата е била спряна дълго: изпуснатото желание просто не се е случило.
-        if (minute - due.Max() > 120) return;
+        var times = _save.WishTimes.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).OrderBy(t => t).ToList();
+        if (times[0] > minute) return;
+        // Закъсняло с над 2 ч (беше спряна, зает, или имаше друго желание) – просто не се е случило.
+        if (minute - times[0] > 120)
+        {
+            _save.WishTimes = string.Join(",", times.Skip(1));
+            return;
+        }
+        // Само едно желание наведнъж: има ли друго (или е зает) – изчаква.
+        if (AnyWant || !FreeForWish) return;
+        _save.WishTimes = string.Join(",", times.Skip(1));
         SpawnWish(now, announce: true);
+    }
+
+    /// <summary>Има ли сега някакво желание (храна, вид храна, гушка, занимание) – тогава ново не идва.</summary>
+    private bool AnyWant
+    {
+        get
+        {
+            var now = DateTime.Now;
+            bool food = _save.WishList.Any(id => _save.WishUntil.TryGetValue(id, out var until) && until > now);
+            return food || GroupWish != null || WantsPetting || CurrentDesire != null;
+        }
     }
 
     /// <summary>
