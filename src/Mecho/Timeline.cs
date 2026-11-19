@@ -217,15 +217,51 @@ internal sealed class DayTimeline : DockPanel
             canvas.Children.Insert(0, night1);
             canvas.Children.Insert(0, night2);
             // След часа, до който работиш (ако е казан) – леко засенчено, без надписи.
-            if (_pet.Save.DayEnd.TryGetValue(day.ToString("yyyy-MM-dd"), out int endMin) && endMin > 0)
+            if (_pet.WorkEndFor(day) is { } endMin)
             {
                 var after = new Rectangle { Fill = WoodLight, Opacity = 0.18, Height = Math.Max(0, (24 * 60 - endMin) / 60.0 * HourH), IsHitTestVisible = false };
                 Canvas.SetTop(after, endMin / 60.0 * HourH);
-                var endLine = new Rectangle { Fill = WoodDark, Height = 1, Opacity = 0.6, IsHitTestVisible = false };
-                Canvas.SetTop(endLine, endMin / 60.0 * HourH);
+                // Линията „край на деня“: хващаш я и я местиш (през 15 мин) – само за този ден.
+                var endLine = new Border
+                {
+                    Height = 9,
+                    Background = Brushes.Transparent,
+                    Cursor = Cursors.SizeNS,
+                    Child = new Border { Height = Math.Max(2, P / 2), Background = Honey, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.9 },
+                    ToolTip = Tip($"Край на работния ден: {endMin / 60}:{endMin % 60:00} – влачи, за да го смениш за този ден"),
+                };
+                Canvas.SetTop(endLine, endMin / 60.0 * HourH - 4.5);
+                Panel.SetZIndex(endLine, 5);
                 canvas.Children.Insert(0, after);
                 canvas.Children.Add(endLine);
                 canvas.SizeChanged += (_, _) => { after.Width = endLine.Width = canvas.ActualWidth; };
+                var dayOf = day;
+                bool dragging = false;
+                int moved = endMin;
+                endLine.MouseLeftButtonDown += (_, e) =>
+                {
+                    dragging = true;
+                    endLine.CaptureMouse();
+                    e.Handled = true;
+                };
+                endLine.MouseMove += (_, e) =>
+                {
+                    if (!dragging) return;
+                    double y = e.GetPosition(canvas).Y;
+                    moved = Math.Clamp((int)Math.Round(y / HourH * 60 / 15) * 15, 10 * 60, 23 * 60 + 45);
+                    Canvas.SetTop(endLine, moved / 60.0 * HourH - 4.5);
+                    Canvas.SetTop(after, moved / 60.0 * HourH);
+                    after.Height = Math.Max(0, (24 * 60 - moved) / 60.0 * HourH);
+                    endLine.ToolTip = Tip($"Край: {moved / 60}:{moved % 60:00}");
+                };
+                endLine.MouseLeftButtonUp += (_, e) =>
+                {
+                    if (!dragging) return;
+                    dragging = false;
+                    endLine.ReleaseMouseCapture();
+                    e.Handled = true;
+                    if (moved != endMin) _pet.SetDayEnd(dayOf, moved);
+                };
             }
             canvas.SizeChanged += (_, _) => { night1.Width = night2.Width = canvas.ActualWidth; LayoutBlocks(); };
 

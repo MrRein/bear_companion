@@ -74,27 +74,54 @@ public sealed class WorkView : Border
     }
 
     private DateTime Today => _pet.TaskToday;
-    /// <summary>До колко работи в деня (минути от полунощ); null – не е казано или „не знам“.</summary>
-    private int? EndFor(DateTime day) =>
-        _pet.Save.DayEnd.TryGetValue(day.ToString("yyyy-MM-dd"), out int m) && m > 0 ? m : null;
+    /// <summary>До колко се работи в деня (минути); null – почивен ден или още не знае.</summary>
+    private int? EndFor(DateTime day) => _pet.WorkEndFor(day);
 
-    private bool EndAsked(DateTime day) => _pet.Save.DayEnd.ContainsKey(day.ToString("yyyy-MM-dd"));
-
-    /// <summary>Записва до колко се работи в деня (-1 – „не знам“).</summary>
-    private void SetDayEnd(DateTime day, int minutes)
+    /// <summary>Само за този ден (null – както обикновено).</summary>
+    private void SetDayEnd(DateTime day, int? minutes)
     {
-        _pet.Save.DayEnd[day.ToString("yyyy-MM-dd")] = minutes;
-        if (minutes > 0) _pet.Save.LastDayEnd = minutes;
-        foreach (var old in _pet.Save.DayEnd.Keys.Where(k => DateTime.TryParse(k, out var d) && d < Today.AddDays(-60)).ToList())
-            _pet.Save.DayEnd.Remove(old);
-        _pet.Persist();
+        _pet.SetDayEnd(day, minutes);
         _todayTimeline?.Refresh(true);
         Refresh(true);
     }
 
-    private IEnumerable<PixelPopup.Entry> EndEntries(DateTime day) =>
-        Enumerable.Range(12, 12).Select(h => new PixelPopup.Entry($"до {h}:00", null, () => SetDayEnd(day, h * 60), On: EndFor(day) == h * 60))
-            .Append(new PixelPopup.Entry("Не знам", "question", () => SetDayEnd(day, -1), On: EndAsked(day) && EndFor(day) == null));
+    private void SetUsualEnd(int minutes)
+    {
+        _pet.SetUsualEnd(minutes);
+        _todayTimeline?.Refresh(true);
+        Refresh(true);
+    }
+
+    /// <summary>Часове през половин час (за менютата).</summary>
+    private static IEnumerable<int> HalfHours(int from, int to) => Enumerable.Range(0, (to - from) / 30 + 1).Select(i => from + i * 30);
+
+    /// <summary>
+    /// Менюто на поленцето „до 18:00“: само за деня (часове), „Почивен ден“/„Работим“,
+    /// „Направи … обикновено“ и „Обикновено (всеки работен ден)“.
+    /// </summary>
+    private IEnumerable<PixelPopup.Entry> EndEntries(DateTime day)
+    {
+        bool rest = _pet.IsRestDay(day);
+        int? over = _pet.DayEndOverride(day), usual = _pet.UsualEnd, cur = EndFor(day);
+        var list = new List<PixelPopup.Entry>();
+        if (!rest)
+        {
+            list.Add(new("Само за този ден", "calendar", null, Sub: () => HalfHours(15 * 60, 22 * 60)
+                .Select(m => new PixelPopup.Entry("до " + Clock(m), null, () => SetDayEnd(day, m), On: cur == m))));
+            if (over is { } o && usual is { } u && o != u)
+            {
+                list.Add(new($"Направи {Clock(o)} обикновено", "pin", () => { SetUsualEnd(o); SetDayEnd(day, null); }));
+                list.Add(new($"Както обикновено ({Clock(u)})", "reroll", () => SetDayEnd(day, null)));
+            }
+            list.Add(new("Почивен ден", "relax", () => { _pet.SetRestDay(day, true); Refresh(true); }));
+        }
+        else list.Add(new("Работим този ден", "tasks", () => { _pet.SetRestDay(day, false); Refresh(true); }));
+        list.Add(new("Обикновено (всеки работен ден)", "clock", null, Sub: () => HalfHours(15 * 60, 22 * 60)
+            .Select(m => new PixelPopup.Entry("до " + Clock(m), null, () => SetUsualEnd(m), On: usual == m))));
+        if (day.Date == DateTime.Today && _pet.WorkDoneToday != null)
+            list.Add(new("Още не съм свършил", "close", () => { _pet.UndoWorkFinished(); Refresh(true); }));
+        return list;
+    }
 
     private static string Clock(int minutes) => $"{minutes / 60}:{minutes % 60:00}";
 
@@ -1459,7 +1486,7 @@ public sealed class WorkView : Border
         int hour = DateTime.Now.Hour;
         bool realToday = today == Today;   // покани (план, край на деня…) – само за истинския днешен ден
         string sig = string.Join("|", tasks.Select(t => t.Signature + _pet.TaskOnBoard(t))) + $"#{today:yyyyMMdd}#{hour >= 17}#{hour < 15}"
-            + $"#{_pet.Save.PlannedDay}#{_pet.Save.ShutdownDay}#{_pet.Save.PlanSeenDay}#{_pet.Save.ShutdownSeenDay}#{EndFor(today)}#{EndAsked(today)}#{_pet.IsPinned(PinWindow.Tasks)}{_pet.BoardDay:yyyyMMdd}#{DateTime.Now:HH}{DateTime.Now.Minute / 10}#{Today:yyyyMMdd}#{_pet.Save.UiTheme}#{_selected}#{_sideMode}"
+            + $"#{_pet.Save.PlannedDay}#{_pet.Save.ShutdownDay}#{_pet.Save.PlanSeenDay}#{_pet.Save.ShutdownSeenDay}#{EndFor(today)}#{_pet.UsualEnd}#{_pet.IsRestDay(today)}#{_pet.WorkDoneToday}#{_pet.IsPinned(PinWindow.Tasks)}{_pet.BoardDay:yyyyMMdd}#{DateTime.Now:HH}{DateTime.Now.Minute / 10}#{Today:yyyyMMdd}#{_pet.Save.UiTheme}#{_selected}#{_sideMode}"
             + string.Join(",", review.Goals.Select(g => g.Text + g.Done)) + review.Done + (_pet.InFocus ? _pet.FocusTask?.Id : null)
             + string.Join(",", WeekReviewFor(monday.AddDays(-7)).Done)
             + "#due:" + string.Join(",", BacklogDue(state, today).Select(t => t.Signature));
@@ -1489,8 +1516,8 @@ public sealed class WorkView : Border
         int planned = tasks.Sum(t => t.Minutes), doneMinutes = tasks.Where(t => t.Done).Sum(t => t.Minutes);
         int left = tasks.Where(t => !t.Done).Sum(t => t.Minutes);
         var end = EndFor(today);
-        bool asked = EndAsked(today);
-        // Два подредени реда:  „Задачи 0/4 · 1ч 30м“  и  „Време до 20:00 ▾ · остават 3ч 10м“.
+        // Ред: „Задачи 0/4 · 1ч 30м“; под него – поленцето „🕕 до 18:00 ▾ · остават 3ч“ (или
+        // „Почивен ден“, „✓ свърших в 18:20“); още не знае – „До колко работиш обикновено?“.
         int dayMinutes = tasks.Sum(t => t.Minutes);
         TextBlock Line() => new() { Margin = new Thickness(0, 2 * U, 0, 0), Foreground = Muted, TextWrapping = TextWrapping.Wrap };
         var line1 = Line();
@@ -1502,42 +1529,53 @@ public sealed class WorkView : Border
             line1.Inlines.Add(new System.Windows.Documents.Run(TaskCards.Duration(dayMinutes)) { FontWeight = FontWeights.Bold, Foreground = Ink });
         }
         p.Children.Add(line1);
-        if (asked || today < Today)
+        if (_pet.UsualEnd == null && !_pet.IsRestDay(today))
         {
-            var line2 = Line();
-            line2.Inlines.Add(new System.Windows.Documents.Run("Време до "));
-            var link = new TextBlock { Text = (end is { } e0 ? Clock(e0) : "—") + " ▾", Foreground = Ink, FontWeight = FontWeights.Bold, Cursor = Cursors.Hand, ToolTip = Tip("До колко работиш – цъкни, за да го смениш") };
-            TaskCards.Clickable(link, () => PixelPopup.Show(link, "До колко ще работиш?", () => EndEntries(today)));
-            line2.Inlines.Add(new System.Windows.Documents.InlineUIContainer(link) { BaselineAlignment = BaselineAlignment.TextBottom });
-            if (end is { } e && realToday)
-            {
-                int now = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
-                if (e > now)
-                {
-                    line2.Inlines.Add(new System.Windows.Documents.Run("  ·  остават "));
-                    line2.Inlines.Add(new System.Windows.Documents.Run(TaskCards.Duration(e - now)) { FontWeight = FontWeights.Bold, Foreground = Ink });
-                }
-            }
-            p.Children.Add(line2);
-        }
-        if (!asked && realToday)   // пита само за днешния ден (другите дни – от „Време до“ при нужда)
-        {
-            // В началото на деня: до колко ще работиш? (или „Не знам“ – тогава не казва нищо)
+            // Още не знае: веднъж – до колко работиш обикновено.
             var ask = new WrapPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
-            ask.Children.Add(new TextBlock { Text = realToday ? "До колко ще работиш днес?" : "До колко ще работиш?", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8 * U, 4 * U) });
-            int last = _pet.Save.LastDayEnd is >= 12 * 60 and <= 23 * 60 ? _pet.Save.LastDayEnd : 18 * 60;
-            foreach (int m in new[] { last - 60, last, last + 60 }.Where(x => x >= 12 * 60 && x <= 23 * 60))
+            ask.Children.Add(new TextBlock { Text = "До колко работиш обикновено?", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8 * U, 4 * U) });
+            foreach (int m in new[] { 17 * 60, 18 * 60, 19 * 60 })
             {
                 int mm = m;
-                var chip = Small(Clock(m), () => SetDayEnd(today, mm));
-                SetOn(chip, m == last);
-                ask.Children.Add(chip);
+                ask.Children.Add(Small(Clock(m), () => SetUsualEnd(mm)));
             }
             Border other = null!;
-            other = Small("Друго…", () => PixelPopup.Show(other, "До колко ще работиш?", () => EndEntries(today)));
+            other = Small("Друго…", () => PixelPopup.Show(other, "До колко работиш обикновено?", () => HalfHours(15 * 60, 22 * 60)
+                .Select(m => new PixelPopup.Entry("до " + Clock(m), null, () => SetUsualEnd(m)))));
             ask.Children.Add(other);
-            ask.Children.Add(Small("Не знам", () => SetDayEnd(today, -1)));
             p.Children.Add(ask);
+        }
+        else
+        {
+            // Поленцето: малко, не пречи; цъкнеш ли – менюто.
+            bool rest = _pet.IsRestDay(today);
+            int? doneAt = realToday ? _pet.WorkDoneToday : null;
+            string text = rest ? "Почивен ден" : doneAt is { } da ? "свърших в " + Clock(da) : end is { } e0 ? "до " + Clock(e0) + (_pet.DayEndOverride(today) != null ? " (днес)" : "") : "до —";
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            var ic = Icon(rest ? "relax" : doneAt != null ? "check" : "clock");
+            ic.Margin = new Thickness(0, 0, 5, 0);
+            ic.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(ic);
+            row.Children.Add(new TextBlock { Text = text + "  ▾", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
+            int nowMin = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
+            bool over = !rest && doneAt == null && end is { } e1 && realToday && left > Math.Max(0, e1 - nowMin);
+            var chip = new Border
+            {
+                Background = Cream,
+                BorderBrush = over ? Bad : WoodLight,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(9),
+                Padding = new Thickness(7 * U, 2 * U, 8 * U, 3 * U),
+                Child = row,
+                Cursor = Cursors.Hand,
+                ToolTip = Tip(over ? "Задачите за днес не се събират до края на работния ден" : "Работният ден – цъкни, за да го смениш"),
+            };
+            TaskCards.Clickable(chip, () => PixelPopup.Show(chip, "Работният ден", () => EndEntries(today)));
+            var wrap = new WrapPanel { Margin = new Thickness(0, 5 * U, 0, 0) };
+            wrap.Children.Add(chip);
+            if (!rest && doneAt == null && end is { } e && realToday && e > nowMin)
+                wrap.Children.Add(new TextBlock { Text = "остават " + TaskCards.Duration(e - nowMin), Foreground = over ? Bad : Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8 * U, 0, 0, 0) });
+            p.Children.Add(wrap);
         }
 
         // Целите за седмицата (от прегледа) – цъкаш и стават отметнати.
@@ -3029,8 +3067,8 @@ public sealed class WorkView : Border
     /// <summary>В „Днес“ има ли покана/карта (invite:План за деня, due…).</summary>
     internal bool TodayHas(string tag) => _todayPanel.Children.OfType<FrameworkElement>().Any(e => e.Tag as string == tag);
     internal int DueCount => BacklogDue(_pet.TaskState, Today).Count;
-    internal void TestHours(DateTime day, int minutes) => SetDayEnd(day, minutes);
-    internal bool TodayAsksHours => FindText(_todayPanel, "До колко ще работиш");
+    internal void TestHours(DateTime day, int minutes) => SetUsualEnd(minutes);
+    internal bool TodayAsksHours => FindText(_todayPanel, "До колко работиш обикновено");
     internal FrameworkElement TestAnchor => _todayPanel.Children.OfType<FrameworkElement>().FirstOrDefault() ?? _todayPanel;
     internal FrameworkElement? TodayPart(string tag) => _todayPanel.Children.OfType<FrameworkElement>().FirstOrDefault(e => e.Tag as string == tag);
 

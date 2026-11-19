@@ -1759,7 +1759,9 @@ public sealed partial class PetWindow
             if (p.TodayHas("invite:План за деня") || p.TodayHas("invite:Край на деня")) throw new Exception("поканата за план/край на деня пак излиза");
 
             // Часовете за деня: пита, докато не кажеш; после – лента.
-            _save.DayEnd.Remove(today.ToString("yyyy-MM-dd"));
+            _save.DayEnd.Clear();
+            _save.UsualEnd = -1;
+            _save.RestDays[today.ToString("yyyy-MM-dd")] = false; // и в събота/неделя – работен ден за теста
             p.Refresh(true);
             p.UpdateLayout();
             if (!p.TodayAsksHours) throw new Exception("не пита колко часа");
@@ -1808,6 +1810,8 @@ public sealed partial class PetWindow
 
             foreach (var t in _save.Tasks.Where(x => x.Title is "Човешка задача" or "Задача от Backlog").ToList()) DeleteTask(t);
             _save.DayEnd.Clear();
+            _save.RestDays.Clear();
+            _save.UsualEnd = -1;
             _save.PlannedDay = _save.PlanSeenDay = "";
             HideBubble();
         }, 600);

@@ -161,6 +161,14 @@ public sealed class SaveData
     public Dictionary<string, int> DayHours { get; set; } = new();
     public Dictionary<string, int> DayEnd { get; set; } = new();     // до колко работи в деня (минути от полунощ; -1 – „не знам“)
     public int LastDayEnd { get; set; } = 18 * 60;               // последно избраното (предлага се отгоре)
+    public int UsualEnd { get; set; } = -1;                      // до колко работи обикновено (минути; -1 – още не знае)
+    public Dictionary<string, bool> RestDays { get; set; } = new(); // ръчно: почивен (true) или работен (false) ден
+    public string WorkDoneDay { get; set; } = "";                // в кой ден каза „Свърших“ …
+    public int WorkDoneAt { get; set; }                          // … и в колко (минути)
+    public string EndAskDay { get; set; } = "";                  // вечерното питане: за кой ден
+    public int EndAskCount { get; set; }                         // колко пъти е питал без отговор
+    public DateTime EndAskNext { get; set; }                     // кога пак (след „Още малко“ или без отговор)
+    public string EndNoAskDay { get; set; } = "";                // „Не питай днес“
     public bool NavCollapsed { get; set; }                       // лентата вляво – само иконки (свита с дърпане)
     public double NavWidth { get; set; }                         // ширината ѝ, когато е разгъната (0 – колкото трябва)   // часове за работа по дни (yyyy-MM-dd → часове; 0 – „не питай“)
     public string PlanSeenDay { get; set; } = "";               // поканата за план е видяна/махната днес (не излиза до утре)

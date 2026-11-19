@@ -53,6 +53,7 @@ public sealed partial class PetWindow
             _nextGoalCheck = DateTime.Now.AddSeconds(3);
             CheckBearGoal();
         }
+        UpdateWorkDay();
         MissedWishes();
         UpdatePetWish();
         UpdateDesires();
