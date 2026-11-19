@@ -1314,9 +1314,9 @@ public sealed partial class PetWindow
             _save.MissionDone = false;
             int petted = rec.DesiresMet;
             rec.DesiresMet = 20;
-            int before = _save.Hazelnuts;
+            int before = _save.Hazelnuts, items = _save.Owned.Count + _save.OwnedClothes.Count;
             CheckBearGoal();
-            if (!_save.MissionDone || _save.Hazelnuts <= before) throw new Exception("мисията не даде лешници");
+            if (!_save.MissionDone || (_save.Hazelnuts <= before && _save.Owned.Count + _save.OwnedClothes.Count <= items)) throw new Exception("мисията не даде награда");
             int after = _save.Hazelnuts;
             CheckBearGoal();
             if (_save.Hazelnuts != after) throw new Exception("мисията плати два пъти");
@@ -1336,6 +1336,7 @@ public sealed partial class PetWindow
             _save.DesireTimes = "";
             _save.FoodGroup = "";
             string nowMin = ((int)DateTime.Now.TimeOfDay.TotalMinutes).ToString();
+            _save.WishPauseUntil = DateTime.MinValue;
             _save.Desire = "walk";
             _save.DesireUntil = DateTime.Now.AddMinutes(5);
             _save.PetTimes = nowMin;
@@ -1343,6 +1344,7 @@ public sealed partial class PetWindow
             if (WantsPetting) throw new Exception("гушката дойде, докато иска разходка");
             if (_save.PetTimes.Length == 0) throw new Exception("гушката не изчака, а пропадна");
             _save.Desire = "";
+            _save.WishPauseUntil = DateTime.MinValue;   // часът почивка след желание – тук не чакаме
             if (FreeForWish)
             {
                 UpdatePetting();
@@ -2131,7 +2133,7 @@ public sealed partial class PetWindow
         }, 200);
         await step("студ по нива", () =>
         {
-            foreach (var (t, lvl) in new[] { (22.0, 0), (16.0, 0), (15.0, 1), (11.0, 1), (10.0, 2), (6.0, 2), (5.0, 3), (1.0, 3), (0.0, 4), (-5.0, 4) })
+            foreach (var (t, lvl) in new[] { (22.0, 0), (15.0, 0), (10.0, 0), (5.0, 0), (4.0, 2), (0.0, 2), (-1.0, 3), (-4.0, 3), (-5.0, 4), (-10.0, 4) })
             {
                 _tempC = t;
                 if (ColdLevel != lvl) throw new Exception($"{t}°C: ниво {ColdLevel}, а трябва {lvl}");

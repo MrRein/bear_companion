@@ -183,6 +183,8 @@ public sealed class TaskCardOptions
     public Action<TaskItem>? Open { get; init; }
     /// <summary>▶ при посочване: мечо-доро по задачата.</summary>
     public bool PlayButton { get; init; } = true;
+    /// <summary>Не е в графика (в „Днес“): малко по-тъмен нюанс – личи от пръв поглед.</summary>
+    public bool Unscheduled { get; init; }
 }
 
 /// <summary>
@@ -484,6 +486,7 @@ internal static class TaskCards
         }
         else if (!t.Done)
         {
+            if (o.Unscheduled) card.Background = PaperDark;
             var normal = card.Background;
             card.MouseEnter += (_, _) => card.Background = Hover;
             card.MouseLeave += (_, _) => card.Background = normal;
@@ -754,6 +757,7 @@ internal static class TaskCards
             {
                 card.GiveFeedback -= follow;
                 ghost?.Close();
+                ClearDropMarks();
                 Dragging = false;
                 card.Opacity = 1;
                 DragEnded?.Invoke();
@@ -783,7 +787,7 @@ internal static class TaskCards
     /// Списък, в който се пускат задачи: area е цялата колона (там се пуска), list – картичките
     /// (по тях се гледа мястото; медена черта показва къде ще падне). drop(задача, преди коя).
     /// </summary>
-    public static void DropTarget(FrameworkElement area, Panel list, Action<Guid, Guid?> drop, ScrollViewer? scroll = null)
+    public static void DropTarget(FrameworkElement area, Panel list, Action<Guid, Guid?> drop, ScrollViewer? scroll = null, Action<bool>? highlight = null)
     {
         area.AllowDrop = true;
         var marker = new Border
@@ -799,6 +803,7 @@ internal static class TaskCards
         {
             list.Children.Remove(marker);
             area.Tag = null;
+            highlight?.Invoke(false);
         }
         // Мястото: преди първата картичка, чиято среда е под мишката.
         int Place(DragEventArgs e)
@@ -816,6 +821,14 @@ internal static class TaskCards
                 return;
             }
             e.Effects = DragDropEffects.Move;
+            // Само едно място е „активно“: минеш ли в друго, чертата и светването от предното се махат.
+            if (_activeArea != area)
+            {
+                _activeClearAction?.Invoke();
+                _activeArea = area;
+                _activeClearAction = Remove;
+                highlight?.Invoke(true);
+            }
             list.Children.Remove(marker);
             int at = Math.Min(Place(e), list.Children.Count);
             list.Children.Insert(at, marker);
@@ -834,6 +847,8 @@ internal static class TaskCards
             list.Children.Remove(marker);
             int at = Place(e);
             Remove();
+            _activeArea = null;
+            _activeClearAction = null;
             if (DraggedId(e) is not { } id) return;
             Guid? before = null;
             for (int i = at; i < list.Children.Count; i++)
@@ -844,6 +859,18 @@ internal static class TaskCards
                 }
             drop(id, before);
         };
+    }
+
+    // Мястото, над което е задачата сега (и как да се изчисти) – да не остават черти и светнали полета.
+    private static FrameworkElement? _activeArea;
+    private static Action? _activeClearAction;
+
+    /// <summary>Влаченето свърши: изчиства последното активно място.</summary>
+    internal static void ClearDropMarks()
+    {
+        _activeClearAction?.Invoke();
+        _activeClearAction = null;
+        _activeArea = null;
     }
 
     /// <summary>Близо до горния/долния ръб при влачене – списъкът сам се превърта.</summary>

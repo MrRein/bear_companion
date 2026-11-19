@@ -105,7 +105,7 @@ public sealed partial class PetWindow
         new("nap", "Спи му се", "moon", "дрямка", p => p._save.Energy < 85),
         new("focus", "Работи му се с теб", "hourglass", "работа заедно", p => !p.InFocus),
         new("snack", "Снаква му се", "food", "нещо за хапване", p => p._save.Fullness is >= 35 and < 60),
-        new("hotdrink", "Иска нещо топло за пиене", "tea", "топла напитка", p => p.NeedsWarmerClothes),
+        new("hotdrink", "Иска нещо топло за пиене", "tea", "топла напитка", p => p.IsColdOutside),
         new("dress", "Преоблича му се", "wardrobe", "ново облекло", p => DailyOffer.HasWardrobe(p._save)),
     };
 
@@ -153,7 +153,10 @@ public sealed partial class PetWindow
         list.RemoveAt(0);
         _save.DesireTimes = _save.DesireTimes[..(semi + 1)] + string.Join(",", list);
         if (late) return;
-        var pool = Desires.Where(d => d.Kind != "pet" && (d.Possible?.Invoke(this) ?? true) && d.Kind != _lastDesire && !DoingOrDid(d.Kind)).ToArray();
+        // Зает е с нещо (кътче, „Работи си“/„Почивай си“) – не иска друго кътче точно сега.
+        bool busyScene = CurrentFun != null || WorksRandomly || RelaxesRandomly;
+        var pool = Desires.Where(d => d.Kind != "pet" && (d.Possible?.Invoke(this) ?? true) && d.Kind != _lastDesire && !DoingOrDid(d.Kind)
+            && !(busyScene && (d.Kind.StartsWith("scene:") || d.Kind == "rest"))).ToArray();
         if (pool.Length == 0) return;
         // Леко гладен – по-често му се снаква.
         var snack = pool.FirstOrDefault(d => d.Kind == "snack");
@@ -186,6 +189,9 @@ public sealed partial class PetWindow
 
     private string _lastDesire = "";
 
+    /// <summary>След всяко желание (изпълнено или изтекло) – час почивка, преди да поиска друго.</summary>
+    private void WishPause() => _save.WishPauseUntil = DateTime.Now.AddMinutes(60);
+
     /// <summary>Започва да иска нещо (за 60 мин).</summary>
     private void StartDesire(string kind)
     {
@@ -211,6 +217,7 @@ public sealed partial class PetWindow
         _save.DesireUntil = DateTime.MinValue;
         TodayRec.DesiresMet++;
         NoteDid(kind);
+        WishPause();
         Joy(JoyPetted);
         NoteContent();
         Log(DesireOf(kind)?.Icon ?? "heart", "Изпълни желанието му: " + (DesireOf(kind)?.Done ?? kind));
@@ -319,10 +326,35 @@ public sealed partial class PetWindow
         _save.MissionDone = true;
         _save.MissionDoneDay = DayKey(DateTime.Today);
         NoteProud();
-        GainNuts(reward, "мисия");
         Log("star", "Мисията изпълнена: " + text.ToLowerInvariant());
-        Say(R.Pick("goal.done", _save.OwnerName) + $" +{reward} 🌰", 7);
         Emote("sparkle", 4);
+        // Понякога (1 от 6, ако има гардероб) вместо лешници – нещо ново: дреха, тапет или цвят на менюто.
+        if (DailyOffer.HasWardrobe(_save) && _rng.Next(6) == 0)
+        {
+            var prizes = Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(_save, g)).Select(g => (object)g)
+                .Concat(Backdrops.All.Where(b => !Backdrops.Owns(_save, b)).Select(b => (object)b))
+                .Concat(UiThemes.All.Where(t => !UiThemes.Owns(_save, t)).Select(t => (object)t)).ToList();
+            if (prizes.Count > 0)
+            {
+                string name;
+                switch (prizes[_rng.Next(prizes.Count)])
+                {
+                    case Garment g: _save.OwnedClothes.Add(g.Id); name = g.Name; break;
+                    case Backdrop b: _save.Owned.Add("bg_" + b.Id); name = "тапет „" + b.Name + "“"; break;
+                    case UiTheme t: _save.Owned.Add(t.Key); name = "меню „" + t.Name + "“"; break;
+                    default: name = ""; break;
+                }
+                if (name.Length > 0)
+                {
+                    Say(R.Pick("goal.done", _save.OwnerName) + $" Награда: {name}! Виж в гардероба.", 8);
+                    Persist();
+                    NotifyCare();
+                    return;
+                }
+            }
+        }
+        GainNuts(reward, "мисия");
+        Say(R.Pick("goal.done", _save.OwnerName) + $" +{reward} 🌰", 7);
     }
 
     /// <summary>„Поговорим ли?“ – въпрос от него (желанието „да си поговорите“, менюто).</summary>

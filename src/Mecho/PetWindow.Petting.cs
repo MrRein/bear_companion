@@ -78,6 +78,7 @@ public sealed partial class PetWindow
             missed = true;
         }
         if (!missed) return;
+        WishPause();
         _sadUntil = now.AddMinutes(30);
         Persist();
         NotifyCare();
@@ -124,6 +125,7 @@ public sealed partial class PetWindow
             return;
         }
         _save.PetOpenUntil = DateTime.MinValue;
+        if (!invited) WishPause();
         NoteContent();
         TodayRec.Petted++;
         Log("heart", "Погален");

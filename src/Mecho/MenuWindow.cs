@@ -1692,11 +1692,15 @@ public sealed class MenuWindow : Window
             _bearGoalBox.Children.Clear();
             var inner = new StackPanel();
             var head = new DockPanel();
-            var reward = goal.Done ? (FrameworkElement)Icon("check", 2) : IconText("nut", "+?", bold: true);
-            reward.VerticalAlignment = VerticalAlignment.Center;
-            reward.ToolTip = Tip(goal.Done ? "Изпълнена – новата мисия почва утре" : "Наградата е изненада – ще разбереш, като я изпълниш");
-            DockPanel.SetDock(reward, Dock.Right);
-            head.Children.Add(reward);
+            // Наградата не се показва изобщо (изненада); изпълнена – ✓.
+            if (goal.Done)
+            {
+                var done = Icon("check", 2);
+                done.VerticalAlignment = VerticalAlignment.Center;
+                done.ToolTip = Tip("Изпълнена – новата мисия почва утре");
+                DockPanel.SetDock(done, Dock.Right);
+                head.Children.Add(done);
+            }
             var star = Icon("star", 2);
             star.Margin = new Thickness(0, 0, 8 * U, 0);
             star.VerticalAlignment = VerticalAlignment.Center;
@@ -1741,9 +1745,9 @@ public sealed class MenuWindow : Window
         _wardrobeTile.Button.Visibility = wardrobe ? Visibility.Visible : Visibility.Collapsed;
         Grid.SetColumnSpan(_foodTile.Button, wardrobe ? 1 : 2);
         int worn = Clothes.Shelves.Count(slot => Clothes.Worn(s, slot) != null);
-        bool cold = _pet.NeedsWarmerClothes;
-        SetTile(_wardrobeTile, "Гардероб", "wardrobe", cold ? "Студено му е!" : worn == 0 ? "Облечи го" : "Облечени: " + worn);
-        TileState(_wardrobeTile, false, cold && !_pet.OnWalk, "Студено му е – облечи го по-топло");
+        // Студът не се показва като статус (без „!“) – само той го коментира.
+        SetTile(_wardrobeTile, "Гардероб", "wardrobe", worn == 0 ? "Облечи го" : "Облечени: " + worn);
+        TileState(_wardrobeTile, false);
 
         if (_pet.IsAsleep) SetTile(_sleepTile, "Събуди", "sun");
         else SetTile(_sleepTile, "Приспи", "moon");

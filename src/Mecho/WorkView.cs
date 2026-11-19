@@ -1042,17 +1042,12 @@ public sealed class WorkView : Border
             if (_filter.Length > 0 && task.Tag.Length == 0) _pet.MarkTask(task, tag: _filter);
             if (task.Day != day)
                 ShowToast($"„{Shorten(task.Title, 40)}“ → {DayName(day)}", () => _pet.PutTask(task, index));
-        }, scroll);
-        // Докато влачиш над деня – рамката му светва в мед (личи къде ще падне).
-        var normalBorder = column.BorderBrush;
-        var normalThick = column.BorderThickness;
-        column.DragEnter += (_, _) => { column.BorderBrush = Honey; column.BorderThickness = Px(1); };
-        column.DragLeave += (_, e) =>
+        }, scroll, on =>
         {
-            var pt = e.GetPosition(column);
-            if (pt.X < 0 || pt.Y < 0 || pt.X >= column.ActualWidth || pt.Y >= column.ActualHeight) { column.BorderBrush = normalBorder; column.BorderThickness = normalThick; }
-        };
-        column.Drop += (_, _) => { column.BorderBrush = normalBorder; column.BorderThickness = normalThick; };
+            // Докато влачиш над деня – рамката му светва в мед (личи къде ще падне).
+            column.BorderBrush = on ? Honey : (isToday ? Ink : WoodDark);
+            column.BorderThickness = on || isToday ? Px(1) : Flat;
+        });
         return column;
     }
 
@@ -1069,7 +1064,8 @@ public sealed class WorkView : Border
     {
         // Цъкнеш ли задачата – отделно прозорче с всичко за нея (като в Sunsama).
         Select = OpenCard,
-        Selected = _selected == t.Id,
+        Selected = false,   // избраната се отваря в прозорче – картичката не остава „бяла“
+        Unscheduled = _view == View.Today && t.Start == null && !t.Done,
         Description = 60,
         Edit = OpenCard,
         Open = OpenCard,
@@ -1840,19 +1836,6 @@ public sealed class WorkView : Border
 
     // ───────────────────────── Backlog ─────────────────────────
 
-    /// <summary>Светъл мед – подсветка на мястото, където ще падне задачата.</summary>
-    private static Brush HoneySoftBrush
-    {
-        get
-        {
-            var c = (Honey as SolidColorBrush)?.Color ?? Colors.Gold;
-            var p = (Cream as SolidColorBrush)?.Color ?? Colors.White;
-            var b = new SolidColorBrush(Color.FromRgb((byte)((c.R + p.R) / 2), (byte)((c.G + p.G) / 2), (byte)((c.B + p.B) / 2)));
-            b.Freeze();
-            return b;
-        }
-    }
-
     /// <summary>Задачите от Backlog, на които им дойде времето („следващата седмица“ вече е тази…).</summary>
     private List<TaskItem> BacklogDue(TasksState state, DateTime today) =>
         state.Someday.Where(t => t.BucketDue is { } due && due <= today).ToList();
@@ -1911,14 +1894,6 @@ public sealed class WorkView : Border
                 if (_pet.Save.Tasks.FirstOrDefault(t => t.Id == id) is not { } task) return;
                 if (task.Day != null || task.Bucket != bucket) _pet.SetTaskBucket(task, bucket);
             });
-            // Докато влачиш над групата – заглавието ѝ светва (личи къде ще падне).
-            box.DragEnter += (_, _) => section.Background = HoneySoftBrush;
-            box.DragLeave += (_, e) =>
-            {
-                var pt = e.GetPosition(box);
-                if (pt.X < 0 || pt.Y < 0 || pt.X >= box.ActualWidth || pt.Y >= box.ActualHeight) section.Background = PaperDark;
-            };
-            box.Drop += (_, _) => section.Background = PaperDark;
             p.Children.Add(box);
         }
     }

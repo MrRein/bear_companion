@@ -58,7 +58,6 @@ public sealed partial class PetWindow
             if (f < 20) needs.Add(("много гладен", 3, "hungry"));
             else if (f < 35) needs.Add(("гладен", 2, "hungry"));
             else if (f < 50) needs.Add(("леко гладен", 1, "hungry"));
-            if (NeedsWarmerClothes) needs.Add(("премръзнал", 2, "cold"));
 
             // Състоянието: (дума, вид: 1 хубаво, 0 неутрално, -1 не толкова, -2 зле).
             (string Word, int Tone)? state =

@@ -43,18 +43,20 @@ public sealed partial class PetWindow
         Clothes.All.Where(g => g.SlotId == slot.Id && Clothes.Owns(_save, g)).Select(WarmthOf).DefaultIfEmpty(0).Max());
 
     /// <summary>
-    /// Колко му е студено (по закръглените градуси): 0 – над 15°C, 1 – хладно (11–15),
-    /// 2 – студено (6–10), 3 – много студено (1–5), 4 – мраз (0 и под). Колкото по-студено,
+    /// Колко му е студено (по закръглените градуси): студено е чак под 5°C. 0 – 5°C и нагоре,
+    /// 2 – студено (0–4), 3 – много студено (под 0), 4 – мраз (−5 и под). Колкото по-студено,
     /// толкова по-топли дрехи иска (Warmth ≥ нивото), а от 2 нагоре – и печицата.
     /// </summary>
     private int ColdLevel => _tempC is not { } t ? 0 : Math.Round(t) switch
     {
-        > 15 => 0,
-        > 10 => 1,
-        > 5 => 2,
-        > 0 => 3,
+        >= 5 => 0,
+        >= 0 => 2,
+        > -5 => 3,
         _ => 4,
     };
+
+    /// <summary>Студено ли е навън (под 5°C) – за „Иска нещо топло за пиене“.</summary>
+    public bool IsColdOutside => Cold;
 
     private bool Cold => ColdLevel > 0;
     private bool Hot => _tempC is { } t && Math.Round(t) >= Weather.Hot;

@@ -232,7 +232,7 @@ public sealed partial class PetWindow
         {
             var now = DateTime.Now;
             bool food = _save.WishList.Any(id => _save.WishUntil.TryGetValue(id, out var until) && until > now);
-            return food || GroupWish != null || WantsPetting || CurrentDesire != null;
+            return food || GroupWish != null || WantsPetting || CurrentDesire != null || now < _save.WishPauseUntil;
         }
     }
 
@@ -359,6 +359,7 @@ public sealed partial class PetWindow
     private void WishFed()
     {
         TodayRec.DesiresMet++;
+        WishPause();
         NoteContent();
         Emote("heart", 4);
         CountWish();
