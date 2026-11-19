@@ -1047,6 +1047,16 @@ public sealed class WorkView : Border
             if (task.Day != day)
                 ShowToast($"„{Shorten(task.Title, 40)}“ → {DayName(day)}", () => _pet.PutTask(task, index));
         }, scroll);
+        // Докато влачиш над деня – рамката му светва в мед (личи къде ще падне).
+        var normalBorder = column.BorderBrush;
+        var normalThick = column.BorderThickness;
+        column.DragEnter += (_, _) => { column.BorderBrush = Honey; column.BorderThickness = Px(1); };
+        column.DragLeave += (_, e) =>
+        {
+            var pt = e.GetPosition(column);
+            if (pt.X < 0 || pt.Y < 0 || pt.X >= column.ActualWidth || pt.Y >= column.ActualHeight) { column.BorderBrush = normalBorder; column.BorderThickness = normalThick; }
+        };
+        column.Drop += (_, _) => { column.BorderBrush = normalBorder; column.BorderThickness = normalThick; };
         return column;
     }
 
@@ -1839,6 +1849,19 @@ public sealed class WorkView : Border
 
     // ───────────────────────── Backlog ─────────────────────────
 
+    /// <summary>Светъл мед – подсветка на мястото, където ще падне задачата.</summary>
+    private static Brush HoneySoftBrush
+    {
+        get
+        {
+            var c = (Honey as SolidColorBrush)?.Color ?? Colors.Gold;
+            var p = (Cream as SolidColorBrush)?.Color ?? Colors.White;
+            var b = new SolidColorBrush(Color.FromRgb((byte)((c.R + p.R) / 2), (byte)((c.G + p.G) / 2), (byte)((c.B + p.B) / 2)));
+            b.Freeze();
+            return b;
+        }
+    }
+
     /// <summary>Задачите от Backlog, на които им дойде времето („следващата седмица“ вече е тази…).</summary>
     private List<TaskItem> BacklogDue(TasksState state, DateTime today) =>
         state.Someday.Where(t => t.BucketDue is { } due && due <= today).ToList();
@@ -1884,15 +1907,27 @@ public sealed class WorkView : Border
                 Margin = new Thickness(0, 10 * U, 0, 4 * U),
                 Child = head,
             };
-            p.Children.Add(section);
             var list = new StackPanel { Background = Brushes.Transparent, MinHeight = 18 * U, Margin = new Thickness(6 * U, 0, 0, 0) };
             foreach (var t in tasks) list.Children.Add(Card(t));
-            var box = new Border { Background = Brushes.Transparent, Child = list };
+            // Цялата група (заглавието, списъкът и празното под него) приема пуснатата задача –
+            // не е нужно да уцелиш точно списъка.
+            var group = new StackPanel { Background = Brushes.Transparent };
+            group.Children.Add(section);
+            group.Children.Add(list);
+            var box = new Border { Background = Brushes.Transparent, Child = group, Padding = new Thickness(0, 0, 0, 6 * U) };
             TaskCards.DropTarget(box, list, (id, before) =>
             {
                 if (_pet.Save.Tasks.FirstOrDefault(t => t.Id == id) is not { } task) return;
                 if (task.Day != null || task.Bucket != bucket) _pet.SetTaskBucket(task, bucket);
             });
+            // Докато влачиш над групата – заглавието ѝ светва (личи къде ще падне).
+            box.DragEnter += (_, _) => section.Background = HoneySoftBrush;
+            box.DragLeave += (_, e) =>
+            {
+                var pt = e.GetPosition(box);
+                if (pt.X < 0 || pt.Y < 0 || pt.X >= box.ActualWidth || pt.Y >= box.ActualHeight) section.Background = PaperDark;
+            };
+            box.Drop += (_, _) => section.Background = PaperDark;
             p.Children.Add(box);
         }
     }

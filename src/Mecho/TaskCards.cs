@@ -834,7 +834,7 @@ internal static class TaskCards
 }
 
 /// <summary>
-/// „Призракът“ при влачене: снимка на картичката, леко наклонена, която следва мишката
+/// „Призракът“ при влачене: снимка на картичката (права), която следва мишката
 /// (прозорец, през който кликовете минават – иначе пускането би паднало върху него).
 /// </summary>
 internal sealed class DragGhost
@@ -859,14 +859,19 @@ internal sealed class DragGhost
             var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(
                 (int)Math.Ceiling(card.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(card.ActualHeight * dpi.DpiScaleY),
                 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
-            bmp.Render(card);
+            // През VisualBrush: снимката е само на картичката (без отстъпа ѝ в списъка – иначе
+            // се отместваше и се отрязваше).
+            var shot = new DrawingVisual();
+            using (var dc = shot.RenderOpen())
+                dc.DrawRectangle(new VisualBrush(card) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top },
+                    null, new Rect(0, 0, card.ActualWidth, card.ActualHeight));
+            bmp.Render(shot);
             bmp.Freeze();
             var image = new System.Windows.Controls.Image
             {
                 Source = bmp,
                 Width = card.ActualWidth,
                 Height = card.ActualHeight,
-                RenderTransform = new RotateTransform(2, card.ActualWidth / 2, card.ActualHeight / 2),
                 Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 0, ShadowDepth = 4, Opacity = 0.35, Direction = 300 },
             };
             var w = new Window
