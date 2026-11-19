@@ -1520,7 +1520,7 @@ public sealed class WorkView : Border
             }
             p.Children.Add(line2);
         }
-        if (!asked && today >= Today)
+        if (!asked && realToday)   // пита само за днешния ден (другите дни – от „Време до“ при нужда)
         {
             // В началото на деня: до колко ще работиш? (или „Не знам“ – тогава не казва нищо)
             var ask = new WrapPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
