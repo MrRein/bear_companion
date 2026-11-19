@@ -17,7 +17,7 @@ namespace Mecho;
 public sealed class DevWindow : Window
 {
     private readonly PetWindow _pet;
-    private readonly TextBlock _status = new() { Foreground = Muted, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _status = new() { Foreground = Ink, TextWrapping = TextWrapping.Wrap };
     private readonly System.Windows.Threading.DispatcherTimer _refresh = new() { Interval = TimeSpan.FromSeconds(1) };
 
     public DevWindow(PetWindow pet)
@@ -52,15 +52,24 @@ public sealed class DevWindow : Window
 
         // Раздели вляво, търсачка горе, групите на раздела вдясно (подредени по име).
         _commands = pet.DevCommands().ToList();
-        var body = new StackPanel { Width = 600 };
+        var body = new StackPanel { Width = 640 };
         _body = body;
         _search.TextChanged += (_, _) => Fill();
         var searchRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         searchRow.Children.Add(MenuWindow.WithHint(_search, "Търси бутон (напр. гушка, подарък, сън)…"));
         var top = new StackPanel();
-        top.Children.Add(_status);
+        top.Children.Add(new Border
+        {
+            Background = Cream,
+            BorderBrush = WoodDark,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8, 5, 8, 6),
+            Margin = new Thickness(0, 0, 0, 8),
+            Child = _status,
+        });
         top.Children.Add(searchRow);
-        var cats = new StackPanel { Width = 150, Margin = new Thickness(0, 0, 10, 0) };
+        var cats = new StackPanel { Width = 180, Margin = new Thickness(0, 0, 12, 0) };
         foreach (var cat in Categories.Select(c => c.Name).Append(Other).Distinct())
         {
             if (!_commands.Any(c => CategoryOf(c.Group) == cat)) continue;
@@ -71,8 +80,10 @@ public sealed class DevWindow : Window
                 _search.Text = "";
                 Fill();
             });
-            chip.Margin = new Thickness(0, 0, 0, 4);
+            chip.Margin = new Thickness(0, 0, 0, 5);
             chip.HorizontalAlignment = HorizontalAlignment.Stretch;
+            chip.Padding = new Thickness(8, 4, 8, 5);
+            if (chip.Child is TextBlock ct) { ct.TextWrapping = TextWrapping.Wrap; ct.FontWeight = FontWeights.Bold; }
             _catChips[name] = chip;
             cats.Children.Add(chip);
         }
@@ -152,13 +163,23 @@ public sealed class DevWindow : Window
         foreach (var group in shown.GroupBy(c => c.Group).OrderBy(g => g.Key, StringComparer.CurrentCulture))
         {
             any = true;
-            var ribbon = Ribbon(group.Key + (q.Length > 0 ? "  ·  " + CategoryOf(group.Key) : ""));
-            ribbon.Margin = new Thickness(0, 4, 0, 6);
-            _body.Children.Add(ribbon);
-            var wrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            // Заглавие на групата: тъмен, едър текст с черта (четливо върху хартията).
+            var head = new TextBlock
+            {
+                Text = group.Key + (q.Length > 0 ? "  ·  " + CategoryOf(group.Key) : ""),
+                FontWeight = FontWeights.Bold,
+                FontSize = Ui.Title,
+                Foreground = Ink,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 8, 0, 2),
+            };
+            _body.Children.Add(head);
+            _body.Children.Add(new Border { Height = 2, Background = WoodDark, Margin = new Thickness(0, 0, 0, 6), Opacity = 0.6 });
+            // Бутоните – в две еднакви колони, текстът се пренася (не се реже).
+            var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 8) };
             foreach (var (_, label, act) in group)
             {
-                var b = Button(label, () =>
+                var b = Button("", () =>
                 {
                     try { act(); }
                     catch (Exception ex)
@@ -168,11 +189,16 @@ public sealed class DevWindow : Window
                     }
                     UpdateStatus();
                 });
-                b.Padding = new Thickness(8, 3, 8, 4);
+                b.Content = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap, Foreground = Ink };
+                b.HorizontalContentAlignment = HorizontalAlignment.Left;
+                b.HorizontalAlignment = HorizontalAlignment.Stretch;
+                b.VerticalAlignment = VerticalAlignment.Stretch;
+                b.Padding = new Thickness(8, 4, 8, 5);
                 b.Margin = new Thickness(0, 0, 6, 6);
-                wrap.Children.Add(b);
+                b.ToolTip = Tip(label);
+                grid.Children.Add(b);
             }
-            _body.Children.Add(wrap);
+            _body.Children.Add(grid);
         }
         if (!any) _body.Children.Add(MenuWindow.MutedText("Няма такъв бутон."));
     }

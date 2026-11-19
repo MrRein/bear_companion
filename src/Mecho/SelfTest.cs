@@ -1956,6 +1956,7 @@ public sealed partial class PetWindow
             var dev = new DevWindow(this);
             dev.Show();
             dev.UpdateLayout();
+            Shot(dev, "dev_window");
             dev.Close();
         }, 500);
         await step("developer: Dev Mode (всичко) и връщане", () =>
