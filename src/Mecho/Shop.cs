@@ -14,6 +14,14 @@ public static class DailyOffer
 {
     public const int Count = 3;
 
+    /// <summary>Страница от готварска книга в офертата: колко струва, колко често излиза.</summary>
+    public const int PagePrice = 15;
+    public const double PageChance = 0.2;
+    public const string PageKey = "page", PageBoughtKey = "page:bought";
+
+    /// <summary>Страницата в офертата (купена ли е днес).</summary>
+    public sealed record RecipePageOffer(bool Bought);
+
     private static readonly Random Rng = new();
 
     /// <summary>Купен ли е гардеробът (иначе няма дрехи и тапети).</summary>
@@ -78,6 +86,8 @@ public static class DailyOffer
         {
             s.OfferDay = today;
             s.OfferItems.Clear();
+            // Рядко (около 1 на 5 дни) едно от трите е страница от готварска книга.
+            if (Recipes.Next(s) != null && Rng.NextDouble() < PageChance) s.OfferItems.Add(PageKey);
         }
         // Друг вид на нещо, което (вече) го няма – маха се (не излиза преди самото нещо).
         s.OfferItems.RemoveAll(k => !Valid(s, k));
@@ -107,6 +117,7 @@ public static class DailyOffer
     /// <summary>Може ли да стои в офертата: съществува и (за друг вид) предметът е купен.</summary>
     private static bool Valid(SaveData s, string key)
     {
+        if (key == PageKey) return Recipes.Next(s) != null;
         var parts = key.Split(':');
         if (Resolve(key) == null) return false;
         return parts[0] != "skin" || Kitchen.Owns(s, parts[1]);
@@ -120,6 +131,7 @@ public static class DailyOffer
         var parts = key.Split(':');
         return parts[0] switch
         {
+            "page" => new RecipePageOffer(key == PageBoughtKey),
             "g" => Clothes.Find(parts[1]),
             "bg" => Backdrops.All.FirstOrDefault(b => b.Id == parts[1]),
             "pj" => Clothes.PajamaSets.FirstOrDefault(p => p.Id == parts[1]),

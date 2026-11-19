@@ -54,7 +54,7 @@ public sealed record TaskEntry(Guid Id, string Title, string Description, int Si
     };
 
     /// <summary>Лешниците за свършването: 0 – „никаква“ сложност, 1 – малка, 3 – средна, 5 – голяма.</summary>
-    public int Reward => Size switch { 3 => 5, 2 => 3, 1 => 1, _ => 0 };
+    public int Reward => Size switch { 3 => 4, 2 => 2, 1 => 1, _ => 0 };
 
     /// <summary>Приоритетът: 2 – Важно (= Star), 1 – Средно, 0 – Нормално, -1 – Ниско.</summary>
     [System.Text.Json.Serialization.JsonIgnore]

@@ -453,7 +453,7 @@ public sealed partial class PetWindow
                     pages++;
                     if (got > need) throw new Exception($"{next.Id}: повече от {need} страници");
                 }
-                if (done != next || got != need || !Kitchen.HasRecipe(next, t)) throw new Exception($"{next.Id}: грешно отключване");
+                if (got != Recipes.Pages || !Kitchen.HasRecipe(done, t)) throw new Exception($"{done.Id}: грешно отключване ({got} страници)");
                 learned++;
             }
             // Сандвичите на масичката са без рецепта (винаги ги има) – не се учат от страници.

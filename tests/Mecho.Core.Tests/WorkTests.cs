@@ -104,16 +104,16 @@ public class WorkTests
     }
 
     [Fact]
-    public void Pay_gives_a_nut_per_ten_minutes_and_keeps_the_rest()
+    public void Pay_gives_a_nut_per_twenty_minutes_and_keeps_the_rest()
     {
         var (e, _, _) = Started();
-        Assert.Equal(2, WorkModule.NutsFor(0, 25));
+        Assert.Equal(1, WorkModule.NutsFor(0, 25));
         e.Bus.Send(new PayWork(25));
-        Assert.Equal(2, e.Store.Get<WalletState>().Nuts);
+        Assert.Equal(1, e.Store.Get<WalletState>().Nuts);
         Assert.Equal(5, e.Store.Get<WorkBankState>().Minutes, 6);
-        Assert.Equal(1, WorkModule.NutsFor(5, 5));
-        e.Bus.Send(new PayWork(5));
-        Assert.Equal(3, e.Store.Get<WalletState>().Nuts);
+        Assert.Equal(1, WorkModule.NutsFor(5, 15));
+        e.Bus.Send(new PayWork(15));
+        Assert.Equal(2, e.Store.Get<WalletState>().Nuts);
         Assert.Equal(0, e.Store.Get<WorkBankState>().Minutes, 6);
         Assert.False(e.Bus.Send(new PayWork(double.NaN)).Ok);
     }

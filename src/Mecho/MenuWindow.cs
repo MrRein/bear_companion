@@ -99,13 +99,28 @@ public sealed class MenuWindow : Window
     private readonly StackPanel _pomNuts = new() { Orientation = Orientation.Horizontal }, _timerNuts = new() { Orientation = Orientation.Horizontal };
 
     /// <summary>„+3 🌰“ – числото и лешникът, центрирани един спрямо друг.</summary>
-    private static void SetNuts(StackPanel row, int nuts)
+    private static void SetNuts(StackPanel row, int nuts, int lazy = 0)
     {
-        if (row.Tag is int shown && shown == nuts) return;
-        row.Tag = nuts;
+        int key = nuts * 100 + lazy;
+        if (row.Tag is int shown && shown == key) return;
+        row.Tag = key;
         row.Children.Clear();
         if (nuts <= 0) return;
         row.Children.Add(RewardText(nuts, bold: true));
+        // Ленив ден: +1 в зелено; при посочване – защо.
+        if (lazy > 0)
+        {
+            var bonus = new TextBlock
+            {
+                Text = " +" + lazy,
+                FontWeight = FontWeights.Bold,
+                Foreground = Good,
+                VerticalAlignment = VerticalAlignment.Center,
+                Background = Brushes.Transparent,
+                ToolTip = Tip("Ленив ден: на Мечо днес му се мързи, затова всяко довършено мечо-доро носи +1 лешник отгоре."),
+            };
+            row.Children.Add(bonus);
+        }
     }
     private Button _pomStart = null!, _pomStop = null!;
     private TextBlock _timerTime = null!;
@@ -1677,9 +1692,9 @@ public sealed class MenuWindow : Window
             _bearGoalBox.Children.Clear();
             var inner = new StackPanel();
             var head = new DockPanel();
-            var reward = goal.Done ? (FrameworkElement)Icon("check", 2) : IconText("nut", "+" + goal.Reward, bold: true);
+            var reward = goal.Done ? (FrameworkElement)Icon("check", 2) : IconText("nut", "+?", bold: true);
             reward.VerticalAlignment = VerticalAlignment.Center;
-            reward.ToolTip = Tip(goal.Done ? "Изпълнена – новата мисия почва утре" : $"Изпълниш ли я – {goal.Reward} лешника");
+            reward.ToolTip = Tip(goal.Done ? "Изпълнена – новата мисия почва утре" : "Наградата е изненада – ще разбереш, като я изпълниш");
             DockPanel.SetDock(reward, Dock.Right);
             head.Children.Add(reward);
             var star = Icon("star", 2);
@@ -2101,7 +2116,7 @@ public sealed class MenuWindow : Window
 
     private readonly StackPanel _recipeProgress = new() { Margin = new Thickness(0, 12, 0, 0) };
 
-    /// <summary>„Следваща рецепта: ▮▮▯ 2/3 страници“ – коя е, е тайна.</summary>
+    /// <summary>„Следваща рецепта: ▮▮▯▯▯ 2/5 страници“ – коя ще е, е тайна (решава се накрая).</summary>
     private void BuildRecipeProgress()
     {
         var s = _pet.Save;
@@ -2110,7 +2125,7 @@ public sealed class MenuWindow : Window
         var next = Recipes.Next(s);
         if (next == null)
         {
-            _recipeProgress.Children.Add(MutedText("Знаеш всички рецепти!"));
+            _recipeProgress.Children.Add(MutedText("Знаеш всички рецепти за уредите си – нов уред носи нови рецепти."));
             return;
         }
         int need = Recipes.PagesFor(next);
@@ -2440,6 +2455,7 @@ public sealed class MenuWindow : Window
                 case Skin k: grid.Children.Add(SkinTile(k, shop: true)); break;
                 case PajamaSet p: grid.Children.Add(PajamaTile(p, shop: true)); break;
                 case UiTheme t: grid.Children.Add(ThemeTile(t, shop: true)); break;
+                case DailyOffer.RecipePageOffer page: grid.Children.Add(RecipePageTile(page)); break;
             }
         }
         if (grid.Children.Count > 0) box.Children.Add(grid);
@@ -2478,6 +2494,27 @@ public sealed class MenuWindow : Window
         TextAlignment = TextAlignment.Center,
         TextWrapping = TextWrapping.Wrap,
     };
+
+    /// <summary>Страница от готварска книга (рядко в офертата): купиш ли я – една страница към новата рецепта.</summary>
+    private Border RecipePageTile(DailyOffer.RecipePageOffer page)
+    {
+        var s = _pet.Save;
+        string? why = null;
+        Button action = page.Bought
+            ? Button("Купена", () => ShowPage(PageFood), icon: "book")
+            : BuyButton(DailyOffer.PagePrice, () =>
+            {
+                if (s.Hazelnuts < DailyOffer.PagePrice) return;
+                if (!_pet.CoreEngine.Bus.Send(new Mecho.Core.SpendNuts(DailyOffer.PagePrice, "страница")).Ok) return;
+                int i = s.OfferItems.IndexOf(DailyOffer.PageKey);
+                if (i >= 0) s.OfferItems[i] = DailyOffer.PageBoughtKey;
+                _pet.BuyRecipePage();
+                Refresh(true);
+            }, out why);
+        if (page.Bought) why = "Купена днес – страницата е в готварската книга.";
+        return MakeTile(_pet.PropImage("shop_cookbook"), "Страница от готварска книга",
+            Description($"{s.RecipePages}/{Recipes.Pages} страници до нова рецепта"), action, dim: false, why, page.Bought, 5);
+    }
 
     private Border GarmentShopTile(Garment g)
     {
@@ -4105,7 +4142,7 @@ public sealed class MenuWindow : Window
             default:
                 _pomTime.Text = $"{(int)_pet.FocusLength.TotalMinutes:00}:00";
                 _pomStatus.Text = _pet.PomodoroMode.Hint;
-                SetNuts(_pomNuts, _pet.PomodoroNuts);
+                SetNuts(_pomNuts, _pet.PomodoroNuts, _pet.LazyDay ? 1 : 0);
                 break;
         }
         _pomStart.Visibility = s.PomodoroPhase == PomodoroPhase.Focus ? Visibility.Collapsed : Visibility.Visible;

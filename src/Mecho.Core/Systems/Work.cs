@@ -14,7 +14,7 @@ namespace Mecho.Core;
 //
 //     bus.Send(new StartPomodoro(25, 5, NewSeries: true));
 //     bus.Send(new StartWorkTimer(15, "скица", WorkTimerKinds.Work));
-//     bus.Send(new PayWork(25));          // 1 лешник на 10 мин, остатъкът се пази
+//     bus.Send(new PayWork(25));          // 1 лешник на 20 мин, остатъкът се пази
 //     bus.Subscribe<PomodoroFocusDone>(this, s => …);
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -74,7 +74,7 @@ public sealed record StopWorkTimer : IGameCommand;
 public sealed record SetWorkTimer(WorkTimerState Value) : IGameCommand;
 /// <summary>Провери сега дали нещо е свършило (иначе – до секунда).</summary>
 public sealed record CheckWork : IGameCommand;
-/// <summary>Плаща толкова минути работа: по 1 лешник на 10 минути, остатъкът чака.</summary>
+/// <summary>Плаща толкова минути работа: по 1 лешник на 20 минути, остатъкът чака.</summary>
 public sealed record PayWork(double Minutes) : IGameCommand;
 public sealed record SetWorkBank(double Minutes) : IGameCommand;
 
@@ -98,7 +98,7 @@ public sealed class WorkModule : GameModule
     public const string BankKey = "work.bank";
 
     /// <summary>Колко минути работа носят един лешник.</summary>
-    public const double MinutesPerNut = 10;
+    public const double MinutesPerNut = 20;
 
     public override string Id => ModuleId;
 

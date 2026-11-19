@@ -4,9 +4,8 @@ using System.Linq;
 namespace Mecho;
 
 /// <summary>
-/// Рецептите се откриват бавно: от страници. Следващата рецепта е тайна (случайна
-/// от ненаучените); знае се само колко е трудна: лесна 3 страници, средна 5,
-/// сложна 7. Страниците идват от мечо-дорото (1 на 5), от трудна задача и понякога
+/// Рецептите се откриват бавно: от страници – винаги по 5. Коя рецепта ще се отключи
+/// е тайна: решава се, когато събереш петата (случайна от ненаучените за уредите, които имаш). Страниците идват от мечо-дорото (1 на 5), от трудна задача и понякога
 /// от дневния подарък. В „Храна“ се виждат само научените рецепти и една лента
 /// с прогреса към следващата.
 /// </summary>
@@ -14,14 +13,10 @@ public static class Recipes
 {
     private static readonly Random Rng = new();
 
-    /// <summary>Колко страници иска рецептата.</summary>
-    public static int PagesFor(Food f) => f.Id switch
-    {
-        "potatoes" or "pizza_margarita" => 7,
-        "coffee" or "meatballs" or "latte" or "skewers" => 5,
-        _ when f.Prep != null => 5,     // в два уреда – средна
-        _ => 3,
-    };
+    /// <summary>Колко страници иска рецептата: винаги 5.</summary>
+    public const int Pages = 5;
+
+    public static int PagesFor(Food f) => Pages;
 
     public static string Difficulty(int pages) => pages switch { >= 7 => "сложна", >= 5 => "средна", _ => "лесна" };
 
@@ -59,7 +54,10 @@ public static class Recipes
         var next = Next(s);
         if (next == null) return null;
         s.RecipePages++;
-        if (s.RecipePages < PagesFor(next)) return null;
+        if (s.RecipePages < Pages) return null;
+        // Коя рецепта – решава се чак сега: случайна от ненаучените за уредите, които има.
+        var unknown = Unknown(s);
+        if (unknown.Length > 0) next = unknown[Rng.Next(unknown.Length)];
         s.Owned.Add(Kitchen.RecipeId(next));
         s.NextRecipe = null;
         s.RecipePages = 0;

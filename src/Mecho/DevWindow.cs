@@ -407,9 +407,11 @@ public sealed partial class PetWindow
         yield return (food, "+1 страница рецепта", () => FindRecipePage());
         yield return (food, "Научи следващата рецепта", () =>
         {
-            var next = Recipes.Next(_save);
-            if (next == null) return;
-            while (!Kitchen.HasRecipe(next, _save)) FindRecipePage();
+            for (int i = 0; i < Recipes.Pages && Recipes.Next(_save) != null; i++)
+            {
+                FindRecipePage();
+                if (LastLearned != null) break;
+            }
         });
         yield return (clothes, "Нова оферта на деня", () =>
         {
@@ -735,7 +737,7 @@ public sealed partial class PetWindow
         {
             var g = CurrentMission;
             if (g.Done) { Say("Вече е изпълнена – новата почва утре.", 3); return; }
-            PayMission(g.Text, g.Reward);
+            PayMission(g.Text, LowRoll(15, 25));
         });
         yield return (mission, "Нова мисия (случайна)", () => { _save.MissionId = ""; _save.MissionDone = false; Say("Нова мисия: " + CurrentMission.Text, 4); NotifyCare(); });
         yield return (mission, "Мисията почна преди 3 дни", () => { _save.MissionStart = DayKey(DateTime.Today.AddDays(-3)); NotifyCare(); });

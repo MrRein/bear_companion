@@ -12,16 +12,16 @@ public static class Backdrops
     public static readonly Backdrop[] All =
     {
         new(Default, "Ливада", 0),
-        new("sunset", "Залез", 14),
-        new("night", "Звездна нощ", 14),
+        new("sunset", "Залез", 20),
+        new("night", "Звездна нощ", 20),
         new("beach", "Плаж", 20),
         new("autumn", "Есенна гора", 20),
         new("winter", "Зимна приказка", 20),
         new("candy", "Сладкарница", 20),
-        new("studio", "Ателие", 25),
-        new("library", "Библиотека", 25),
-        new("underwater", "Под водата", 30),
-        new("space", "Космос", 35),
+        new("studio", "Ателие", 20),
+        new("library", "Библиотека", 20),
+        new("underwater", "Под водата", 20),
+        new("space", "Космос", 20),
     };
 
     public static Backdrop Find(string? id) => All.FirstOrDefault(b => b.Id == id) ?? All[0];

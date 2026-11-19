@@ -204,17 +204,15 @@ public sealed partial class PetWindow
         // Понякога (по-често, ако няма какво друго) – страница от готварската книга.
         if (Recipes.Next(_save) != null && _rng.Next(100) < (prizes.Count == 0 ? 60 : 25))
         {
-            var before = Recipes.Next(_save)!;
             FindRecipePage();
-            int need = Recipes.PagesFor(before);
-            bool learned = Kitchen.HasRecipe(before, _save);
+            var learned = LastLearned;
             window.Reveal(_lib.GetProp("shop_cookbook", 16, 16, 0).Image, 5, "Страница от готварска книга!",
-                learned ? $"Научи {before.Name}!" : $"Следваща рецепта: {_save.RecipePages}/{need} страници.");
-            Later(1.2, () => Say(R.Text(learned ? "gift.got.recipe" : "gift.got.page", _save.OwnerName, ("храна", before.Name.ToLowerInvariant())), 5));
+                learned != null ? $"Научи {learned.Name}!" : $"Следваща рецепта: {_save.RecipePages}/{Recipes.Pages} страници.");
+            Later(1.2, () => Say(R.Text(learned != null ? "gift.got.recipe" : "gift.got.page", _save.OwnerName, ("храна", (learned?.Name ?? "").ToLowerInvariant())), 5));
         }
         else if (prizes.Count == 0)
         {
-            int nuts = 5 + _rng.Next(11);
+            int nuts = LowRoll(3, 10);   // 3–10, най-често ниско; 10 – много рядко
             GainNuts(nuts, "подарък");
             window.Reveal(_lib.GetProp("nut", 5, 6, 0).Image, 8, $"{nuts} лешника!", wardrobe ? "Имаш вече всичко, затова лешници." : "С гардероб тук може да има и дрехи.");
             Later(1.2, () => Say(R.Text("gift.got.nuts", _save.OwnerName, ("число", nuts.ToString())), 4));

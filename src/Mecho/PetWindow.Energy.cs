@@ -337,6 +337,9 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Мечо-доро на мързелив ден: бонус лешник „за смелостта“.</summary>
+    /// <summary>Ленив ден: мечо-дорото носи +1 (показва се в зелено при мечо-дорото).</summary>
+    public bool LazyDay => Today == DayKind.Lazy;
+
     private int LazyBonus()
     {
         if (Today != DayKind.Lazy) return 0;

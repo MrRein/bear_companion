@@ -183,10 +183,24 @@ public sealed partial class PetWindow
     /// расте). Ако довърши рецептата, мечокът казва коя е – но не по време на
     /// работа: тогава чака почивката. Връщa надпис за наградата (" +📖").
     /// </summary>
+    /// <summary>Купи страница от офертата: една страница към новата рецепта (и казва нещо).</summary>
+    public void BuyRecipePage()
+    {
+        FindRecipePage();
+        if (LastLearned == null) Say($"Още една страница! {_save.RecipePages}/{Recipes.Pages} до нова рецепта.", 4);
+        Persist();
+        NotifyCare();
+    }
+
+    /// <summary>Рецептата, която последната страница отключи (или null).</summary>
+    internal Food? LastLearned { get; private set; }
+
     internal string FindRecipePage()
     {
+        LastLearned = null;
         if (Recipes.Next(_save) == null) return "";
         var learned = Recipes.AddPage(_save);
+        LastLearned = learned;
         if (learned != null)
         {
             if (InFocus) _learnedWhileWorking = learned;

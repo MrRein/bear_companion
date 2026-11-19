@@ -28,16 +28,16 @@ public class TasksTests
         Assert.Equal(("Скица", "две версии", 3), (t.Title, t.Description, t.Size));
 
         e.Bus.Send(new SetTaskDone(t.Id, true));
-        Assert.Equal(5, e.Store.Get<WalletState>().Nuts);
+        Assert.Equal(4, e.Store.Get<WalletState>().Nuts);
         Assert.Equal(1, e.Store.Get<TasksState>().DoneTotal);
-        Assert.Contains(new TaskCompleted(t.Id, 3, 5, true), signals);
+        Assert.Contains(new TaskCompleted(t.Id, 3, 4, true), signals);
 
         e.Bus.Send(new SetTaskDone(t.Id, false));
         Assert.Equal(0, e.Store.Get<WalletState>().Nuts);
         Assert.Equal(0, e.Store.Get<TasksState>().DoneTotal);
 
         e.Bus.Send(new SetTaskDone(t.Id, true));    // втори път – без нов шанс за страница
-        Assert.Contains(new TaskCompleted(t.Id, 3, 5, false), signals);
+        Assert.Contains(new TaskCompleted(t.Id, 3, 4, false), signals);
     }
 
     [Fact]

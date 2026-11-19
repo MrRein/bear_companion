@@ -725,7 +725,9 @@ public sealed partial class PetWindow
             nuts++;
         }
         // Понякога (1 на 5) – страница от готварската книга.
-        string page = _rng.Next(5) == 0 ? FindRecipePage() : "";
+        // Страница: на всеки 5–7 мечо-дора (случайно колко).
+        if (_save.PageCountdown <= 0) _save.PageCountdown = 5 + _rng.Next(3);
+        string page = --_save.PageCountdown <= 0 ? FindRecipePage() : "";
         Joy(JoyWorked);
         if (_save.PomodorosToday % 3 == 0) Pride();
         Say(Lines.Pick(Lines.FocusDone, _save.OwnerName) + Earned(nuts) + page, 8);

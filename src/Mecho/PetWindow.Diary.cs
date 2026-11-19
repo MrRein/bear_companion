@@ -225,6 +225,9 @@ public sealed partial class PetWindow
     /// число (5–9, всеки път ново) голяма награда 5–10 лешника и нещо специално; иначе 1 шанс
     /// от 3 за +1 лешник. Двете не се събират. true – дошла е голямата.
     /// </summary>
+    /// <summary>Случайно число от min до max, което клони към ниското (максимумът е рядък).</summary>
+    private int LowRoll(int min, int max) => min + (int)Math.Floor(Math.Pow(_rng.NextDouble(), 2.2) * (max - min + 1));
+
     private bool CountWish()
     {
         if (_save.PetGoal <= 0) _save.PetGoal = NewPetGoal();
@@ -233,13 +236,20 @@ public sealed partial class PetWindow
         {
             _save.PetCount = 0;
             _save.PetGoal = NewPetGoal();
-            int nuts = 5 + _rng.Next(6);
+            int nuts = LowRoll(5, 10);
             GainNuts(nuts, "желания");
             Say(R.Pick("pet.reward", _save.OwnerName) + $" +{nuts} 🌰", 7);
             Emote("sparkle", 4);
             return true;
         }
-        if (_rng.Next(3) == 0) GainNuts(1, "желания");
+        // Малката награда: +1 на всеки 4–6 изпълнени желания.
+        if (_save.WishSmallGoal <= 0) _save.WishSmallGoal = 4 + _rng.Next(3);
+        if (++_save.WishSmallCount >= _save.WishSmallGoal)
+        {
+            _save.WishSmallCount = 0;
+            _save.WishSmallGoal = 4 + _rng.Next(3);
+            GainNuts(1, "желания");
+        }
         return false;
     }
 
@@ -250,13 +260,13 @@ public sealed partial class PetWindow
 
     private static readonly Mission[] Missions =
     {
-        new("tasks25", "Свърши 25 задачи", 25, 30, d => d.Sum(r => r.TasksDone)),
-        new("big6", "Свърши 6 големи задачи", 6, 35, d => d.Sum(r => r.BigTasks)),
-        new("work15", "Работете заедно 15 часа", 900, 40, d => (int)d.Sum(r => r.WorkMinutes)),
-        new("focus20", "Направете 20 фокуса", 20, 35, d => d.Sum(r => r.Pomodoros)),
-        new("foods12", "Опитайте 12 различни ястия", 12, 30, d => d.SelectMany(r => r.Foods).Distinct().Count()),
-        new("desires20", "Изпълни му 20 желания", 20, 40, d => d.Sum(r => r.DesiresMet)),
-        new("streak5", "5 дни подред със свършена задача", 5, 40, Streak),
+        new("tasks25", "Свърши 25 задачи", 25, 0, d => d.Sum(r => r.TasksDone)),
+        new("big6", "Свърши 6 големи задачи", 6, 0, d => d.Sum(r => r.BigTasks)),
+        new("work15", "Работете заедно 15 часа", 900, 0, d => (int)d.Sum(r => r.WorkMinutes)),
+        new("focus20", "Направете 20 фокуса", 20, 0, d => d.Sum(r => r.Pomodoros)),
+        new("foods12", "Опитайте 12 различни ястия", 12, 0, d => d.SelectMany(r => r.Foods).Distinct().Count()),
+        new("desires20", "Изпълни му 20 желания", 20, 0, d => d.Sum(r => r.DesiresMet)),
+        new("streak5", "5 дни подред със свършена задача", 5, 0, Streak),
     };
 
     /// <summary>Колко дни подред (до днес или вчера) има поне една свършена задача.</summary>
@@ -301,7 +311,7 @@ public sealed partial class PetWindow
     {
         var g = CurrentMission;
         if (g.Done || g.Have < g.Target) return;
-        PayMission(g.Text, g.Reward);
+        PayMission(g.Text, LowRoll(15, 25));   // наградата е изненада: 15–25, по-често ниско
     }
 
     private void PayMission(string text, int reward)
