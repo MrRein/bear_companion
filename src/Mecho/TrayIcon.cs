@@ -34,6 +34,8 @@ public sealed class TrayIcon : IDisposable
         if (!save.FirstRunDone)
         {
             save.FirstRunDone = true;
+            // Нов мечок: започваш с 20 лешника (за първите ястия).
+            if (save.Hazelnuts < 20) save.Hazelnuts = 20;
             SetStartWithWindows(save.StartWithWindows);
             save.Save();
         }

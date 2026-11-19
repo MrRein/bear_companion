@@ -71,7 +71,19 @@ public sealed class NeedsModule : GameModule
     public const string Key = "needs";
 
     /// <summary>Колко точки ситост на час се губят буден/заспал (сит → гладен за ~3,5 ч).</summary>
-    public const double HungerAwake = 22, HungerAsleep = 4;
+    /// <summary>
+    /// Гладът по часа от деня (точки на час; 10 точки = едно барче): закуска → обяд пада с
+    /// 3–4 барчета (8,5/ч), обяд → вечеря с 4–5 (7,5/ч), след вечеря почти не пада (до 7–8
+    /// от пълно – 4/ч), нощем и докато спи – съвсем малко. Сутрин се събужда с лек глад
+    /// (виж PetWindow.MorningHunger).
+    /// </summary>
+    public static double HungerAt(DateTime t)
+    {
+        double h = t.Hour + t.Minute / 60.0;
+        return h < 5 ? 2 : h < 12.5 ? 8.5 : h < 19 ? 7.5 : 4;
+    }
+
+    public const double HungerAsleep = 1;
 
     private double _lastDecay = double.NaN;
     private NeedsState _announced = NeedsState.Default;
@@ -114,7 +126,7 @@ public sealed class NeedsModule : GameModule
         _lastDecay = now;
         if (hours <= 0) return;
         bool asleep = Store.TryGet<BearStatusState>(out var bear) && bear!.Asleep;
-        double rate = (asleep ? HungerAsleep : HungerAwake) * Modifiers.Get(Mods.HungerRate);
+        double rate = (asleep ? HungerAsleep : HungerAt(Clock.Now)) * Modifiers.Get(Mods.HungerRate);
         var n = State<NeedsState>();
         Apply(n with { Fullness = Clamp(n.Fullness - rate * hours) });
     }

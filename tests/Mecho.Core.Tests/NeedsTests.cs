@@ -32,7 +32,7 @@ public class NeedsTests
         e.Bus.Send(new SetNeeds(100, null, "тест"));
         RunFor(e, clock, 3600);
         double awake = 100 - e.Store.Get<NeedsState>().Fullness;
-        Assert.InRange(awake, NeedsModule.HungerAwake - 0.5, NeedsModule.HungerAwake + 0.5);
+        Assert.InRange(awake, NeedsModule.HungerAt(clock.Now) - 0.5, NeedsModule.HungerAt(clock.Now) + 0.5);   // 10–11 ч: 8,5 на час
 
         e.Bus.Send(new SetNeeds(100, null, "тест"));
         e.Bus.Send(new ReportBearStatus(true, false, false, "sleep"));
@@ -42,13 +42,24 @@ public class NeedsTests
     }
 
     [Fact]
+    public void Hunger_follows_the_day()
+    {
+        // Пълно след закуска (8:00) → обяд (12:30): пада с 3–4 барчета.
+        Assert.InRange(NeedsModule.HungerAt(new DateTime(2026, 1, 1, 9, 0, 0)) * 4.5, 30, 40);
+        // Обяд (13:00) → вечеря (19:00): с 4–5.
+        Assert.InRange(NeedsModule.HungerAt(new DateTime(2026, 1, 1, 15, 0, 0)) * 6, 40, 50);
+        // След вечеря (19:30) до полунощ: от 10 най-много до 7–8.
+        Assert.InRange(NeedsModule.HungerAt(new DateTime(2026, 1, 1, 21, 0, 0)) * 4.5, 15, 30);
+    }
+
+    [Fact]
     public void Events_modify_hunger_rate()
     {
         var (e, clock, _) = Started();
         e.Bus.Send(new SetNeeds(100, null, "тест"));
         e.Modifiers.Set("sick_day", Mods.HungerRate, 0.5);
         RunFor(e, clock, 3600);
-        Assert.InRange(100 - e.Store.Get<NeedsState>().Fullness, NeedsModule.HungerAwake / 2 - 0.5, NeedsModule.HungerAwake / 2 + 0.5);
+        Assert.InRange(100 - e.Store.Get<NeedsState>().Fullness, NeedsModule.HungerAt(clock.Now) / 2 - 0.5, NeedsModule.HungerAt(clock.Now) / 2 + 0.5);
     }
 
     [Fact]

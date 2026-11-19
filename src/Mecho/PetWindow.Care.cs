@@ -10,8 +10,7 @@ namespace Mecho;
 public sealed partial class PetWindow
 {
     // Колко бързо се променят нуждите (точки на час).
-    private const double HungerAwake = 22;     // сит → гладен за ~3,5 часа
-    private const double HungerAsleep = 4;
+    private const double HungerOffline = 2;    // компютърът е спрян: гладът спада бавно (сутрин така и така се събужда с лек глад)
     private const double RestAsleep = 240;     // от 20 до 100 за ~20 минути дрямка (с легло: 10)
 
     private double RestRate => RestAsleep * (Kitchen.Owns(_save, Kitchen.Bed) ? 2 : 1);
@@ -126,7 +125,7 @@ public sealed partial class PetWindow
         if (hours >= 2) _save.Energy = Math.Min(100, _save.Energy + hours * RestRate);
         // Вечер не става бодър само защото компютърът е бил спрян.
         _save.Energy = Math.Min(_save.Energy, EveningCap(DateTime.Now));
-        _save.Fullness = Math.Max(Math.Min(_save.Fullness, 30), _save.Fullness - hours * HungerAsleep);
+        _save.Fullness = Math.Max(Math.Min(_save.Fullness, 30), _save.Fullness - hours * HungerOffline);
     }
 
     /// <summary>

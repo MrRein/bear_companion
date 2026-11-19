@@ -248,6 +248,24 @@ public sealed partial class PetWindow
         Persist();
     }
 
+    /// <summary>
+    /// Сутрин (първия път за деня, будно, 5–12 ч.) се събужда с лек глад: 5–7 барчета.
+    /// Понякога (около 1 на 6 дни) е много гладен: 2–4 – и може да го каже.
+    /// </summary>
+    private void MorningHunger()
+    {
+        var now = DateTime.Now;
+        if (now.Hour < 5 || now.Hour >= 12 || IsAsleep || SelfTest.Running) return;
+        string today = now.ToString("yyyy-MM-dd");
+        if (_save.HungerMorning == today) return;
+        _save.HungerMorning = today;
+        bool hungry = _rng.Next(6) == 0;
+        _save.Fullness = hungry ? 20 + _rng.Next(21) : 50 + _rng.Next(21);
+        if (hungry && !IsQuiet) Later(6, () => Say(R.Pick("morning.hungry", _save.OwnerName), 4));
+        NotifyCare();
+        Persist();
+    }
+
     /// <summary>Вика се от UpdateCare: мени енергията и следи ситуациите през деня.</summary>
     private void UpdateEnergy(double dt, double now)
     {
@@ -259,6 +277,7 @@ public sealed partial class PetWindow
         else e += rate * dt / 3600;
         _save.Energy = Math.Clamp(e, 0, 100);
         MorningRecharge();
+        MorningHunger();
 
         if (_save.Energy < 15) _deepTired = true;
         if (IsAsleep) _deepTired = false;

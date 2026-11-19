@@ -137,7 +137,8 @@ public sealed class SaveData
     public int WishSmallCount { get; set; }                    // изпълнени желания от последното +1
     public int WishSmallGoal { get; set; }                     // на колко (4–6) идва +1
     public int PageCountdown { get; set; }                     // след колко мечо-дора (5–7) идва страница
-    public string MorningCharged { get; set; } = "";         // в кой ден вече се е „наспал“ сутрин (пуснат цяла нощ)
+    public string MorningCharged { get; set; } = "";
+    public string HungerMorning { get; set; } = "";            // в кой ден вече се е „събудил“ с лек глад         // в кой ден вече се е „наспал“ сутрин (пуснат цяла нощ)
     public string PetDay { get; set; } = "";                   // за кой ден са PetTimes
     public string PetTimes { get; set; } = "";                 // кога днес ще поиска да го погалиш (минути от полунощ), още непоявилите се
     public DateTime PetOpenUntil { get; set; }                 // докога може да се погали сега (иначе не иска)
