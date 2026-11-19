@@ -653,9 +653,11 @@ internal sealed class DayTimeline : DockPanel
             if (TaskCards.DraggedId(e) is not { } id || _pet.Save.Tasks.FirstOrDefault(t => t.Id == id) is not { } task) return;
             DropAt(task, index, y);
         };
+        // Празно място: курсор с „+“ и едно цъкане – нова задача в този час.
+        canvas.Cursor = PlusCursor.Get();
         canvas.MouseLeftButtonDown += (_, e) =>
         {
-            if (e.ClickCount != 2 || e.OriginalSource != canvas) return;
+            if (e.OriginalSource != canvas) return;
             e.Handled = true;
             var start = TimeAt(_days[index], SnapY(e.GetPosition(canvas).Y - HourH * Snap / 120.0));
             NewTaskWindow.Show(_pet, _days[index], near: Window.GetWindow(this), start: start);

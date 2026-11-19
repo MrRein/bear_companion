@@ -1975,7 +1975,7 @@ public sealed class WorkView : Border
                 "Назад", "Напред");
             var nav = (FrameworkElement)_calNav.Root;
             nav.Margin = new Thickness(12 * U, 0, 0, 4);
-            nav.ToolTip = Tip("Влачи задачите в часовете; двойно цъкване – нова задача в този час.");
+            nav.ToolTip = Tip("Влачи задачите в часовете; цъкни празно място – нова задача там.");
             bar.Children.Add(nav);
             var root = new DockPanel();
             DockPanel.SetDock(bar, Dock.Top);
@@ -1989,6 +1989,14 @@ public sealed class WorkView : Border
             };
             root.Children.Add(_calBody);
             _calendarHost.Child = root;
+            // Месец: колелцето на мишката сменя месеците.
+            _calBody.PreviewMouseWheel += (_, e) =>
+            {
+                if (_calMode != 2) return;
+                e.Handled = true;
+                _calDate = CalStep(_calDate ?? Today, e.Delta < 0 ? 1 : -1);
+                Refresh(true);
+            };
         }
         foreach (var (m, chip) in _calModeChips) SetOn(chip, m == _calMode);
 
@@ -2034,6 +2042,43 @@ public sealed class WorkView : Border
         _ => new DateTime(from.Year, from.Month, 1).AddMonths(dir),
     };
 
+    /// <summary>„още N“ в месеца: малко прозорче с всички задачи за деня (превърта се); цъкнеш ли – задачата.</summary>
+    private void ShowDayTasks(FrameworkElement anchor, DateTime day, List<TaskItem> tasks)
+    {
+        PixelPopup.ShowCustom(anchor, close =>
+        {
+            var root = new StackPanel { Width = 240 * U, Margin = new Thickness(6 * U, 4 * U, 6 * U, 4 * U) };
+            string name = day.ToString("dddd, d MMMM", Bg);
+            root.Children.Add(new TextBlock { Text = char.ToUpper(name[0], Bg) + name[1..], FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 6 * U) });
+            var list = new StackPanel();
+            foreach (var t in tasks)
+            {
+                var task = t;
+                var tag = TaskTags.Find(t.Tag);
+                var row = new Border
+                {
+                    Background = tag != null ? TaskTags.SoftBrushOf(t.Tag) : Cream,
+                    BorderBrush = tag != null ? TaskTags.BrushOf(t.Tag) : WoodLight,
+                    BorderThickness = new Thickness(Math.Max(2, P / 2), 0, 0, 0),
+                    CornerRadius = new CornerRadius(2),
+                    Margin = new Thickness(0, 0, 0, 3 * U),
+                    Padding = new Thickness(5 * U, 2 * U, 4 * U, 3 * U),
+                    Cursor = Cursors.Hand,
+                    Child = new TextBlock { Text = (t.Start is { } st ? st.ToString("H:mm") + "  " : "") + t.Title, TextTrimming = TextTrimming.CharacterEllipsis },
+                    ToolTip = Tip(t.Title),
+                };
+                TaskCards.Clickable(row, () => { close(); OpenCard(task); });
+                list.Children.Add(row);
+            }
+            root.Children.Add(new ScrollViewer { Content = list, MaxHeight = 260 * U, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+            var add = Small("+ Задача", () => { close(); NewTaskWindow.Show(_pet, day, near: Window.GetWindow(this)); });
+            add.Margin = new Thickness(0, 6 * U, 0, 0);
+            add.HorizontalAlignment = HorizontalAlignment.Left;
+            root.Children.Add(add);
+            return root;
+        });
+    }
+
     /// <summary>Месецът: 7 колони (от понеделник), във всеки ден – задачите му (до 4 и „+още“).</summary>
     private void BuildMonth(TasksState state, DateTime first, DateTime today, bool force)
     {
@@ -2058,7 +2103,7 @@ public sealed class WorkView : Border
         for (int i = 0; i < days.Count; i++)
         {
             var d = days[i];
-            var tasks = state.OnDay(d).ToList();
+            var tasks = state.OnDay(d).Where(t => !t.Done).ToList();   // свършените не се виждат в календара
             bool inMonth = d.Month == first.Month;
             var cell = new DockPanel { Background = Brushes.Transparent };
             var num = new TextBlock
@@ -2078,8 +2123,21 @@ public sealed class WorkView : Border
             };
             DockPanel.SetDock(numBox, Dock.Top);
             cell.Children.Add(numBox);
+            // Цъкнеш ли числото – денят по часове.
+            var dayOf = d;
+            numBox.Cursor = Cursors.Hand;
+            numBox.ToolTip = Tip("Денят по часове");
+            numBox.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                _calDate = dayOf;
+                _calMode = 0;
+                Refresh(true);
+            };
             var list = new StackPanel();
-            foreach (var t in tasks.Take(4))
+            const int fit = 3;
+            int visible = tasks.Count > fit ? fit - 1 : fit;   // „още N“ заема един ред
+            foreach (var t in tasks.Take(visible))
             {
                 var task = t;
                 var tag = TaskTags.Find(t.Tag);
@@ -2106,17 +2164,38 @@ public sealed class WorkView : Border
                 TaskCards.Clickable(chip, () => OpenCard(task));
                 list.Children.Add(chip);
             }
-            if (tasks.Count > 4) list.Children.Add(new TextBlock { Text = $"+ още {tasks.Count - 4}", Foreground = Muted, Margin = new Thickness(4 * U, 0, 0, 2 * U), FontSize = Body * 0.9 });
+            if (tasks.Count > visible)
+            {
+                var more = new TextBlock
+                {
+                    Text = $"още {tasks.Count - visible}",
+                    Foreground = Ink,
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(4 * U, 0, 0, 2 * U),
+                    FontSize = Body * 0.9,
+                    Cursor = Cursors.Hand,
+                    Background = Brushes.Transparent,
+                    ToolTip = Tip("Всички задачи за деня"),
+                };
+                var all = tasks;
+                var dd = d;
+                more.MouseLeftButtonUp += (_, e) =>
+                {
+                    e.Handled = true;
+                    ShowDayTasks(more, dd, all);
+                };
+                list.Children.Add(more);
+            }
             cell.Children.Add(list);
             var day = d;
+            // Празното място в деня: курсор с „+“ и едно цъкане – нова задача за този ден.
             cell.MouseLeftButtonUp += (_, e) =>
             {
                 if (e.Handled) return;
-                _calDate = day;
-                _calMode = 0;
-                Refresh(true);
+                e.Handled = true;
+                NewTaskWindow.Show(_pet, day, near: Window.GetWindow(this));
             };
-            cell.Cursor = Cursors.Hand;
+            cell.Cursor = PlusCursor.Get();
             var box = new Border
             {
                 BorderBrush = WoodLight,

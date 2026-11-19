@@ -878,3 +878,74 @@ public static class Ui
         return image;
     }
 }
+
+/// <summary>Курсор „стрелка с +“ – там, където цъкане прави нова задача (календар, „По часове“).</summary>
+internal static class PlusCursor
+{
+    private static System.Windows.Input.Cursor? _cursor;
+
+    public static System.Windows.Input.Cursor Get()
+    {
+        if (_cursor != null) return _cursor;
+        try { _cursor = Make(); }
+        catch (Exception) { _cursor = System.Windows.Input.Cursors.Hand; }
+        return _cursor;
+    }
+
+    private static System.Windows.Input.Cursor Make()
+    {
+        // Стрелката (# – тъмен контур, . – бяло) и „+“ в мед долу вдясно.
+        string[] arrow =
+        {
+            "#           ",
+            "##          ",
+            "#.#         ",
+            "#..#        ",
+            "#...#       ",
+            "#....#      ",
+            "#.....#     ",
+            "#......#    ",
+            "#.......#   ",
+            "#........#  ",
+            "#.....#####  ",
+            "#..#..#      ",
+            "#.# #..#     ",
+            "##  #..#     ",
+            "#    #..#    ",
+            "     ####    ",
+        };
+        const int size = 32;
+        var px = new uint[size * size];
+        const uint ink = 0xFF2B1D16, white = 0xFFFFFFFF, honey = 0xFFFFC94A;
+        for (int y = 0; y < arrow.Length; y++)
+            for (int x = 0; x < arrow[y].Length; x++)
+                px[y * size + x] = arrow[y][x] == '#' ? ink : arrow[y][x] == '.' ? white : 0;
+        // „+“: 9x9 с контур, в долния десен ъгъл.
+        int ox = 13, oy = 13;
+        for (int y = 0; y < 11; y++)
+            for (int x = 0; x < 11; x++)
+            {
+                bool vbar = x >= 4 && x <= 6, hbar = y >= 4 && y <= 6;
+                bool inside = (vbar && y >= 1 && y <= 9) || (hbar && x >= 1 && x <= 9);
+                bool core = (x == 5 && y >= 2 && y <= 8) || (y == 5 && x >= 2 && x <= 8);
+                if (inside) px[(oy + y) * size + ox + x] = core ? honey : ink;
+            }
+        var bmp = System.Windows.Media.Imaging.BitmapSource.Create(size, size, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, px, size * 4);
+        var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+        using var png = new System.IO.MemoryStream();
+        enc.Save(png);
+        var bytes = png.ToArray();
+        // .cur: заглавие, един запис (горещата точка – върхът на стрелката), после PNG.
+        var cur = new System.IO.MemoryStream();
+        var w = new System.IO.BinaryWriter(cur);
+        w.Write((short)0); w.Write((short)2); w.Write((short)1);
+        w.Write((byte)size); w.Write((byte)size); w.Write((byte)0); w.Write((byte)0);
+        w.Write((short)0); w.Write((short)0);
+        w.Write(bytes.Length); w.Write(22);
+        w.Write(bytes);
+        w.Flush();
+        cur.Position = 0;
+        return new System.Windows.Input.Cursor(cur);
+    }
+}
