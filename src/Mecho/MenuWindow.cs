@@ -495,6 +495,38 @@ public sealed class MenuWindow : Window
         TextTrimming = TextTrimming.CharacterEllipsis,
     };
 
+    private Border _nutsPill = null!;
+    private readonly TextBlock _nutsGain = new()
+    {
+        FontWeight = FontWeights.Bold,
+        Foreground = Honey,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(0, 0, 8, 0),
+        Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(13, 18, 28), ShadowDepth = 1.5, Direction = 315, BlurRadius = 0, Opacity = 1 },
+    };
+
+    /// <summary>Получи лешници: табелката подскача, а до нея изплува „+N“ (кратки анимации, после спират).</summary>
+    private void PopNuts(int n)
+    {
+        if (!IsVisible) return;
+        var bounce = new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(420) };
+        bounce.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1.22, System.Windows.Media.Animation.KeyTime.FromPercent(0.35)));
+        bounce.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(0.95, System.Windows.Media.Animation.KeyTime.FromPercent(0.7)));
+        bounce.KeyFrames.Add(new System.Windows.Media.Animation.LinearDoubleKeyFrame(1, System.Windows.Media.Animation.KeyTime.FromPercent(1)));
+        if (_nutsPill.RenderTransform is ScaleTransform st)
+        {
+            st.BeginAnimation(ScaleTransform.ScaleXProperty, bounce);
+            st.BeginAnimation(ScaleTransform.ScaleYProperty, bounce);
+        }
+        _nutsGain.Text = "+" + n;
+        _nutsGain.Visibility = Visibility.Visible;
+        var fade = new System.Windows.Media.Animation.DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(700)) { BeginTime = TimeSpan.FromMilliseconds(900) };
+        fade.Completed += (_, _) => _nutsGain.Visibility = Visibility.Collapsed;
+        _nutsGain.BeginAnimation(OpacityProperty, fade);
+        if (_nutsGain.RenderTransform is TranslateTransform tt)
+            tt.BeginAnimation(TranslateTransform.YProperty, new System.Windows.Media.Animation.DoubleAnimation(6, -6, TimeSpan.FromMilliseconds(1600)));
+    }
+
     /// <summary>Тънката лента горе: къде си (Мечо › Храна) и лешниците. За нея се мести менюто.</summary>
     private UIElement BuildTopBar()
     {
@@ -506,6 +538,10 @@ public sealed class MenuWindow : Window
         _nuts.VerticalAlignment = VerticalAlignment.Center;
         nutRow.Children.Add(_nuts);
         var nuts = Pill(nutRow);
+        _nutsPill = nuts;
+        nuts.RenderTransformOrigin = new Point(0.5, 0.5);
+        nuts.RenderTransform = new ScaleTransform(1, 1);
+        _pet.NutsGained += n => Dispatcher.BeginInvoke(() => PopNuts(n));
         nuts.Cursor = Cursors.Hand;
         nuts.ToolTip = Tip("Лешници – за храна, уреди и мебели (цъкни – магазинът)");
         nuts.MouseLeftButtonDown += (_, e) => e.Handled = true;
@@ -526,6 +562,11 @@ public sealed class MenuWindow : Window
         bar.Children.Add(close);
         DockPanel.SetDock(nuts, Dock.Right);
         bar.Children.Add(nuts);
+        // „+3“ до лешниците, като получиш (изплува и избледнява).
+        _nutsGain.Visibility = Visibility.Collapsed;
+        _nutsGain.RenderTransform = new TranslateTransform();
+        DockPanel.SetDock(_nutsGain, Dock.Right);
+        bar.Children.Add(_nutsGain);
         _where.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(13, 18, 28), ShadowDepth = 1.5, Direction = 315, BlurRadius = 0, Opacity = 1 };
         bar.Children.Add(_where);
         bar.MouseLeftButtonDown += (_, e) =>
@@ -1550,14 +1591,16 @@ public sealed class MenuWindow : Window
         bool wantsPet = _pet.WantsPetting;
         string? desire = _pet.CurrentDesire;
         var wishes = _pet.Wishes().Take(4).ToArray();
-        string wk = $"{wantsPet}|{desire}|{string.Join(",", wishes.Select(f => f.Id))}";
+        var group = _pet.GroupWish;
+        string wk = $"{wantsPet}|{desire}|{group?.Id}|{string.Join(",", wishes.Select(f => f.Id))}";
         if (wk != _wantsKey)
         {
             _wantsKey = wk;
             _wantsBox.Children.Clear();
             var wanted = new List<string>();
             if (wantsPet) wanted.Add("Иска да го погалиш");
-            if (PetWindow.DesireOf(desire) is { } d) wanted.Add(d.Text);   // „Разхожда му се“, „Яде му се“
+            if (PetWindow.DesireOf(desire) is { } d) wanted.Add(d.Text);   // „Разхожда му се“, „Снаква му се“
+            if (group != null) wanted.Add(group.Wish);                      // „Иска супа“ (коя да е)
             if (wanted.Count > 0)
             {
                 var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
@@ -1957,7 +2000,7 @@ public sealed class MenuWindow : Window
         var s = _pet.Save;
         // Плочките (около 40, с барчета) струват десетки мс: строят се наново само
         // ако нещо, което се вижда в тях, се е сменило.
-        var wishes = _pet.Wishes();
+        var wishes = _pet.WishedFoods();   // точните, видът (всички супи…), снак, топла напитка
         string key = string.Join("|", _foodCat, s.Hazelnuts, (int)s.Fullness, (int)s.Energy, Kitchen.BerriesIn(s),
             string.Join(",", wishes.Select(f => f.Id)), s.Owned.Count, s.RecipePages,
             string.Join(",", s.Skins.Values));

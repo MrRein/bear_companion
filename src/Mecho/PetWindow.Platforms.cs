@@ -38,6 +38,7 @@ public sealed partial class PetWindow
     public void OpenDrawing()
     {
         FulfilDesire("draw");
+        NoteDid("draw");
         if (_drawWindow != null)
         {
             _drawWindow.Activate();

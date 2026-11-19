@@ -80,9 +80,8 @@ public sealed partial class PetWindow
         if (!r.Foods.Contains(f.Id)) r.Foods.Add(f.Id);
         Log("food", "Хапна " + f.Name.ToLowerInvariant());
         NoteAte(f);
-        FulfilDesire("eat");
-        if (Kitchen.IsDrink(f)) FulfilDesire("drink");
-        if (Kitchen.CategoryOf(f) == "Сладко") FulfilDesire("sweet");
+        if (Kitchen.IsSnack(f)) { FulfilDesire("snack"); NoteDid("snack"); }
+        if (Kitchen.IsHotDrink(f)) { FulfilDesire("hotdrink"); NoteDid("hotdrink"); }
     }
 
     /// <summary>Легна за деня: след полунощ се брои към вчерашния ден.</summary>

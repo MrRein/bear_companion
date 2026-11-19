@@ -83,6 +83,7 @@ public sealed partial class PetWindow
         _save.SleepingByChoice = true;
         if (forDay) _save.WentToBed = DateTime.Now;
         FulfilDesire("nap");
+        NoteDid("nap");
         Say(line, 4);
         GoToBed();   // има легло: отива до него (или първо го слага) и ляга там
         NotifyCare();

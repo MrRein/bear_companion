@@ -143,10 +143,11 @@ public sealed partial class PetWindow
         NotifyCare();
     }
 
-    public void Wear(Garment g, string? line = null)
+    public void Wear(Garment g, string? line = null, bool byUser = true)
     {
         if (!Clothes.Owns(_save, g)) return;
-        FulfilDesire("dress");
+        if (byUser) FulfilDesire("dress");
+        NoteDid("dress");
         RememberLook();
         _save.Outfit[g.SlotId] = g.Id;
         TodayRec.Clothes++;

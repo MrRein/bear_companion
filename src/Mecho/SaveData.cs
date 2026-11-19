@@ -127,6 +127,8 @@ public sealed class SaveData
     public string FavFoodDay { get; set; } = "";
     public string WishTimes { get; set; } = "";                // днешните желания, които още не са се появили (минути от полунощ)
     public Dictionary<string, DateTime> WishUntil { get; set; } = new();
+    public string FoodGroup { get; set; } = "";                // вид храна, който иска (soup, sandwich, pizza, meat)
+    public DateTime FoodGroupUntil { get; set; }               // докога
     public string MissionId { get; set; } = "";                // мисията (голяма цел за няколко дни)
     public string MissionStart { get; set; } = "";             // от кой ден се брои (yyyy-MM-dd)
     public bool MissionDone { get; set; }                      // изпълнена и платена

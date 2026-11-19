@@ -316,13 +316,37 @@ public static class Kitchen
         : food.Cost == 0 || food.Tool == Table || Owns(save, RecipeId(food));
 
     /// <summary>Разделите в „Храна“.</summary>
-    public static readonly string[] Categories = { "Манджи", "Закуски", "Сладко", "Напитки" };
+    public static readonly string[] Categories = { "Сандвичи", "Манджи", "Хапки", "Сладко", "Кафе и чай", "Сокове" };
 
-    public static string CategoryOf(Food f) =>
-        IsDrink(f) ? "Напитки"
-        : f.Id is "cookies" or "muffins" or "pancakes" or "berries" || f.Id.StartsWith("waffle") || f.Id.StartsWith("icecream") ? "Сладко"
-        : f.Fullness >= 35 || f.Id is "soup_veg" or "meatballs" or "potatoes" ? "Манджи"
-        : "Закуски";
+    public static string CategoryOf(Food f) => f.Id switch
+    {
+        _ when f.Id.StartsWith("sandwich_") || f.Id.StartsWith("pressed_") => "Сандвичи",
+        "berries" or "popcorn" or "corn" or "cookies" => "Хапки",
+        "pancakes" or "muffins" => "Сладко",
+        _ when f.Id.StartsWith("waffle") || f.Id.StartsWith("icecream") => "Сладко",
+        "coffee" or "espresso" or "latte" or "cappuccino" or "cocoa" or "tea" or "linden_tea" or Medicine => "Кафе и чай",
+        _ when f.Id.StartsWith("juice") || f.Id is "lemonade" or "smoothie" or "iced_coffee" => "Сокове",
+        _ => "Манджи",
+    };
+
+    /// <summary>Топла напитка (за „Иска нещо топло за пиене“, когато му е студено).</summary>
+    public static bool IsHotDrink(Food f) => f.Id is "coffee" or "espresso" or "latte" or "cappuccino" or "cocoa" or "tea" or "linden_tea";
+
+    /// <summary>Нещо малко за хапване („Снаква му се“): хапките, сладоледите, смутито.</summary>
+    public static bool IsSnack(Food f) => CategoryOf(f) == "Хапки" || f.Id.StartsWith("icecream") || f.Id == "smoothie";
+
+    /// <summary>Вид храна, когато е много гладен: „Иска супа“ – коя да е от тях.</summary>
+    public sealed record FoodGroup(string Id, string Wish, string[] Foods);
+
+    public static readonly FoodGroup[] Groups =
+    {
+        new("soup", "Иска супа", new[] { "soup_veg", "soup_roast" }),
+        new("sandwich", "Иска сандвич", new[] { "sandwich_veg", "sandwich_ham", "sandwich_egg", "sandwich_olives", "pressed_cheese", "pressed_ham", "pressed_pizza" }),
+        new("pizza", "Иска пица", new[] { "pizza_margarita", "pressed_pizza" }),
+        new("meat", "Иска нещо месно", new[] { "meatballs", "skewers", "sandwich_ham", "pressed_ham" }),
+    };
+
+    public static FoodGroup? GroupById(string? id) => Groups.FirstOrDefault(g => g.Id == id);
 
     public static string RecipeId(Food food) => "recipe_" + food.Id;
 

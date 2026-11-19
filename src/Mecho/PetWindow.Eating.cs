@@ -150,11 +150,17 @@ public sealed partial class PetWindow
             Emote("heart", 4);
             Say(R.Pick("craving.odd.done", _save.OwnerName).Replace("{ястие}", food.Name.ToLowerInvariant()), 5);
             FulfillWish(food);
+            WishFed();
             return;
         }
-        bool thanked = WishThanks(food);
+        // Каквото му се ядеше (точно това ястие или вид – супа, сандвич…): брои се като желание.
+        bool wished = Wishes().Contains(food);
+        bool group = GroupWish is { } g && g.Foods.Contains(food.Id);
+        if (group) _save.FoodGroupUntil = DateTime.MinValue;
+        bool thanked = (wished || group) && WishThanks(food);
         if (!thanked && !ThankForMeal()) Say(DoneLine(food), 4);
         FulfillWish(food);
+        if (wished || group) WishFed();
     }
 
     /// <summary>
@@ -222,6 +228,32 @@ public sealed partial class PetWindow
     {
         EnsureWishes();   // първо днешният ден (иначе подреждането му би изтрило това желание)
         var meal = Kitchen.MealAt(now);
+        // Много гладен: половината пъти иска вид храна (супа, сандвич, пица, нещо месно), не точно ястие.
+        if (_save.Fullness < 25 && GroupWish == null && _rng.Next(2) == 0)
+        {
+            var groups = Kitchen.Groups.Where(g => g.Foods.Any(id => Kitchen.Foods.FirstOrDefault(f => f.Id == id) is { } f && Kitchen.CanCook(f, _save))).ToList();
+            if (groups.Count > 0)
+            {
+                var g = groups[_rng.Next(groups.Count)];
+                _save.FoodGroup = g.Id;
+                _save.FoodGroupUntil = meal switch
+                {
+                    Kitchen.Meal.Breakfast => now.Date.AddHours(10.5),
+                    Kitchen.Meal.Lunch => now.Date.AddHours(14.5),
+                    Kitchen.Meal.Dinner => now.Date.AddHours(21),
+                    _ => now.AddHours(2),
+                };
+                Persist();
+                NotifyCare();
+                if (announce && !IsQuiet && !IsAsleep && !InFocus)
+                    Later(2, () =>
+                    {
+                        Mutter(R.Pick("wish.group." + g.Id, _save.OwnerName), 5);
+                        Emote("hungry", 3);
+                    });
+                return Kitchen.Foods.First(f => f.Id == g.Foods.First(id => Kitchen.Foods.FirstOrDefault(x => x.Id == id) is { } x && Kitchen.CanCook(x, _save)));
+            }
+        }
         var can = Kitchen.Foods.Where(f => f.Cost > 0 && f.Fullness >= 2 && Kitchen.Regular(f) && Kitchen.CanCook(f, _save)
             && (Kitchen.MealsOf(f) & meal) != 0 && !_save.WishList.Contains(f.Id)).ToList();
         if (can.Count == 0) return null;
@@ -294,33 +326,53 @@ public sealed partial class PetWindow
     }
 
     /// <summary>
-    /// Даде му каквото искаше: понякога (до 2 пъти на ден) ти връща услугата – лешник
-    /// или два, а много рядко страница от готварската книга, която пазеше.
+    /// Даде му каквото искаше: много рядко (5%, до 2 пъти на ден) ти връща страница от
+    /// готварската книга, която пазеше. Лешниците идват от общата награда за желания.
     /// </summary>
     private bool WishThanks(Food food)
     {
-        if (!Wishes().Contains(food) || TodayRec.WishGifts >= 2) return false;
-        double roll = _rng.NextDouble();
-        if (roll < 0.05 && Recipes.Next(_save) != null)
+        if (TodayRec.WishGifts >= 2 || _rng.NextDouble() >= 0.05 || Recipes.Next(_save) == null) return false;
+        TodayRec.WishGifts++;
+        string page = FindRecipePage();
+        Say(Fill("wish.page", ("ястие", food.Name.ToLowerInvariant())) + page, 7);
+        Emote("heart", 4);
+        return true;
+    }
+
+    /// <summary>Изяде желаното ястие (или вид): доволен е и се брои в наградата за желания.</summary>
+    private void WishFed()
+    {
+        TodayRec.DesiresMet++;
+        NoteContent();
+        Emote("heart", 4);
+        CountWish();
+        Persist();
+        NotifyCare();
+    }
+
+    // ── Вид храна, когато е много гладен („Иска супа“) ──
+
+    /// <summary>Видът храна, който иска сега (докато трае и ако има какво да се сготви), или null.</summary>
+    public Kitchen.FoodGroup? GroupWish =>
+        Kitchen.GroupById(_save.FoodGroup) is { } g && DateTime.Now < _save.FoodGroupUntil
+        && g.Foods.Any(id => Kitchen.Foods.FirstOrDefault(f => f.Id == id) is { } f && Kitchen.CanCook(f, _save)) ? g : null;
+
+    /// <summary>
+    /// Всичко, което сега би го зарадвало: желаните ястия, видът (всички супи…), а ако му се
+    /// снаква / иска топло за пиене – и тези. За сърчицата в „Храна“ и раздела „Желания“.
+    /// </summary>
+    public Food[] WishedFoods()
+    {
+        var list = Wishes().ToList();
+        void Add(Func<Food, bool> fits)
         {
-            TodayRec.WishGifts++;
-            string page = FindRecipePage();
-            Say(Fill("wish.page", ("ястие", food.Name.ToLowerInvariant())) + page, 7);
-            Emote("heart", 4);
-            return true;
+            foreach (var f in Kitchen.Foods.Where(f => Kitchen.Regular(f) && Kitchen.CanCook(f, _save) && fits(f)))
+                if (!list.Contains(f)) list.Add(f);
         }
-        if (roll < 0.4)
-        {
-            TodayRec.WishGifts++;
-            int nuts = 1 + _rng.Next(3);
-            GainNuts(nuts, "желание");
-            Persist();
-            NotifyCare();
-            Say(Fill("wish.nuts", ("ястие", food.Name.ToLowerInvariant())) + $" +{nuts} 🌰", 6);
-            Emote("happy", 3);
-            return true;
-        }
-        return false;
+        if (GroupWish is { } g) Add(f => g.Foods.Contains(f.Id));
+        if (CurrentDesire == "snack") Add(Kitchen.IsSnack);
+        if (CurrentDesire == "hotdrink") Add(Kitchen.IsHotDrink);
+        return list.ToArray();
     }
 
     /// <summary>

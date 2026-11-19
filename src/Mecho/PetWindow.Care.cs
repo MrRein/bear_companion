@@ -639,6 +639,7 @@ public sealed partial class PetWindow
     /// <summary>Тут пуска мечо-доро (поредицата почва отначало).</summary>
     public void StartFocus()
     {
+        FulfilDesire("focus");   // само когато Тут го пусне (не следващото от поредицата)
         NoteWorkStarted();
         if (!CoreEngine.Bus.Send(new Mecho.Core.StartPomodoro(PomodoroMode.Focus, PomodoroMode.Break, NewSeries: true)).Ok) return;
         FocusBegan();
@@ -660,7 +661,7 @@ public sealed partial class PetWindow
     /// <summary>Работата почна (Тут я пусна или е следващата от поредицата).</summary>
     private void FocusBegan()
     {
-        FulfilDesire("focus");
+        NoteDid("focus");
         // Ако е уморен, EnterWorkMode казва „ти поработи, аз ще посънча“ и той дрямва.
         EndBreakRelax();
         // Казва и колко лешника ще донесе (само тук: тогава наистина ги получаваш).

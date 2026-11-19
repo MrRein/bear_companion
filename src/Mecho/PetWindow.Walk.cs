@@ -38,7 +38,8 @@ public sealed partial class PetWindow
         if (_inScene) LeaveScene();
         _save.StayPut = false;
         _walkingOut = true;
-        if (!solo)
+        NoteDid("walk");
+        if (!solo && !fullscreen)
         {
             Log("walk", $"Разходка ({minutes:0} мин)");
             FulfilDesire("walk");
@@ -90,7 +91,7 @@ public sealed partial class PetWindow
         _nextSoloWalk = Now + Minutes(120, 240);
         if (_rng.NextDouble() > 0.3) return false;
         if (OnWalk || IsAsleep || InFocus || TimerRunning || Cooks || _pendingCook != null || CarriesGift || _eating != null
-            || LateNight || _save.Energy < 15 || WaitingForFood || _save.GiftPending) return false;
+            || LateNight || _save.Energy < 15 || WaitingForFood || _save.GiftPending || CurrentDesire == "walk") return false;   // иска разходка – чака теб
         int[] choices = { 2, 5, 10, 15 };
         GoForWalk(choices[_rng.Next(choices.Length)], solo: true);
         return OnWalk;

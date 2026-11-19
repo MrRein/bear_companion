@@ -328,7 +328,7 @@ public sealed partial class PetWindow
     /// <summary>Следващото работно занимание (различно от предното), за 10–20 минути.</summary>
     private Scene StartRandomWork(Scene? last, bool quiet = true)
     {
-        var options = Scenes.Work.Where(f => CanDo(f) && f != last).ToList();
+        var options = Scenes.Work.Where(f => CanDo(f) && f != last && !WantedScene(f)).ToList();
         var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Desk;
         StartScene(scene, quiet: quiet);
         _sceneUntil = Now + 600 + _rng.Next(600);
@@ -359,7 +359,7 @@ public sealed partial class PetWindow
     private Scene StartRandomRelax(Scene? last, bool quiet = true)
     {
         // Събитие днес може да забрани някои (болен – без батут) или да предпочете други (пижамен ден – четене).
-        var options = Scenes.Fun.Where(f => CanDo(f) && f != last).ToList();
+        var options = Scenes.Fun.Where(f => CanDo(f) && f != last && !WantedScene(f)).ToList();   // желаното – чака теб
         var preferred = options.Where(HobbyPreferred).ToList();
         if (preferred.Count > 0 && _rng.Next(3) > 0) options = preferred;
         var scene = options.Count > 0 ? options[_rng.Next(options.Count)] : Scenes.Reading;
@@ -413,6 +413,8 @@ public sealed partial class PetWindow
 
     private void StartScene(Scene scene, bool quiet)
     {
+        NoteDid("scene:" + scene.Id);
+        if (Scenes.Fun.Contains(scene)) NoteDid("rest");
         if (scene == Scenes.Trampoline)
         {
             if (_inScene) LeaveScene();

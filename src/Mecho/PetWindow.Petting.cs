@@ -50,12 +50,16 @@ public sealed partial class PetWindow
             _nextGoalCheck = DateTime.Now.AddSeconds(3);
             CheckBearGoal();
         }
-        if (_save.PetTimes.Length == 0 || IsAsleep || ChatIsOpen) return;
+        if (_save.PetTimes.Length == 0 || WantsPetting) return;
         var times = _save.PetTimes.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToList();
         int now = (int)DateTime.Now.TimeOfDay.TotalMinutes;
         if (times[0] > now) return;
+        // Зает – изчаква да се освободи (до 2 ч).
+        bool late = now - times[0] > 120;
+        if (!late && !FreeForWish) return;
         times.RemoveAt(0);
         _save.PetTimes = string.Join(",", times);
+        if (late) return;
         _save.PetOpenUntil = DateTime.Now.AddMinutes(PetWindowMinutes);
         Persist();
         NotifyCare();
@@ -83,6 +87,7 @@ public sealed partial class PetWindow
             return;
         }
         _save.PetOpenUntil = DateTime.MinValue;
+        NoteContent();
         TodayRec.Petted++;
         Log("heart", "Погален");
         Joy(JoyPetted);

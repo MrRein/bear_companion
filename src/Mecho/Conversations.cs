@@ -157,7 +157,7 @@ public static class Conversations
         // Странното желание (ако е сега) – първо; после желанията за това хранене (същите като в „Желание“).
         var odd = pet.OddCravingNow;
         if (odd != null) picks.Add(odd);
-        var wishes = pet.Wishes();
+        var wishes = pet.WishedFoods();
         picks.AddRange(wishes.Where(f => !picks.Contains(f)));
         var berries = Kitchen.Foods.First(f => f.Cost == 0);
         if (Kitchen.BerriesIn(s) == 0) picks.Add(berries);

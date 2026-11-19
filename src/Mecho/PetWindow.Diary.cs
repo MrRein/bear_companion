@@ -56,7 +56,21 @@ public sealed partial class PetWindow
             string why = c.Reason switch { "задача" => "задачи", "работа" => "работа", _ => c.Reason };
             var by = TodayRec.NutsBy;
             by[why] = (by.TryGetValue(why, out var n) ? n : 0) + (c.New - c.Old);
+            ShowNutsGained(c.New - c.Old);
         });
+    }
+
+    /// <summary>Получи лешници: в менюто табелката подскача, а над мечока изплува „+N“.</summary>
+    public event Action<int>? NutsGained;
+
+    private void ShowNutsGained(int nuts)
+    {
+        if (nuts <= 0) return;
+        NutsGained?.Invoke(nuts);
+        if (SelfTest.Running || !IsVisible || OnWalk) return;
+        // Над главата му (малко вдясно – да не закрие емоцията).
+        var head = new System.Windows.Point(_bearRect.Left + _bearRect.Width * 0.6, _bearRect.Top + _bearRect.Height * 0.15);
+        Dispatcher.BeginInvoke(() => new NutPopWindow(nuts, head).Pop());
     }
 
     /// <summary>Спечелените днес лешници (общо и по откъде, най-много първо).</summary>
@@ -91,9 +105,8 @@ public sealed partial class PetWindow
         new("scene:write", "Пише му се в тефтера", "notes", "идеи в тефтера", p => p.SceneOk("write")),
         new("nap", "Спи му се", "moon", "дрямка", p => p._save.Energy < 85),
         new("focus", "Работи му се с теб", "hourglass", "работа заедно", p => !p.InFocus),
-        new("eat", "Яде му се", "food", "хапване", p => p._save.Fullness < 80),
-        new("drink", "Пие му се нещо", "tea", "нещо за пиене"),
-        new("sweet", "Яде му се нещо сладко", "honey", "нещо сладко"),
+        new("snack", "Снаква му се", "food", "нещо за хапване", p => p._save.Fullness is >= 35 and < 60),
+        new("hotdrink", "Иска нещо топло за пиене", "tea", "топла напитка", p => p.NeedsWarmerClothes),
         new("dress", "Преоблича му се", "wardrobe", "ново облекло", p => DailyOffer.HasWardrobe(p._save)),
     };
 
@@ -122,21 +135,55 @@ public sealed partial class PetWindow
         _save.DesireTimes = today + ";" + string.Join(",", times.Where(t => t > now));
     }
 
+    /// <summary>Свободен ли е да поиска нещо: не спи, не е навън, не работите, не яде, не си говорите.</summary>
+    private bool FreeForWish => !IsAsleep && !OnWalk && !ChatIsOpen && !InFocus && _eating == null && !WaitingForFood;
+
     private void UpdateDesires()
     {
         PlanDesires();
         int semi = _save.DesireTimes.IndexOf(';');
         if (semi < 0) return;
         var list = _save.DesireTimes[(semi + 1)..].Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
-        if (list.Count == 0 || IsAsleep || OnWalk || ChatIsOpen || CurrentDesire != null) return;
-        string first = list[0].Split(':')[0];
-        if (int.TryParse(first, out int at) && at > (int)DateTime.Now.TimeOfDay.TotalMinutes) return;
+        if (list.Count == 0 || CurrentDesire != null) return;
+        int nowMin = (int)DateTime.Now.TimeOfDay.TotalMinutes;
+        if (!int.TryParse(list[0].Split(':')[0], out int at)) at = nowMin;
+        if (at > nowMin) return;
+        // Зает в часа си – изчаква да се освободи; закъснее ли с над 2 ч – пропада.
+        bool late = nowMin - at > 120;
+        if (!late && !FreeForWish) return;
         list.RemoveAt(0);
         _save.DesireTimes = _save.DesireTimes[..(semi + 1)] + string.Join(",", list);
-        var pool = Desires.Where(d => d.Possible?.Invoke(this) ?? true).Where(d => d.Kind != _lastDesire).ToArray();
+        if (late) return;
+        var pool = Desires.Where(d => d.Kind != "pet" && (d.Possible?.Invoke(this) ?? true) && d.Kind != _lastDesire && !DoingOrDid(d.Kind)).ToArray();
         if (pool.Length == 0) return;
-        StartDesire(pool[_rng.Next(pool.Length)].Kind);
+        // Леко гладен – по-често му се снаква.
+        var snack = pool.FirstOrDefault(d => d.Kind == "snack");
+        StartDesire(snack != null && _rng.Next(2) == 0 ? "snack" : pool[_rng.Next(pool.Length)].Kind);
     }
+
+    // ── Какво е правил (за да не поиска нещо, което тъкмо прави или е правил) ──
+
+    private readonly Dictionary<string, DateTime> _didAt = new();
+
+    /// <summary>Записва, че е правил това (сам или с теб) – за 30 мин не го иска.</summary>
+    private void NoteDid(string kind) => _didAt[kind] = DateTime.Now;
+
+    private bool DoingOrDid(string kind)
+    {
+        if (_didAt.TryGetValue(kind, out var at) && DateTime.Now - at < TimeSpan.FromMinutes(30)) return true;
+        return kind switch
+        {
+            "walk" => OnWalk,
+            "rest" => RelaxesRandomly || CurrentFun is { } f && !Scenes.Work.Contains(f),
+            "focus" => InFocus,
+            "nap" => IsAsleep,
+            _ when kind.StartsWith("scene:") => CurrentFun?.Id == kind[6..],
+            _ => false,
+        };
+    }
+
+    /// <summary>Желае ли това кътче сега – тогава сам не го избира (чака теб).</summary>
+    private bool WantedScene(Scene s) => CurrentDesire == "scene:" + s.Id;
 
     private string _lastDesire = "";
 
@@ -164,6 +211,7 @@ public sealed partial class PetWindow
         _save.Desire = "";
         _save.DesireUntil = DateTime.MinValue;
         TodayRec.DesiresMet++;
+        NoteDid(kind);
         Joy(JoyPetted);
         NoteContent();
         Log(DesireOf(kind)?.Icon ?? "heart", "Изпълни желанието му: " + (DesireOf(kind)?.Done ?? kind));
@@ -174,22 +222,26 @@ public sealed partial class PetWindow
     }
 
     /// <summary>
-    /// Скритият брояч на изпълнените желания (гушки и всичко останало): стигнеш ли скритото
-    /// число (5–9, всеки път ново) – 1–3 лешника (3 – рядко) и нещо специално. true – наградата дойде.
+    /// Награда за изпълнено желание (гушка, занимание, храна): скритият брояч – на скритото
+    /// число (5–9, всеки път ново) голяма награда 5–10 лешника и нещо специално; иначе 1 шанс
+    /// от 3 за +1 лешник. Двете не се събират. true – дошла е голямата.
     /// </summary>
     private bool CountWish()
     {
         if (_save.PetGoal <= 0) _save.PetGoal = NewPetGoal();
         _save.PetCount++;
-        if (_save.PetCount < _save.PetGoal) return false;
-        _save.PetCount = 0;
-        _save.PetGoal = NewPetGoal();
-        double roll = _rng.NextDouble();
-        int nuts = roll < 0.1 ? 3 : roll < 0.45 ? 2 : 1;
-        GainNuts(nuts, "желания");
-        Say(R.Pick("pet.reward", _save.OwnerName) + $" +{nuts} 🌰", 7);
-        Emote("sparkle", 4);
-        return true;
+        if (_save.PetCount >= _save.PetGoal)
+        {
+            _save.PetCount = 0;
+            _save.PetGoal = NewPetGoal();
+            int nuts = 5 + _rng.Next(6);
+            GainNuts(nuts, "желания");
+            Say(R.Pick("pet.reward", _save.OwnerName) + $" +{nuts} 🌰", 7);
+            Emote("sparkle", 4);
+            return true;
+        }
+        if (_rng.Next(3) == 0) GainNuts(1, "желания");
+        return false;
     }
 
     // ── Мисия: голяма цел за няколко дни ──
@@ -275,4 +327,71 @@ public sealed partial class PetWindow
 
     /// <summary>Колко още ще прави това (секунди), 0 – докато не го спреш.</summary>
     public double SceneLeftSeconds => _sceneUntil > 0 ? Math.Max(0, _sceneUntil - Now) : 0;
+}
+
+/// <summary>
+/// „+3“ с лешник, който изплува над главата на мечока и избледнява (за ~1,6 с) – когато
+/// получиш лешници (задача, работа, желание, подарък, мисия…).
+/// </summary>
+internal sealed class NutPopWindow : System.Windows.Window
+{
+    private readonly System.Windows.Threading.DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(30) };
+    private readonly DateTime _start = DateTime.Now;
+    private readonly double _top;
+
+    public NutPopWindow(int nuts, System.Windows.Point head)
+    {
+        WindowStyle = System.Windows.WindowStyle.None;
+        AllowsTransparency = true;
+        Background = System.Windows.Media.Brushes.Transparent;
+        Topmost = true;
+        ShowInTaskbar = false;
+        ShowActivated = false;
+        IsHitTestVisible = false;
+        ResizeMode = System.Windows.ResizeMode.NoResize;
+        SizeToContent = System.Windows.SizeToContent.WidthAndHeight;
+        FontFamily = Ui.GameFont;
+        System.Windows.Media.TextOptions.SetTextRenderingMode(this, System.Windows.Media.TextRenderingMode.Aliased);
+        var row = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        var text = new System.Windows.Controls.TextBlock
+        {
+            Text = "+" + nuts,
+            FontSize = Ui.Title,
+            FontWeight = System.Windows.FontWeights.Bold,
+            Foreground = Ui.Honey,
+            VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = System.Windows.Media.Color.FromRgb(43, 29, 22), ShadowDepth = 2, Direction = 315, BlurRadius = 0, Opacity = 1 },
+        };
+        row.Children.Add(text);
+        var nut = Ui.Icon(nuts >= 5 ? "nut3" : nuts >= 2 ? "nut2" : "nut", 2);
+        nut.Margin = new System.Windows.Thickness(4, 0, 0, 0);
+        nut.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+        row.Children.Add(nut);
+        Content = row;
+        SourceInitialized += (_, _) => NativeMethods.MakeToolWindow(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+        Loaded += (_, _) =>
+        {
+            Left = head.X - ActualWidth / 2;
+            Top = head.Y - ActualHeight;
+        };
+        _top = head.Y;
+        _timer.Tick += (_, _) => Tick();
+        Closed += (_, _) => _timer.Stop();
+    }
+
+    public void Pop()
+    {
+        Show();
+        _timer.Start();
+    }
+
+    private void Tick()
+    {
+        double t = (DateTime.Now - _start).TotalSeconds;
+        if (t >= 1.6) { Close(); return; }
+        // Подскача нагоре (бързо, после бавно) и избледнява в края.
+        double rise = 46 * (1 - Math.Pow(1 - Math.Min(1, t / 1.2), 3));
+        Top = _top - ActualHeight - rise;
+        Opacity = t < 1.0 ? 1 : 1 - (t - 1.0) / 0.6;
+    }
 }

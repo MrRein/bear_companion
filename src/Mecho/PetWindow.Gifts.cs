@@ -336,7 +336,7 @@ public sealed partial class PetWindow
     /// <summary>Облича дрехата от подаръка (както от гардероба).</summary>
     internal void WearGift(Garment g)
     {
-        if (Clothes.Owns(_save, g)) Wear(g);
+        if (Clothes.Owns(_save, g)) Wear(g, byUser: false);
     }
 
     // ── Developer ──

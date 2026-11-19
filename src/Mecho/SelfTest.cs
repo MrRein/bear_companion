@@ -1302,7 +1302,7 @@ public sealed partial class PetWindow
             int nuts = _save.Hazelnuts;
             Pet();
             int got = _save.Hazelnuts - nuts;
-            if (got is < 1 or > 3) throw new Exception("наградата не е 1–3 лешника: " + got);
+            if (got is < 5 or > 10) throw new Exception("голямата награда не е 5–10 лешника: " + got);
             if (_save.PetCount != 0 || _save.PetGoal < 5) throw new Exception("броячът не започна отначало");
             if (WantsPetting) throw new Exception("след погалването пак иска");
             if (!TodayRecord.Events.Any(e => e.Text == "Погален")) throw new Exception("погалването не е в дневника");
@@ -1333,6 +1333,36 @@ public sealed partial class PetWindow
             _save.PetTimes = "0";
             UpdatePetting();
             if (!WantsPetting) throw new Exception("дошлият час не отвори погалването");
+            _save.PetOpenUntil = DateTime.MinValue;
+
+            // Иска да чете: сам не избира четенето (чака теб); твоето „Чети“ го изпълнява.
+            if (CanDo(Scenes.Reading))
+            {
+            _save.Desire = "scene:reading";
+            _save.DesireUntil = DateTime.Now.AddMinutes(5);
+            for (int i = 0; i < 30; i++)
+                if (Scenes.Fun.Where(f => CanDo(f) && !WantedScene(f)).Any(f => f == Scenes.Reading)) throw new Exception("сам би избрал желаното четене");
+            int metBefore = rec.DesiresMet;
+            StartRandomRelax(null);
+            if (CurrentFun == Scenes.Reading) throw new Exception("сам седна да чете, а го искаше от теб");
+            if (rec.DesiresMet != metBefore || CurrentDesire != "scene:reading") throw new Exception("сам изпълни желанието");
+            GetUp();
+            Relax(Scenes.Reading);
+            if (CurrentDesire != null || rec.DesiresMet != metBefore + 1) throw new Exception("твоето „Чети“ не изпълни желанието");
+            GetUp();
+
+            // Не иска нещо, което тъкмо е правил.
+            if (!DoingOrDid("scene:reading")) throw new Exception("пак би поискал четене веднага");
+            }
+
+            // Много гладен: вид храна (супа) – коя да е от тях го радва.
+            _save.FoodGroup = "soup";
+            _save.FoodGroupUntil = DateTime.Now.AddMinutes(30);
+            if (!_save.Owned.Contains(Kitchen.Pot)) _save.Owned.Add(Kitchen.Pot);
+            if (!_save.Owned.Contains(Kitchen.RecipeId(Kitchen.Foods.First(x => x.Id == "soup_roast")))) _save.Owned.Add(Kitchen.RecipeId(Kitchen.Foods.First(x => x.Id == "soup_roast")));
+            if (GroupWish?.Id != "soup") throw new Exception("„Иска супа“ не се вижда");
+            if (!WishedFoods().Any(x => x.Id == "soup_roast")) throw new Exception("печената супа няма сърчице при „Иска супа“");
+            _save.FoodGroup = "";
         }, 300);
         await step("подарък в лапите", () =>
         {
