@@ -1535,7 +1535,7 @@ public sealed class WorkView : Border
             // Още не знае обичайния час – същото поленце, но пита; цъкнеш – всички часове.
             bool rest = _pet.IsRestDay(today);
             int? doneAt = realToday ? _pet.WorkDoneToday : null;
-            string text = asking ? "До колко работиш обикновено?" : rest ? "Почивен ден" : doneAt is { } da ? "свърших в " + Clock(da) : end is { } e0 ? "до " + Clock(e0) + (_pet.DayEndOverride(today) != null ? " (днес)" : "") : "до —";
+            string text = asking ? "До колко работиш?" : rest ? "Почивен ден" : doneAt is { } da ? "свърших в " + Clock(da) : end is { } e0 ? "до " + Clock(e0) + (_pet.DayEndOverride(today) != null ? " (днес)" : "") : "до —";
             var row = new StackPanel { Orientation = Orientation.Horizontal };
             var ic = Icon(rest ? "relax" : doneAt != null ? "check" : "clock");
             ic.Margin = new Thickness(0, 0, 5, 0);
@@ -3059,7 +3059,7 @@ public sealed class WorkView : Border
     internal bool TodayHas(string tag) => _todayPanel.Children.OfType<FrameworkElement>().Any(e => e.Tag as string == tag);
     internal int DueCount => BacklogDue(_pet.TaskState, Today).Count;
     internal void TestHours(DateTime day, int minutes) => SetUsualEnd(minutes);
-    internal bool TodayAsksHours => FindText(_todayPanel, "До колко работиш обикновено");
+    internal bool TodayAsksHours => FindText(_todayPanel, "До колко работиш?");
     internal FrameworkElement TestAnchor => _todayPanel.Children.OfType<FrameworkElement>().FirstOrDefault() ?? _todayPanel;
     internal FrameworkElement? TodayPart(string tag) => _todayPanel.Children.OfType<FrameworkElement>().FirstOrDefault(e => e.Tag as string == tag);
 
