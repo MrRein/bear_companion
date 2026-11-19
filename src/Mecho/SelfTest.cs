@@ -1190,7 +1190,10 @@ public sealed partial class PetWindow
         await step("желания: изпълненото се маха", () =>
         {
             _save.WishDay = "";
-            // Желанията са събития (може днес да няма): тестът си пуска едно сега.
+            // Желанията са събития (може днес да няма): тестът си пуска едно сега. Не е много
+            // гладен – иначе понякога иска вид храна („Иска супа“), а не точно ястие.
+            _save.Fullness = 60;
+            _save.FoodGroup = "";
             if (SpawnWish(DateTime.Now, announce: false) == null) throw new Exception("не се появи желание");
             var w = Wishes();
             if (w.Length == 0) throw new Exception("няма желания");
@@ -1468,6 +1471,7 @@ public sealed partial class PetWindow
         }, 3000);
         await step("желание: рядко страница рецепта; иначе се брои като желание", () =>
         {
+            _save.Fullness = Math.Max(_save.Fullness, 60);
             if (Wishes().Length == 0) SpawnWish(DateTime.Now, announce: false);
             var wishes = Wishes();
             if (wishes.Length == 0) throw new Exception("няма желания");
