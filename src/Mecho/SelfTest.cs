@@ -1332,6 +1332,8 @@ public sealed partial class PetWindow
             if (CurrentDesire != null || rec.DesiresMet != met + 1) throw new Exception("желанието не се изпълни");
             // Едно желание наведнъж: докато иска нещо друго, гушката изчаква; после идва.
             _save.WishUntil.Clear();
+            _save.WishTimes = "";
+            _save.DesireTimes = "";
             _save.FoodGroup = "";
             string nowMin = ((int)DateTime.Now.TimeOfDay.TotalMinutes).ToString();
             _save.Desire = "walk";
