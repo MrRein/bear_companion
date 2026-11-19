@@ -82,7 +82,7 @@ public sealed partial class PetWindow
         new("scene:reading", "Чете му се книжка", "book", "четене", p => p.SceneOk("reading")),
         new("scene:gaming", "Играе му се на компютъра", "game", "игра на компютъра", p => p.SceneOk("gaming")),
         new("scene:yoga", "Прави му се йога", "yoga", "йога", p => p.SceneOk("yoga")),
-        new("scene:plant", "Грижи му се за цветето", "plant", "грижа за цветето", p => p.SceneOk("plant")),
+        new("scene:plant", "Иска да си погледне цветето", "plant", "грижа за цветето", p => p.SceneOk("plant")),
         new("scene:music", "Слуша му се музика", "music", "музика", p => p.SceneOk("music")),
         new("scene:knit", "Плете му се", "yarn", "плетене", p => p.SceneOk("knit")),
         new("scene:guitar", "Свири му се на китара", "guitar", "свирене на китара", p => p.SceneOk("guitar")),
@@ -94,8 +94,6 @@ public sealed partial class PetWindow
         new("eat", "Яде му се", "food", "хапване", p => p._save.Fullness < 80),
         new("drink", "Пие му се нещо", "tea", "нещо за пиене"),
         new("sweet", "Яде му се нещо сладко", "honey", "нещо сладко"),
-        new("dice", "Хвърля му се зарче", "dice", "зарче"),
-        new("talk", "Говори му се с теб", "question", "разговор"),
         new("dress", "Преоблича му се", "wardrobe", "ново облекло", p => DailyOffer.HasWardrobe(p._save)),
     };
 
