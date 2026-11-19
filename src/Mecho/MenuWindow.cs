@@ -1943,7 +1943,8 @@ public sealed class MenuWindow : Window
         foreach (var scene in scenes)
         {
             var sc = scene;
-            bool unlocked = Scenes.IsUnlocked(sc, s);
+            // Неотключените (без купения предмет) изобщо не се показват.
+            if (!Scenes.IsUnlocked(sc, s)) continue;
             // Каквото прави сега, свети; цъкнеш ли го пак, спира.
             var b = Wide(Button(sc.Name, () =>
             {
@@ -1951,9 +1952,8 @@ public sealed class MenuWindow : Window
                 if (_pet.CurrentFun == sc) _pet.GetUp();
                 else _pet.Relax(sc);   // отива там (и слага предмета, ако още не е сложен)
                 Refresh(true);
-            }, primary: chosen == sc && !random, icon: unlocked ? sc.Icon : "lock"));
+            }, primary: chosen == sc && !random, icon: sc.Icon));
             b.HorizontalContentAlignment = HorizontalAlignment.Left;
-            if (!unlocked) b.IsEnabled = false;
             grid.Children.Add(b);
         }
     }
