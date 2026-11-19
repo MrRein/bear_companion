@@ -1464,24 +1464,30 @@ public sealed partial class PetWindow
             if (OnWalk || _save.WalkFullscreen) throw new Exception("не се върна, след като цял екран свърши");
             FullscreenNow = DetectFullscreen;
         }, 3000);
-        await step("желание: връща услугата", () =>
+        await step("желание: рядко страница рецепта; иначе се брои като желание", () =>
         {
             if (Wishes().Length == 0) SpawnWish(DateTime.Now, announce: false);
             var wishes = Wishes();
             if (wishes.Length == 0) throw new Exception("няма желания");
             int nuts = _save.Hazelnuts, pages = _save.RecipePages;
             string? next = _save.NextRecipe;
-            bool thanked = false;
-            for (int i = 0; i < 200 && !thanked; i++)
+            if (Recipes.Next(_save) != null)
             {
-                TodayRec.WishGifts = 0;
-                thanked = WishThanks(wishes[0]);
+                bool thanked = false;
+                for (int i = 0; i < 600 && !thanked; i++)
+                {
+                    TodayRec.WishGifts = 0;
+                    thanked = WishThanks(wishes[0]);
+                }
+                if (!thanked) throw new Exception("не даде страница рецепта за 600 опита");
+                if (_save.RecipePages == pages && _save.NextRecipe == next) throw new Exception("нищо не даде");
+                if (_save.Hazelnuts != nuts) throw new Exception("за храна-желание още дава отделни лешници");
             }
-            if (!thanked) throw new Exception("не върна услугата за 200 опита");
-            if (_save.Hazelnuts <= nuts && _save.RecipePages == pages && _save.NextRecipe == next) throw new Exception("нищо не даде");
             TodayRec.WishGifts = 2;
             if (WishThanks(wishes[0])) throw new Exception("даде повече от 2 пъти на ден");
-            if (WishThanks(Kitchen.Foods.First(f => !wishes.Contains(f)))) throw new Exception("даде за храна, която не иска");
+            int met = TodayRec.DesiresMet;
+            WishFed();
+            if (TodayRec.DesiresMet != met + 1) throw new Exception("изяденото желание не се брои");
             HideBubble();
         }, 400);
         await step("задача с описание + закачен прозорец свит/разгънат", () =>
