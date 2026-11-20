@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
@@ -107,7 +108,12 @@ internal sealed class ProjectWindow : FloatWindow
         rankRow.Children.Add(names);
         _headTitle.Children.Add(rankRow);
 
+        // Като менютата в „Работа“: раздели със заглавие и пунктир, карти с тъмен контур.
+        var r1 = Ribbon("Пътят", "board");
+        r1.Margin = new Thickness(0, 0, 0, 6 * U);
+        _content.Children.Add(r1);
         _content.Children.Add(Road());
+        if (!pet.ProjectDone) _content.Children.Add(Ribbon("Следваща награда", "gift"));
         _content.Children.Add(NextLine());
     }
 
@@ -162,16 +168,14 @@ internal sealed class ProjectWindow : FloatWindow
             {
                 Width = d, Height = d, CornerRadius = new CornerRadius(d / 2),
                 Background = claim || waiting ? Good : done ? Honey : Cream,
-                BorderBrush = cur ? Honey : Ink,
-                BorderThickness = new Thickness(cur ? Math.Max(3, P * 1.5) : edge),
+                BorderBrush = Ink,
+                BorderThickness = new Thickness(cur || claim ? Math.Max(2, P) : edge),
                 ToolTip = Tip($"{i + 1}. {name}" + (star ? " · нов ранг: " + PetWindow.ProjectRank(i + 1) : "")),
             };
             node.Child = claim || waiting ? new Viewbox { Child = Icon("gift"), Margin = new Thickness(5 * U) }
                 : done ? new Viewbox { Child = Icon(star ? "star" : "check"), Margin = new Thickness(6 * U) }
                 : star ? new Viewbox { Child = Icon("star"), Margin = new Thickness(6 * U), Opacity = 0.4 }
                 : new TextBlock { Text = (i + 1).ToString(), FontWeight = FontWeights.Bold, Foreground = cur ? Ink : Muted, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            if (claim && Good is SolidColorBrush gb)
-                node.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = gb.Color, BlurRadius = 20, ShadowDepth = 0, Opacity = 1 };
             Canvas.SetLeft(node, X(i) - d / 2);
             Canvas.SetTop(node, RoadY - d / 2);
             canvas.Children.Add(node);
@@ -195,12 +199,12 @@ internal sealed class ProjectWindow : FloatWindow
                 double t = 44 * U;
                 top = new Border
                 {
-                    Width = t, Height = t, CornerRadius = new CornerRadius(8 * U), Child = ic,
-                    Background = claim ? Soft(Good, 0.35) : !shown ? Brushes.Transparent : done ? Brushes.Transparent : Cream,
-                    BorderBrush = claim ? Good : !shown || done ? Brushes.Transparent : Honey,
-                    BorderThickness = new Thickness(Math.Max(2, P)),
+                    Width = t, Height = t, CornerRadius = new CornerRadius(4), Child = ic,
+                    Background = claim ? Good : !shown || done ? Brushes.Transparent : Cream,
+                    BorderBrush = claim || shown && !done ? Ink : Brushes.Transparent,
+                    BorderThickness = new Thickness(claim ? Math.Max(2, P) : Math.Max(1, P / 2)),
                     Opacity = !shown ? 0.4 : done && !claim ? 0.45 : 1,
-                    ToolTip = Tip(!shown ? "Ще се види, като наближите" : pet.ProjectRewardLabel(plan) + (done && !claim && !waiting ? " – взето" : "")),
+                    ToolTip = Tip(claim ? "Цъкни, за да вземеш: " + pet.ProjectRewardLabel(plan) : !shown ? "Ще се види, като наближите" : pet.ProjectRewardLabel(plan) + (done && !waiting ? " – взето" : "")),
                 };
                 if (claim)
                 {
@@ -217,19 +221,6 @@ internal sealed class ProjectWindow : FloatWindow
             Canvas.SetTop(topCell, 0);
             canvas.Children.Add(topCell);
 
-            // Под него: „Вземи!“ (взимаемата) или името (сегашното).
-            if (claim)
-            {
-                // „Вземи!“ – точно под кръгчето (в клетка колкото разстоянието между етапите).
-                var take = Chip("Вземи!", () => Claim(stage));
-                take.Background = Good;
-                take.HorizontalAlignment = HorizontalAlignment.Center;
-                var cell = new Grid { Width = Gap * 1.4 };
-                cell.Children.Add(take);
-                Canvas.SetLeft(cell, X(stage) - Gap * 0.7);
-                Canvas.SetTop(cell, RoadY + d / 2 + 6 * U);
-                canvas.Children.Add(cell);
-            }
             if (i == _pop) { Pop(node, 0.4); Pop(top, 0.5); }
         }
 
@@ -273,10 +264,10 @@ internal sealed class ProjectWindow : FloatWindow
         scroll.Loaded += (_, _) => scroll.ScrollToHorizontalOffset(Math.Max(0, X(focus) - scroll.ViewportWidth / 2));
         return new Border
         {
-            Background = Soft(WoodLight, 0.15),
-            BorderBrush = WoodLight,
-            BorderThickness = new Thickness(edge),
-            CornerRadius = new CornerRadius(8 * U),
+            Background = PaperDark,
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(4),
             Child = scroll,
         };
     }
@@ -289,18 +280,34 @@ internal sealed class ProjectWindow : FloatWindow
             return new TextBlock { Text = "Играта излезе! Мечо вече е Издател.", FontWeight = FontWeights.Bold, Margin = new Thickness(2 * U, 8 * U, 0, 0) };
         var now = pet.ProjectNow;
         string plan = pet.ProjectRewardPlan(now.Stage);
-        var row = new DockPanel { Margin = new Thickness(2 * U, 8 * U, 2 * U, 0) };
-        FrameworkElement ic = pet.ShopArt(plan) is { } img ? Pixel(img, 2) : Icon(plan.StartsWith("nuts:") ? "nut2" : PetWindow.ProjectRewardIcon(plan));
+        // Карта като в „Работа“: наградата вляво, медените клетки докъде сме (без числа).
+        var row = new DockPanel();
+        FrameworkElement ic = pet.ShopArt(plan) is { } img ? Pixel(img, 2) : Icon(plan.StartsWith("nuts:") ? "nut2" : PetWindow.ProjectRewardIcon(plan), 2);
         ic.VerticalAlignment = VerticalAlignment.Center;
-        ic.Margin = new Thickness(0, 0, 6 * U, 0);
+        ic.Margin = new Thickness(0, 0, 10 * U, 0);
         DockPanel.SetDock(ic, Dock.Left);
         row.Children.Add(ic);
-        // Само лентата до следващата награда (без числа и обяснения); името – като посочиш.
-        var bar = Bar(pet.ProjectProgress, 7 * P);
-        bar.VerticalAlignment = VerticalAlignment.Center;
-        row.Children.Add(bar);
-        row.ToolTip = Tip("Следваща награда: " + (plan.StartsWith("nuts:") ? plan[5..] + " лешника" : pet.ProjectRewardLabel(plan)));
-        return row;
+        const int cells = 12;
+        int filled = (int)Math.Floor(pet.ProjectProgress * cells);
+        var track = new UniformGrid { Rows = 1, Columns = cells, VerticalAlignment = VerticalAlignment.Center, Height = 5 * P };
+        for (int i = 0; i < cells; i++)
+            track.Children.Add(new Border
+            {
+                Margin = new Thickness(0, 0, i < cells - 1 ? -P : 0, 0),
+                BorderBrush = Ink, BorderThickness = Flat,
+                Background = i < filled ? Honey : Empty,
+            }.Skinned(i < filled ? "cell_honey" : "cell_empty"));
+        row.Children.Add(track);
+        return new Border
+        {
+            Background = PaperDark,
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(10 * U, 8 * U, 12 * U, 8 * U),
+            Child = row,
+            ToolTip = Tip("Следваща награда: " + (plan.StartsWith("nuts:") ? plan[5..] + " лешника" : pet.ProjectRewardLabel(plan))),
+        };
     }
 
     /// <summary>Цъкна наградата: взима я, кръгчето подскача.</summary>

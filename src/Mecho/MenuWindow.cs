@@ -1840,10 +1840,10 @@ public sealed class MenuWindow : Window
         inner.Children.Add(open);
         var card = new Border
         {
-            Background = Soft(WoodLight, 0.25),
-            BorderBrush = WoodLight,
-            BorderThickness = new Thickness(Math.Max(2, P)),
-            CornerRadius = new CornerRadius(5),
+            Background = PaperDark,
+            BorderBrush = Ink,
+            BorderThickness = Flat,
+            CornerRadius = new CornerRadius(4),
             Padding = new Thickness(10 * U, 7 * U, 10 * U, 8 * U),
             Child = inner,
             ToolTip = Tip("Проектът на Мечо върви, докато ти работиш – цъкни, за да видиш целия път и наградите"),
