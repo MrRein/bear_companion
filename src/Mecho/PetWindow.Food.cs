@@ -359,7 +359,8 @@ public sealed partial class PetWindow
         Say(last ? line : $"{line} Още {_food.Count}!", 3);
         // Правеше нещо (кътче, ходене към мебел, бъркане): оставя го и яде – иначе храната
         // изчезваше, а той си продължаваше със старата анимация. В работа (Фокус) не става.
-        if (CanAnimateFreely && !InFocus)
+        bool canStop = !_onTrampoline && !IsAsleep && _state is not (BearState.Drag or BearState.Falling or BearState.Jump or BearState.Bounce);
+        if (canStop && !InFocus && _scene != Scenes.Wardrobe)
         {
             _busyNear = null;
             if (_inScene && _scene != Scenes.Drink) LeaveScene();
