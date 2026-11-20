@@ -379,7 +379,10 @@ internal sealed class NutPopWindow : System.Windows.Window
     private readonly DateTime _start = DateTime.Now;
     private readonly double _top;
 
-    public NutPopWindow(int nuts, System.Windows.Point head)
+    public NutPopWindow(int nuts, System.Windows.Point head) : this("+" + nuts, nuts >= 5 ? "nut3" : nuts >= 2 ? "nut2" : "nut", head) { }
+
+    /// <summary>Изплуващ надпис с иконка (лешници, точки за проекта…).</summary>
+    public NutPopWindow(string label, string icon, System.Windows.Point head, System.Windows.Media.Brush? color = null)
     {
         WindowStyle = System.Windows.WindowStyle.None;
         AllowsTransparency = true;
@@ -395,15 +398,15 @@ internal sealed class NutPopWindow : System.Windows.Window
         var row = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
         var text = new System.Windows.Controls.TextBlock
         {
-            Text = "+" + nuts,
+            Text = label,
             FontSize = Ui.Title,
             FontWeight = System.Windows.FontWeights.Bold,
-            Foreground = Ui.Honey,
+            Foreground = color ?? Ui.Honey,
             VerticalAlignment = System.Windows.VerticalAlignment.Center,
             Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = System.Windows.Media.Color.FromRgb(43, 29, 22), ShadowDepth = 2, Direction = 315, BlurRadius = 0, Opacity = 1 },
         };
         row.Children.Add(text);
-        var nut = Ui.Icon(nuts >= 5 ? "nut3" : nuts >= 2 ? "nut2" : "nut", 2);
+        var nut = Ui.Icon(icon, 2);
         nut.Margin = new System.Windows.Thickness(4, 0, 0, 0);
         nut.VerticalAlignment = System.Windows.VerticalAlignment.Center;
         row.Children.Add(nut);

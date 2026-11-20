@@ -1858,7 +1858,7 @@ public sealed partial class PetWindow
             ProjectNoRewards = true;
             try
             {
-                _save.ProjectPoints = 0; _save.ProjectPaid = 0; _save.GameName = "";
+                _save.ProjectPoints = 0; _save.ProjectPaid = 0; _save.GameName = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear();
                 AddProjectPoints(59);
                 if (_save.ProjectPaid != 0) throw new Exception("етапът мина преди 60 точки");
                 AddProjectPoints(1);
@@ -1875,8 +1875,19 @@ public sealed partial class PetWindow
                 _focusItem = Kitchen.BoardGame;
                 if (Kitchen.Owns(_save, Kitchen.BoardGame) && FurnishingFor(Scenes.Focus)?.Kind != Kitchen.BoardGame) throw new Exception("работата по етапа не е при масичката");
                 _focusItem = null;
+                // Наградите: следващите три се виждат, по-нататък – „?“; решени веднъж, не се менят.
+                _save.ProjectPaid = 2; _save.ProjectPoints = 60 + 90 + 40; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear();
+                if (!ProjectRewardShown(4) || ProjectRewardShown(5)) throw new Exception("видимите награди не са следващите три");
+                string p3 = ProjectRewardPlan(3);
+                if (ProjectRewardPlan(3) != p3 || ProjectRewardLabel(p3).Length == 0) throw new Exception("наградата се мени или няма име");
+                // Прогресът: прозорецът с пътеката (и празникът за етап 2).
+                var pw = ProjectWindow.Open(this, null, 1, "+4 🌰");
+                pw.UpdateLayout();
+                Shot(pw, "project_window");
+                LayoutReport(pw, "project_window");
+                pw.Close();
                 // За снимката на „Мечо“: по средата на първия етап (той не иска мебел – другите проверки на работата са с бюрото).
-                _save.ProjectPaid = 0; _save.ProjectPoints = 30; _save.GameName = "";
+                _save.ProjectPaid = 0; _save.ProjectPoints = 30; _save.GameName = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear();
                 HideBubble();
             }
             finally { ProjectNoRewards = false; }

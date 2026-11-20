@@ -1260,7 +1260,7 @@ public sealed class MenuWindow : Window
     private readonly StackPanel _saidBox = new();
     private readonly StackPanel _todayBox = new();
     private readonly StackPanel _bearGoalBox = new() { Margin = new Thickness(0, 12, 0, 0) };
-    private readonly StackPanel _projectBox = new() { Margin = new Thickness(0, 10, 0, 0), Tag = "project" };
+    private readonly StackPanel _projectBox = new() { Tag = "project" };
     private string _projectKey = "";
     private string _nowKey = "", _moodKey = "", _timerKey = "", _wantsKey = "", _saidKey = "", _bearGoalKey = "";
     private double _bearWidth;
@@ -1313,15 +1313,21 @@ public sealed class MenuWindow : Window
         row.Margin = new Thickness(0, 0, 0, 8);
         stack.Children.Add(row);
         stack.Children.Add(_wantsBox);
-        stack.Children.Add(_projectBox);
+        // Какво каза (историята на разговорите) и таймерът – тук, при него.
+        _timerBox.Margin = new Thickness(0, 8, 0, 0);
+        _saidBox.Margin = new Thickness(0, 8, 0, 0);
+        stack.Children.Add(_timerBox);
+        stack.Children.Add(_saidBox);
         return stack;
     }
 
     /// <summary>„Дневниче“: последно казаното, таймерът, мисията.</summary>
     private UIElement BuildDiaryCard()
     {
-        _todayBox.Children.Add(_saidBox);
-        _todayBox.Children.Add(_timerBox);
+        // Дневничето: проектът, по който работи, и под него – целта (мисията).
+        _todayBox.Children.Add(_projectBox);
+        _todayBox.Children.Add(new TextBlock { Text = "Цел", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 12, 0, 0) });
+        _bearGoalBox.Margin = new Thickness(0, 4, 0, 0);
         _todayBox.Children.Add(_bearGoalBox);
         return _todayBox;
     }
@@ -1332,7 +1338,7 @@ public sealed class MenuWindow : Window
 
     private static readonly Dictionary<string, Brush> SoftCache = new();
 
-    private static Brush Soft(Brush tint, double mix)
+    internal static Brush Soft(Brush tint, double mix)
     {
         var c = (tint as SolidColorBrush)?.Color ?? Colors.Gold;
         var paper = (Cream as SolidColorBrush)?.Color ?? Colors.White;
@@ -1823,7 +1829,9 @@ public sealed class MenuWindow : Window
                 inner.Children.Add(nameIt);
             }
         }
-        _projectBox.Children.Add(new Border
+        var open = new TextBlock { Text = "Виж прогреса ›", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6 * U, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+        inner.Children.Add(open);
+        var card = new Border
         {
             Background = Soft(WoodLight, 0.25),
             BorderBrush = WoodLight,
@@ -1831,8 +1839,11 @@ public sealed class MenuWindow : Window
             CornerRadius = new CornerRadius(5),
             Padding = new Thickness(10 * U, 7 * U, 10 * U, 8 * U),
             Child = inner,
-            ToolTip = Tip("Проектът на Мечо върви, докато ти работиш: мечо-доро, работен таймер и свършени задачи"),
-        });
+            ToolTip = Tip("Проектът на Мечо върви, докато ти работиш – цъкни, за да видиш целия път и наградите"),
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        TaskCards.Clickable(card, () => ProjectWindow.Toggle(_pet, this));
+        _projectBox.Children.Add(card);
     }
 
     /// <summary>Плочките в „Мечо“ според това какво прави и от какво има нужда.</summary>

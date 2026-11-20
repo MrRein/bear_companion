@@ -67,9 +67,29 @@ public sealed partial class PetWindow
     private void WireProject()
     {
         var bus = CoreEngine.Bus;
-        bus.Subscribe<Mecho.Core.WorkPaid>(this, s => AddProjectPoints(s.Minutes));
-        bus.Subscribe<Mecho.Core.TaskCompleted>(this, s => AddProjectPoints(s.Size switch { 3 => 40, 2 => 20, 1 => 10, _ => 0 }));
+        bus.Subscribe<Mecho.Core.WorkPaid>(this, s => { AddProjectPoints(s.Minutes); ShowProjectPoints(s.Minutes); });
+        bus.Subscribe<Mecho.Core.TaskCompleted>(this, s =>
+        {
+            int pts = s.Size switch { 3 => 40, 2 => 20, 1 => 10, _ => 0 };
+            AddProjectPoints(pts);
+            ShowProjectPoints(pts);
+        });
         bus.Subscribe<Mecho.Core.TaskReopened>(this, s => AddProjectPoints(-s.Reward * 10));
+        // Мина етап: прогресът се отваря сам и празнува (без да краде фокуса).
+        StageDone += (i, reward) =>
+        {
+            if (SelfTest.Running || ProjectNoRewards || !IsVisible) return;
+            Dispatcher.BeginInvoke(() => ProjectWindow.Open(this, null, i, reward));
+        };
+    }
+
+    /// <summary>Точките изплуват над мечока (след лешниците – малко по-късно, да не се застъпват).</summary>
+    private void ShowProjectPoints(double points)
+    {
+        int n = (int)Math.Round(points);
+        if (n <= 0 || ProjectDone || SelfTest.Running || !IsVisible || OnWalk) return;
+        var at = new System.Windows.Point(_bearRect.Left + _bearRect.Width * 0.3, _bearRect.Top + _bearRect.Height * 0.25);
+        Later(0.9, () => new NutPopWindow("+" + n, "board", at, Ui.Good).Pop());
     }
 
     /// <summary>Точки за проекта (отрицателни – върната задача; не връща платен етап).</summary>
@@ -92,17 +112,12 @@ public sealed partial class PetWindow
     {
         _save.ProjectPaid = i + 1;
         var st = ProjectStages[i];
-        // Следващият етап иска нещо, което го няма (масичката, статива, компютъра…): то е наградата.
-        string? need = i + 1 < ProjectStages.Length ? StageNeeds(i + 1) : null;
-        string reward = ProjectNoRewards ? (i == 14 ? FinishGame() : "")
-            : need != null && !OwnsOrOrdered(need) && Kitchen.Find(need) is { } needed ? GiftUpgrade(needed) + " Трябва ми за следващия етап!"
-            : i switch
-        {
-            4 => GiveProjectNuts(i),
-            8 => "",
-            14 => FinishGame(),
-            _ => ProjectRandomReward(i),
-        };
+        // Наградата е решена отдавна (виждаше се в прогреса): сега се дава.
+        string plan = ProjectRewardPlan(i);
+        string reward = ProjectNoRewards ? (i == 14 ? FinishGame() : "") : PayProjectReward(i, plan);
+        _save.ProjectGot[i] = ProjectRewardLabel(plan);
+        LastStageDone = i;
+        StageDone?.Invoke(i, reward);
         string line = R.Text($"project.stage.{i + 1}", _save.OwnerName, ("игра", GameTitle));
         _save.ProjectNote = line;
         Log("star", $"Проектът: „{st.Name}“ – готово!");
@@ -151,50 +166,120 @@ public sealed partial class PetWindow
 
     private int ProjectNutsFor(int i) => i < 5 ? 3 + _rng.Next(3) : i < 10 ? 4 + _rng.Next(3) : 5 + _rng.Next(3);
 
-    private string GiveProjectNuts(int i)
+    /// <summary>Мина етап (номер, какво каза за наградата) – прозорецът с прогреса празнува.</summary>
+    public event Action<int, string>? StageDone;
+
+    /// <summary>Последният минат етап (за празника в прозореца); -1 – още няма.</summary>
+    public int LastStageDone { get; private set; } = -1;
+
+    /// <summary>
+    /// Наградата за етап i: решава се, когато етапът влезе в „следващите три“ (тогава се
+    /// вижда), и после не се мени. Запис: nuts:N, up:id, cloth:id, bg:id, theme:key, name, box.
+    /// </summary>
+    public string ProjectRewardPlan(int i)
     {
-        int n = ProjectNutsFor(i);
-        GainNuts(n, "проект");
-        return $"+{n} 🌰";
+        while (_save.ProjectPlan.Count < ProjectStages.Length) _save.ProjectPlan.Add("");
+        while (_save.ProjectGot.Count < ProjectStages.Length) _save.ProjectGot.Add("");
+        if (_save.ProjectPlan[i].Length == 0) _save.ProjectPlan[i] = RollProjectReward(i);
+        return _save.ProjectPlan[i];
     }
 
-    /// <summary>Случайна награда: 50% лешници, 45% нещо от магазина, 5% мебел (няма ли – по-надолу).</summary>
-    private string ProjectRandomReward(int i)
+    /// <summary>Наградата се вижда ли вече: минатите, сегашният и следващите два.</summary>
+    public bool ProjectRewardShown(int i) => i < _save.ProjectPaid + 3;
+
+    private string RollProjectReward(int i)
     {
+        if (i == 14) return "box";
+        if (i == 8) return "name";
+        // Следващият етап иска нещо, което го няма (бюрото, масичката, статива, компютъра): то е наградата.
+        if (StageNeeds(i + 1) is { } need && !OwnsOrOrdered(need) && !PlannedElsewhere("up:" + need, i)) return "up:" + need;
+        if (i == 4) return "nuts:" + ProjectNutsFor(i);
         int roll = _rng.Next(100);
-        if (roll >= 95 && GiveRandomUpgrade(Kitchen.FurnitureShelf) is { } furniture) return furniture;
-        if (roll >= 50 && GiveRandomShopThing() is { } thing) return thing;
-        return GiveProjectNuts(i);
+        if (roll >= 95 && RandomUpgrade(Kitchen.FurnitureShelf, i) is { } furniture) return furniture;
+        if (roll >= 50 && RandomShopThing(i) is { } thing) return thing;
+        return "nuts:" + ProjectNutsFor(i);
+    }
+
+    private bool PlannedElsewhere(string plan, int i) =>
+        _save.ProjectPlan.Where((p, k) => k != i && k >= _save.ProjectPaid).Contains(plan);
+
+    private string? RandomUpgrade(string shelf, int i)
+    {
+        var list = Kitchen.Upgrades.Where(u => u.Shelf == shelf && !OwnsOrOrdered(u.Id) && !PlannedElsewhere("up:" + u.Id, i)).ToList();
+        return list.Count == 0 ? null : "up:" + list[_rng.Next(list.Count)].Id;
     }
 
     /// <summary>Нещо от магазина, което още нямаш: уред/хоби, а с гардероб – и дреха, тапет или меню.</summary>
-    private string? GiveRandomShopThing()
+    private string? RandomShopThing(int i)
     {
-        var pool = Kitchen.Upgrades.Where(u => u.Shelf != Kitchen.FurnitureShelf && !OwnsOrOrdered(u.Id)).Select(u => (object)u);
+        var pool = Kitchen.Upgrades.Where(u => u.Shelf != Kitchen.FurnitureShelf && !OwnsOrOrdered(u.Id)).Select(u => "up:" + u.Id);
         if (DailyOffer.HasWardrobe(_save))
-            pool = pool.Concat(Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(_save, g)))
-                .Concat(Backdrops.All.Where(b => !Backdrops.Owns(_save, b)))
-                .Concat(UiThemes.All.Where(t => !UiThemes.Owns(_save, t)));
-        var list = pool.ToList();
-        if (list.Count == 0) return null;
-        switch (list[_rng.Next(list.Count)])
-        {
-            case Upgrade u: return GiftUpgrade(u);
-            case Garment g: _save.OwnedClothes.Add(g.Id); return $"Подарък: {g.Name}! (в гардероба)";
-            case Backdrop b: _save.Owned.Add("bg_" + b.Id); return $"Подарък: тапет „{b.Name}“!";
-            case UiTheme t: _save.Owned.Add(t.Key); return $"Подарък: меню „{t.Name}“!";
-        }
-        return null;
+            pool = pool.Concat(Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(_save, g)).Select(g => "cloth:" + g.Id))
+                .Concat(Backdrops.All.Where(b => !Backdrops.Owns(_save, b)).Select(b => "bg:" + b.Id))
+                .Concat(UiThemes.All.Where(t => !UiThemes.Owns(_save, t)).Select(t => "theme:" + t.Key));
+        var list = pool.Where(p => !PlannedElsewhere(p, i)).ToList();
+        return list.Count == 0 ? null : list[_rng.Next(list.Count)];
     }
 
-    private string? GiveRandomUpgrade(string shelf)
+    /// <summary>Как се казва наградата (в прогреса и в дневника).</summary>
+    public string ProjectRewardLabel(string plan)
     {
-        var list = Kitchen.Upgrades.Where(u => u.Shelf == shelf && !OwnsOrOrdered(u.Id)).ToList();
-        return list.Count == 0 ? null : GiftUpgrade(list[_rng.Next(list.Count)]);
+        string kind = plan.Split(':')[0], id = plan.Contains(':') ? plan[(plan.IndexOf(':') + 1)..] : "";
+        return kind switch
+        {
+            "nuts" => id + " лешника",
+            "up" => Kitchen.Find(id) is { } u ? u.Icon + " " + u.Name : "Изненада",
+            "cloth" => Clothes.All.FirstOrDefault(g => g.Id == id)?.Name ?? "Дреха",
+            "bg" => "Тапет „" + (Backdrops.All.FirstOrDefault(b => b.Id == id)?.Name ?? "") + "“",
+            "theme" => "Меню „" + (UiThemes.All.FirstOrDefault(t => t.Key == id)?.Name ?? "") + "“",
+            "name" => "Името на играта",
+            "box" => "Кутията с играта + титла",
+            _ => "Изненада",
+        };
     }
 
-    private string GiveUpgradeOr(string id, int i) =>
-        Kitchen.Find(id) is { } u && !OwnsOrOrdered(id) ? GiftUpgrade(u) : ProjectRandomReward(i);
+    /// <summary>Иконка за наградата в прогреса.</summary>
+    public static string ProjectRewardIcon(string plan) => plan.Split(':')[0] switch
+    {
+        "nuts" => "nut2",
+        "up" => "gift",
+        "cloth" => "shirt",
+        "bg" => "picture",
+        "theme" => "menu",
+        "name" => "pencil",
+        "box" => "star",
+        _ => "question",
+    };
+
+    /// <summary>Дава наградата (вече я има – вместо нея лешници).</summary>
+    private string PayProjectReward(int i, string plan)
+    {
+        string kind = plan.Split(':')[0], id = plan.Contains(':') ? plan[(plan.IndexOf(':') + 1)..] : "";
+        switch (kind)
+        {
+            case "nuts" when int.TryParse(id, out int n):
+                GainNuts(n, "проект");
+                return $"+{n} 🌰";
+            case "up" when Kitchen.Find(id) is { } u && !OwnsOrOrdered(id):
+                return GiftUpgrade(u) + (StageNeeds(i + 1) == id ? " Трябва ми за следващия етап!" : "");
+            case "cloth" when Clothes.All.FirstOrDefault(g => g.Id == id) is { } g && !Clothes.Owns(_save, g):
+                _save.OwnedClothes.Add(g.Id);
+                return $"Подарък: {g.Name}! (в гардероба)";
+            case "bg" when Backdrops.All.FirstOrDefault(b => b.Id == id) is { } b && !Backdrops.Owns(_save, b):
+                _save.Owned.Add("bg_" + b.Id);
+                return $"Подарък: тапет „{b.Name}“!";
+            case "theme" when UiThemes.All.FirstOrDefault(t => t.Key == id) is { } t && !UiThemes.Owns(_save, t):
+                _save.Owned.Add(t.Key);
+                return $"Подарък: меню „{t.Name}“!";
+            case "name":
+                return "";
+            case "box":
+                return FinishGame();
+        }
+        int m = ProjectNutsFor(i);
+        GainNuts(m, "проект");
+        return $"+{m} 🌰";
+    }
 
     /// <summary>Безплатно: идва с доставка, както купеното.</summary>
     private string GiftUpgrade(Upgrade u)

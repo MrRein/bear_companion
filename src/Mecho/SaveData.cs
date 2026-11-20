@@ -139,7 +139,9 @@ public sealed class SaveData
     public bool ProjectIntro { get; set; }
     public string GameName { get; set; } = "";
     public string ProjectFanDay { get; set; } = "";
-    public string ProjectNote { get; set; } = "";                 // последното, което каза за проекта
+    public string ProjectNote { get; set; } = "";
+    public List<string> ProjectPlan { get; set; } = new();          // наградата за всеки етап (решена предварително)
+    public List<string> ProjectGot { get; set; } = new();           // какво получи на минатите етапи                 // последното, което каза за проекта
     public List<SaidLine> Said { get; set; } = new();          // последните 10 неща, казани от него (и въпросите с избрания отговор)
     public int WishSmallCount { get; set; }                    // изпълнени желания от последното +1
     public int WishSmallGoal { get; set; }                     // на колко (4–6) идва +1
