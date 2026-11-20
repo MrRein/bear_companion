@@ -108,9 +108,11 @@ internal sealed class ProjectWindow : FloatWindow
                 Margin = new Thickness(0, 0, 0, 10 * U),
             };
             var b = new StackPanel();
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            var row = new DockPanel();
             var star = Icon("star", 2);
             star.Margin = new Thickness(0, 0, 8 * U, 0);
+            star.VerticalAlignment = VerticalAlignment.Top;
+            DockPanel.SetDock(star, Dock.Left);
             row.Children.Add(star);
             row.Children.Add(new TextBlock
             {
@@ -119,7 +121,7 @@ internal sealed class ProjectWindow : FloatWindow
             });
             b.Children.Add(row);
             if (_celebrateText.Length > 0)
-                b.Children.Add(new TextBlock { Text = "Награда: " + _celebrateText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0) });
+                b.Children.Add(new TextBlock { Text = "Награда: " + _celebrateText.Replace("🌰", "лешника"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0) });
             banner.Child = b;
             _content.Children.Add(banner);
             Pop(banner, 0.85);
