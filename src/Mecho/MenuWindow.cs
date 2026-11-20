@@ -1769,7 +1769,7 @@ public sealed class MenuWindow : Window
         bool done = _pet.ProjectDone;
         string name = _pet.GameName;
         bool claim = _pet.ProjectHasClaim;
-        string key = $"{pr.Stage}|{(int)pr.Have}|{done}|{name}|{claim}";
+        string key = $"{pr.Stage}|{(int)(_pet.ProjectProgress * 10)}|{done}|{name}|{claim}";
         if (key == _projectKey) return;
         _projectKey = key;
         _projectBox.Children.Clear();
@@ -1816,7 +1816,7 @@ public sealed class MenuWindow : Window
             }
             inner.Children.Add(dots);
             const int segments = 10;
-            int filled = (int)Math.Floor(pr.Have / pr.Need * segments);
+            int filled = (int)Math.Floor(_pet.ProjectProgress * segments);
             var track = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5 * U, 0, 0) };
             for (int i = 0; i < segments; i++)
                 track.Children.Add(new Border
@@ -1825,7 +1825,6 @@ public sealed class MenuWindow : Window
                     BorderBrush = Ink, BorderThickness = Flat,
                     Background = i < filled ? Honey : Empty,
                 }.Skinned(i < filled ? "cell_honey" : "cell_empty"));
-            track.Children.Add(new TextBlock { Text = _pet.ProjectLeftText, Foreground = Muted, Margin = new Thickness(6 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
             inner.Children.Add(track);
             if (pr.Stage >= 9 && name.Length == 0)
             {

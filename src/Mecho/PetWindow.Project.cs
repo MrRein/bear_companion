@@ -72,21 +72,22 @@ public sealed partial class PetWindow
     public string GameName => _save.GameName;
 
     /// <summary>
-    /// Колко остава до следващата награда – с човешки думи, не с точки: „още ~3 мечо-дора“
-    /// (едно мечо-доро ≈ 25 точки; задачите също бутат).
+    /// Докъде е лентата на етапа (0…1) – с работата, която тече в момента (минутите на
+    /// мечо-дорото/таймера), за да се вижда как расте, докато работите. Без числа на екрана.
     /// </summary>
-    public string ProjectLeftText
+    public double ProjectProgress
     {
         get
         {
-            if (ProjectDone) return "";
+            if (ProjectDone) return 1;
             var now = ProjectNow;
-            double left = Math.Max(0, now.Need - now.Have);
-            if (left <= 10) return "съвсем малко остава!";
-            int n = (int)Math.Ceiling(left / 25);
-            return n == 1 ? "още едно мечо-доро" : $"още ~{n} мечо-дора";
+            double live = 0;
+            if (PomodoroFocus) live = Math.Max(0, (FocusLength - PomodoroLeft).TotalMinutes);
+            else if (TimerRunning && _save.TimerIsWork) live = Math.Max(0, _save.TimerMinutes - TimerLeft.TotalMinutes);
+            return now.Need <= 0 ? 0 : Math.Clamp((now.Have + live) / now.Need, 0, 0.98);
         }
     }
+
     public string ProjectNote => _save.ProjectNote;
 
     private void WireProject()
@@ -111,11 +112,19 @@ public sealed partial class PetWindow
     /// <summary>Точките изплуват над мечока (след лешниците – малко по-късно, да не се застъпват).</summary>
     private void ShowProjectPoints(double points)
     {
-        int n = (int)Math.Round(points);
-        if (n <= 0 || ProjectDone || SelfTest.Running || !IsVisible || OnWalk) return;
-        var at = new System.Windows.Point(_bearRect.Left + _bearRect.Width * 0.3, _bearRect.Top + _bearRect.Height * 0.25);
-        Later(0.9, () => new NutPopWindow("+" + n, "board", at, Ui.Good).Pop());
+        if (points <= 0) return;
+        Later(0.9, ProjectArrow);
     }
+
+    /// <summary>Малка стрелкичка нагоре изплува над мечока: това, което прави, бута проекта.</summary>
+    private void ProjectArrow()
+    {
+        if (ProjectDone || SelfTest.Running || !IsVisible || OnWalk) return;
+        var at = new System.Windows.Point(_bearRect.Left + _bearRect.Width * 0.28, _bearRect.Top + _bearRect.Height * 0.3);
+        new NutPopWindow("", "arrow_up", at).Pop();
+    }
+
+    private double _nextProjectArrow;
 
     /// <summary>Точки за проекта (отрицателни – върната задача; не връща платен етап).</summary>
     internal void AddProjectPoints(double points)
@@ -377,6 +386,14 @@ public sealed partial class PetWindow
     /// <summary>Веднъж в секунда: разказва за проекта (в началото) и писмата от феновете (след етап 11).</summary>
     private void UpdateProject()
     {
+        // Докато работите: от време на време стрелкичката – проектът расте.
+        bool working = InFocus || TimerRunning && _save.TimerIsWork;
+        if (working && !ProjectDone && Now >= _nextProjectArrow)
+        {
+            if (_nextProjectArrow > 0) ProjectArrow();
+            _nextProjectArrow = Now + 70 + _rng.Next(50);
+        }
+        else if (!working) _nextProjectArrow = 0;
         if (SelfTest.Running || !FreeForWish || _inScene && _scene == Scenes.Focus) return;
         if (!_save.ProjectIntro)
         {

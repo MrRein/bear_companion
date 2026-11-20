@@ -72,7 +72,7 @@ internal sealed class ProjectWindow : FloatWindow
         pet.CareChanged += OnCare;
     }
 
-    private string Key => $"{Pet.Save.ProjectPaid}|{(int)Pet.Save.ProjectPoints}|{Pet.GameName}|{Pet.ProjectClaimed}";
+    private string Key => $"{Pet.Save.ProjectPaid}|{(int)(Pet.ProjectProgress * 50)}|{Pet.GameName}|{Pet.ProjectClaimed}";
 
     private void OnCare(object? sender, EventArgs e)
     {
@@ -117,7 +117,7 @@ internal sealed class ProjectWindow : FloatWindow
         var pet = Pet;
         int paid = pet.Save.ProjectPaid, n = PetWindow.ProjectStages.Length;
         var now = pet.ProjectNow;
-        double frac = pet.ProjectDone ? 1 : now.Need > 0 ? Math.Clamp(now.Have / now.Need, 0, 1) : 0;
+        double frac = pet.ProjectProgress;
         double width = Pad * 2 + Gap * (n - 1);
         var canvas = new Canvas { Width = width, Height = RoadHeight };
         double X(int i) => Pad + Gap * i;
@@ -277,16 +277,11 @@ internal sealed class ProjectWindow : FloatWindow
         ic.Margin = new Thickness(0, 0, 6 * U, 0);
         DockPanel.SetDock(ic, Dock.Left);
         row.Children.Add(ic);
-        var pts = new TextBlock { Text = pet.ProjectLeftText, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8 * U, 0, 0, 0) };
-        DockPanel.SetDock(pts, Dock.Right);
-        row.Children.Add(pts);
-        var bar = Bar(now.Need > 0 ? now.Have / now.Need : 0, 5 * P);
-        bar.Width = 120 * U;
+        // Само лентата до следващата награда (без числа и обяснения); името – като посочиш.
+        var bar = Bar(pet.ProjectProgress, 7 * P);
         bar.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(bar, Dock.Right);
         row.Children.Add(bar);
-        string what = plan.StartsWith("nuts:") ? "+" + plan[5..] + " лешника" : pet.ProjectRewardLabel(plan);
-        row.Children.Add(new TextBlock { Text = "Следваща: " + what, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+        row.ToolTip = Tip("Следваща награда: " + (plan.StartsWith("nuts:") ? plan[5..] + " лешника" : pet.ProjectRewardLabel(plan)));
         return row;
     }
 
