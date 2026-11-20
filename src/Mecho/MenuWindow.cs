@@ -1790,6 +1790,11 @@ public sealed class MenuWindow : Window
         {
             inner.Children.Add(new TextBlock
             {
+                Text = $"Ранг {PetWindow.ProjectRankIndex(_pet.Save.ProjectPaid) + 1}: {PetWindow.ProjectRank(_pet.Save.ProjectPaid)}",
+                Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4 * U, 0, 0),
+            });
+            inner.Children.Add(new TextBlock
+            {
                 Text = $"Етап {pr.Stage + 1}/{PetWindow.ProjectStages.Length}: {pr.Info.Name}",
                 FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0),
             });
@@ -1829,7 +1834,7 @@ public sealed class MenuWindow : Window
                 inner.Children.Add(nameIt);
             }
         }
-        var open = new TextBlock { Text = "Виж прогреса ›", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6 * U, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+        var open = new TextBlock { Text = "Към пътя ›", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6 * U, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
         inner.Children.Add(open);
         var card = new Border
         {

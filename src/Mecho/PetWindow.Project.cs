@@ -36,6 +36,14 @@ public sealed partial class PetWindow
 
     public const string GameBox = "game_box";
 
+    /// <summary>Ранговете на Мечо по пътя – нов на всеки три етапа (последният – когато играта излезе).</summary>
+    private static readonly string[] ProjectRanks = { "Мечтател", "Изобретател", "Тестер", "Художник", "Предприемач", "Издател" };
+
+    /// <summary>Кой ранг е при толкова минати етапа (0…5).</summary>
+    public static int ProjectRankIndex(int paid) => paid >= ProjectStages.Length ? ProjectRanks.Length - 1 : Math.Min(ProjectRanks.Length - 2, paid / 3);
+
+    public static string ProjectRank(int paid) => ProjectRanks[ProjectRankIndex(paid)];
+
     private static readonly string[] GameNames =
     {
         "Горски тайни", "Медено приключение", "Лешникова треска", "Пътят на мечето", "Бърлогата",
