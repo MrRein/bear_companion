@@ -432,6 +432,7 @@ public sealed partial class PetWindow
         _sceneUntil = 0;
         _sceneNear = AnchorFor(scene);
         _anchorWalk = false;
+        _anchorHopped = false;
         _placing = null;
         _nextCycle = Now + 25 + _rng.Next(45);
         _cycleBackAt = 0;

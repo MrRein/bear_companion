@@ -27,6 +27,9 @@ public sealed partial class PetWindow
     private ItemAnchor? _sceneNear;
     private ItemAnchor? _busyNear;
     private bool _anchorWalk;
+    private double _anchorBest = double.MaxValue, _anchorBestAt;   // докъде е стигнал и кога (заседне ли – мебелта идва при него)
+    private double _anchorSeen;
+    private bool _anchorHopped;                                    // вече мина веднъж на другия екран за това занимание
     private double _tickDt = 0.033;
 
     // ── Котвите на предметите ──
@@ -138,9 +141,40 @@ public sealed partial class PetWindow
             {
                 _anchorWalk = true;
                 _animTime = 0;
+                _anchorBest = double.MaxValue;
+                _anchorBestAt = Now;
             }
-            // Предметът е на друг екран: през ръба и от ръба на другия (PetWindow.Screens.cs).
-            if (UpdateCrossing(spot, dt, r.Bottom - 1)) return true;
+            // Предметът е на друг екран: излиза през ръба на своя и влиза от ръба на неговия (PetWindow.Screens.cs).
+            // Мина ли веднъж, а пак „не е тук“ – не обикаля в кръг: мебелта идва при него.
+            double cy = r.Top + r.Height / 2;
+            if (_anchorHopped && !Hopping && furniture && OnOtherScreen(r.Left + r.Width / 2, cy))
+            {
+                BringFurnitureHere(a);
+                return true;
+            }
+            bool wasHopping = Hopping;
+            if (UpdateCrossing(r.Left + r.Width / 2, dt, cy)) return true;
+            if (wasHopping)
+            {
+                _anchorHopped = true;
+                _anchorBest = double.MaxValue;
+                _anchorBestAt = Now;
+            }
+            // Не се приближава 6 секунди (ръбът на екрана го спира…): мебелта идва при него – без засядане.
+            // (Беше спрян – вдигнат, пауза – броенето почва отначало.)
+            double dist = Math.Abs(_x - spot);
+            if (Now - _anchorSeen > 1) _anchorBestAt = Now;
+            _anchorSeen = Now;
+            if (dist < _anchorBest - PixelSize)
+            {
+                _anchorBest = dist;
+                _anchorBestAt = Now;
+            }
+            else if (furniture && !InstantModes && Now - _anchorBestAt > 6)
+            {
+                BringFurnitureHere(a);
+                return true;
+            }
             double dir = Math.Sign(spot - _x);
             _facingLeft = dir < 0;
             _x += dir * Math.Min(Math.Abs(spot - _x), (IsExhausted ? WalkSpeed * 0.6 : WalkSpeed) * dt);
@@ -167,6 +201,22 @@ public sealed partial class PetWindow
             }
         }
         return false;
+    }
+
+    /// <summary>Резервата: не може да стигне мебелта – тя се мести до него (на неговия екран).</summary>
+    private void BringFurnitureHere(ItemAnchor a)
+    {
+        _anchorBest = double.MaxValue;
+        _anchorBestAt = Now;
+        _anchorHopped = false;
+        if (FurnishingOf(a.Kind) is not { } f) return;
+        var area = Area;
+        double w = FurnitureWidth(f);
+        double x = a.Seat ? _x : _x + (_x < area.Left + area.Width / 2 ? 1 : -1) * (w / 2 + Math.Max(0, a.Gap));
+        x = Math.Clamp(x, area.Left + w / 2, Math.Max(area.Left + w / 2, area.Right - w / 2));
+        if (f.Window != null) f.Window.FallTo(x, area.Bottom);
+        CoreEngine.Bus.Send(new Mecho.Core.MoveItem(f.Kind, x));
+        Persist();
     }
 
     /// <summary>Кратко нещо с предмет (бърка, пълни хранилката): отдалечи ли се – спира.</summary>

@@ -2717,6 +2717,33 @@ public sealed partial class PetWindow
                 SetFurniture(Kitchen.Couch, false);
             }
         }, 400);
+        await step("заседне ли по пътя към мебелта – тя идва при него", () =>
+        {
+            bool instant = InstantModes;
+            InstantModes = false;
+            try
+            {
+                var area = Area;
+                double far = _x > area.Left + area.Width / 2 ? area.Left + area.Width * 0.15 : area.Right - area.Width * 0.15;
+                SetFurniture(Kitchen.Couch, true, far);
+                StartScene(Scenes.Reading, quiet: true);
+                UpdateScene(Now);
+                if (!_anchorWalk) throw new Exception("не тръгна към дивана");
+                // Като че ли 7 секунди не мърда (ръбът го спира).
+                _anchorBest = 0;
+                _anchorBestAt = Now - 7;
+                _anchorSeen = Now;
+                UpdateScene(Now);
+                if (Math.Abs(PlacementOf(Kitchen.Couch).X - _x) > SpriteWidth) throw new Exception("заседна, а диванът не дойде при него");
+            }
+            finally
+            {
+                InstantModes = instant;
+                LeaveScene();
+                SetIdle();
+                SetFurniture(Kitchen.Couch, false);
+            }
+        }, 400);
         await step("лапите: четка само на статива (не докато слага бюрото)", () =>
         {
             var empty = new Dictionary<string, string>();
