@@ -140,7 +140,7 @@ public sealed partial class PetWindow
                 _animTime = 0;
             }
             // Предметът е на друг екран: през ръба и от ръба на другия (PetWindow.Screens.cs).
-            if (UpdateCrossing(spot, dt)) return true;
+            if (UpdateCrossing(spot, dt, r.Bottom - 1)) return true;
             double dir = Math.Sign(spot - _x);
             _facingLeft = dir < 0;
             _x += dir * Math.Min(Math.Abs(spot - _x), (IsExhausted ? WalkSpeed * 0.6 : WalkSpeed) * dt);

@@ -19,6 +19,7 @@ public sealed partial class PetWindow
 
     private Hop _hop;
     private double _hopTarget;        // нещото, до което отива (x на другия екран)
+    private double _hopTargetY = double.NaN;   // и на каква височина (екрани един над друг); NaN – не се знае
     private double _hopX;             // докъде ходи сега: зад ъгъла (излиза) или вътре до ъгъла (влиза)
     private double _hopAt;            // кога да се появи на другия екран
     private double _hopTouched;       // кога за последно някое ходене е питало (иначе е прекъснат)
@@ -38,15 +39,22 @@ public sealed partial class PetWindow
         return areas.Count > 0 ? areas[0] : AreaAt(x, _y - 1);
     }
 
-    /// <summary>Нещото е на друг екран (а мечокът е видим и в своя).</summary>
-    private bool OnOtherScreen(double target)
+    /// <summary>
+    /// Нещото е на друг екран (а мечокът е видим и в своя). targetY – височината на нещото:
+    /// с нея се усеща и екран над/под този (лаптоп долу, монитор горе) – без нея само встрани.
+    /// </summary>
+    private bool OnOtherScreen(double target, double targetY = double.NaN)
     {
         if (double.IsNaN(target) || !IsVisible || _walkingOut || _walkingBack || OnWalk) return false;
         var here = Area;
         if (_x < here.Left || _x > here.Right) return false;
+        if (!double.IsNaN(targetY)) return TargetArea(target, targetY) != here;
         if (target >= here.Left && target < here.Right) return false;
         return ScreenAreaFor(target) != here;
     }
+
+    /// <summary>Екранът на нещото: по точката (x, y), ако се знае височината; иначе – по x.</summary>
+    private Rect TargetArea(double x, double y) => double.IsNaN(y) ? ScreenAreaFor(x) : AreaAt(x, y);
 
     /// <summary>Колко зад ръба е, когато е целият навън.</summary>
     private double Outside => SpriteWidth / 2 + PixelSize * 2;
@@ -57,12 +65,13 @@ public sealed partial class PetWindow
     /// От всяко ходене към target: ако е на друг екран – води мечока през ъглите и връща
     /// true (ходенето този кадър не мърда); иначе false и ходенето си продължава.
     /// </summary>
-    private bool UpdateCrossing(double target, double dt)
+    private bool UpdateCrossing(double target, double dt, double targetY = double.NaN)
     {
         _hopTouched = Now;
         if (_hop == Hop.None)
         {
-            if (!OnOtherScreen(target)) return false;
+            if (!OnOtherScreen(target, targetY)) return false;
+            _hopTargetY = targetY;
             // 1. Към най-близкия ъгъл на своя екран (не непременно откъм нещото).
             var here = Area;
             bool left = _x - here.Left < here.Right - _x;
@@ -104,7 +113,7 @@ public sealed partial class PetWindow
     /// <summary>3. Зад най-близкия до нещото долен ъгъл на неговия екран – и почва да влиза.</summary>
     private void AppearAtCorner()
     {
-        var to = ScreenAreaFor(_hopTarget);
+        var to = TargetArea(_hopTarget, _hopTargetY);
         bool left = _hopTarget - to.Left < to.Right - _hopTarget;
         _x = left ? to.Left - Outside : to.Right + Outside;
         _y = to.Bottom;

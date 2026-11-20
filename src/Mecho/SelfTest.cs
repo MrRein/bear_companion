@@ -2735,10 +2735,12 @@ public sealed partial class PetWindow
             SetIdle();
             var a = Area;
             if (OnOtherScreen(a.Left + a.Width / 2)) throw new Exception("целта на същия екран се води „друг екран“");
+            if (OnOtherScreen(a.Left + a.Width / 2, a.Bottom - 1)) throw new Exception("целта на същия екран (с височина) се води „друг екран“");
             if (System.Windows.Forms.Screen.AllScreens.Length == 1 && OnOtherScreen(a.Right + 500))
                 throw new Exception("с един екран тръгва да излиза");
             // Излязъл е през ъгъла (скрит), а нещо го прекъсва: влиза от ъгъла с ходене.
             _hopTarget = a.Left + a.Width * 0.3;
+            _hopTargetY = double.NaN;
             _hop = Hop.Away;
             _hopAt = Now + 100;
             _hopTouched = Now - 1;   // никое ходене (обикновено или до кътчето) вече не го води
