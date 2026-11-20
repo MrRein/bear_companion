@@ -118,21 +118,50 @@ public sealed partial class PetWindow
 
     private void FinishProjectStage(int i)
     {
+        _ = ProjectClaimed;   // старите записи: платеното дотук се води взето
         _save.ProjectPaid = i + 1;
         var st = ProjectStages[i];
-        // Наградата е решена отдавна (виждаше се в прогреса): сега се дава.
-        string plan = ProjectRewardPlan(i);
-        string reward = ProjectNoRewards ? (i == 14 ? FinishGame() : "") : PayProjectReward(i, plan);
-        _save.ProjectGot[i] = ProjectRewardLabel(plan);
+        ProjectRewardPlan(i);   // наградата е решена отдавна (виждаше се в пътя) – чака да я вземеш
         LastStageDone = i;
-        StageDone?.Invoke(i, reward);
+        StageDone?.Invoke(i, "");
         string line = R.Text($"project.stage.{i + 1}", _save.OwnerName, ("игра", GameTitle));
         _save.ProjectNote = line;
         Log("star", $"Проектът: „{st.Name}“ – готово!");
         Emote("sparkle", 4);
         React(i == 14 ? "dance" : "happy", i == 14 ? 4 : 0);
-        Say(line + (reward.Length > 0 ? " " + reward : ""), 7);
-        if (i == 8 && _save.GameName.Length == 0 && !ProjectNoRewards) Later(8, AskGameName);
+        Say(line + " Наградата те чака в пътя на проекта!", 7);
+    }
+
+    /// <summary>Колко награди от етапите са взети (по ред). Старите записи – всичко платено дотук.</summary>
+    public int ProjectClaimed
+    {
+        get
+        {
+            if (_save.ProjectClaimed < 0 || _save.ProjectClaimed > _save.ProjectPaid) _save.ProjectClaimed = _save.ProjectPaid;
+            return _save.ProjectClaimed;
+        }
+    }
+
+    /// <summary>Има ли награда, която чака да я вземеш (най-ранната).</summary>
+    public bool ProjectHasClaim => ProjectClaimed < _save.ProjectPaid;
+
+    /// <summary>Наградата за етап i може ли да се вземе сега (минат е, не е взета, по ред).</summary>
+    public bool CanClaimProject(int i) => i == ProjectClaimed && i < _save.ProjectPaid;
+
+    /// <summary>Цъкна наградата в пътя: дава я и казва какво е. „“ – нищо за вземане.</summary>
+    public string ClaimProjectReward(int i)
+    {
+        if (!CanClaimProject(i)) return "";
+        string plan = ProjectRewardPlan(i);
+        string reward = ProjectNoRewards ? (i == 14 ? FinishGame() : "") : PayProjectReward(i, plan);
+        _save.ProjectGot[i] = ProjectRewardLabel(plan);
+        _save.ProjectClaimed = i + 1;
+        Emote("sparkle", 3);
+        if (reward.Length > 0 && !ProjectNoRewards) Say(reward, 5);
+        if (i == 8 && _save.GameName.Length == 0 && !ProjectNoRewards) Later(1.5, AskGameName);
+        NotifyCare();
+        Persist();
+        return reward;
     }
 
     /// <summary>
@@ -343,7 +372,7 @@ public sealed partial class PetWindow
             return;
         }
         // Етапът иска нещо, което го няма (стар запис отпреди наградите): идва като подарък.
-        if (!ProjectDone && StageNeeds(ProjectNow.Stage) is { } need && !OwnsOrOrdered(need) && Kitchen.Find(need) is { } u)
+        if (!ProjectDone && !ProjectHasClaim && StageNeeds(ProjectNow.Stage) is { } need && !OwnsOrOrdered(need) && Kitchen.Find(need) is { } u)
         {
             Say($"За етапа „{ProjectNow.Info.Name}“ ми трябва нещо… " + GiftUpgrade(u), 6);
             Persist();

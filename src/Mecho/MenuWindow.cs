@@ -1768,7 +1768,8 @@ public sealed class MenuWindow : Window
         var pr = _pet.ProjectNow;
         bool done = _pet.ProjectDone;
         string name = _pet.GameName;
-        string key = $"{pr.Stage}|{(int)pr.Have}|{done}|{name}";
+        bool claim = _pet.ProjectHasClaim;
+        string key = $"{pr.Stage}|{(int)pr.Have}|{done}|{name}|{claim}";
         if (key == _projectKey) return;
         _projectKey = key;
         _projectBox.Children.Clear();
@@ -1834,6 +1835,8 @@ public sealed class MenuWindow : Window
                 inner.Children.Add(nameIt);
             }
         }
+        if (claim)
+            inner.Children.Add(new TextBlock { Text = "Награда те чака – вземи я!", FontWeight = FontWeights.Bold, Foreground = Good, Margin = new Thickness(0, 6 * U, 0, 0) });
         var open = new TextBlock { Text = "Към пътя ›", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6 * U, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
         inner.Children.Add(open);
         var card = new Border
