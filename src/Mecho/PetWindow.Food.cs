@@ -357,6 +357,15 @@ public sealed partial class PetWindow
         var talk = FoodTalk.For(food.Food);
         string line = Lines.Pick(talk.Receive, _save.OwnerName);
         Say(last ? line : $"{line} Още {_food.Count}!", 3);
+        // Правеше нещо (кътче, ходене към мебел, бъркане): оставя го и яде – иначе храната
+        // изчезваше, а той си продължаваше със старата анимация. В работа (Фокус) не става.
+        if (CanAnimateFreely && !InFocus)
+        {
+            _busyNear = null;
+            if (_inScene && _scene != Scenes.Drink) LeaveScene();
+            else _anchorWalk = false;
+            if (_state is BearState.Walk or BearState.Chase) SetIdle();
+        }
         // Напитка: сяда и я пие бавно, с чашата в лапата.
         if (IsDrink(food.Food) && CanAnimateFreely && !InFocus)
         {

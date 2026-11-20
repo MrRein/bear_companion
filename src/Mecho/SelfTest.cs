@@ -689,6 +689,27 @@ public sealed partial class PetWindow
             EatDone();
             foreach (var f in Kitchen.Foods) _ = FoodTalk.For(f);
         }, 500);
+        await step("яде: зает с нещо – оставя го и яде", () =>
+        {
+            DevClearFood();
+            StartScene(Scenes.Reading, quiet: true);
+            SpawnFood(Kitchen.Foods.First(f => f.Id == "meatballs"), 1, 0, new Point(_x, _bearRect.Top), fromCooker: false);
+            var f1 = _food.Last();
+            f1.DevAge(5);
+            EatFood(f1);
+            if (_inScene || _anim is not ("eat" or "eat_hold")) throw new Exception("в кътче: не почна да яде (" + _anim + ")");
+            _bitesLeft = 1;
+            EatDone();
+            SetState(BearState.Walk, "walk");
+            SpawnFood(Kitchen.Foods.First(f => f.Id == "meatballs"), 1, 0, new Point(_x, _bearRect.Top), fromCooker: false);
+            var f2 = _food.Last();
+            f2.DevAge(5);
+            EatFood(f2);
+            if (_anim is not ("eat" or "eat_hold")) throw new Exception("докато върви: не почна да яде (" + _anim + ")");
+            _bitesLeft = 1;
+            EatDone();
+            SetIdle();
+        }, 800);
         await step("забравената храна се разчиства", () =>
         {
             SpawnFood(Kitchen.Foods[0], 1, 0, new Point(_x, _bearRect.Top), fromCooker: false);
