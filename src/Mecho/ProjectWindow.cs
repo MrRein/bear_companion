@@ -29,7 +29,7 @@ internal sealed class ProjectWindow : FloatWindow
 
     public static ProjectWindow? Current => _open;
 
-    private static double Step => 118 * U;      // между два етапа
+    private static double Step => 140 * U;      // между два етапа
     private static double SceneH => 214 * U;
     private static double GroundY => 132 * U;    // средата на пътечката
     private static double Wave => 16 * U;        // колко лъкатуши
@@ -152,14 +152,25 @@ internal sealed class ProjectWindow : FloatWindow
         // Цветя по поляната (едни и същи всеки път).
         var rng = new Random(7);
         string[] flowers = { "flower_4_pink", "flower_4_yellow", "flower_4_white", "flower_4_purple", "flower_4_red", "flower_4_blue" };
-        for (double fx = 20 * U; fx < width - 20 * U; fx += 38 * U + rng.Next(40) * U)
+        // Само долу, между имената (не върху пътечката и надписите).
+        for (double fx = 14 * U; fx < width - 20 * U; fx += 26 * U + rng.Next(30) * U)
         {
+            bool nearStage = Enumerable.Range(-1, PetWindow.ProjectStages.Length + 1).Any(k => Math.Abs(At(k).X - fx - 6 * U) < Step * 0.36);
+            if (nearStage) continue;
             var f = Pixel(pet.PropImage(flowers[rng.Next(flowers.Length)]), 2);
-            f.Opacity = 0.85;
-            double fy = rng.Next(2) == 0 ? SceneH - 34 * U - rng.Next(8) * U : GroundY - 30 * U + rng.Next(6) * U;
+            f.Opacity = 0.9;
             Canvas.SetLeft(f, fx);
-            Canvas.SetTop(f, fy);
+            Canvas.SetTop(f, SceneH - 40 * U + rng.Next(10) * U);
             canvas.Children.Add(f);
+        }
+        // Облачета в небето.
+        for (double cx = 40 * U; cx < width; cx += 210 * U + rng.Next(80) * U)
+        {
+            var c = Icon("w_cloud", 2);
+            c.Opacity = 0.55;
+            Canvas.SetLeft(c, cx);
+            Canvas.SetTop(c, 8 * U + rng.Next(18) * U);
+            canvas.Children.Add(c);
         }
 
         // Докъде сме: етап (откъдето) и колко от пътя до следващия.
@@ -176,7 +187,7 @@ internal sealed class ProjectWindow : FloatWindow
             for (int k = 1; k < dots; k++)
             {
                 double tt = (double)k / dots;
-                bool walked = i < fromStage || i == fromStage && tt <= t;
+                bool walked = i < fromStage || i == fromStage && tt <= (pet.ProjectDone ? 1 : 0.3 + 0.4 * t);   // медта – точно до мечето
                 double sz = walked ? 4 * P / 2 + 2 : 3 * P / 2 + 1;
                 var dot = new Rectangle { Width = sz, Height = sz, Fill = walked ? Honey : new SolidColorBrush(Color.FromRgb(150, 120, 90)), Opacity = walked ? 1 : 0.45 };
                 Canvas.SetLeft(dot, a.X + (b.X - a.X) * tt - sz / 2);
@@ -336,7 +347,8 @@ internal sealed class ProjectWindow : FloatWindow
         canvas.Children.Add(img);
         void PlaceAt(double tt)
         {
-            var p = fromStage < -1 ? At(-1) : Between(fromStage, Math.Clamp(tt, 0, 1));
+            // Не застъпва наградите на камъчетата: между тях (от ~30% до ~70% от пътя).
+            var p = Between(fromStage, 0.3 + 0.4 * Math.Clamp(tt, 0, 1));
             Canvas.SetLeft(img, p.X - img.Width / 2);
             Canvas.SetTop(img, p.Y - img.Height + 4 * U);
         }
