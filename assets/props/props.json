@@ -812,6 +812,10 @@
     "shop_lamp": {
       "file": "shop_lamp.png",
       "seat": 0
+    },
+    "game_box": {
+      "file": "furniture/game_box.png",
+      "seat": 0
     }
   }
 }

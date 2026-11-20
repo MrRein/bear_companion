@@ -1853,6 +1853,29 @@ public sealed partial class PetWindow
             HideBubble();
             p.SetView(WorkView.View.Week);
         }, 600);
+        await step("проектът на Мечо: етапите вървят с работата", () =>
+        {
+            ProjectNoRewards = true;
+            try
+            {
+                _save.ProjectPoints = 0; _save.ProjectPaid = 0; _save.GameName = "";
+                AddProjectPoints(59);
+                if (_save.ProjectPaid != 0) throw new Exception("етапът мина преди 60 точки");
+                AddProjectPoints(1);
+                if (_save.ProjectPaid != 1 || ProjectNow.Stage != 1) throw new Exception("60 точки, а етап 1 не мина");
+                AddProjectPoints(-100);
+                if (_save.ProjectPaid != 1 || _save.ProjectPoints < 60) throw new Exception("върнатата задача върна и платен етап");
+                AddProjectPoints(10000);
+                if (!ProjectDone || !_save.Owned.Contains(GameBox)) throw new Exception("накрая няма кутия с играта");
+                if (!FurnitureKinds.Contains(GameBox)) throw new Exception("кутията не е в „Неща“");
+                NameGame("Горски тайни");
+                if (GameName != "Горски тайни") throw new Exception("името не се запази");
+                // За снимката на „Мечо“: по средата на етап 4.
+                _save.ProjectPaid = 3; _save.ProjectPoints = 60 + 90 + 120 + 75; _save.GameName = "";
+                HideBubble();
+            }
+            finally { ProjectNoRewards = false; }
+        }, 300);
         await step("задачи: бързо писане и затваряне", () =>
         {
             SetPinned(PinWindow.Tasks, true);

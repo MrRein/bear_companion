@@ -57,13 +57,14 @@ public sealed partial class PetWindow
             new Furnishing { Kind = Kitchen.YarnBasket, Noun = "кошницата с преждата", Title = "Кошница с прежда", Art = () => "yarn_basket", W = 16, H = 12 },
             new Furnishing { Kind = Kitchen.Couch, Noun = "дивана", Title = "Диван", Art = () => Furniture.Current(_save, Kitchen.Couch).Prop, Seat = true, W = 48, H = 24 },
             new Furnishing { Kind = Kitchen.YogaMat, Noun = "постелката", Title = "Постелка", Art = () => "mat", Seat = true, W = 40, H = 3 },
+            new Furnishing { Kind = GameBox, Noun = "кутията с играта", Title = "Играта на Мечо", Art = () => "game_box", W = 16, H = 12 },
             new Furnishing { Kind = Kitchen.Bed, Noun = "леглото", Title = "Легло", Art = () => Furniture.Current(_save, Kitchen.Bed).Prop, Seat = true, W = 46, H = 16 },
         };
     }
 
     /// <summary>Видовете мебели за слагане (за менюто „Неща на Мечо“), по ред.</summary>
     public static readonly string[] FurnitureKinds =
-        { Kitchen.Desk, Kitchen.Computer, Kitchen.Easel, Kitchen.BoardGame, Kitchen.YarnBasket, Kitchen.Couch, Kitchen.YogaMat, Kitchen.Bed };
+        { Kitchen.Desk, Kitchen.Computer, Kitchen.Easel, Kitchen.BoardGame, Kitchen.YarnBasket, Kitchen.Couch, Kitchen.YogaMat, Kitchen.Bed, GameBox };
 
     private Furnishing? FurnishingOf(string? kind) => kind == null ? null : _furnishings.FirstOrDefault(f => f.Kind == kind);
 

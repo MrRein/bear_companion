@@ -1260,6 +1260,8 @@ public sealed class MenuWindow : Window
     private readonly StackPanel _saidBox = new();
     private readonly StackPanel _todayBox = new();
     private readonly StackPanel _bearGoalBox = new() { Margin = new Thickness(0, 12, 0, 0) };
+    private readonly StackPanel _projectBox = new() { Margin = new Thickness(0, 10, 0, 0), Tag = "project" };
+    private string _projectKey = "";
     private string _nowKey = "", _moodKey = "", _timerKey = "", _wantsKey = "", _saidKey = "", _bearGoalKey = "";
     private double _bearWidth;
 
@@ -1311,6 +1313,7 @@ public sealed class MenuWindow : Window
         row.Margin = new Thickness(0, 0, 0, 8);
         stack.Children.Add(row);
         stack.Children.Add(_wantsBox);
+        stack.Children.Add(_projectBox);
         return stack;
     }
 
@@ -1747,6 +1750,74 @@ public sealed class MenuWindow : Window
                 ToolTip = Tip(goal.Done ? "Мисията е изпълнена – новата почва утре" : "Мисия – за няколко дни"),
             });
         }
+        RefreshProject();
+    }
+
+    /// <summary>
+    /// „Проектът на Мечо“: етапът, лентата (върви с твоята работа) и какво прави сега.
+    /// Играта излезе ли – само името и „излезе“.
+    /// </summary>
+    private void RefreshProject()
+    {
+        var pr = _pet.ProjectNow;
+        bool done = _pet.ProjectDone;
+        string name = _pet.GameName;
+        string key = $"{pr.Stage}|{(int)pr.Have}|{done}|{name}";
+        if (key == _projectKey) return;
+        _projectKey = key;
+        _projectBox.Children.Clear();
+        var inner = new StackPanel();
+        var head = new DockPanel();
+        var ic = Icon("dice", 2);
+        ic.Margin = new Thickness(0, 0, 8 * U, 0);
+        ic.VerticalAlignment = VerticalAlignment.Center;
+        DockPanel.SetDock(ic, Dock.Left);
+        head.Children.Add(ic);
+        string title = name.Length > 0 ? "„" + name + "“" : "Настолната игра на Мечо";
+        head.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
+        inner.Children.Add(head);
+        if (done)
+        {
+            inner.Children.Add(new TextBlock { Text = "Играта излезе! Мечо вече е Издател.", Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0) });
+        }
+        else
+        {
+            inner.Children.Add(new TextBlock
+            {
+                Text = $"Етап {pr.Stage + 1}/{PetWindow.ProjectStages.Length}: {pr.Info.Name}",
+                FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0),
+            });
+            inner.Children.Add(new TextBlock { Text = "Сега " + pr.Info.Doing + ".", Foreground = Muted, TextWrapping = TextWrapping.Wrap });
+            const int segments = 10;
+            int filled = (int)Math.Floor(pr.Have / pr.Need * segments);
+            var track = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5 * U, 0, 0) };
+            for (int i = 0; i < segments; i++)
+                track.Children.Add(new Border
+                {
+                    Width = 4 * P, Height = 4 * P, Margin = new Thickness(0, 0, i < segments - 1 ? -P : 0, 0),
+                    BorderBrush = Ink, BorderThickness = Flat,
+                    Background = i < filled ? Honey : Empty,
+                }.Skinned(i < filled ? "cell_honey" : "cell_empty"));
+            track.Children.Add(new TextBlock { Text = $"{(int)pr.Have}/{pr.Need}", Foreground = Muted, Margin = new Thickness(6 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+            inner.Children.Add(track);
+            if (pr.Stage >= 9 && name.Length == 0)
+            {
+                var nameIt = Chip("Кръсти играта", () => { Hide(); _pet.AskGameName(); });
+                nameIt.Margin = new Thickness(0, 6 * U, 0, 0);
+                nameIt.HorizontalAlignment = HorizontalAlignment.Left;
+                inner.Children.Add(nameIt);
+            }
+        }
+        _projectBox.Children.Add(new Border
+        {
+            Background = Soft(WoodLight, 0.25),
+            BorderBrush = WoodLight,
+            BorderThickness = new Thickness(Math.Max(2, P)),
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(10 * U, 7 * U, 10 * U, 8 * U),
+            Child = inner,
+            ToolTip = Tip("Проектът на Мечо върви, докато ти работиш: мечо-доро, работен таймер и свършени задачи"),
+        });
     }
 
     /// <summary>Плочките в „Мечо“ според това какво прави и от какво има нужда.</summary>
@@ -1857,6 +1928,7 @@ public sealed class MenuWindow : Window
         Add(Kitchen.Couch, "Диван", _pet.FurniturePlaced(Kitchen.Couch));
         Add(Kitchen.YogaMat, "Постелка", _pet.FurniturePlaced(Kitchen.YogaMat));
         Add(Kitchen.Bed, "Легло", _pet.FurniturePlaced(Kitchen.Bed));
+        Add(PetWindow.GameBox, "📦 " + (_pet.GameName.Length > 0 ? _pet.GameName : "Играта на Мечо"), _pet.FurniturePlaced(PetWindow.GameBox));
     }
 
     private void GoForWalk(double minutes)

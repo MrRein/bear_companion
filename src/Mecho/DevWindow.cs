@@ -306,6 +306,14 @@ public sealed partial class PetWindow
         yield return (nuts, "+1000", () => AddNuts(1000));
         yield return (nuts, "Нула", () => AddNuts(-_save.Hazelnuts));
 
+        const string project = "Проектът на Мечо";
+        yield return (project, "+50 точки", () => AddProjectPoints(50));
+        yield return (project, "+500 точки", () => AddProjectPoints(500));
+        yield return (project, "Следващ етап", () => { if (!ProjectDone) AddProjectPoints(ProjectNow.Need - ProjectNow.Have + 0.01); });
+        yield return (project, "Кръсти играта", AskGameName);
+        yield return (project, "Разкажи за проекта (наново)", () => { _save.ProjectIntro = false; });
+        yield return (project, "Начало (нулирай)", () => { _save.ProjectPoints = 0; _save.ProjectPaid = 0; _save.GameName = ""; _save.ProjectNote = ""; NotifyCare(); });
+
         foreach (int v in new[] { 0, 20, 50, 100 })
         {
             int value = v;

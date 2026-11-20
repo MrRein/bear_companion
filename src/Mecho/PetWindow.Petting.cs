@@ -54,6 +54,7 @@ public sealed partial class PetWindow
             CheckBearGoal();
         }
         UpdateWorkDay();
+        UpdateProject();
         MissedWishes();
         UpdatePetWish();
         UpdateDesires();

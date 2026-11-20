@@ -133,6 +133,13 @@ public sealed class SaveData
     public string MissionStart { get; set; } = "";             // от кой ден се брои (yyyy-MM-dd)
     public bool MissionDone { get; set; }                      // изпълнена и платена
     public string MissionDoneDay { get; set; } = "";           // кога – новата почва от следващия ден
+    // Проектът на Мечо (настолната игра): точки от работата, колко етапа са платени, името на играта.
+    public double ProjectPoints { get; set; }
+    public int ProjectPaid { get; set; }
+    public bool ProjectIntro { get; set; }
+    public string GameName { get; set; } = "";
+    public string ProjectFanDay { get; set; } = "";
+    public string ProjectNote { get; set; } = "";                 // последното, което каза за проекта
     public List<SaidLine> Said { get; set; } = new();          // последните 10 неща, казани от него (и въпросите с избрания отговор)
     public int WishSmallCount { get; set; }                    // изпълнени желания от последното +1
     public int WishSmallGoal { get; set; }                     // на колко (4–6) идва +1
