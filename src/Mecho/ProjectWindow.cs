@@ -236,9 +236,32 @@ internal sealed class ProjectWindow : FloatWindow
         var scroll = new ScrollViewer
         {
             Content = canvas,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            // Без плъзгач (хоризонталният изглеждаше като странно топче): колелцето или влачене.
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
             VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Height = RoadHeight + 18 * U,
+            Height = RoadHeight,
+        };
+        Point? grab = null;
+        double grabOffset = 0;
+        scroll.PreviewMouseLeftButtonDown += (_, e) =>
+        {
+            grab = e.GetPosition(scroll);
+            grabOffset = scroll.HorizontalOffset;
+        };
+        scroll.PreviewMouseMove += (_, e) =>
+        {
+            if (grab is not { } g || e.LeftButton != System.Windows.Input.MouseButtonState.Pressed) { grab = null; return; }
+            double dx = e.GetPosition(scroll).X - g.X;
+            if (Math.Abs(dx) < 4 && !scroll.IsMouseCaptured) return;
+            if (!scroll.IsMouseCaptured) scroll.CaptureMouse();
+            scroll.ScrollToHorizontalOffset(grabOffset - dx);
+            e.Handled = true;
+        };
+        scroll.MouseLeftButtonDown += (_, e) => e.Handled = true;   // влаченето по пътя не мести прозореца
+        scroll.PreviewMouseLeftButtonUp += (_, e) =>
+        {
+            if (scroll.IsMouseCaptured) { scroll.ReleaseMouseCapture(); e.Handled = true; }
+            grab = null;
         };
         scroll.PreviewMouseWheel += (_, e) =>
         {
