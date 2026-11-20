@@ -51,8 +51,8 @@ public sealed partial class PetWindow
             string? tool = _scene == Scenes.Plant ? _plantTool
                 : _scene == Scenes.Knit ? "knitting"
                 : _scene == Scenes.Guitar ? Furniture.CurrentArt(_save, Kitchen.Guitar)
-                : _scene == Scenes.Board || _scene == Scenes.BoardPlay ? CardsTool   // на играта: карти в лапите
-                : _scene?.Easel == true ? _brush                                     // на статива: четка
+                : _scene == Scenes.Board || _scene == Scenes.BoardPlay || _scene == Scenes.Focus && _focusItem == Kitchen.BoardGame ? CardsTool   // на играта: карти в лапите
+                : _scene?.Easel == true || _scene == Scenes.Focus && _focusItem == Kitchen.Easel ? _brush                                     // на статива: четка
                 : null;
             if (tool == null) return outfit;
             return new Dictionary<string, string>(outfit) { [Clothes.Tool.Id] = tool };

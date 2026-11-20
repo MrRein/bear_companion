@@ -92,9 +92,12 @@ public sealed partial class PetWindow
     {
         _save.ProjectPaid = i + 1;
         var st = ProjectStages[i];
-        string reward = ProjectNoRewards ? (i == 14 ? FinishGame() : "") : i switch
+        // Следващият етап иска нещо, което го няма (масичката, статива, компютъра…): то е наградата.
+        string? need = i + 1 < ProjectStages.Length ? StageNeeds(i + 1) : null;
+        string reward = ProjectNoRewards ? (i == 14 ? FinishGame() : "")
+            : need != null && !OwnsOrOrdered(need) && Kitchen.Find(need) is { } needed ? GiftUpgrade(needed) + " Трябва ми за следващия етап!"
+            : i switch
         {
-            2 => GiveUpgradeOr(Kitchen.BoardGame, i),
             4 => GiveProjectNuts(i),
             8 => "",
             14 => FinishGame(),
@@ -108,6 +111,41 @@ public sealed partial class PetWindow
         Say(line + (reward.Length > 0 ? " " + reward : ""), 7);
         if (i == 8 && _save.GameName.Length == 0 && !ProjectNoRewards) Later(8, AskGameName);
     }
+
+    /// <summary>
+    /// С какво работи на етап i (0…14) – там сяда, докато ти работиш: бюрото (пише),
+    /// масичката (тества), статива (рисува), компютъра (дизайн, имейли). null – на столчето.
+    /// </summary>
+    public static string? StageNeeds(int i) => i switch
+    {
+        1 or 2 or 6 or 9 => Kitchen.Desk,
+        3 or 4 or 5 => Kitchen.BoardGame,
+        7 => Kitchen.Easel,
+        8 or 10 or 11 => Kitchen.Computer,
+        _ => null,
+    };
+
+    /// <summary>Докато работите (мечо-доро/таймер): при коя мебел е – на етапа, ако я има; иначе бюрото.</summary>
+    private string? _focusItem;
+
+    private string? ProjectFocusItem() =>
+        !ProjectDone && StageNeeds(ProjectNow.Stage) is { } need && need != Kitchen.Desk && Kitchen.Owns(_save, need) ? need : null;
+
+    /// <summary>Мебелта на кътчето (работата – според проекта).</summary>
+    private string? SceneItem(Scene scene) => scene == Scenes.Focus && _focusItem != null ? _focusItem : scene.Item;
+
+    /// <summary>От коя страна е мебелта (компютърът е отляво).</summary>
+    private int SceneSideDir(Scene? scene) =>
+        scene == Scenes.Focus && _focusItem == Kitchen.Computer ? -1 : scene?.SideDir ?? 1;
+
+    /// <summary>Анимациите при работа според мебелта на проекта.</summary>
+    private string[] FocusAnims => _focusItem switch
+    {
+        Kitchen.BoardGame => new[] { "doing_sit", "doing_sit", "think", "write_sit" },
+        Kitchen.Easel => new[] { "doing_sit", "doing_sit", "think" },
+        Kitchen.Computer => new[] { "game", "game", "think" },
+        _ => new[] { "focus", "focus", "think", "focus_write", "write_sit", "read" },
+    };
 
     private string GameTitle => _save.GameName.Length > 0 ? "„" + _save.GameName + "“" : "играта";
 
@@ -204,6 +242,13 @@ public sealed partial class PetWindow
             string intro = R.Pick("project.intro", _save.OwnerName);
             _save.ProjectNote = intro;
             Say(intro, 9);
+            Persist();
+            return;
+        }
+        // Етапът иска нещо, което го няма (стар запис отпреди наградите): идва като подарък.
+        if (!ProjectDone && StageNeeds(ProjectNow.Stage) is { } need && !OwnsOrOrdered(need) && Kitchen.Find(need) is { } u)
+        {
+            Say($"За етапа „{ProjectNow.Info.Name}“ ми трябва нещо… " + GiftUpgrade(u), 6);
             Persist();
             return;
         }

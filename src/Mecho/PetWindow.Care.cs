@@ -587,6 +587,7 @@ public sealed partial class PetWindow
         if (_scene == Scenes.Focus || IsAsleep || _state is BearState.Drag or BearState.Falling or BearState.Jump || BusyEating(say: false)) return;
         _save.SleepingByChoice = false;
         _save.StayPut = false;
+        _focusItem = ProjectFocusItem();   // проектът: работи на масичката/статива/компютъра на етапа
         StartScene(Scenes.Focus, quiet: false);
         if (IsExhausted) Say(Lines.Pick(Lines.WorkTired, _save.OwnerName), 4);
         _nextFocusSwitch = Now + 15 + _rng.Next(15);
@@ -620,7 +621,8 @@ public sealed partial class PetWindow
         if (now < _nextFocusSwitch) return;
         _nextFocusSwitch = now + 45 + _rng.Next(75);
         // Работи: мисли, пише в тефтера, чете (ненарисуваните още – прескача).
-        var anims = new[] { "focus", "focus", "think", "focus_write", "write_sit", "read" }.Where(_lib.Has).ToArray();
+        var anims = FocusAnims.Where(_lib.Has).ToArray();
+        if (anims.Length == 0) anims = new[] { "focus" };
         string next = anims[_rng.Next(anims.Length)];
         if (next == "think" && _rng.Next(3) == 0) Emote("idea");
         if (next != _anim)

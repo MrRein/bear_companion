@@ -491,7 +491,9 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Анимацията на кътчето: нарисуваната или временната (Fallback).</summary>
-    private string SceneAnim(Scene scene) => scene.Fallback != null && !_lib.Has(scene.Anim) ? scene.Fallback : scene.Anim;
+    private string SceneAnim(Scene scene) =>
+        scene == Scenes.Focus && _focusItem != null ? FocusAnims[0]
+        : scene.Fallback != null && !_lib.Has(scene.Anim) ? scene.Fallback : scene.Anim;
 
     private void LeaveScene()
     {
@@ -499,6 +501,7 @@ public sealed partial class PetWindow
         if (_scene != null && Scenes.All.Contains(_scene)) _lastFun = _scene;
         if (_scene == Scenes.Music) EndMusic();
         PutPlantAway();
+        if (_scene == Scenes.Focus) _focusItem = null;
         bool wasAuto = _autoBlock;
         _cup = null;
         _autoBlock = false;

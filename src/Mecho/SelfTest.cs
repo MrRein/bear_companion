@@ -1870,8 +1870,13 @@ public sealed partial class PetWindow
                 if (!FurnitureKinds.Contains(GameBox)) throw new Exception("кутията не е в „Неща“");
                 NameGame("Горски тайни");
                 if (GameName != "Горски тайни") throw new Exception("името не се запази");
-                // За снимката на „Мечо“: по средата на етап 4.
-                _save.ProjectPaid = 3; _save.ProjectPoints = 60 + 90 + 120 + 75; _save.GameName = "";
+                // Работата по етапа: при масичката (ако я има), иначе бюрото.
+                if (StageNeeds(3) != Kitchen.BoardGame || StageNeeds(7) != Kitchen.Easel || StageNeeds(8) != Kitchen.Computer) throw new Exception("етапите искат други неща");
+                _focusItem = Kitchen.BoardGame;
+                if (Kitchen.Owns(_save, Kitchen.BoardGame) && FurnishingFor(Scenes.Focus)?.Kind != Kitchen.BoardGame) throw new Exception("работата по етапа не е при масичката");
+                _focusItem = null;
+                // За снимката на „Мечо“: по средата на първия етап (той не иска мебел – другите проверки на работата са с бюрото).
+                _save.ProjectPaid = 0; _save.ProjectPoints = 30; _save.GameName = "";
                 HideBubble();
             }
             finally { ProjectNoRewards = false; }

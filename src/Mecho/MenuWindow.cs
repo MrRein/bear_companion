@@ -1788,6 +1788,21 @@ public sealed class MenuWindow : Window
                 FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0),
             });
             inner.Children.Add(new TextBlock { Text = "Сега " + pr.Info.Doing + ".", Foreground = Muted, TextWrapping = TextWrapping.Wrap });
+            // Кръгчетата на етапите: минатите – зелени, сегашният – мед, другите – празни.
+            var dots = new WrapPanel { Margin = new Thickness(0, 5 * U, 0, 0) };
+            for (int i = 0; i < PetWindow.ProjectStages.Length; i++)
+            {
+                double d = 3 * P;
+                dots.Children.Add(new Border
+                {
+                    Width = d, Height = d, CornerRadius = new CornerRadius(d / 2),
+                    Margin = new Thickness(0, 0, P, P),
+                    BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)),
+                    Background = i < pr.Stage ? Good : i == pr.Stage ? Honey : Empty,
+                    ToolTip = Tip($"{i + 1}. {PetWindow.ProjectStages[i].Name}" + (i < pr.Stage ? " ✓" : "")),
+                });
+            }
+            inner.Children.Add(dots);
             const int segments = 10;
             int filled = (int)Math.Floor(pr.Have / pr.Need * segments);
             var track = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5 * U, 0, 0) };

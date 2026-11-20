@@ -75,7 +75,7 @@ public sealed partial class PetWindow
 
     /// <summary>Мебелта на кътчето (ако е купена), или null.</summary>
     private Furnishing? FurnishingFor(Scene scene) =>
-        scene.Item != null && Kitchen.Owns(_save, scene.Item) ? FurnishingOf(scene.Item) : null;
+        SceneItem(scene) is { } item && Kitchen.Owns(_save, item) ? FurnishingOf(item) : null;
 
     private BitmapSource FurnitureImage(Furnishing f) => _lib.GetProp(f.Art(), f.W, f.H, f.Seat ? 7 : 0).Image;
 
@@ -105,7 +105,7 @@ public sealed partial class PetWindow
             var img = FurnitureImage(f);
             double w = img.PixelWidth * PixelSize, h = img.PixelHeight * PixelSize;
             return new Rect(x - w / 2, AreaAt(x, _y - 1).Bottom - h, w, h);
-        }, SpriteWidth / 2 - overlap, SideDir: f.Seat ? 0 : (scene?.SideDir is -1 ? -1 : 1), Seat: f.Seat);
+        }, SpriteWidth / 2 - overlap, SideDir: f.Seat ? 0 : (SceneSideDir(scene) is -1 ? -1 : 1), Seat: f.Seat);
     }
 
     /// <summary>Върху мебелта ли е сега (за дивана/постелката под него): стигнал е и не е вдигнат.</summary>
@@ -123,7 +123,7 @@ public sealed partial class PetWindow
     private bool FurnitureStillNeeded(Furnishing f) =>
         f.Kind == Kitchen.Bed
             ? IsAsleep || _dragAsleep || (_save.SleepingByChoice && _save.NapUntil > DateTime.Now)
-            : _inScene && _scene?.Item == f.Kind;
+            : _inScene && _scene != null && SceneItem(_scene) == f.Kind;
 
     /// <summary>На кадър: прозорците на сложените мебели (мести, скрива под мечока, маха ненужните).</summary>
     private void UpdateFurnishings()
