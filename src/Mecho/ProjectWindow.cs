@@ -29,8 +29,8 @@ internal sealed class ProjectWindow : FloatWindow
 
     private static double Gap => 84 * U;       // между два етапа
     private static double Pad => 50 * U;       // в началото и в края
-    private static double RoadY => 104 * U;    // средата на пътя
-    private static double RoadHeight => 176 * U;
+    private static double RoadY => 130 * U;    // средата на пътя
+    private static double RoadHeight => 188 * U;
 
     /// <summary>Самопроверката снима веднага: без анимации.</summary>
     private static bool Instant => SelfTest.Running;
@@ -213,11 +213,22 @@ internal sealed class ProjectWindow : FloatWindow
             // Над кръгчето, в средата на клетка (без да чака подредбата).
             top.HorizontalAlignment = HorizontalAlignment.Center;
             top.VerticalAlignment = VerticalAlignment.Bottom;
-            var topCell = new Grid { Width = Gap, Height = RoadY - 24 * U };
+            var topCell = new Grid { Width = Gap, Height = RoadY - 46 * U };
             topCell.Children.Add(top);
             Canvas.SetLeft(topCell, X(stage) - Gap / 2);
             Canvas.SetTop(topCell, 0);
             canvas.Children.Add(topCell);
+
+            // Името на етапа – дребно под кръгчето (сегашното – по-тъмно).
+            var label = new TextBlock
+            {
+                Text = name, Width = Gap - 8 * U, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
+                Foreground = cur ? Ink : Muted, FontWeight = cur ? FontWeights.Bold : FontWeights.Normal,
+                MaxHeight = 2.6 * Ui.Body, TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            Canvas.SetLeft(label, X(stage) - (Gap - 8 * U) / 2);
+            Canvas.SetTop(label, RoadY + 22 * U);
+            canvas.Children.Add(label);
 
             if (i == _pop) { Pop(node, 0.4); Pop(top, 0.5); }
         }
@@ -227,12 +238,13 @@ internal sealed class ProjectWindow : FloatWindow
         {
             var bear = Icon("bear", 2);
             bear.HorizontalAlignment = HorizontalAlignment.Center;
-            bear.VerticalAlignment = VerticalAlignment.Top;
+            bear.VerticalAlignment = VerticalAlignment.Bottom;
             bear.ToolTip = Tip("Мечо е тук – работата ви го бута напред");
-            var bearCell = new Grid { Width = Gap };
+            // Стъпил на пътя (между наградите горе и кръгчетата).
+            var bearCell = new Grid { Width = Gap, Height = 44 * U };
             bearCell.Children.Add(bear);
             Canvas.SetLeft(bearCell, reached - Gap / 2);
-            Canvas.SetTop(bearCell, RoadY + 20 * U);
+            Canvas.SetTop(bearCell, RoadY - roadH / 2 - 44 * U + 2 * U);
             canvas.Children.Add(bearCell);
         }
 
