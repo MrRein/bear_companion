@@ -1800,32 +1800,36 @@ public sealed class MenuWindow : Window
                 FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0),
             });
             inner.Children.Add(new TextBlock { Text = "Сега " + pr.Info.Doing + ".", Foreground = Muted, TextWrapping = TextWrapping.Wrap });
-            // Кръгчетата на етапите: минатите – зелени, сегашният – мед, другите – празни.
-            var dots = new WrapPanel { Margin = new Thickness(0, 5 * U, 0, 0) };
-            for (int i = 0; i < PetWindow.ProjectStages.Length; i++)
+            // Малката лента (като в пътя): 15 части на групи по три; минатите – мед, взимаемата –
+            // зелена, сегашната се пълни; цялата се събира в картата.
+            var mini = new Grid { Margin = new Thickness(0, 6 * U, 0, 0), Height = 9 * U };
+            int nStages = PetWindow.ProjectStages.Length;
+            for (int i = 0; i < nStages; i++) mini.ColumnDefinitions.Add(new ColumnDefinition());
+            for (int i = 0; i < nStages; i++)
             {
-                double d = 3 * P;
-                dots.Children.Add(new Border
+                bool passed = i < _pet.Save.ProjectPaid, cur = i == pr.Stage && !_pet.ProjectDone, claimIt = _pet.CanClaimProject(i);
+                var segm = new Grid
                 {
-                    Width = d, Height = d, CornerRadius = new CornerRadius(d / 2),
-                    Margin = new Thickness(0, 0, P, P),
+                    Margin = new Thickness(i % 3 == 0 && i > 0 ? 3 * U : U, 0, i % 3 == 2 ? 3 * U : U, 0),
+                    ToolTip = Tip($"{i + 1}. {PetWindow.ProjectStages[i].Name}"),
+                };
+                segm.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(3 * U),
+                    Background = claimIt ? Good : passed ? Honey : Empty,
                     BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)),
-                    Background = i < pr.Stage ? Good : i == pr.Stage ? Honey : Empty,
-                    ToolTip = Tip($"{i + 1}. {PetWindow.ProjectStages[i].Name}" + (i < pr.Stage ? " ✓" : "")),
                 });
-            }
-            inner.Children.Add(dots);
-            const int segments = 10;
-            int filled = (int)Math.Floor(_pet.ProjectProgress * segments);
-            var track = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5 * U, 0, 0) };
-            for (int i = 0; i < segments; i++)
-                track.Children.Add(new Border
+                if (cur)
                 {
-                    Width = 4 * P, Height = 4 * P, Margin = new Thickness(0, 0, i < segments - 1 ? -P : 0, 0),
-                    BorderBrush = Ink, BorderThickness = Flat,
-                    Background = i < filled ? Honey : Empty,
-                }.Skinned(i < filled ? "cell_honey" : "cell_empty"));
-            inner.Children.Add(track);
+                    double fr = _pet.ProjectProgress;
+                    var fillIn = new Border { Background = Honey, CornerRadius = new CornerRadius(2 * U), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(Math.Max(1, P / 2)) };
+                    segm.SizeChanged += (_, e) => fillIn.Width = Math.Max(0, (e.NewSize.Width - 2 * Math.Max(1, P / 2)) * fr);
+                    segm.Children.Add(fillIn);
+                }
+                Grid.SetColumn(segm, i);
+                mini.Children.Add(segm);
+            }
+            inner.Children.Add(mini);
             if (pr.Stage >= 9 && name.Length == 0)
             {
                 var nameIt = Chip("Кръсти играта", () => { Hide(); _pet.AskGameName(); });

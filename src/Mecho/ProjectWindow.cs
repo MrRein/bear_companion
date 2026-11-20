@@ -55,7 +55,7 @@ internal sealed class ProjectWindow : FloatWindow
         return w;
     }
 
-    private ProjectWindow(PetWindow pet) : base(pet, "project", 620 * U)
+    private ProjectWindow(PetWindow pet) : base(pet, "project", 660 * U)
     {
         _open = this;
         Title = "Проектът на Мечо";
@@ -113,18 +113,18 @@ internal sealed class ProjectWindow : FloatWindow
         int paid = pet.Save.ProjectPaid, n = PetWindow.ProjectStages.Length;
         int cur = pet.ProjectDone ? -1 : paid;
         double frac = pet.ProjectProgress;
-        double segH = 22 * U, gap = 3 * U, groupGap = 12 * U;
+        double segH = 28 * U, gap = 4 * U, groupGap = 14 * U;
         double edge = Math.Max(1, P / 2);
 
         // Еднаква ширина на частите – лентата може да е дълга; превърта се (виж Scroller).
-        double segW = 50 * U;
+        double segW = 58 * U;
         var grid = new Grid { Margin = new Thickness(14 * U, 6 * U, 14 * U, 0), HorizontalAlignment = HorizontalAlignment.Left };
         for (int i = 0; i < n; i++)
         {
             double extra = (i % 3 == 0 && i > 0 ? groupGap / 2 : gap / 2) + (i % 3 == 2 && i < n - 1 ? groupGap / 2 : gap / 2);
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(segW + extra) });
         }
-        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(40 * U) });   // наградите
+        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(50 * U) });   // наградите
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(segH) });     // лентата
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });          // Мечо и името
 
@@ -178,7 +178,7 @@ internal sealed class ProjectWindow : FloatWindow
             else if (taken) thing = Pixel(pet.PropImage("gift_open"), 1);
             else if (!shown) thing = Icon("question");
             else if (pet.ShopArt(plan) is { } art) thing = Pixel(art, 2);
-            else thing = Icon(plan.StartsWith("nuts:") ? "nut2" : PetWindow.ProjectRewardIcon(plan), isCur ? 2 : 1);
+            else thing = Icon(plan.StartsWith("nuts:") ? (isCur ? "nut3" : "nut2") : PetWindow.ProjectRewardIcon(plan), 2);
             thing.Opacity = taken ? 0.4 : !shown ? 0.3 : 1;
             thing.HorizontalAlignment = HorizontalAlignment.Center;
             thing.VerticalAlignment = VerticalAlignment.Bottom;
