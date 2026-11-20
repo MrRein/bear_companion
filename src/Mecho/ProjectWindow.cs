@@ -30,7 +30,7 @@ internal sealed class ProjectWindow : FloatWindow
     private static double Gap => 84 * U;       // между два етапа
     private static double Pad => 50 * U;       // в началото и в края
     private static double RoadY => 104 * U;    // средата на пътя
-    private static double RoadHeight => 150 * U;
+    private static double RoadHeight => 176 * U;
 
     /// <summary>Самопроверката снима веднага: без анимации.</summary>
     private static bool Instant => SelfTest.Running;
@@ -113,8 +113,8 @@ internal sealed class ProjectWindow : FloatWindow
         r1.Margin = new Thickness(0, 0, 0, 6 * U);
         _content.Children.Add(r1);
         _content.Children.Add(Road());
-        if (!pet.ProjectDone) _content.Children.Add(Ribbon("Следваща награда", "gift"));
-        _content.Children.Add(NextLine());
+        // Отделна лента няма: медта по пътя до Мечо е напредъкът към наградата пред него.
+        if (pet.ProjectDone) _content.Children.Add(NextLine());
     }
 
     /// <summary>Пътят: пътека, кръгчета, наградите над тях, Мечо на сегашното, „Вземи!“ под взимаемата.</summary>
@@ -124,28 +124,28 @@ internal sealed class ProjectWindow : FloatWindow
         int paid = pet.Save.ProjectPaid, n = PetWindow.ProjectStages.Length;
         var now = pet.ProjectNow;
         double frac = pet.ProjectProgress;
-        double width = Pad * 2 + Gap * (n - 1);
+        double width = Pad * 2 + Gap * n;   // в началото – стартът (пътят до първия етап също се вижда)
         var canvas = new Canvas { Width = width, Height = RoadHeight };
-        double X(int i) => Pad + Gap * i;
+        double X(int i) => Pad + Gap * (i + 1);
         double edge = Math.Max(1, P / 2);
-        double roadH = 8 * P;
+        double roadH = 11 * P;
 
         // Пътеката и изминатото (мед) – до сегашното кръгче според лентата на етапа.
         var road = new Border
         {
-            Width = width - Pad * 2 + 24 * U, Height = roadH, CornerRadius = new CornerRadius(roadH / 2),
+            Width = width - Pad * 2 + 12 * U, Height = roadH, CornerRadius = new CornerRadius(roadH / 2),
             Background = Soft(WoodLight, 0.55), BorderBrush = Ink, BorderThickness = new Thickness(edge),
         };
-        Canvas.SetLeft(road, Pad - 12 * U);
+        Canvas.SetLeft(road, Pad - roadH / 2);
         Canvas.SetTop(road, RoadY - roadH / 2);
         canvas.Children.Add(road);
-        double reached = pet.ProjectDone ? X(n - 1) + 12 * U : paid == 0 ? X(0) : X(paid - 1) + (X(paid) - X(paid - 1)) * frac;
-        double w0 = Math.Max(0, reached - (Pad - 12 * U) - edge);
+        double reached = pet.ProjectDone ? X(n - 1) + 12 * U : (paid == 0 ? Pad : X(paid - 1)) + Gap * frac;
+        double w0 = Math.Max(0, reached - (Pad - roadH / 2) - edge);
         if (w0 > 0)
         {
             var honey = new Border { Width = w0, Height = roadH - 2 * edge, Background = Honey, CornerRadius = new CornerRadius(roadH / 2) };
             honey.Child = new Border { Background = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)), Height = Math.Max(2, roadH / 4), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(roadH / 2, P, roadH / 2, 0), CornerRadius = new CornerRadius(P) };
-            Canvas.SetLeft(honey, Pad - 12 * U + edge);
+            Canvas.SetLeft(honey, Pad - roadH / 2 + edge);
             Canvas.SetTop(honey, RoadY - roadH / 2 + edge);
             canvas.Children.Add(honey);
             if (!Instant)
@@ -186,10 +186,8 @@ internal sealed class ProjectWindow : FloatWindow
                 claimNode = node;
             }
 
-            // Над него: наградата (минатите и следващите две) или катинар; на сегашното – Мечо.
+            // Над него: наградата (минатите, сегашната – натам върви Мечо – и следващите две) или катинар.
             FrameworkElement top;
-            if (cur) top = Icon("bear", 2);
-            else
             {
                 bool shown = pet.ProjectRewardShown(i);
                 string plan = shown ? pet.ProjectRewardPlan(i) : "";
@@ -200,9 +198,9 @@ internal sealed class ProjectWindow : FloatWindow
                 top = new Border
                 {
                     Width = t, Height = t, CornerRadius = new CornerRadius(4), Child = ic,
-                    Background = claim ? Good : !shown || done ? Brushes.Transparent : Cream,
+                    Background = claim ? Good : cur ? Honey : !shown || done ? Brushes.Transparent : Cream,
                     BorderBrush = claim || shown && !done ? Ink : Brushes.Transparent,
-                    BorderThickness = new Thickness(claim ? Math.Max(2, P) : Math.Max(1, P / 2)),
+                    BorderThickness = new Thickness(claim || cur ? Math.Max(2, P) : Math.Max(1, P / 2)),
                     Opacity = !shown ? 0.4 : done && !claim ? 0.45 : 1,
                     ToolTip = Tip(claim ? "Цъкни, за да вземеш: " + pet.ProjectRewardLabel(plan) : !shown ? "Ще се види, като наближите" : pet.ProjectRewardLabel(plan) + (done && !waiting ? " – взето" : "")),
                 };
@@ -222,6 +220,20 @@ internal sealed class ProjectWindow : FloatWindow
             canvas.Children.Add(topCell);
 
             if (i == _pop) { Pop(node, 0.4); Pop(top, 0.5); }
+        }
+
+        // Мечо – на пътя, точно докъдето сте стигнали (под медта): върви към наградата пред него.
+        if (!pet.ProjectDone)
+        {
+            var bear = Icon("bear", 2);
+            bear.HorizontalAlignment = HorizontalAlignment.Center;
+            bear.VerticalAlignment = VerticalAlignment.Top;
+            bear.ToolTip = Tip("Мечо е тук – работата ви го бута напред");
+            var bearCell = new Grid { Width = Gap };
+            bearCell.Children.Add(bear);
+            Canvas.SetLeft(bearCell, reached - Gap / 2);
+            Canvas.SetTop(bearCell, RoadY + 20 * U);
+            canvas.Children.Add(bearCell);
         }
 
         var scroll = new ScrollViewer
