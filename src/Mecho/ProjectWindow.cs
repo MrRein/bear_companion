@@ -27,7 +27,7 @@ internal sealed class ProjectWindow : FloatWindow
 
     public static ProjectWindow? Current => _open;
 
-    private static double Gap => 120 * U;       // между два етапа
+    private static double Gap => 140 * U;       // между два етапа
     private static double Pad => 50 * U;       // в началото и в края
     private static double RoadY => 130 * U;    // средата на пътя
     private static double RoadHeight => 214 * U;
@@ -62,7 +62,7 @@ internal sealed class ProjectWindow : FloatWindow
         return w;
     }
 
-    private ProjectWindow(PetWindow pet) : base(pet, "project", 660 * U)
+    private ProjectWindow(PetWindow pet) : base(pet, "project", 700 * U)
     {
         _open = this;
         Title = "Пътят на проекта";
@@ -125,9 +125,9 @@ internal sealed class ProjectWindow : FloatWindow
         int paid = pet.Save.ProjectPaid, n = PetWindow.ProjectStages.Length;
         double frac = pet.ProjectProgress;
         double tile = 52 * U, tileTop = 8 * U;
-        double roadY = tileTop + tile + 34 * U;   // средата на пътеката
+        double roadY = tileTop + tile + 44 * U;   // средата на пътеката
         double nameY = roadY + 24 * U;
-        double height = nameY + 26 * U;
+        double height = nameY + 2.7 * Ui.Body + 6 * U;
         double width = Pad * 2 + Gap * n;
         double X(int i) => Pad + Gap * (i + 1);    // в началото – стартът
         double edge = Math.Max(1, P / 2);
@@ -219,13 +219,14 @@ internal sealed class ProjectWindow : FloatWindow
                 canvas.Children.Add(star);
             }
 
-            // Името – един ред, дребно (цялото – като посочиш).
+            // Името – дребно, до два реда (цялото – като посочиш).
             var label = new TextBlock
             {
-                Text = name, Width = Gap - 12 * U, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+                Text = name, Width = Gap - 8 * U, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
+                MaxHeight = 2.7 * Ui.Body, TextTrimming = TextTrimming.CharacterEllipsis,
                 Foreground = cur ? Ink : Muted, FontWeight = cur ? FontWeights.Bold : FontWeights.Normal, ToolTip = Tip(name),
             };
-            Canvas.SetLeft(label, x - (Gap - 12 * U) / 2);
+            Canvas.SetLeft(label, x - (Gap - 8 * U) / 2);
             Canvas.SetTop(label, nameY);
             canvas.Children.Add(label);
 
