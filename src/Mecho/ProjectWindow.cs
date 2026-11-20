@@ -29,7 +29,7 @@ internal sealed class ProjectWindow : FloatWindow
     private static double Gap => 84 * U;       // между два етапа
     private static double Pad => 50 * U;       // в началото и в края
     private static double RoadY => 104 * U;    // средата на пътя
-    private static double RoadHeight => 176 * U;
+    private static double RoadHeight => 150 * U;
 
     /// <summary>Самопроверката снима веднага: без анимации.</summary>
     private static bool Instant => SelfTest.Running;
@@ -208,32 +208,27 @@ internal sealed class ProjectWindow : FloatWindow
                     TaskCards.Clickable((Border)top, () => Claim(stage));
                 }
             }
-            top.Loaded += (_, _) =>
-            {
-                Canvas.SetLeft(top, X(stage) - top.ActualWidth / 2);
-                Canvas.SetTop(top, RoadY - 26 * U - top.ActualHeight);
-            };
-            canvas.Children.Add(top);
+            // Над кръгчето, в средата на клетка (без да чака подредбата).
+            top.HorizontalAlignment = HorizontalAlignment.Center;
+            top.VerticalAlignment = VerticalAlignment.Bottom;
+            var topCell = new Grid { Width = Gap, Height = RoadY - 24 * U };
+            topCell.Children.Add(top);
+            Canvas.SetLeft(topCell, X(stage) - Gap / 2);
+            Canvas.SetTop(topCell, 0);
+            canvas.Children.Add(topCell);
 
             // Под него: „Вземи!“ (взимаемата) или името (сегашното).
             if (claim)
             {
+                // „Вземи!“ – точно под кръгчето (в клетка колкото разстоянието между етапите).
                 var take = Chip("Вземи!", () => Claim(stage));
                 take.Background = Good;
                 take.HorizontalAlignment = HorizontalAlignment.Center;
-                take.Loaded += (_, _) =>
-                {
-                    Canvas.SetLeft(take, X(stage) - take.ActualWidth / 2);
-                    Canvas.SetTop(take, RoadY + d / 2 + 6 * U);
-                };
-                canvas.Children.Add(take);
-            }
-            else if (cur)
-            {
-                var label = new TextBlock { Text = name, FontWeight = FontWeights.Bold, Width = Gap * 1.6, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap };
-                Canvas.SetLeft(label, X(stage) - Gap * 0.8);
-                Canvas.SetTop(label, RoadY + d / 2 + 6 * U);
-                canvas.Children.Add(label);
+                var cell = new Grid { Width = Gap * 1.4 };
+                cell.Children.Add(take);
+                Canvas.SetLeft(cell, X(stage) - Gap * 0.7);
+                Canvas.SetTop(cell, RoadY + d / 2 + 6 * U);
+                canvas.Children.Add(cell);
             }
             if (i == _pop) { Pop(node, 0.4); Pop(top, 0.5); }
         }
