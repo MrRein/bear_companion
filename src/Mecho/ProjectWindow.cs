@@ -2,37 +2,37 @@ using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using static Mecho.Ui;
 
 namespace Mecho;
 
 /// <summary>
-/// Пътят на проекта (като „trophy road“). Главното е пътят: дебела пътека с кръгчетата на
-/// 15-те етапа, изминатото е мед, Мечо стои на сегашния. Над всяко кръгче – наградата му
-/// (минатите и следващите две се виждат, по-нататък – катинар). Мине ли етап, наградата
-/// светва зелено с „Вземи!“ – цъкаш и я получаваш. Под пътя – един ред: следващата награда
-/// и колко остава до нея. На всеки три етапа – звезда (нов ранг).
+/// Пътешествието на проекта: малка рисувана карта. Лъкатушеща пътечка от точки минава
+/// през поляна с цветя; на всеки етап – камъче, а над него наградата (самият предмет,
+/// купчинка лешници или подаръче). Изминатото е медено, а истинското мече върви по
+/// пътечката докъдето сте стигнали. Минат етап – подаръчето блести: цъкаш и го отваряш.
+/// Далечните награди са „?“ кутийки. Без рамки, таблички и числа – само картата.
 /// </summary>
 internal sealed class ProjectWindow : FloatWindow
 {
     private static ProjectWindow? _open;
     private readonly StackPanel _content = new();
-    private readonly StackPanel _headTitle;
-    private int _pop = -1;          // кое кръгче да подскочи (току-що минато или взето)
+    private readonly StackPanel _headTitle = new();
+    private readonly DispatcherTimer _walk = new() { Interval = TimeSpan.FromMilliseconds(110) };
+    private int _pop = -1;          // кое да подскочи (току-що минато или взето)
     private string _key = "";
 
     public static ProjectWindow? Current => _open;
 
-    private static double Gap => 140 * U;       // между два етапа
-    private static double Pad => 50 * U;       // в началото и в края
-    private static double RoadY => 130 * U;    // средата на пътя
-    private static double RoadHeight => 214 * U;
-
-    /// <summary>Самопроверката снима веднага: без анимации.</summary>
+    private static double Step => 118 * U;      // между два етапа
+    private static double SceneH => 214 * U;
+    private static double GroundY => 132 * U;    // средата на пътечката
+    private static double Wave => 16 * U;        // колко лъкатуши
     private static bool Instant => SelfTest.Running;
 
     public static void Toggle(PetWindow pet, Window? near = null)
@@ -45,7 +45,7 @@ internal sealed class ProjectWindow : FloatWindow
         Open(pet, near);
     }
 
-    /// <summary>Отваря пътя; celebrate – етапът, който току-що мина (кръгчето му подскача).</summary>
+    /// <summary>Отваря картата; celebrate – етапът, който току-що мина (подаръчето му подскача).</summary>
     public static ProjectWindow Open(PetWindow pet, Window? near = null, int celebrate = -1, string reward = "")
     {
         if (_open != null)
@@ -62,18 +62,22 @@ internal sealed class ProjectWindow : FloatWindow
         return w;
     }
 
-    private ProjectWindow(PetWindow pet) : base(pet, "project", 700 * U)
+    private ProjectWindow(PetWindow pet) : base(pet, "project", 640 * U)
     {
         _open = this;
-        Title = "Пътят на проекта";
+        Title = "Пътешествието на проекта";
         Body.Content = _content;
-        _headTitle = new StackPanel();
         Head.Children.Add(_headTitle);
-        Closed += (_, _) => { if (_open == this) _open = null; pet.CareChanged -= OnCare; };
+        Closed += (_, _) =>
+        {
+            if (_open == this) _open = null;
+            pet.CareChanged -= OnCare;
+            _walk.Stop();
+        };
         pet.CareChanged += OnCare;
     }
 
-    private string Key => $"{Pet.Save.ProjectPaid}|{(int)(Pet.ProjectProgress * 50)}|{Pet.GameName}|{Pet.ProjectClaimed}";
+    private string Key => $"{Pet.Save.ProjectPaid}|{(int)(Pet.ProjectProgress * 40)}|{Pet.GameName}|{Pet.ProjectClaimed}";
 
     private void OnCare(object? sender, EventArgs e)
     {
@@ -89,170 +93,117 @@ internal sealed class ProjectWindow : FloatWindow
         var pet = Pet;
         var s = pet.Save;
         _key = Key;
+        _walk.Stop();
         _content.Children.Clear();
 
-        // ── Горе: рангът и името на играта ──
+        // Горе: името на играта – голямо; рангът – медно хапче до него.
         _headTitle.Children.Clear();
-        var rankRow = new DockPanel();
-        var badge = RankBadge(PetWindow.ProjectRankIndex(s.ProjectPaid), 36 * U);
-        badge.Margin = new Thickness(0, 0, 10 * U, 0);
-        DockPanel.SetDock(badge, Dock.Left);
-        rankRow.Children.Add(badge);
-        var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        names.Children.Add(new TextBlock { Text = PetWindow.ProjectRank(s.ProjectPaid), FontWeight = FontWeights.Bold, FontSize = Ui.Title });
-        names.Children.Add(new TextBlock
+        _headTitle.Children.Add(new TextBlock
         {
-            Text = pet.GameName.Length > 0 ? "Настолната игра „" + pet.GameName + "“" : "Настолната игра на Мечо",
-            Foreground = Muted,
+            Text = pet.GameName.Length > 0 ? "„" + pet.GameName + "“" : "Настолната игра на Мечо",
+            FontWeight = FontWeights.Bold, FontSize = Ui.Title,
         });
-        rankRow.Children.Add(names);
-        _headTitle.Children.Add(rankRow);
+        var rank = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3 * U, 0, 0) };
+        var pill = Pill(new TextBlock { Text = PetWindow.ProjectRank(s.ProjectPaid), FontWeight = FontWeights.Bold });
+        pill.ToolTip = Tip("Рангът на Мечо – нов на всеки три етапа");
+        rank.Children.Add(pill);
+        rank.Children.Add(new TextBlock
+        {
+            Text = pet.ProjectDone ? "Играта излезе!" : $"етап {pet.ProjectNow.Stage + 1} от {PetWindow.ProjectStages.Length}",
+            Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8 * U, 0, 0, 0),
+        });
+        _headTitle.Children.Add(rank);
 
-        // Карта с тъмен контур, като в „Работа“ (без излишно заглавие – прозорецът е пътят).
-        _content.Children.Add(Road());
-        // Отделна лента няма: медта по пътя до Мечо е напредъкът към наградата пред него.
-        if (pet.ProjectDone) _content.Children.Add(NextLine());
+        _content.Children.Add(Scene());
     }
 
-    /// <summary>
-    /// Пътят в три реда: горе – наградите; в средата – пътеката с кръгчетата, а Мечо стои
-    /// точно в края на медта (той е „плъзгачът“ на напредъка); долу – имената (един ред).
-    /// Стрелки ‹ › отстрани местят пътя; колелцето и влаченето – също.
-    /// </summary>
-    private FrameworkElement Road()
+    /// <summary>Точката на пътечката за етап i (-1 – стартът): лъкатуши нагоре-надолу.</summary>
+    private static Point At(int i) => new(60 * U + Step * (i + 1), GroundY + Wave * Math.Sin((i + 1) * 1.15));
+
+    /// <summary>Точката по пътечката между два етапа (t – 0…1).</summary>
+    private static Point Between(int from, double t)
+    {
+        var a = At(from);
+        var b = At(from + 1);
+        return new Point(a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t);
+    }
+
+    private FrameworkElement Scene()
     {
         var pet = Pet;
         int paid = pet.Save.ProjectPaid, n = PetWindow.ProjectStages.Length;
         double frac = pet.ProjectProgress;
-        double tile = 52 * U, tileTop = 8 * U;
-        double roadY = tileTop + tile + 44 * U;   // средата на пътеката
-        double nameY = roadY + 24 * U;
-        double height = nameY + 2.7 * Ui.Body + 6 * U;
-        double width = Pad * 2 + Gap * n;
-        double X(int i) => Pad + Gap * (i + 1);    // в началото – стартът
-        double edge = Math.Max(1, P / 2);
-        double roadH = 10 * P;
-        var canvas = new Canvas { Width = width, Height = height };
+        double width = At(n - 1).X + 70 * U;
+        var canvas = new Canvas { Width = width, Height = SceneH, ClipToBounds = true };
 
-        // Пътеката и медта (до Мечо).
-        var road = new Border
+        // Небе и поляна.
+        canvas.Children.Add(new Rectangle
         {
-            Width = X(n - 1) - Pad + roadH, Height = roadH, CornerRadius = new CornerRadius(roadH / 2),
-            Background = Soft(WoodLight, 0.55), BorderBrush = Ink, BorderThickness = new Thickness(edge),
-        };
-        Canvas.SetLeft(road, Pad - roadH / 2);
-        Canvas.SetTop(road, roadY - roadH / 2);
-        canvas.Children.Add(road);
-        double reached = pet.ProjectDone ? X(n - 1) : (paid == 0 ? Pad : X(paid - 1)) + Gap * frac;
-        double w0 = Math.Max(0, reached - (Pad - roadH / 2) - edge);
-        if (w0 > 0)
+            Width = width, Height = SceneH,
+            Fill = new LinearGradientBrush(Color.FromRgb(232, 242, 238), Color.FromRgb(246, 238, 214), 90),
+        });
+        var grass = new Rectangle { Width = width, Height = SceneH - (GroundY - 34 * U), Fill = new SolidColorBrush(Color.FromRgb(196, 222, 160)) };
+        Canvas.SetTop(grass, GroundY - 34 * U);
+        canvas.Children.Add(grass);
+        var grassEdge = new Rectangle { Width = width, Height = 2 * P, Fill = new SolidColorBrush(Color.FromRgb(160, 196, 120)) };
+        Canvas.SetTop(grassEdge, GroundY - 34 * U);
+        canvas.Children.Add(grassEdge);
+
+        // Цветя по поляната (едни и същи всеки път).
+        var rng = new Random(7);
+        string[] flowers = { "flower_4_pink", "flower_4_yellow", "flower_4_white", "flower_4_purple", "flower_4_red", "flower_4_blue" };
+        for (double fx = 20 * U; fx < width - 20 * U; fx += 38 * U + rng.Next(40) * U)
         {
-            var honey = new Border { Width = w0, Height = roadH - 2 * edge, Background = Honey, CornerRadius = new CornerRadius(roadH / 2) };
-            honey.Child = new Border { Background = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)), Height = Math.Max(2, roadH / 4), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(roadH / 2, P, roadH / 2, 0), CornerRadius = new CornerRadius(P) };
-            Canvas.SetLeft(honey, Pad - roadH / 2 + edge);
-            Canvas.SetTop(honey, roadY - roadH / 2 + edge);
-            canvas.Children.Add(honey);
-            if (!Instant)
-                honey.Loaded += (_, _) => honey.BeginAnimation(WidthProperty, new DoubleAnimation(Math.Max(0, w0 - Gap * 0.5), w0, TimeSpan.FromMilliseconds(900))
-                { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop });
+            var f = Pixel(pet.PropImage(flowers[rng.Next(flowers.Length)]), 2);
+            f.Opacity = 0.85;
+            double fy = rng.Next(2) == 0 ? SceneH - 34 * U - rng.Next(8) * U : GroundY - 30 * U + rng.Next(6) * U;
+            Canvas.SetLeft(f, fx);
+            Canvas.SetTop(f, fy);
+            canvas.Children.Add(f);
         }
+
+        // Докъде сме: етап (откъдето) и колко от пътя до следващия.
+        int fromStage = pet.ProjectDone ? n - 2 : paid - 1;
+        double t = pet.ProjectDone ? 1 : frac;
+
+        // Пътечката: точки; изминатото – мед.
+        for (int i = -1; i < n - 1; i++)
+        {
+            var a = At(i);
+            var b = At(i + 1);
+            double len = Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
+            int dots = (int)(len / (10 * U));
+            for (int k = 1; k < dots; k++)
+            {
+                double tt = (double)k / dots;
+                bool walked = i < fromStage || i == fromStage && tt <= t;
+                double sz = walked ? 4 * P / 2 + 2 : 3 * P / 2 + 1;
+                var dot = new Rectangle { Width = sz, Height = sz, Fill = walked ? Honey : new SolidColorBrush(Color.FromRgb(150, 120, 90)), Opacity = walked ? 1 : 0.45 };
+                Canvas.SetLeft(dot, a.X + (b.X - a.X) * tt - sz / 2);
+                Canvas.SetTop(dot, a.Y + (b.Y - a.Y) * tt - sz / 2);
+                canvas.Children.Add(dot);
+            }
+        }
+
+        // Стартът: малко флагче.
+        var start = Icon("flag");
+        Canvas.SetLeft(start, At(-1).X - 8 * U);
+        Canvas.SetTop(start, At(-1).Y - 22 * U);
+        canvas.Children.Add(start);
 
         for (int i = 0; i < n; i++)
-        {
-            int stage = i;
-            bool done = i < paid, cur = i == paid && !pet.ProjectDone;
-            bool claim = pet.CanClaimProject(i), waiting = done && i >= pet.ProjectClaimed;
-            bool rank = i % 3 == 2;
-            string name = PetWindow.ProjectStages[i].Name;
-            double x = X(i);
+            DrawStage(canvas, i, paid);
 
-            // Кръгчето: минато – мед с отметка; чака да вземеш – зелено с подарък; сега – с рамка; после – номер.
-            double d = cur || claim ? 34 * U : 28 * U;
-            var node = new Border
-            {
-                Width = d, Height = d, CornerRadius = new CornerRadius(d / 2),
-                Background = claim || waiting ? Good : done ? Honey : Cream,
-                BorderBrush = Ink, BorderThickness = new Thickness(cur || claim ? Math.Max(2, P) : edge),
-                ToolTip = Tip($"{i + 1}. {name}" + (rank ? " · нов ранг: " + PetWindow.ProjectRank(i + 1) : "")),
-                Child = claim || waiting ? new Viewbox { Child = Icon("gift"), Margin = new Thickness(5 * U) }
-                    : done ? new Viewbox { Child = Icon("check"), Margin = new Thickness(6 * U) }
-                    : new TextBlock { Text = (i + 1).ToString(), FontWeight = FontWeights.Bold, Foreground = cur ? Ink : Muted, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-            };
-            Canvas.SetLeft(node, x - d / 2);
-            Canvas.SetTop(node, roadY - d / 2);
-            canvas.Children.Add(node);
-            if (claim)
-            {
-                node.Cursor = System.Windows.Input.Cursors.Hand;
-                TaskCards.Clickable(node, () => Claim(stage));
-            }
+        // Мечето – върви по пътечката докъдето сме.
+        if (!pet.ProjectDone) DrawBear(canvas, fromStage, t);
 
-            // Наградата горе (минатите, сегашната и следващите две; по-нататък – катинар).
-            bool shown = pet.ProjectRewardShown(i);
-            string plan = shown ? pet.ProjectRewardPlan(i) : "";
-            FrameworkElement ic = !shown ? Icon("lock") : pet.ShopArt(plan) is { } img ? Pixel(img, 2) : Icon(plan.StartsWith("nuts:") ? "nut2" : PetWindow.ProjectRewardIcon(plan), 2);
-            ic.HorizontalAlignment = HorizontalAlignment.Center;
-            ic.VerticalAlignment = VerticalAlignment.Center;
-            var top = new Border
-            {
-                Width = tile, Height = tile, CornerRadius = new CornerRadius(4), Child = ic,
-                Background = claim ? Good : cur ? Honey : !shown || done ? Brushes.Transparent : Cream,
-                BorderBrush = claim || cur || shown && !done ? Ink : Brushes.Transparent,
-                BorderThickness = new Thickness(claim || cur ? Math.Max(2, P) : edge),
-                Opacity = !shown ? 0.35 : done && !claim ? 0.4 : 1,
-                ToolTip = Tip(claim ? "Цъкни, за да вземеш: " + pet.ProjectRewardLabel(plan) : !shown ? "Ще се види, като наближите" : pet.ProjectRewardLabel(plan) + (done && !waiting ? " – взето" : "")),
-            };
-            if (claim)
-            {
-                top.Cursor = System.Windows.Input.Cursors.Hand;
-                TaskCards.Clickable(top, () => Claim(stage));
-            }
-            Canvas.SetLeft(top, x - tile / 2);
-            Canvas.SetTop(top, tileTop);
-            canvas.Children.Add(top);
-            // Звезда в ъгъла на наградата: с този етап идва нов ранг.
-            if (rank)
-            {
-                var star = new Viewbox { Width = 16 * U, Height = 16 * U, Child = Icon("star"), Opacity = done ? 1 : 0.6, ToolTip = Tip("Нов ранг: " + PetWindow.ProjectRank(i + 1)) };
-                Canvas.SetLeft(star, x + tile / 2 - 10 * U);
-                Canvas.SetTop(star, tileTop - 6 * U);
-                canvas.Children.Add(star);
-            }
-
-            // Името – дребно, до два реда (цялото – като посочиш).
-            var label = new TextBlock
-            {
-                Text = name, Width = Gap - 8 * U, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
-                MaxHeight = 2.7 * Ui.Body, TextTrimming = TextTrimming.CharacterEllipsis,
-                Foreground = cur ? Ink : Muted, FontWeight = cur ? FontWeights.Bold : FontWeights.Normal, ToolTip = Tip(name),
-            };
-            Canvas.SetLeft(label, x - (Gap - 8 * U) / 2);
-            Canvas.SetTop(label, nameY);
-            canvas.Children.Add(label);
-
-            if (i == _pop) { Pop(node, 0.4); Pop(top, 0.5); }
-        }
-
-        // Мечо – стъпил на пътеката, точно в края на медта.
-        if (!pet.ProjectDone)
-        {
-            var bear = Icon("bear", 2);
-            bear.ToolTip = Tip("Мечо е тук – работата ви го бута напред");
-            var cell = new Grid { Width = Gap, Height = 34 * U };
-            bear.HorizontalAlignment = HorizontalAlignment.Center;
-            bear.VerticalAlignment = VerticalAlignment.Bottom;
-            cell.Children.Add(bear);
-            Canvas.SetLeft(cell, reached - Gap / 2);
-            Canvas.SetTop(cell, roadY - roadH / 2 - 34 * U + 3 * U);
-            canvas.Children.Add(cell);
-        }
-
+        // Мести се с колелцето или с влачене (без плъзгач).
         var scroll = new ScrollViewer
         {
             Content = canvas,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
             VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Height = height,
+            Height = SceneH,
         };
         scroll.PreviewMouseWheel += (_, e) =>
         {
@@ -271,86 +222,153 @@ internal sealed class ProjectWindow : FloatWindow
             scroll.ScrollToHorizontalOffset(grabOffset - dx);
             e.Handled = true;
         };
-        scroll.MouseLeftButtonDown += (_, e) => e.Handled = true;   // влаченето по пътя не мести прозореца
+        scroll.MouseLeftButtonDown += (_, e) => e.Handled = true;
         scroll.PreviewMouseLeftButtonUp += (_, e) =>
         {
             if (scroll.IsMouseCaptured) { scroll.ReleaseMouseCapture(); e.Handled = true; }
             grab = null;
         };
-        // Наградата за вземане или Мечо – малко вляво от средата (да се вижда какво предстои).
         int focus = pet.ProjectHasClaim ? pet.ProjectClaimed : Math.Min(paid, n - 1);
-        scroll.Loaded += (_, _) => scroll.ScrollToHorizontalOffset(Math.Max(0, X(focus) - scroll.ViewportWidth * 0.35));
+        scroll.Loaded += (_, _) => scroll.ScrollToHorizontalOffset(Math.Max(0, At(focus).X - scroll.ViewportWidth * 0.4));
 
-        // Стрелките ‹ › отстрани (по два етапа).
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Border Arrow(string icon, int dir)
-        {
-            var a = Chip("", () => scroll.ScrollToHorizontalOffset(scroll.HorizontalOffset + dir * Gap * 2));
-            a.Child = Icon(icon);
-            a.VerticalAlignment = VerticalAlignment.Center;
-            a.Margin = new Thickness(dir < 0 ? 4 * U : 0, 0, dir > 0 ? 4 * U : 0, 0);
-            return a;
-        }
-        var left = Arrow("nav_prev", -1);
-        var right = Arrow("nav_next", 1);
-        Grid.SetColumn(scroll, 1);
-        Grid.SetColumn(right, 2);
-        grid.Children.Add(left);
-        grid.Children.Add(scroll);
-        grid.Children.Add(right);
         return new Border
         {
-            Background = PaperDark,
-            BorderBrush = Ink,
+            CornerRadius = new CornerRadius(6),
+            BorderBrush = WoodLight,
             BorderThickness = Flat,
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(0, 4 * U, 0, 4 * U),
-            Child = grid,
+            Child = new Border { CornerRadius = new CornerRadius(6), ClipToBounds = true, Child = scroll },
         };
     }
 
-    /// <summary>Един ред под пътя: следващата награда (малко) и колко остава до нея.</summary>
-    private FrameworkElement NextLine()
+    /// <summary>Един етап: камъче на пътечката, наградата над него, името под него.</summary>
+    private void DrawStage(Canvas canvas, int i, int paid)
     {
         var pet = Pet;
-        if (pet.ProjectDone)
-            return new TextBlock { Text = "Играта излезе! Мечо вече е Издател.", FontWeight = FontWeights.Bold, Margin = new Thickness(2 * U, 8 * U, 0, 0) };
-        var now = pet.ProjectNow;
-        string plan = pet.ProjectRewardPlan(now.Stage);
-        // Карта като в „Работа“: наградата вляво, медените клетки докъде сме (без числа).
-        var row = new DockPanel();
-        FrameworkElement ic = pet.ShopArt(plan) is { } img ? Pixel(img, 2) : Icon(plan.StartsWith("nuts:") ? "nut2" : PetWindow.ProjectRewardIcon(plan), 2);
-        ic.VerticalAlignment = VerticalAlignment.Center;
-        ic.Margin = new Thickness(0, 0, 10 * U, 0);
-        DockPanel.SetDock(ic, Dock.Left);
-        row.Children.Add(ic);
-        const int cells = 12;
-        int filled = (int)Math.Floor(pet.ProjectProgress * cells);
-        var track = new UniformGrid { Rows = 1, Columns = cells, VerticalAlignment = VerticalAlignment.Center, Height = 5 * P };
-        for (int i = 0; i < cells; i++)
-            track.Children.Add(new Border
-            {
-                Margin = new Thickness(0, 0, i < cells - 1 ? -P : 0, 0),
-                BorderBrush = Ink, BorderThickness = Flat,
-                Background = i < filled ? Honey : Empty,
-            }.Skinned(i < filled ? "cell_honey" : "cell_empty"));
-        row.Children.Add(track);
-        return new Border
+        var p = At(i);
+        bool done = i < paid, cur = i == paid && !pet.ProjectDone;
+        bool claim = pet.CanClaimProject(i), taken = done && !claim && i < pet.ProjectClaimed;
+        bool rank = i % 3 == 2;
+        string name = PetWindow.ProjectStages[i].Name;
+        int stage = i;
+
+        // Камъчето.
+        double sw = (cur || claim ? 30 : 24) * U, sh = sw * 0.45;
+        var stone = new Ellipse
         {
-            Background = PaperDark,
-            BorderBrush = Ink,
-            BorderThickness = Flat,
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(10 * U, 8 * U, 12 * U, 8 * U),
-            Child = row,
-            ToolTip = Tip("Следваща награда: " + (plan.StartsWith("nuts:") ? plan[5..] + " лешника" : pet.ProjectRewardLabel(plan))),
+            Width = sw, Height = sh,
+            Fill = done ? Honey : cur ? Cream : new SolidColorBrush(Color.FromRgb(214, 200, 176)),
+            Stroke = Ink, StrokeThickness = Math.Max(1, P / 2),
+            ToolTip = Tip($"{i + 1}. {name}" + (rank ? " · нов ранг: " + PetWindow.ProjectRank(i + 1) : "")),
         };
+        Canvas.SetLeft(stone, p.X - sw / 2);
+        Canvas.SetTop(stone, p.Y - sh / 2);
+        canvas.Children.Add(stone);
+
+        // Наградата – стои на камъчето.
+        bool shown = pet.ProjectRewardShown(i);
+        string plan = shown ? pet.ProjectRewardPlan(i) : "";
+        BitmapSource? art = null;
+        FrameworkElement thing;
+        if (claim) art = pet.PropImage("gift_green");
+        else if (taken) art = pet.PropImage("gift_open");
+        else if (!shown) art = pet.PropImage("mystery");
+        else art = pet.ShopArt(plan);
+        if (art != null) thing = Pixel(art, cur || claim ? 3 : 2);
+        else
+        {
+            thing = Icon(plan.StartsWith("nuts:") ? "nut3" : PetWindow.ProjectRewardIcon(plan), cur ? 3 : 2);
+        }
+        thing.Opacity = taken ? 0.45 : !shown && !claim ? 0.7 : 1;
+        thing.ToolTip = Tip(claim ? "Цъкни, за да отвориш: " + pet.ProjectRewardLabel(plan)
+            : taken ? pet.ProjectRewardLabel(plan) + " – взето"
+            : !shown ? "Изненада – ще се види, като наближите"
+            : (cur ? "Следващата награда: " : "") + pet.ProjectRewardLabel(plan));
+        var holder = new Grid { Width = Step, Height = 70 * U };
+        thing.HorizontalAlignment = HorizontalAlignment.Center;
+        thing.VerticalAlignment = VerticalAlignment.Bottom;
+        holder.Children.Add(thing);
+        // Блести, ако чака да го вземеш; звезда – нов ранг.
+        if (claim)
+        {
+            var spark = Icon("emote_sparkle", 2);
+            spark.HorizontalAlignment = HorizontalAlignment.Center;
+            spark.VerticalAlignment = VerticalAlignment.Top;
+            spark.Margin = new Thickness(26 * U, 0, 0, 0);
+            holder.Children.Add(spark);
+            holder.Cursor = System.Windows.Input.Cursors.Hand;
+            holder.Background = Brushes.Transparent;
+            TaskCards.Clickable(holder, () => Claim(stage));
+        }
+        Canvas.SetLeft(holder, p.X - Step / 2);
+        Canvas.SetTop(holder, p.Y - sh / 2 - 70 * U + 2 * U);
+        canvas.Children.Add(holder);
+
+        // Името – под камъчето, дребно; сегашното – по-тъмно.
+        var label = new TextBlock
+        {
+            Text = name, Width = Step - 6 * U, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
+            MaxHeight = 2.7 * Ui.Body, TextTrimming = TextTrimming.CharacterEllipsis,
+            Foreground = cur ? Ink : Muted, FontWeight = cur ? FontWeights.Bold : FontWeights.Normal,
+        };
+        Canvas.SetLeft(label, p.X - (Step - 6 * U) / 2);
+        Canvas.SetTop(label, p.Y + sh / 2 + 6 * U);
+        canvas.Children.Add(label);
+        if (rank)
+        {
+            var star = new Viewbox { Width = 14 * U, Height = 14 * U, Child = Icon("star"), Opacity = done ? 1 : 0.55 };
+            Canvas.SetLeft(star, p.X + sw / 2 - 2 * U);
+            Canvas.SetTop(star, p.Y - sh / 2 - 8 * U);
+            canvas.Children.Add(star);
+        }
+
+        if (i == _pop) Pop(holder, 0.4);
     }
 
-    /// <summary>Цъкна наградата: взима я, кръгчето подскача.</summary>
+    /// <summary>Мечето на пътечката: като се отвори картата – изминава последното парче и спира.</summary>
+    private void DrawBear(Canvas canvas, int fromStage, double t)
+    {
+        var pet = Pet;
+        var walk = pet.BearFrames("walk");
+        var idle = pet.BearFrames("idle");
+        if (idle.Length == 0) return;
+        var img = Pixel(idle[0], 2);
+        img.ToolTip = Tip("Мечо е тук – работата ви го бута напред");
+        canvas.Children.Add(img);
+        void PlaceAt(double tt)
+        {
+            var p = fromStage < -1 ? At(-1) : Between(fromStage, Math.Clamp(tt, 0, 1));
+            Canvas.SetLeft(img, p.X - img.Width / 2);
+            Canvas.SetTop(img, p.Y - img.Height + 4 * U);
+        }
+        if (Instant || walk.Length == 0)
+        {
+            PlaceAt(t);
+            return;
+        }
+        // Изминава последното парче (до една трета от пътя между етапите) с ходене.
+        double from = Math.Max(0, t - 0.35);
+        int frame = 0;
+        var started = DateTime.Now;
+        PlaceAt(from);
+        img.Source = walk[0];
+        EventHandler? tick = null;
+        tick = (_, _) =>
+        {
+            double k = Math.Min(1, (DateTime.Now - started).TotalSeconds / 1.2);
+            PlaceAt(from + (t - from) * (1 - Math.Pow(1 - k, 2)));
+            frame++;
+            img.Source = k < 1 ? walk[frame % walk.Length] : idle[0];
+            if (k >= 1)
+            {
+                _walk.Stop();
+                _walk.Tick -= tick;
+            }
+        };
+        _walk.Tick += tick;
+        _walk.Start();
+    }
+
+    /// <summary>Цъкна подаръчето: взима наградата, то подскача.</summary>
     private void Claim(int stage)
     {
         Pet.ClaimProjectReward(stage);
@@ -358,53 +376,18 @@ internal sealed class ProjectWindow : FloatWindow
         Rebuild();
     }
 
-    /// <summary>Медена лента, която се пълни (веднъж, като се покаже).</summary>
-    private static Grid Bar(double frac, double height)
-    {
-        frac = Math.Clamp(frac, 0, 1);
-        double edge = Math.Max(1, P / 2);
-        var track = new Grid { Height = height };
-        track.Children.Add(new Border { Background = Empty, BorderBrush = Ink, BorderThickness = new Thickness(edge), CornerRadius = new CornerRadius(height / 2) });
-        var fill = new Border { Background = Honey, CornerRadius = new CornerRadius(height / 2), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(edge), Width = 0 };
-        track.Children.Add(fill);
-        track.SizeChanged += (_, e) =>
-        {
-            if (!e.WidthChanged) return;
-            double to = Math.Max(0, (track.ActualWidth - 2 * edge) * frac);
-            fill.Width = to;
-            if (Instant) return;
-            fill.BeginAnimation(WidthProperty, new DoubleAnimation(to * 0.3, to, TimeSpan.FromMilliseconds(800))
-            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop });
-        };
-        return track;
-    }
-
-    /// <summary>Значката на ранга: медно кръгче с номера.</summary>
-    private static FrameworkElement RankBadge(int rank, double size)
-    {
-        var g = new Grid { Width = size, Height = size };
-        g.Children.Add(new Border { CornerRadius = new CornerRadius(size / 2), Background = Honey, BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)) });
-        g.Children.Add(new Viewbox { Child = Icon("star"), Margin = new Thickness(size * 0.15), Opacity = 0.35 });
-        g.Children.Add(new TextBlock
-        {
-            Text = (rank + 1).ToString(), FontWeight = FontWeights.Bold, FontSize = Ui.Title,
-            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-        });
-        return g;
-    }
-
     /// <summary>Подскача веднъж: малко → голямо → нормално.</summary>
     private static void Pop(FrameworkElement e, double from)
     {
         if (Instant) return;
-        var t = new ScaleTransform(1, 1);
-        e.RenderTransformOrigin = new Point(0.5, 0.5);
-        e.RenderTransform = t;
+        var tr = new ScaleTransform(1, 1);
+        e.RenderTransformOrigin = new Point(0.5, 1);
+        e.RenderTransform = tr;
         var a = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromMilliseconds(700), FillBehavior = FillBehavior.Stop };
         a.KeyFrames.Add(new EasingDoubleKeyFrame(from, KeyTime.FromPercent(0)));
         a.KeyFrames.Add(new EasingDoubleKeyFrame(1.25, KeyTime.FromPercent(0.55)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
         a.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromPercent(1)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut } });
-        t.BeginAnimation(ScaleTransform.ScaleXProperty, a);
-        t.BeginAnimation(ScaleTransform.ScaleYProperty, a);
+        tr.BeginAnimation(ScaleTransform.ScaleXProperty, a);
+        tr.BeginAnimation(ScaleTransform.ScaleYProperty, a);
     }
 }

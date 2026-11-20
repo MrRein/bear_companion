@@ -301,6 +301,9 @@ public sealed partial class PetWindow
         };
     }
 
+    /// <summary>Кадрите на мечока (за картата на проекта): основният вид, без дрехи.</summary>
+    public System.Windows.Media.Imaging.BitmapSource[] BearFrames(string anim) => _lib.Has(anim) ? _lib.Get(anim).Frames : Array.Empty<System.Windows.Media.Imaging.BitmapSource>();
+
     /// <summary>Картинката на нещото от магазина (за картата с наградата), ако я има.</summary>
     public System.Windows.Media.Imaging.BitmapSource? ShopArt(string plan) =>
         plan.StartsWith("up:") && _lib.HasProp("shop_" + plan[3..]) ? PropImage("shop_" + plan[3..]) : null;
