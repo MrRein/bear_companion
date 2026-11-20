@@ -236,7 +236,7 @@ public sealed partial class PetWindow
         return kind switch
         {
             "nuts" => id + " лешника",
-            "up" => Kitchen.Find(id) is { } u ? u.Icon + " " + u.Name : "Изненада",
+            "up" => Kitchen.Find(id) is { } u ? u.Name : "Изненада",
             "cloth" => Clothes.All.FirstOrDefault(g => g.Id == id)?.Name ?? "Дреха",
             "bg" => "Тапет „" + (Backdrops.All.FirstOrDefault(b => b.Id == id)?.Name ?? "") + "“",
             "theme" => "Меню „" + (UiThemes.All.FirstOrDefault(t => t.Key == id)?.Name ?? "") + "“",
@@ -245,6 +245,10 @@ public sealed partial class PetWindow
             _ => "Изненада",
         };
     }
+
+    /// <summary>Картинката на нещото от магазина (за картата с наградата), ако я има.</summary>
+    public System.Windows.Media.Imaging.BitmapSource? ShopArt(string plan) =>
+        plan.StartsWith("up:") && _lib.HasProp("shop_" + plan[3..]) ? PropImage("shop_" + plan[3..]) : null;
 
     /// <summary>Иконка за наградата в прогреса.</summary>
     public static string ProjectRewardIcon(string plan) => plan.Split(':')[0] switch

@@ -29,10 +29,13 @@ internal sealed class ProjectWindow : FloatWindow
     public static ProjectWindow? Current => _open;
 
     // Размерите на пътя.
-    private static double Gap => 118 * U;      // между два етапа
-    private static double Pad => 70 * U;       // в началото и в края
-    private static double CardW => 92 * U;
-    private static double CardH => 96 * U;
+    private static double Gap => 140 * U;      // между два етапа
+    private static double Pad => 76 * U;       // в началото и в края
+    private static double CardW => 112 * U;
+    private static double CardH => 104 * U;
+
+    /// <summary>Самопроверката снима веднага: без анимации (всичко е на мястото си).</summary>
+    private static bool Instant => SelfTest.Running;
     private static double TrackY => 142 * U;   // средата на пътя
     private static double RoadH => 236 * U;
 
@@ -64,7 +67,7 @@ internal sealed class ProjectWindow : FloatWindow
         return w;
     }
 
-    private ProjectWindow(PetWindow pet) : base(pet, "project", 640 * U)
+    private ProjectWindow(PetWindow pet) : base(pet, "project", 700 * U)
     {
         _open = this;
         Title = "Пътят на проекта";
@@ -212,6 +215,7 @@ internal sealed class ProjectWindow : FloatWindow
             if (!e.WidthChanged) return;
             double to = Math.Max(0, (track.ActualWidth - 2 * edge) * frac);
             fill.Width = to;   // и без анимация (снимка, слаб компютър) е на мястото си
+            if (Instant) return;
             fill.BeginAnimation(WidthProperty, new DoubleAnimation(_celebrate >= 0 ? 0 : to * 0.3, to, TimeSpan.FromMilliseconds(_celebrate >= 0 ? 1100 : 800))
             { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop });
         };
@@ -248,7 +252,7 @@ internal sealed class ProjectWindow : FloatWindow
             Canvas.SetLeft(done, Pad - 15 * U + edge);
             Canvas.SetTop(done, TrackY - roadH / 2 + edge);
             canvas.Children.Add(done);
-            canvas.Loaded += (_, _) => done.BeginAnimation(WidthProperty, new DoubleAnimation(_celebrate >= 0 ? Math.Max(0, w0 - Gap) : w0 * 0.7, w0, TimeSpan.FromMilliseconds(900))
+            if (!Instant) canvas.Loaded += (_, _) => done.BeginAnimation(WidthProperty, new DoubleAnimation(_celebrate >= 0 ? Math.Max(0, w0 - Gap) : w0 * 0.7, w0, TimeSpan.FromMilliseconds(900))
             { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop });
         }
 
@@ -260,16 +264,16 @@ internal sealed class ProjectWindow : FloatWindow
             // Значка на всеки три етапа – нов ранг (на пътя, между кръгчетата).
             if (i % 3 == 2 && i < n - 1)
             {
-                var flag = RankBadge(PetWindow.ProjectRankIndex(i + 1), 24 * U);
+                var flag = RankStar(26 * U);
                 flag.ToolTip = Tip("Ранг " + (PetWindow.ProjectRankIndex(i + 1) + 1) + ": " + PetWindow.ProjectRank(i + 1));
                 flag.Opacity = isDone ? 1 : 0.5;
-                Canvas.SetLeft(flag, x + Gap / 2 - 12 * U);
-                Canvas.SetTop(flag, TrackY - 12 * U);
+                Canvas.SetLeft(flag, x + Gap / 2 - 13 * U);
+                Canvas.SetTop(flag, TrackY - 13 * U);
                 canvas.Children.Add(flag);
             }
 
             // Кръгчето на пътя.
-            double d = isCur ? 28 * U : 22 * U;
+            double d = isCur ? 32 * U : 26 * U;
             var node = new Border
             {
                 Width = d, Height = d, CornerRadius = new CornerRadius(d / 2),
@@ -360,12 +364,15 @@ internal sealed class ProjectWindow : FloatWindow
             : shown ? Pet.ProjectRewardLabel(plan) : "Заключено";
         var body = new Grid();
         var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-        var ic = Icon(shown ? PetWindow.ProjectRewardIcon(plan) : "lock", 3);
+        bool nuts = shown && plan.StartsWith("nuts:");
+        FrameworkElement ic = shown && Pet.ShopArt(plan) is { } art ? Pixel(art, 3) : Icon(nuts ? "nut3" : shown ? PetWindow.ProjectRewardIcon(plan) : "lock", 3);
         ic.HorizontalAlignment = HorizontalAlignment.Center;
         ic.Opacity = shown ? 1 : 0.55;
         stack.Children.Add(ic);
+        if (nuts) text = "+" + plan[5..];
         stack.Children.Add(new TextBlock
         {
+            FontSize = nuts ? Ui.Title : Ui.Body,
             Text = text, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxHeight = 3 * Ui.Body * 1.35,
             TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(2 * U, 4 * U, 2 * U, 0),
             Foreground = shown ? Ink : Muted, FontWeight = isCur ? FontWeights.Bold : FontWeights.Normal,
@@ -397,6 +404,15 @@ internal sealed class ProjectWindow : FloatWindow
         return card;
     }
 
+    /// <summary>Звездичката на пътя: тук идва нов ранг.</summary>
+    private static FrameworkElement RankStar(double size)
+    {
+        var g = new Grid { Width = size, Height = size };
+        g.Children.Add(new Border { CornerRadius = new CornerRadius(size / 2), Background = Honey, BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)) });
+        g.Children.Add(new Viewbox { Child = Icon("star"), Margin = new Thickness(size * 0.18) });
+        return g;
+    }
+
     /// <summary>Значката на ранга: медно кръгче със звезда и номера на ранга.</summary>
     private static FrameworkElement RankBadge(int rank, double size)
     {
@@ -417,6 +433,7 @@ internal sealed class ProjectWindow : FloatWindow
     /// <summary>Подскача веднъж (празник): малко → голямо → нормално.</summary>
     private static void Pop(FrameworkElement e, double from)
     {
+        if (Instant) return;
         var t = new ScaleTransform(from, from);
         e.RenderTransformOrigin = new Point(0.5, 0.5);
         e.RenderTransform = t;
