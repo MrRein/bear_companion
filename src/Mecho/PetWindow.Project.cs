@@ -70,6 +70,23 @@ public sealed partial class PetWindow
     }
 
     public string GameName => _save.GameName;
+
+    /// <summary>
+    /// Колко остава до следващата награда – с човешки думи, не с точки: „още ~3 мечо-дора“
+    /// (едно мечо-доро ≈ 25 точки; задачите също бутат).
+    /// </summary>
+    public string ProjectLeftText
+    {
+        get
+        {
+            if (ProjectDone) return "";
+            var now = ProjectNow;
+            double left = Math.Max(0, now.Need - now.Have);
+            if (left <= 10) return "съвсем малко остава!";
+            int n = (int)Math.Ceiling(left / 25);
+            return n == 1 ? "още едно мечо-доро" : $"още ~{n} мечо-дора";
+        }
+    }
     public string ProjectNote => _save.ProjectNote;
 
     private void WireProject()

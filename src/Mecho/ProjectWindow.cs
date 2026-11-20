@@ -277,7 +277,7 @@ internal sealed class ProjectWindow : FloatWindow
         ic.Margin = new Thickness(0, 0, 6 * U, 0);
         DockPanel.SetDock(ic, Dock.Left);
         row.Children.Add(ic);
-        var pts = new TextBlock { Text = $"{(int)now.Have} / {now.Need}", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8 * U, 0, 0, 0) };
+        var pts = new TextBlock { Text = pet.ProjectLeftText, Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8 * U, 0, 0, 0) };
         DockPanel.SetDock(pts, Dock.Right);
         row.Children.Add(pts);
         var bar = Bar(now.Need > 0 ? now.Have / now.Need : 0, 5 * P);

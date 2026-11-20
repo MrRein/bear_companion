@@ -1825,7 +1825,7 @@ public sealed class MenuWindow : Window
                     BorderBrush = Ink, BorderThickness = Flat,
                     Background = i < filled ? Honey : Empty,
                 }.Skinned(i < filled ? "cell_honey" : "cell_empty"));
-            track.Children.Add(new TextBlock { Text = $"{(int)pr.Have}/{pr.Need}", Foreground = Muted, Margin = new Thickness(6 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+            track.Children.Add(new TextBlock { Text = _pet.ProjectLeftText, Foreground = Muted, Margin = new Thickness(6 * U, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
             inner.Children.Add(track);
             if (pr.Stage >= 9 && name.Length == 0)
             {
