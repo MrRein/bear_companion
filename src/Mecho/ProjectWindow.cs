@@ -27,10 +27,10 @@ internal sealed class ProjectWindow : FloatWindow
 
     public static ProjectWindow? Current => _open;
 
-    private static double Gap => 84 * U;       // между два етапа
+    private static double Gap => 128 * U;       // между два етапа
     private static double Pad => 50 * U;       // в началото и в края
     private static double RoadY => 130 * U;    // средата на пътя
-    private static double RoadHeight => 188 * U;
+    private static double RoadHeight => 214 * U;
 
     /// <summary>Самопроверката снима веднага: без анимации.</summary>
     private static bool Instant => SelfTest.Running;
