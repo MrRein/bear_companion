@@ -1882,6 +1882,7 @@ public sealed partial class PetWindow
                 // Наградите: следващите три се виждат, по-нататък – „?“; решени веднъж, не се менят.
                 _save.ProjectPaid = 2; _save.ProjectClaimed = 1; _save.ProjectPoints = 60 + 90 + 40; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear();
                 if (!ProjectRewardShown(4) || ProjectRewardShown(5)) throw new Exception("видимите награди не са следващите три");
+                if (ProjectNow.Info.Steps.Length != 3 || ProjectStepsDone != 1) throw new Exception("подетапите: " + ProjectStepsDone + " от " + ProjectNow.Info.Steps.Length);
                 string p3 = ProjectRewardPlan(3);
                 if (ProjectRewardPlan(3) != p3 || ProjectRewardLabel(p3).Length == 0) throw new Exception("наградата се мени или няма име");
                 // Прогресът: прозорецът с пътеката (и празникът за етап 2).
