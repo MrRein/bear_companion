@@ -824,6 +824,22 @@
     "chest_open": {
       "file": "chest_open.png",
       "seat": 0
+    },
+    "chest_silver": {
+      "file": "chest_silver.png",
+      "seat": 0
+    },
+    "chest_silver_open": {
+      "file": "chest_silver_open.png",
+      "seat": 0
+    },
+    "chest_gold": {
+      "file": "chest_gold.png",
+      "seat": 0
+    },
+    "chest_gold_open": {
+      "file": "chest_gold_open.png",
+      "seat": 0
     }
   }
 }

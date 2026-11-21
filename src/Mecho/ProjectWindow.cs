@@ -171,8 +171,11 @@ internal sealed class ProjectWindow : FloatWindow
         b.CopyPixels(px, stride, 0);
         for (int i = 0; i < px.Length; i += 4)
         {
-            byte g = (byte)Math.Min(255, (px[i] * 0.11 + px[i + 1] * 0.59 + px[i + 2] * 0.3) * 0.7 + 70);
-            px[i] = px[i + 1] = px[i + 2] = g;
+            // Почти сиво, но с лек оттенък – личи дали е дървено, сребърно или златно.
+            double g = (px[i] * 0.11 + px[i + 1] * 0.59 + px[i + 2] * 0.3) * 0.7 + 70;
+            px[i] = (byte)Math.Min(255, g * 0.75 + px[i] * 0.25);
+            px[i + 1] = (byte)Math.Min(255, g * 0.75 + px[i + 1] * 0.25);
+            px[i + 2] = (byte)Math.Min(255, g * 0.75 + px[i + 2] * 0.25);
         }
         var outBmp = BitmapSource.Create(w, h, b.DpiX, b.DpiY, PixelFormats.Bgra32, null, px, stride);
         outBmp.Freeze();
@@ -184,6 +187,13 @@ internal sealed class ProjectWindow : FloatWindow
         var img = new Image { Source = gray ? Gray(src) : src, Width = size, Height = size, Stretch = Stretch.Uniform, SnapsToDevicePixels = true };
         RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.NearestNeighbor);
         return img;
+    }
+
+    /// <summary>Колко ценно е сандъчето: 0 – обикновено (1–2 неща), 1 – ценно (3), 2 – много ценно (4+).</summary>
+    private static int ChestTier(string plan)
+    {
+        int n = PetWindow.RewardItems(plan).Length;
+        return n >= 4 ? 2 : n == 3 ? 1 : 0;
     }
 
     /// <summary>Подсказката на сандъчето: заглавие и по ред за всяко нещо вътре (с иконка).</summary>
@@ -296,9 +306,12 @@ internal sealed class ProjectWindow : FloatWindow
             // ── Наградата в своето квадратче ──
             // Сандъчето: сиво, докато не е твое; минат етап – в цвят, чака да го отвориш;
             // отворено – отворено сандъче. Какво има вътре – като посочиш.
+            // Три сандъчета: обикновено (1–2 неща), ценно (3), много ценно (4).
+            int tier = ChestTier(taken && i < pet.Save.ProjectGot.Count && pet.Save.ProjectGot[i].Length > 0 ? pet.Save.ProjectGot[i] : plan);
+            string chest = tier switch { 2 => "chest_gold", 1 => "chest_silver", _ => "chest" };
             BitmapSource? src = !(shown || done) ? null
-                : taken ? pet.PropImage("chest_open")
-                : pet.PropImage("chest");
+                : taken ? pet.PropImage(chest + "_open")
+                : pet.PropImage(chest);
             var art = src != null ? Art(src, BoxSize * 0.62, gray: !done) : null;
             var inside = new Grid();
             if (art != null)
@@ -336,7 +349,7 @@ internal sealed class ProjectWindow : FloatWindow
                 claim ? Ink : taken ? Good : art != null ? (isCur ? Honey : Ink) : WoodLight,
                 claim || isCur ? px * 1.5 : px, inside);
             box.ToolTip = art == null ? Tip("Изненада – ще се види, като наближите")
-                : RewardTip(taken ? "Взе:" : claim ? "Цъкни, за да отвориш:" : isCur ? "В сандъчето за този етап:" : "В сандъчето:",
+                : RewardTip((tier switch { 2 => "Много ценно сандъче", 1 => "Ценно сандъче", _ => "Сандъче" }) + (taken ? " – взе:" : claim ? " – цъкни, за да го отвориш:" : ":"),
                     taken && i < pet.Save.ProjectGot.Count && pet.Save.ProjectGot[i].Length > 0 ? pet.Save.ProjectGot[i] : plan);
             ToolTipService.SetInitialShowDelay(box, 150);
             if (claim)
