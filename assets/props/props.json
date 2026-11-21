@@ -840,6 +840,14 @@
     "chest_gold_open": {
       "file": "chest_gold_open.png",
       "seat": 0
+    },
+    "chest_legend": {
+      "file": "chest_legend.png",
+      "seat": 0
+    },
+    "chest_legend_open": {
+      "file": "chest_legend_open.png",
+      "seat": 0
     }
   }
 }

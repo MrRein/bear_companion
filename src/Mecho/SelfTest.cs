@@ -1881,7 +1881,7 @@ public sealed partial class PetWindow
                 _focusItem = null;
                 // Наградите: следващите три се виждат, по-нататък – „?“; решени веднъж, не се менят.
                 _save.ProjectPaid = 2; _save.ProjectClaimed = 1; _save.ProjectPoints = 60 + 90 + 40; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear();
-                if (!ProjectRewardShown(4) || ProjectRewardShown(5)) throw new Exception("видимите награди не са следващите три");
+                if (!ProjectRewardShown(2) || ProjectRewardShown(3)) throw new Exception("видими са награди отвъд сегашния етап");
                 if (ProjectNow.Info.Steps.Length != 3 || ProjectStepsDone != 1) throw new Exception("подетапите: " + ProjectStepsDone + " от " + ProjectNow.Info.Steps.Length);
                 string p3 = ProjectRewardPlan(3);
                 if (ProjectRewardPlan(3) != p3 || ProjectRewardLabel(p3).Length == 0) throw new Exception("наградата се мени или няма име");
@@ -1890,6 +1890,9 @@ public sealed partial class PetWindow
                 pw.UpdateLayout();
                 Shot(pw, "project_window");
                 LayoutReport(pw, "project_window");
+                pw.TestOpened(0, "nuts:6|coupon:25|slot:hat");
+                pw.UpdateLayout();
+                Shot(pw, "project_opened");
                 pw.Close();
                 // За снимката на „Мечо“: по средата на първия етап (той не иска мебел – другите проверки на работата са с бюрото).
                 _save.ProjectPaid = 0; _save.ProjectClaimed = 0; _save.ProjectPoints = 30; _save.GameName = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear();

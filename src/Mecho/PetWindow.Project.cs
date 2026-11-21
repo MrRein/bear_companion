@@ -260,7 +260,7 @@ public sealed partial class PetWindow
     }
 
     /// <summary>Наградата се вижда ли вече: минатите, сегашният и следващите два.</summary>
-    public bool ProjectRewardShown(int i) => i < _save.ProjectPaid + 3;
+    public bool ProjectRewardShown(int i) => i <= _save.ProjectPaid;
 
     /// <summary>
     /// Сандъчето на етапа: 1–3 неща (рядко 4) – лешници, страница от рецепта, купон за
@@ -271,7 +271,17 @@ public sealed partial class PetWindow
     private string RollProjectReward(int i)
     {
         var items = new List<string>();
-        if (i == 14) items.Add("box");
+        if (i == ProjectStages.Length - 1)
+        {
+            // Финалът – специалното сандъче, най-пълното: кутията с играта и много неща.
+            items.Add("box");
+            items.Add("nuts:" + ProjectNutsFor(i) * 3);
+            items.Add("coupon:50");
+            if (Recipes.Next(_save) != null) items.Add("page");
+            if (DailyOffer.HasWardrobe(_save) && RandomSlot() is { } fs) items.Add(fs);
+            if (RandomUpgrade(Kitchen.FurnitureShelf, i) is { } ff) items.Add(ff);
+            return string.Join("|", items);
+        }
         if (i == 8) items.Add("name");
         // Следващият етап иска нещо, което го няма (бюрото, масичката, статива, компютъра).
         if (StageNeeds(i + 1) is { } need && !OwnsOrOrdered(need) && !PlannedElsewhere("up:" + need, i)) items.Add("up:" + need);
