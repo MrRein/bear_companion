@@ -266,9 +266,13 @@ public sealed partial class PetWindow
         // Следващият етап иска нещо, което го няма (бюрото, масичката, статива, компютъра): то е наградата.
         if (StageNeeds(i + 1) is { } need && !OwnsOrOrdered(need) && !PlannedElsewhere("up:" + need, i)) return "up:" + need;
         if (i == 4) return "nuts:" + ProjectNutsFor(i);
+        // Пакетчето: най-често лешници; понякога купон за магазина или страница от рецепта;
+        // с гардероб – дреха; рядко мебел (без гардероба – него го купуваш сам).
         int roll = _rng.Next(100);
         if (roll >= 95 && RandomUpgrade(Kitchen.FurnitureShelf, i) is { } furniture) return furniture;
-        if (roll >= 50 && RandomShopThing(i) is { } thing) return thing;
+        if (roll >= 85 && DailyOffer.HasWardrobe(_save) && RandomCloth(i) is { } cloth) return cloth;
+        if (roll >= 70 && Recipes.Next(_save) != null) return "page";
+        if (roll >= 55) return "coupon:" + (_rng.Next(3) == 0 ? 50 : 25);
         return "nuts:" + ProjectNutsFor(i);
     }
 
@@ -277,9 +281,29 @@ public sealed partial class PetWindow
 
     private string? RandomUpgrade(string shelf, int i)
     {
-        var list = Kitchen.Upgrades.Where(u => u.Shelf == shelf && !OwnsOrOrdered(u.Id) && !PlannedElsewhere("up:" + u.Id, i)).ToList();
+        var list = Kitchen.Upgrades.Where(u => u.Shelf == shelf && u.Id != Kitchen.Wardrobe && !OwnsOrOrdered(u.Id) && !PlannedElsewhere("up:" + u.Id, i)).ToList();
         return list.Count == 0 ? null : "up:" + list[_rng.Next(list.Count)].Id;
     }
+
+    /// <summary>Дреха, която още нямаш (тениска, шапка…) – само с гардероб.</summary>
+    private string? RandomCloth(int i)
+    {
+        var list = Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(_save, g) && !PlannedElsewhere("cloth:" + g.Id, i)).ToList();
+        return list.Count == 0 ? null : "cloth:" + list[_rng.Next(list.Count)].Id;
+    }
+
+    /// <summary>Какъв вид е пакетчето (видимо отвън, преди да го отвориш).</summary>
+    public static string ProjectRewardKind(string plan) => plan.Split(':')[0] switch
+    {
+        "nuts" => "Лешници",
+        "coupon" => "Купон за магазина",
+        "page" => "Страница от рецепта",
+        "cloth" => "Нещо за гардероба",
+        "up" => "Нещо за бърлогата",
+        "name" => "Името на играта",
+        "box" => "Голямата награда",
+        _ => "Изненада",
+    };
 
     /// <summary>Нещо от магазина, което още нямаш: уред/хоби, а с гардероб – и дреха, тапет или меню.</summary>
     private string? RandomShopThing(int i)
@@ -300,6 +324,8 @@ public sealed partial class PetWindow
         return kind switch
         {
             "nuts" => id + " лешника",
+            "coupon" => $"Купон −{id}% за магазина",
+            "page" => "Страница от рецепта",
             "up" => Kitchen.Find(id) is { } u ? u.Name : "Изненада",
             "cloth" => Clothes.All.FirstOrDefault(g => g.Id == id)?.Name ?? "Дреха",
             "bg" => "Тапет „" + (Backdrops.All.FirstOrDefault(b => b.Id == id)?.Name ?? "") + "“",
@@ -321,7 +347,9 @@ public sealed partial class PetWindow
     public static string ProjectRewardIcon(string plan) => plan.Split(':')[0] switch
     {
         "nuts" => "nut2",
-        "up" => "gift",
+        "coupon" => "shop",
+        "page" => "book",
+        "up" => "couch",
         "cloth" => "shirt",
         "bg" => "picture",
         "theme" => "menu",
@@ -350,6 +378,12 @@ public sealed partial class PetWindow
             case "theme" when UiThemes.All.FirstOrDefault(t => t.Key == id) is { } t && !UiThemes.Owns(_save, t):
                 _save.Owned.Add(t.Key);
                 return $"Подарък: меню „{t.Name}“!";
+            case "coupon" when int.TryParse(id, out int pct):
+                _save.CouponPercent = Math.Max(_save.CouponPercent, pct);
+                return $"Купон −{pct}% за следващата покупка в магазина!";
+            case "page" when Recipes.Next(_save) != null:
+                string got = FindRecipePage();
+                return LastLearned != null ? "Нова рецепта: " + LastLearned.Name + "!" : $"Страница от рецепта! {_save.RecipePages}/{Recipes.Pages}" + got;
             case "name":
                 return "";
             case "box":
@@ -358,6 +392,21 @@ public sealed partial class PetWindow
         int m = ProjectNutsFor(i);
         GainNuts(m, "проект");
         return $"+{m} 🌰";
+    }
+
+    /// <summary>Цената с купона от проекта (ако има).</summary>
+    public int WithCoupon(int price) => _save.CouponPercent > 0 ? (int)Math.Round(price * (100 - _save.CouponPercent) / 100.0) : price;
+
+    /// <summary>Плаща с купона (ако има) – купонът се използва.</summary>
+    private int PayWithCoupon(int price)
+    {
+        int cost = WithCoupon(price);
+        if (_save.CouponPercent > 0)
+        {
+            Say($"Купонът свали цената с {_save.CouponPercent}%: {price} → {cost} 🌰", 4);
+            _save.CouponPercent = 0;
+        }
+        return cost;
     }
 
     /// <summary>Безплатно: идва с доставка, както купеното.</summary>

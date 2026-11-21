@@ -142,7 +142,8 @@ public sealed class SaveData
     public string ProjectNote { get; set; } = "";
     public List<string> ProjectPlan { get; set; } = new();          // наградата за всеки етап (решена предварително)
     public List<string> ProjectGot { get; set; } = new();
-    public int ProjectClaimed { get; set; } = -1;                  // колко награди от етапите са взети (-1 – стар запис)           // какво получи на минатите етапи                 // последното, което каза за проекта
+    public int ProjectClaimed { get; set; } = -1;
+    public int CouponPercent { get; set; }                         // купон от проекта за следващата покупка (0 – няма)                  // колко награди от етапите са взети (-1 – стар запис)           // какво получи на минатите етапи                 // последното, което каза за проекта
     public List<SaidLine> Said { get; set; } = new();          // последните 10 неща, казани от него (и въпросите с избрания отговор)
     public int WishSmallCount { get; set; }                    // изпълнени желания от последното +1
     public int WishSmallGoal { get; set; }                     // на колко (4–6) идва +1

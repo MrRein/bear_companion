@@ -186,6 +186,19 @@ internal sealed class ProjectWindow : FloatWindow
         return img;
     }
 
+    /// <summary>Как изглежда пакетчето отвън – според вида (лешници, купон, рецепта, дреха, мебел).</summary>
+    private static BitmapSource? KindArt(string plan) => LoadIcon(plan.Split(':')[0] switch
+    {
+        "nuts" => "nut3",
+        "coupon" => "shop",
+        "page" => "book",
+        "cloth" => "shirt",
+        "up" => "couch",
+        "name" => "pencil",
+        "box" => "star",
+        _ => "gift",
+    });
+
     /// <summary>Картинката на наградата (предметът от магазина, лешниците, дрехата…).</summary>
     private BitmapSource? RewardArt(string plan) =>
         Pet.ShopArt(plan) ?? LoadIcon(plan.StartsWith("nuts:") ? "nut3" : PetWindow.ProjectRewardIcon(plan));
@@ -261,7 +274,13 @@ internal sealed class ProjectWindow : FloatWindow
             canvas.Children.Add(link);
 
             // ── Наградата в своето квадратче ──
-            var art = (shown || done) && RewardArt(plan) is { } src ? Art(src, BoxSize * 0.62, gray: !done) : null;
+            // Пакетчето: отвън – видът (сив, докато не е твое); чака да го отвориш – затворено
+            // подаръче в цвят; отворено – самото нещо.
+            BitmapSource? src = !(shown || done) ? null
+                : taken ? RewardArt(plan)
+                : claim ? pet.PropImage("gift_green")
+                : KindArt(plan);
+            var art = src != null ? Art(src, BoxSize * 0.62, gray: !done) : null;
             var inside = new Grid();
             if (art != null)
             {
@@ -297,10 +316,10 @@ internal sealed class ProjectWindow : FloatWindow
                 claim ? Soft(Honey, 0.55) : taken ? Soft(Good, 0.25) : art != null ? Cream : Soft(WoodLight, 0.25),
                 claim ? Ink : taken ? Good : art != null ? (isCur ? Honey : Ink) : WoodLight,
                 claim || isCur ? px * 1.5 : px, inside);
-            box.ToolTip = Tip(claim ? "Цъкни, за да вземеш: " + pet.ProjectRewardLabel(plan)
+            box.ToolTip = Tip(claim ? "Цъкни, за да отвориш: " + PetWindow.ProjectRewardKind(plan)
                     : taken ? pet.ProjectRewardLabel(plan) + " – твое"
                     : art == null ? "Изненада – ще се види, като наближите"
-                    : (isCur ? "Наградата за този етап: " : "Награда: ") + pet.ProjectRewardLabel(plan));
+                    : (isCur ? "Наградата за този етап: " : "Награда: ") + PetWindow.ProjectRewardKind(plan));
             if (claim)
             {
                 box.Cursor = link.Cursor = System.Windows.Input.Cursors.Hand;

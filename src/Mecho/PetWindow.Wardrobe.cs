@@ -130,12 +130,12 @@ public sealed partial class PetWindow
     public void BuyGarment(Garment g)
     {
         if (Clothes.Owns(_save, g)) return;
-        if (_save.Hazelnuts < g.Price)
+        if (_save.Hazelnuts < WithCoupon(g.Price))
         {
             Say($"Трябват ми още {g.Price - _save.Hazelnuts} 🌰 за {g.Name.ToLowerInvariant()}.", 3);
             return;
         }
-        _save.Hazelnuts -= g.Price;
+        _save.Hazelnuts -= PayWithCoupon(g.Price);
         _save.OwnedClothes.Add(g.Id);
         // Купеното отива в гардероба; облича се оттам.
         Say(Lines.Pick(Lines.NewClothes, _save.OwnerName), 3);
@@ -221,8 +221,8 @@ public sealed partial class PetWindow
 
     public void BuyBackdrop(Backdrop b)
     {
-        if (Backdrops.Owns(_save, b) || _save.Hazelnuts < b.Price) return;
-        _save.Hazelnuts -= b.Price;
+        if (Backdrops.Owns(_save, b) || _save.Hazelnuts < WithCoupon(b.Price)) return;
+        _save.Hazelnuts -= PayWithCoupon(b.Price);
         _save.Owned.Add("bg_" + b.Id);
         _save.Background = b.Id;
         Persist();
@@ -233,8 +233,8 @@ public sealed partial class PetWindow
 
     public void BuyUiTheme(UiTheme t)
     {
-        if (UiThemes.Owns(_save, t) || _save.Hazelnuts < t.Price) return;
-        _save.Hazelnuts -= t.Price;
+        if (UiThemes.Owns(_save, t) || _save.Hazelnuts < WithCoupon(t.Price)) return;
+        _save.Hazelnuts -= PayWithCoupon(t.Price);
         _save.Owned.Add(t.Key);
         // Отива в гардероба („Цвят на меню“); слага се оттам.
         Persist();

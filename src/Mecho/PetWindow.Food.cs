@@ -234,12 +234,12 @@ public sealed partial class PetWindow
     public void Buy(Upgrade upgrade)
     {
         if (OwnsOrOrdered(upgrade.Id) || ShopSoldOut) return;
-        if (_save.Hazelnuts < upgrade.Price)
+        if (_save.Hazelnuts < WithCoupon(upgrade.Price))
         {
             Say($"{upgrade.Icon} {upgrade.Name} струва {upgrade.Price} 🌰. Имаме {_save.Hazelnuts}. Още малко работа!", 4);
             return;
         }
-        _save.Hazelnuts -= upgrade.Price;
+        _save.Hazelnuts -= PayWithCoupon(upgrade.Price);
         TodayRec.UpgradesBought++;
         _save.Ordered.Add(upgrade.Id);
         GoalBought(upgrade.Id);
