@@ -1272,7 +1272,7 @@ public sealed class MenuWindow : Window
     private static Border BookPage(string title, UIElement body)
     {
         var stack = new StackPanel();
-        var head = new TextBlock { Text = title, FontWeight = FontWeights.Bold, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Center };
+        var head = new TextBlock { Text = title, FontWeight = FontWeights.Bold, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap };
         stack.Children.Add(head);
         stack.Children.Add(new Border
         {
