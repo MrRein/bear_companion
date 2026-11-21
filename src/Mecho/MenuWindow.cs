@@ -1760,101 +1760,60 @@ public sealed class MenuWindow : Window
     }
 
     /// <summary>
-    /// „Проектът на Мечо“: етапът, лентата (върви с твоята работа) и какво прави сега.
-    /// Играта излезе ли – само името и „излезе“.
+    /// „Проектът на Мечо“ в Дневничето – само: какъв проект (иконка + „Настолна игра“),
+    /// на кой етап (моливче + името), лентата на етапа и бутон, който отваря целия проект.
     /// </summary>
     private void RefreshProject()
     {
         var pr = _pet.ProjectNow;
         bool done = _pet.ProjectDone;
-        string name = _pet.GameName;
         bool claim = _pet.ProjectHasClaim;
-        string key = $"{pr.Stage}|{(int)(_pet.ProjectProgress * 10)}|{done}|{name}|{claim}";
+        string key = $"{pr.Stage}|{(int)(_pet.ProjectProgress * 20)}|{done}|{_pet.GameName}|{claim}";
         if (key == _projectKey) return;
         _projectKey = key;
         _projectBox.Children.Clear();
         var inner = new StackPanel();
-        var head = new DockPanel();
-        var ic = Icon("dice", 2);
-        ic.Margin = new Thickness(0, 0, 8 * U, 0);
-        ic.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(ic, Dock.Left);
-        head.Children.Add(ic);
-        string title = name.Length > 0 ? "„" + name + "“" : "Настолната игра на Мечо";
-        head.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
-        inner.Children.Add(head);
-        if (done)
+
+        FrameworkElement Line(string icon, string text, bool bold)
         {
-            inner.Children.Add(new TextBlock { Text = "Играта излезе! Мечо вече е Издател.", Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0) });
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4 * U) };
+            var ic = Icon(icon, bold ? 2 : 1);
+            ic.VerticalAlignment = VerticalAlignment.Center;
+            ic.Margin = new Thickness(0, 0, 7 * U, 0);
+            row.Children.Add(ic);
+            row.Children.Add(new TextBlock { Text = text, FontWeight = bold ? FontWeights.Bold : FontWeights.Normal, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
+            return row;
         }
-        else
+        inner.Children.Add(Line("board", "Настолна игра", true));
+        inner.Children.Add(Line("pencil", done ? "Играта излезе!" : pr.Info.Name, false));
+
+        // Лентата на етапа: зелена, докъдето сте стигнали.
+        if (!done)
         {
-            inner.Children.Add(new TextBlock
-            {
-                Text = $"Ранг {PetWindow.ProjectRankIndex(_pet.Save.ProjectPaid) + 1}: {PetWindow.ProjectRank(_pet.Save.ProjectPaid)}",
-                Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4 * U, 0, 0),
-            });
-            inner.Children.Add(new TextBlock
-            {
-                Text = $"Етап {pr.Stage + 1}/{PetWindow.ProjectStages.Length}: {pr.Info.Name}",
-                FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0),
-            });
-            inner.Children.Add(new TextBlock { Text = "Сега " + pr.Info.Doing + ".", Foreground = Muted, TextWrapping = TextWrapping.Wrap });
-            // Малката лента (като в пътя): 15 части на групи по три; минатите – мед, взимаемата –
-            // зелена, сегашната се пълни; цялата се събира в картата.
-            var mini = new Grid { Margin = new Thickness(0, 6 * U, 0, 0), Height = 9 * U };
-            int nStages = PetWindow.ProjectStages.Length;
-            for (int i = 0; i < nStages; i++) mini.ColumnDefinitions.Add(new ColumnDefinition());
-            for (int i = 0; i < nStages; i++)
-            {
-                bool passed = i < _pet.Save.ProjectPaid, cur = i == pr.Stage && !_pet.ProjectDone, claimIt = _pet.CanClaimProject(i);
-                var segm = new Grid
-                {
-                    Margin = new Thickness(i % 3 == 0 && i > 0 ? 3 * U : U, 0, i % 3 == 2 ? 3 * U : U, 0),
-                    ToolTip = Tip($"{i + 1}. {PetWindow.ProjectStages[i].Name}"),
-                };
-                segm.Children.Add(new Border
-                {
-                    CornerRadius = new CornerRadius(3 * U),
-                    Background = claimIt ? Good : passed ? Honey : Empty,
-                    BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)),
-                });
-                if (cur)
-                {
-                    double fr = _pet.ProjectProgress;
-                    var fillIn = new Border { Background = Honey, CornerRadius = new CornerRadius(2 * U), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(Math.Max(1, P / 2)) };
-                    segm.SizeChanged += (_, e) => fillIn.Width = Math.Max(0, (e.NewSize.Width - 2 * Math.Max(1, P / 2)) * fr);
-                    segm.Children.Add(fillIn);
-                }
-                Grid.SetColumn(segm, i);
-                mini.Children.Add(segm);
-            }
-            inner.Children.Add(mini);
-            if (pr.Stage >= 9 && name.Length == 0)
-            {
-                var nameIt = Chip("Кръсти играта", () => { Hide(); _pet.AskGameName(); });
-                nameIt.Margin = new Thickness(0, 6 * U, 0, 0);
-                nameIt.HorizontalAlignment = HorizontalAlignment.Left;
-                inner.Children.Add(nameIt);
-            }
+            double frac = _pet.ProjectProgress;
+            var bar = new Grid { Height = 12 * U, Margin = new Thickness(0, 2 * U, 0, 0) };
+            bar.Children.Add(new Border { CornerRadius = new CornerRadius(6 * U), Background = Empty, BorderBrush = Ink, BorderThickness = new Thickness(Math.Max(1, P / 2)) });
+            var fill = new Border { CornerRadius = new CornerRadius(5 * U), Background = Good, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(Math.Max(1, P / 2)) };
+            bar.SizeChanged += (_, e) => fill.Width = Math.Max(0, (e.NewSize.Width - 2 * Math.Max(1, P / 2)) * frac);
+            bar.Children.Add(fill);
+            inner.Children.Add(bar);
         }
-        if (claim)
-            inner.Children.Add(new TextBlock { Text = "Награда те чака – вземи я!", FontWeight = FontWeights.Bold, Foreground = Good, Margin = new Thickness(0, 6 * U, 0, 0) });
-        var open = new TextBlock { Text = "Към пътя ›", Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 6 * U, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+
+        // Бутонът: целият проект (награда за вземане – по-видим).
+        var open = Button(claim ? "Вземи наградата!" : "Виж целия проект", () => ProjectWindow.Toggle(_pet, this), primary: claim, icon: claim ? "gift" : "board");
+        open.Margin = new Thickness(0, 8 * U, 0, 0);
+        open.HorizontalAlignment = HorizontalAlignment.Stretch;
         inner.Children.Add(open);
-        var card = new Border
+
+        _projectBox.Children.Add(new Border
         {
             Background = PaperDark,
             BorderBrush = Ink,
             BorderThickness = Flat,
             CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(10 * U, 7 * U, 10 * U, 8 * U),
+            Padding = new Thickness(10 * U, 8 * U, 10 * U, 9 * U),
             Child = inner,
-            ToolTip = Tip("Проектът на Мечо върви, докато ти работиш – цъкни, за да видиш целия път и наградите"),
-            Cursor = System.Windows.Input.Cursors.Hand,
-        };
-        TaskCards.Clickable(card, () => ProjectWindow.Toggle(_pet, this));
-        _projectBox.Children.Add(card);
+        });
     }
 
     /// <summary>Плочките в „Мечо“ според това какво прави и от какво има нужда.</summary>

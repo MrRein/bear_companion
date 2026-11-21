@@ -170,6 +170,8 @@ public sealed partial class PetWindow
     /// <summary>Подаръкът долита от лапите му (или се появява) в средата; open – отваря се щом кацне.</summary>
     private void ShowGift(bool fromBear, bool open = false)
     {
+        // Мечокът (и нещата му) е скрит: подаръкът не изскача сам в средата на екрана – чака да се покаже.
+        if (!IsVisible && !SelfTest.Running) return;
         if (_giftWindow is { IsVisible: true })
         {
             if (open) _giftWindow.OpenWhenLanded();
