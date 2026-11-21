@@ -186,6 +186,26 @@ internal sealed class ProjectWindow : FloatWindow
         return img;
     }
 
+    /// <summary>Подсказката на сандъчето: заглавие и по ред за всяко нещо вътре (с иконка).</summary>
+    private ToolTip RewardTip(string title, string plan)
+    {
+        var stack = new StackPanel();
+        stack.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+        foreach (var item in PetWindow.RewardItems(plan))
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 1) };
+            var ic = Icon(PetWindow.ItemIcon(item));
+            ic.VerticalAlignment = VerticalAlignment.Center;
+            ic.Margin = new Thickness(0, 0, 6, 0);
+            row.Children.Add(ic);
+            row.Children.Add(new TextBlock { Text = Pet.ItemLabel(item), VerticalAlignment = VerticalAlignment.Center });
+            stack.Children.Add(row);
+        }
+        var tip = Tip("");
+        tip.Content = stack;
+        return tip;
+    }
+
     /// <summary>Как изглежда пакетчето отвън – според вида (лешници, купон, рецепта, дреха, мебел).</summary>
     private static BitmapSource? KindArt(string plan) => LoadIcon(plan.Split(':')[0] switch
     {
@@ -274,12 +294,11 @@ internal sealed class ProjectWindow : FloatWindow
             canvas.Children.Add(link);
 
             // ── Наградата в своето квадратче ──
-            // Пакетчето: отвън – видът (сив, докато не е твое); чака да го отвориш – затворено
-            // подаръче в цвят; отворено – самото нещо.
+            // Сандъчето: сиво, докато не е твое; минат етап – в цвят, чака да го отвориш;
+            // отворено – отворено сандъче. Какво има вътре – като посочиш.
             BitmapSource? src = !(shown || done) ? null
-                : taken ? RewardArt(plan)
-                : claim ? pet.PropImage("gift_green")
-                : KindArt(plan);
+                : taken ? pet.PropImage("chest_open")
+                : pet.PropImage("chest");
             var art = src != null ? Art(src, BoxSize * 0.62, gray: !done) : null;
             var inside = new Grid();
             if (art != null)
@@ -316,10 +335,10 @@ internal sealed class ProjectWindow : FloatWindow
                 claim ? Soft(Honey, 0.55) : taken ? Soft(Good, 0.25) : art != null ? Cream : Soft(WoodLight, 0.25),
                 claim ? Ink : taken ? Good : art != null ? (isCur ? Honey : Ink) : WoodLight,
                 claim || isCur ? px * 1.5 : px, inside);
-            box.ToolTip = Tip(claim ? "Цъкни, за да отвориш: " + PetWindow.ProjectRewardKind(plan)
-                    : taken ? pet.ProjectRewardLabel(plan) + " – твое"
-                    : art == null ? "Изненада – ще се види, като наближите"
-                    : (isCur ? "Наградата за този етап: " : "Награда: ") + PetWindow.ProjectRewardKind(plan));
+            box.ToolTip = art == null ? Tip("Изненада – ще се види, като наближите")
+                : RewardTip(taken ? "Взе:" : claim ? "Цъкни, за да отвориш:" : isCur ? "В сандъчето за този етап:" : "В сандъчето:",
+                    taken && i < pet.Save.ProjectGot.Count && pet.Save.ProjectGot[i].Length > 0 ? pet.Save.ProjectGot[i] : plan);
+            ToolTipService.SetInitialShowDelay(box, 150);
             if (claim)
             {
                 box.Cursor = link.Cursor = System.Windows.Input.Cursors.Hand;
@@ -344,23 +363,39 @@ internal sealed class ProjectWindow : FloatWindow
             if (i == _pop) { Pop(box, 0.5); Pop(link, 0.5); }
         }
 
-        // ── Мечо – на линията, точно докъдето сте ──
-        if (!pet.ProjectDone)
+        // ── Мечо: посочиш ли лентата – бяло балонче с него над края на зеленото ──
+        // (не и когато сте точно на звено – тогава краят е самото квадратче).
+        bool between = !pet.ProjectDone && frac > 0.02 && frac < 0.98;
+        if (between)
         {
-            // Вътре в лентата, в края на зеленото.
+            var bubble = PixelFrame(34 * U, 30 * U, Brushes.White, Ink, px, null);
             var bear = Icon("small_bear", 2);
-            bear.ToolTip = Tip("Мечо е тук");
             bear.HorizontalAlignment = HorizontalAlignment.Center;
             bear.VerticalAlignment = VerticalAlignment.Center;
-            var cell = new Grid { Width = 40 * U, Height = lineH };
-            cell.Children.Add(bear);
-            Canvas.SetLeft(cell, reached - 20 * U);
-            Canvas.SetTop(cell, lineY - lineH / 2);
-            Panel.SetZIndex(cell, 4);
-            canvas.Children.Add(cell);
-            if (!Instant && frac > 0)
-                cell.Loaded += (_, _) => cell.BeginAnimation(Canvas.LeftProperty, new DoubleAnimation(reached - 20 * U - colW * 0.6 * frac, reached - 20 * U, TimeSpan.FromMilliseconds(1000))
-                { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop });
+            bubble.Children.Add(bear);
+            // Опашчицата на балончето – към края на зеленото.
+            var tail = new Polygon
+            {
+                Points = new PointCollection { new Point(0, 0), new Point(10 * U, 0), new Point(5 * U, 7 * U) },
+                Fill = Brushes.White, Stroke = Ink, StrokeThickness = px,
+            };
+            var pop = new Canvas { Width = 34 * U, Height = 38 * U, IsHitTestVisible = false, Visibility = Instant ? Visibility.Visible : Visibility.Hidden };   // на снимката от самопроверката – видимо
+            pop.Children.Add(bubble);
+            Canvas.SetLeft(tail, 12 * U);
+            Canvas.SetTop(tail, 30 * U - px);
+            pop.Children.Add(tail);
+            Canvas.SetLeft(pop, reached - 17 * U);
+            Canvas.SetTop(pop, lineY - lineH / 2 - 40 * U);
+            Panel.SetZIndex(pop, 6);
+            canvas.Children.Add(pop);
+            // Невидима зона над лентата – посочиш ли я, балончето се показва.
+            var hover = new Rectangle { Width = endX - startX, Height = lineH + 8 * U, Fill = Brushes.Transparent };
+            Canvas.SetLeft(hover, startX);
+            Canvas.SetTop(hover, lineY - lineH / 2 - 4 * U);
+            Panel.SetZIndex(hover, 2);
+            hover.MouseEnter += (_, _) => pop.Visibility = Visibility.Visible;
+            hover.MouseLeave += (_, _) => pop.Visibility = Visibility.Hidden;
+            canvas.Children.Add(hover);
         }
 
         int focus = pet.ProjectHasClaim ? pet.ProjectClaimed : Math.Max(0, Math.Min(paid, n - 1));

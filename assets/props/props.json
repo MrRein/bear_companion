@@ -816,6 +816,14 @@
     "game_box": {
       "file": "furniture/game_box.png",
       "seat": 0
+    },
+    "chest": {
+      "file": "chest.png",
+      "seat": 0
+    },
+    "chest_open": {
+      "file": "chest_open.png",
+      "seat": 0
     }
   }
 }
