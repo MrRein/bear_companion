@@ -313,7 +313,7 @@ public sealed partial class PetWindow
         yield return (project, "Кръсти играта", AskGameName);
         yield return (project, "Разкажи за проекта (наново)", () => { _save.ProjectIntro = false; });
         yield return (project, "Начало (нулирай)", () => { _save.ProjectPoints = 0; _save.ProjectPaid = 0; _save.GameName = ""; _save.ProjectNote = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear(); _save.ProjectOpened.Clear(); _save.ProjectOpenedInit = true; _save.ProjectTiers = ""; _save.ProjectAnswers.Clear(); NotifyCare(); });
-        yield return (project, "+ купон −25%", () => { _save.Coupons.Add(25); NotifyCare(); });
+        yield return (project, "+ по един купон от всеки вид", () => { foreach (var k in CouponKinds) _save.CouponCodes.Add(k.Code); NotifyCare(); });
         yield return (project, "Питай за темата", () => AskProjectIdea("theme"));
         yield return (project, "Покажи прогреса", () => ProjectWindow.Toggle(this));
         yield return (project, "Празник (без награда)", () => ProjectWindow.Open(this, null, Math.Max(0, _save.ProjectPaid - 1), "+5 🌰"));

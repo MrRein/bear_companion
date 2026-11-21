@@ -130,12 +130,12 @@ public sealed partial class PetWindow
     public void BuyGarment(Garment g)
     {
         if (Clothes.Owns(_save, g)) return;
-        if (_save.Hazelnuts < WithCoupon(g.Price))
+        if (_save.Hazelnuts < WithCoupon(g.Price, "cloth"))
         {
             Say($"Трябват ми още {g.Price - _save.Hazelnuts} 🌰 за {g.Name.ToLowerInvariant()}.", 3);
             return;
         }
-        _save.Hazelnuts -= PayWithCoupon(g.Price);
+        _save.Hazelnuts -= PayWithCoupon(g.Price, "cloth");
         _save.OwnedClothes.Add(g.Id);
         // Купеното отива в гардероба; облича се оттам.
         Say(Lines.Pick(Lines.NewClothes, _save.OwnerName), 3);

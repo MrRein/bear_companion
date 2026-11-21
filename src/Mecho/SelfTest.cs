@@ -1858,50 +1858,65 @@ public sealed partial class PetWindow
             ProjectNoRewards = true;
             try
             {
-                _save.ProjectPoints = 0; _save.ProjectPaid = 0; _save.GameName = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear(); _save.ProjectOpened.Clear(); _save.ProjectOpenedInit = true; _save.ProjectTiers = ""; _save.HallOfFame.Clear(); _save.ProjectAnswers.Clear();
+                void Reset()
+                {
+                    _save.ProjectPoints = 0; _save.ProjectPaid = 0; _save.GameName = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear();
+                    _save.ProjectOpened.Clear(); _save.ProjectOpenedInit = true; _save.ProjectTiers = ""; _save.HallOfFame.Clear();
+                    _save.ProjectAnswers.Clear(); _save.ProjectBank = 0; _save.ProjectType = BoardGameProject.Id;
+                }
+                Reset();
                 AddProjectPoints(59);
                 if (_save.ProjectPaid != 0) throw new Exception("етапът мина преди 60 точки");
                 AddProjectPoints(1);
                 if (_save.ProjectPaid != 1 || ProjectNow.Stage != 1) throw new Exception("60 точки, а етап 1 не мина");
-                AddProjectPoints(-100);
-                if (_save.ProjectPaid != 1 || _save.ProjectPoints < 60) throw new Exception("върнатата задача върна и платен етап");
-                AddProjectPoints(10000);
-                if (!ProjectDone || !ProjectHasClaim) throw new Exception("наградите не чакат да ги вземеш");
-                // Сандъчетата се отварят в какъвто ред искаш.
-                ClaimProjectReward(5);
-                if (!IsProjectOpened(5) || IsProjectOpened(0)) throw new Exception("не се отвори сандъче не по ред");
+                // Сандъчето чака (и въпросът за темата): работата се пази настрана, етапът не мърда.
+                if (!ProjectBlocked) throw new Exception("проектът не чака неотвореното сандъче");
+                AddProjectPoints(500);
+                if (_save.ProjectPaid != 1 || _save.ProjectBank < 500) throw new Exception("проектът продължи без отворено сандъче");
+                ClaimProjectReward(0);
+                if (PendingQuestion?.Key != "theme" || !ProjectBlocked) throw new Exception("не чака отговор за темата");
+                AnswerProject(PendingQuestion!, "Космос");
+                if (_save.ProjectBank > 0 || _save.ProjectPaid < 2) throw new Exception("отложената работа не влезе в проекта");
+                // До края: отваря сандъчетата (в обратен ред – може в какъвто ред искаш) и отговаря.
+                for (int guard = 0; guard < 200 && !ProjectDone; guard++)
+                {
+                    AddProjectPoints(400);
+                    for (int k = ProjectStages.Length - 1; k >= 0; k--) ClaimProjectReward(k);
+                    if (PendingQuestion is { } q) AnswerProject(q, q.Key == "name" ? "Горски тайни" : "Тест");
+                }
                 for (int k = 0; k < ProjectStages.Length; k++) ClaimProjectReward(k);
-                if (ProjectHasClaim || !_save.Owned.Contains(GameBox)) throw new Exception("накрая няма кутия с играта");
-                if (_save.HallOfFame.Count != 1) throw new Exception("играта не влезе в Залата на славата");
+                if (!ProjectDone || ProjectHasClaim || HasActiveProject) throw new Exception("проектът не завърши");
+                if (!_save.Owned.Contains(GameBox) || !FurnitureKinds.Contains(GameBox)) throw new Exception("накрая няма кутия с играта");
+                if (_save.HallOfFame.Count != 1 || _save.HallOfFame[0].Name != "Горски тайни" || !_save.HallOfFame[0].Facts.Any(x => x.Contains("Космос")))
+                    throw new Exception("играта не влезе в „Завършени проекти“ както трябва");
                 // Ценността: 7 обикновени, 5 ценни, 3 много ценни (втората половина), специалното накрая.
                 string tiers = _save.ProjectTiers;
                 if (tiers.Length != ProjectStages.Length || tiers.Count(c => c == 'N') != 7 || tiers.Count(c => c == 'S') != 5 || tiers.Count(c => c == 'G') != 3 || tiers[^1] != 'X'
                     || tiers.Take(ProjectStages.Length / 2).Contains('G')) throw new Exception("сандъчетата не са подредени както трябва: " + tiers);
-                if (!FurnitureKinds.Contains(GameBox)) throw new Exception("кутията не е в „Неща“");
-                NameGame("Горски тайни");
-                if (GameName != "Горски тайни") throw new Exception("името не се запази");
                 // Работата по етапа: при масичката (ако я има), иначе бюрото.
                 if (StageNeeds(3) != Kitchen.BoardGame || StageNeeds(7) != Kitchen.Easel || StageNeeds(8) != Kitchen.Computer) throw new Exception("етапите искат други неща");
                 _focusItem = Kitchen.BoardGame;
                 if (Kitchen.Owns(_save, Kitchen.BoardGame) && FurnishingFor(Scenes.Focus)?.Kind != Kitchen.BoardGame) throw new Exception("работата по етапа не е при масичката");
                 _focusItem = null;
-                // Наградите: следващите три се виждат, по-нататък – „?“; решени веднъж, не се менят.
-                _save.ProjectPaid = 2; _save.ProjectPoints = 60 + 90 + 40; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear(); _save.ProjectOpened.Clear(); _save.ProjectOpened.Add(0); _save.ProjectOpenedInit = true;
+                // Снимката: етап 3, сандъчето на етап 2 чака.
+                Reset();
+                _save.ProjectAnswers["theme"] = "Космос"; _save.ProjectAnswers["goal"] = "Събират мед";
+                _save.ProjectPaid = 2; _save.ProjectPoints = 60 + 90 + 40; _save.ProjectOpened.Add(0); _save.GameName = "Горски тайни";
                 if (!ProjectRewardShown(2) || ProjectRewardShown(3)) throw new Exception("видими са награди отвъд сегашния етап");
                 if (ProjectNow.Info.Steps.Length != 3 || ProjectStepsDone != 1) throw new Exception("подетапите: " + ProjectStepsDone + " от " + ProjectNow.Info.Steps.Length);
                 string p3 = ProjectRewardPlan(3);
                 if (ProjectRewardPlan(3) != p3 || ProjectRewardLabel(p3).Length == 0) throw new Exception("наградата се мени или няма име");
-                // Прогресът: прозорецът с пътеката (и празникът за етап 2).
-                var pw = ProjectWindow.Open(this, null, 1, "+4 🌰");
+                var pw = ProjectWindow.Open(this, null, 1, "");
                 pw.UpdateLayout();
                 Shot(pw, "project_window");
                 LayoutReport(pw, "project_window");
-                pw.TestOpened(0, "nuts:6|coupon:25|slot:hat");
+                pw.TestOpened(0, "nuts:6|coupon:pct25|slot:hat");
                 pw.UpdateLayout();
                 Shot(pw, "project_opened");
                 pw.Close();
-                // За снимката на „Мечо“: по средата на първия етап (той не иска мебел – другите проверки на работата са с бюрото).
-                _save.ProjectPaid = 0; _save.ProjectPoints = 30; _save.GameName = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear(); _save.ProjectOpened.Clear(); _save.ProjectOpenedInit = true; _save.HallOfFame.Clear();
+                // За снимката на „Мечо“: по средата на първия етап.
+                Reset();
+                _save.ProjectPoints = 30;
                 HideBubble();
             }
             finally { ProjectNoRewards = false; }

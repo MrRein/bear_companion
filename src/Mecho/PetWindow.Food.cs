@@ -120,7 +120,7 @@ public sealed partial class PetWindow
             return;
         }
 
-        _save.Hazelnuts -= cost;
+        _save.Hazelnuts -= CookCost(cost);
         if (food.Cost == 0) _save.BerriesReadyAt = DateTime.Now.AddMinutes(Kitchen.BerryMinutes);
         if (food.Energy >= 30) _save.CoffeeTimes.Add(DateTime.Now);
 
@@ -234,12 +234,12 @@ public sealed partial class PetWindow
     public void Buy(Upgrade upgrade)
     {
         if (OwnsOrOrdered(upgrade.Id) || ShopSoldOut) return;
-        if (_save.Hazelnuts < WithCoupon(upgrade.Price))
+        if (_save.Hazelnuts < WithCoupon(upgrade.Price, "home"))
         {
             Say($"{upgrade.Icon} {upgrade.Name} струва {upgrade.Price} 🌰. Имаме {_save.Hazelnuts}. Още малко работа!", 4);
             return;
         }
-        _save.Hazelnuts -= PayWithCoupon(upgrade.Price);
+        _save.Hazelnuts -= PayWithCoupon(upgrade.Price, "home");
         TodayRec.UpgradesBought++;
         _save.Ordered.Add(upgrade.Id);
         GoalBought(upgrade.Id);

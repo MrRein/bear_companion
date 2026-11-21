@@ -108,7 +108,7 @@ internal sealed class ProjectWindow : FloatWindow
         pet.CareChanged += OnCare;
     }
 
-    private string Key => $"{Pet.Save.ProjectPaid}|{(int)(Pet.ProjectProgress * 40)}|{Pet.GameName}|{Pet.ProjectClaimed}";
+    private string Key => $"{Pet.Save.ProjectPaid}|{(int)(Pet.ProjectProgress * 40)}|{Pet.GameName}|{Pet.ProjectClaimed}|{Pet.PendingQuestion?.Key}";
 
     private void OnCare(object? sender, EventArgs e)
     {
@@ -159,6 +159,14 @@ internal sealed class ProjectWindow : FloatWindow
             _headTitle.Children.Add(new TextBlock { Text = now.Info.Desc, FontStyle = FontStyles.Italic, Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1 * U, 0, 0) });
 
         _content.Children.Add(Track());
+        // Проектът чака: въпрос от Мечо (отговаряш тук) или неотворено сандъче.
+        if (pet.PendingQuestion is { } q) _content.Children.Add(QuestionBox(q));
+        else if (pet.ProjectHasClaim)
+            _content.Children.Add(new TextBlock
+            {
+                Text = "Отвори светещото сандъче, за да продължи проектът.", FontWeight = FontWeights.Bold, Foreground = Ink,
+                HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8 * U, 0, 0),
+            });
         // Пунктир, а под него – трите подетапа на сегашния етап.
         if (!pet.ProjectDone)
         {
@@ -167,35 +175,6 @@ internal sealed class ProjectWindow : FloatWindow
                 Height = P, Background = UiSkin.Line("dash") ?? WoodLight, Margin = new Thickness(6 * U, 8 * U, 6 * U, 10 * U),
             });
             _content.Children.Add(Steps());
-        }
-        // Залата на славата: завършените игри – какво решихте заедно.
-        if (pet.Save.HallOfFame.Count > 0)
-        {
-            _content.Children.Add(Ribbon("Зала на славата", "star"));
-            foreach (var f in pet.Save.HallOfFame)
-            {
-                var entry = new StackPanel();
-                var head = new StackPanel { Orientation = Orientation.Horizontal };
-                var trophy = Icon("star", 2);
-                trophy.VerticalAlignment = VerticalAlignment.Center;
-                trophy.Margin = new Thickness(0, 0, 8 * U, 0);
-                head.Children.Add(trophy);
-                head.Children.Add(new TextBlock { Text = f.Kind + (f.Name.Length > 0 ? " „" + f.Name + "“" : ""), FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center });
-                entry.Children.Add(head);
-                void Line(string label, string value)
-                {
-                    if (value.Length == 0) return;
-                    var t = new TextBlock { Margin = new Thickness(34 * U, 2 * U, 0, 0), TextWrapping = TextWrapping.Wrap };
-                    t.Inlines.Add(new System.Windows.Documents.Run(label + " ") { Foreground = Muted });
-                    t.Inlines.Add(new System.Windows.Documents.Run(value) { FontWeight = FontWeights.Bold });
-                    entry.Children.Add(t);
-                }
-                Line("Тема:", f.Theme);
-                Line("Играчите:", f.Goal);
-                Line("Главен герой:", f.Hero);
-                entry.Children.Add(new TextBlock { Text = $"Направихте я заедно – Мечо и {pet.Save.OwnerName}, {f.Done}.", FontStyle = FontStyles.Italic, Foreground = Muted, Margin = new Thickness(34 * U, 4 * U, 0, 0), TextWrapping = TextWrapping.Wrap });
-                _content.Children.Add(PixelFrameAuto(entry));
-            }
         }
         if (_claimBoxes.Count > 0 && !Instant)
         {
@@ -225,6 +204,44 @@ internal sealed class ProjectWindow : FloatWindow
             g.Children.Add(host);
         }
         return g;
+    }
+
+    /// <summary>
+    /// Мечо пита нещо за проекта (тема, име…): опциите и поле за свое. Докато не отговориш,
+    /// проектът чака.
+    /// </summary>
+    private FrameworkElement QuestionBox(PetWindow.ProjectQuestion q)
+    {
+        var p = new StackPanel();
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6 * U) };
+        var ic = Icon("small_bear", 2);
+        ic.VerticalAlignment = VerticalAlignment.Center;
+        ic.Margin = new Thickness(0, 0, 8 * U, 0);
+        head.Children.Add(ic);
+        head.Children.Add(new TextBlock { Text = q.Question, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 640 * U });
+        p.Children.Add(head);
+        var opts = new WrapPanel();
+        foreach (var o in Pet.QuestionOptions(q))
+        {
+            string v = o;
+            var chip = Chip(v, () => Pet.AnswerProject(q, v));
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            opts.Children.Add(chip);
+        }
+        p.Children.Add(opts);
+        var own = new DockPanel { Margin = new Thickness(0, 4 * U, 0, 0) };
+        var box = new TextBox { MinWidth = 220 * U, VerticalContentAlignment = VerticalAlignment.Center, Padding = new Thickness(4) };
+        var go = Button(q.Key == "name" ? "Кръсти я" : "Това", () => Pet.AnswerProject(q, box.Text), primary: true);
+        DockPanel.SetDock(go, Dock.Right);
+        go.Margin = new Thickness(6 * U, 0, 0, 0);
+        own.Children.Add(go);
+        own.Children.Add(box);
+        box.KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Enter) Pet.AnswerProject(q, box.Text); };
+        p.Children.Add(new TextBlock { Text = q.FreePrompt, Foreground = Muted, Margin = new Thickness(0, 4 * U, 0, 2 * U) });
+        p.Children.Add(own);
+        var frame = PixelFrameAuto(p);
+        frame.Margin = new Thickness(0, 10 * U, 0, 0);
+        return frame;
     }
 
     /// <summary>Пикселна рамка около съдържание (с размера на съдържанието).</summary>
@@ -300,7 +317,7 @@ internal sealed class ProjectWindow : FloatWindow
     private FrameworkElement Track()
     {
         var pet = Pet;
-        int paid = pet.Save.ProjectPaid, n = PetWindow.ProjectStages.Length;
+        int paid = pet.Save.ProjectPaid, n = pet.ProjectStages.Length;
         int cur = pet.ProjectDone ? -1 : paid;
         double frac = pet.ProjectProgress;
         double colW = SegW + Gap, px = Math.Max(2, P);
@@ -351,7 +368,7 @@ internal sealed class ProjectWindow : FloatWindow
             bool revealed = done || isCur;      // нататък – „?“
             string plan = pet.ProjectRewardPlan(i);
             string gotPlan = taken && i < pet.Save.ProjectGot.Count && pet.Save.ProjectGot[i].Length > 0 ? pet.Save.ProjectGot[i] : plan;
-            string name = PetWindow.ProjectStages[i].Name;
+            string name = pet.ProjectStages[i].Name;
             double cx = Xc(i), size = final ? FinalBox : BoxSize, boxTop = boxBottom - size;
 
             // ── Линийката от звеното до сандъчето ──
@@ -429,6 +446,8 @@ internal sealed class ProjectWindow : FloatWindow
             var bear = Icon("small_bear", 3);
             bear.HorizontalAlignment = HorizontalAlignment.Center;
             bear.VerticalAlignment = VerticalAlignment.Center;
+            // Мечето в иконката е малко вляво и надолу – изместено, за да е точно в средата.
+            bear.RenderTransform = new TranslateTransform(bw * 0.02, -bh * 0.035);
             bubble.Children.Add(bear);
             var tail = new Polygon
             {
@@ -448,8 +467,22 @@ internal sealed class ProjectWindow : FloatWindow
             Canvas.SetLeft(hover, startX);
             Canvas.SetTop(hover, lineY - lineH / 2 - 4 * U);
             Panel.SetZIndex(hover, 2);
-            hover.MouseEnter += (_, _) => pop.Visibility = Visibility.Visible;
-            hover.MouseLeave += (_, _) => pop.Visibility = Visibility.Hidden;
+            // Появява се плавно, след като задържиш мишката малко на лентата.
+            var delay = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
+            delay.Tick += (_, _) =>
+            {
+                delay.Stop();
+                pop.Opacity = 0;
+                pop.Visibility = Visibility.Visible;
+                pop.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220)));
+            };
+            hover.MouseEnter += (_, _) => delay.Start();
+            hover.MouseLeave += (_, _) =>
+            {
+                delay.Stop();
+                pop.BeginAnimation(OpacityProperty, null);
+                pop.Visibility = Visibility.Hidden;
+            };
             canvas.Children.Add(hover);
         }
 
@@ -660,5 +693,65 @@ internal sealed class ProjectWindow : FloatWindow
         a.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromPercent(1)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut } });
         tr.BeginAnimation(ScaleTransform.ScaleXProperty, a);
         tr.BeginAnimation(ScaleTransform.ScaleYProperty, a);
+    }
+}
+
+/// <summary>
+/// Завършен проект (от „Завършени проекти“ в менюто): какво направиха Мечо и Тут заедно –
+/// видът, името, какво реши Тут (тема, герой…), кога е завършен.
+/// </summary>
+internal sealed class CompletedProjectWindow : FloatWindow
+{
+    public static void Show(PetWindow pet, FameEntry entry, Window? near = null)
+    {
+        var w = new CompletedProjectWindow(pet, entry);
+        w.Place(near ?? pet.MenuWin);
+        w.Show();
+        w.Activate();
+    }
+
+    private CompletedProjectWindow(PetWindow pet, FameEntry f) : base(pet, "completed", 420 * U)
+    {
+        Title = f.Kind;
+        var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == f.Type);
+        var head = new StackPanel { Orientation = Orientation.Horizontal };
+        var ic = Icon(def?.Icon ?? "star", 2);
+        ic.VerticalAlignment = VerticalAlignment.Center;
+        ic.Margin = new Thickness(0, 0, 8 * U, 0);
+        head.Children.Add(ic);
+        head.Children.Add(new TextBlock { Text = f.Kind, FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center });
+        Head.Children.Add(head);
+
+        var p = new StackPanel();
+        if (f.Name.Length > 0)
+            p.Children.Add(new TextBlock { Text = "„" + f.Name + "“", FontWeight = FontWeights.Bold, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 8 * U) });
+        if (def?.FinalItem is { Length: > 0 } item)
+        {
+            var img = Ui.Pixel(pet.PropImage(item), 5);
+            img.HorizontalAlignment = HorizontalAlignment.Center;
+            img.Margin = new Thickness(0, 0, 0, 10 * U);
+            p.Children.Add(img);
+        }
+        var facts = f.Facts.Count > 0 ? f.Facts : new[] { ("Тема", f.Theme), ("Играчите", f.Goal), ("Главен герой", f.Hero) }
+            .Where(x => x.Item2.Length > 0).Select(x => x.Item1 + ": " + x.Item2).ToList();
+        foreach (var fact in facts)
+        {
+            int c = fact.IndexOf(':');
+            var t = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2 * U, 0, 0) };
+            t.Inlines.Add(new System.Windows.Documents.Run((c > 0 ? fact[..(c + 1)] : "") + " ") { Foreground = Muted });
+            t.Inlines.Add(new System.Windows.Documents.Run(c > 0 ? fact[(c + 1)..].Trim() : fact) { FontWeight = FontWeights.Bold });
+            p.Children.Add(t);
+        }
+        p.Children.Add(new TextBlock
+        {
+            Text = $"Направихте го заедно – Мечо и {pet.Save.OwnerName}, {f.Done}.",
+            FontStyle = FontStyles.Italic, Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10 * U, 0, 0),
+        });
+        Body.Content = p;
+        Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            if (!IsLoaded || IsActive || SelfTest.Running) return;
+            Close();
+        }, DispatcherPriority.Input);
     }
 }

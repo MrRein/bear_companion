@@ -143,11 +143,15 @@ public sealed class SaveData
     public List<string> ProjectPlan { get; set; } = new();          // наградата за всеки етап (решена предварително)
     public List<string> ProjectGot { get; set; } = new();
     public int ProjectClaimed { get; set; } = -1;                  // стар запис: колко са взети по ред
-    public List<int> ProjectOpened { get; set; } = new();          // кои сандъчета са отворени
+    public List<int> ProjectOpened { get; set; } = new();
+    public string ProjectType { get; set; } = "boardgame";          // видът на сегашния проект (ProjectDefs)
+    public double ProjectBank { get; set; }                        // работата, докато проектът чака (сандъче/въпрос)          // кои сандъчета са отворени
     public bool ProjectOpenedInit { get; set; }
     public string ProjectTiers { get; set; } = "";                 // ценността на сандъчетата по етапи (N/S/G/X)
     public List<int> Coupons { get; set; } = new();                // купоните (в %) – активираш един в магазина
-    public int ActiveCoupon { get; set; }
+    public int ActiveCoupon { get; set; }                          // стар запис
+    public List<string> CouponCodes { get; set; } = new();         // купоните (кодове: pct25, food, luck…)
+    public string ActiveCouponCode { get; set; } = "";
     public string ActiveCouponDay { get; set; } = "";
     public Dictionary<string, string> ProjectAnswers { get; set; } = new();   // какво каза за играта (тема, цел, герой)
     public List<FameEntry> HallOfFame { get; set; } = new();         // завършените проекти
@@ -1122,4 +1126,7 @@ public sealed class FameEntry
     public string Goal { get; set; } = "";
     public string Hero { get; set; } = "";
     public string Done { get; set; } = "";
+    public string Type { get; set; } = "";
+    /// <summary>Какво реши Тут за проекта: „Тема: Космос“, „Главен герой: Таралежът“…</summary>
+    public List<string> Facts { get; set; } = new();
 }

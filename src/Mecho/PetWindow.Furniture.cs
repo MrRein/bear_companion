@@ -52,8 +52,8 @@ public sealed partial class PetWindow
 
     public void BuySkin(Skin skin)
     {
-        if (Furniture.Owns(_save, skin) || _save.Hazelnuts < WithCoupon(skin.Price)) return;
-        _save.Hazelnuts -= PayWithCoupon(skin.Price);
+        if (Furniture.Owns(_save, skin) || _save.Hazelnuts < WithCoupon(skin.Price, "home")) return;
+        _save.Hazelnuts -= PayWithCoupon(skin.Price, "home");
         _save.Owned.Add($"skin_{skin.Item}_{skin.Id}");
         UseSkin(skin);
     }
@@ -129,8 +129,8 @@ public sealed partial class PetWindow
 
     public void BuyPajama(PajamaSet p)
     {
-        if (Clothes.Owns(_save, p) || _save.Hazelnuts < WithCoupon(p.Price)) return;
-        _save.Hazelnuts -= PayWithCoupon(p.Price);
+        if (Clothes.Owns(_save, p) || _save.Hazelnuts < WithCoupon(p.Price, "cloth")) return;
+        _save.Hazelnuts -= PayWithCoupon(p.Price, "cloth");
         _save.OwnedClothes.Add(p.Key);
         UsePajama(p);
         Say($"Нова пижама! {p.Name}. Чакам вечерта!", 4);

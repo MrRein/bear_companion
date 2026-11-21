@@ -589,6 +589,7 @@ public sealed partial class PetWindow
         _save.StayPut = false;
         _focusItem = ProjectFocusItem();   // проектът: работи на масичката/статива/компютъра на етапа
         StartScene(Scenes.Focus, quiet: false);
+        Later(4, () => ProjectNudge());    // проектът чака сандъче/отговор – напомня (с бутон към него)
         if (IsExhausted) Say(Lines.Pick(Lines.WorkTired, _save.OwnerName), 4);
         _nextFocusSwitch = Now + 15 + _rng.Next(15);
     }
