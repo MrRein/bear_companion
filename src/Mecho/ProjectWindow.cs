@@ -121,7 +121,6 @@ internal sealed class ProjectWindow : FloatWindow
         {
             stageLine.Inlines.Add(new System.Windows.Documents.Run("Етап ") { Foreground = Muted });
             stageLine.Inlines.Add(new System.Windows.Documents.Run(now.Info.Name) { FontWeight = FontWeights.Bold });
-            stageLine.Inlines.Add(new System.Windows.Documents.Run($"  {now.Stage + 1}/{PetWindow.ProjectStages.Length}") { Foreground = Muted });
         }
         _headTitle.Children.Add(stageLine);
         if (!pet.ProjectDone && now.Info.Desc.Length > 0)
@@ -207,7 +206,7 @@ internal sealed class ProjectWindow : FloatWindow
         double width = colW * n + 24 * U, height = nameY + 2.8 * Ui.Body + 6 * U;
         double Xc(int i) => 12 * U + i * colW + colW / 2;            // средата на етап i
         double startX = Xc(0) - colW / 2 + 6 * U, endX = Xc(n - 1) + colW / 2 - 6 * U;
-        double lineH = 22 * U;   // дебела – Мечо е вътре в нея
+        double lineH = 34 * U;   // дебела – Мечо е вътре в нея и се събира
         var canvas = new Canvas { Width = width, Height = height };
 
         // Докъде сме: от квадратчето на предишния етап към това на сегашния.
@@ -252,7 +251,7 @@ internal sealed class ProjectWindow : FloatWindow
             canvas.Children.Add(stem);
 
             // ── Звеното: квадратче на линията ──
-            double sq = isCur || claim ? 34 * U : 30 * U;
+            double sq = isCur || claim ? 44 * U : 40 * U;
             var link = PixelFrame(sq, sq, claim ? Honey : done ? Good : Cream, Ink, isCur || claim ? px * 1.5 : px,
                 done && !claim ? new Viewbox { Child = Icon("check"), Margin = new Thickness(4 * U) } : null);
             link.ToolTip = Tip(name);
@@ -330,7 +329,7 @@ internal sealed class ProjectWindow : FloatWindow
         if (!pet.ProjectDone)
         {
             // Вътре в лентата, в края на зеленото.
-            var bear = Icon("small_bear", 1);
+            var bear = Icon("small_bear", 2);
             bear.ToolTip = Tip("Мечо е тук");
             bear.HorizontalAlignment = HorizontalAlignment.Center;
             bear.VerticalAlignment = VerticalAlignment.Center;

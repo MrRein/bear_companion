@@ -1770,7 +1770,7 @@ public sealed class MenuWindow : Window
         var pr = _pet.ProjectNow;
         bool done = _pet.ProjectDone;
         bool claim = _pet.ProjectHasClaim;
-        string key = $"{pr.Stage}|{(int)(_pet.ProjectProgress * 20)}|{done}|{_pet.GameName}|{claim}";
+        string key = $"{pr.Stage}|{(int)(_pet.ProjectProgress * 20)}|{done}|{_pet.GameName}|{claim}|{_pet.ProjectStepsDone}";
         if (key == _projectKey) return;
         _projectKey = key;
         _projectBox.Children.Clear();
@@ -1808,6 +1808,16 @@ public sealed class MenuWindow : Window
         if (stageRow is DockPanel sd && sd.Children[0] is FrameworkElement pic) { pic.Width = pic.Height = 16 * U; }
         stageRow.Margin = new Thickness(0, 6 * U, 0, 0);
         inner.Children.Add(stageRow);
+        // И подетапът, по който работи сега (малко, под етапа).
+        if (!done && pr.Info.Steps.Length > 0)
+        {
+            int k = Math.Min(_pet.ProjectStepsDone, pr.Info.Steps.Length - 1);
+            inner.Children.Add(new TextBlock
+            {
+                Text = pr.Info.Steps[k], Foreground = Muted, FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(23 * U, 0, 0, 0),
+            });
+        }
 
         // Бутонът: целият проект (награда за вземане – по-видим).
         var open = Button(claim ? "Вземи наградата!" : "Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: claim, icon: claim ? "gift" : "tasks");
