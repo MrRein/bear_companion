@@ -270,7 +270,7 @@ public sealed partial class PetWindow
         new("tasks25", "Свърши 25 задачи", 25, 0, d => d.Sum(r => r.TasksDone)),
         new("big6", "Свърши 6 големи задачи", 6, 0, d => d.Sum(r => r.BigTasks)),
         new("work15", "Работете заедно 15 часа", 900, 0, d => (int)d.Sum(r => r.WorkMinutes)),
-        new("focus20", "Направете 20 фокуса", 20, 0, d => d.Sum(r => r.Pomodoros)),
+        new("focus20", "Направете 20 мечо-дорота", 20, 0, d => d.Sum(r => r.Pomodoros)),
         new("foods12", "Опитайте 12 различни ястия", 12, 0, d => d.SelectMany(r => r.Foods).Distinct().Count()),
         new("desires20", "Изпълни му 20 желания", 20, 0, d => d.Sum(r => r.DesiresMet)),
         new("streak5", "5 дни подред със свършена задача", 5, 0, Streak),
