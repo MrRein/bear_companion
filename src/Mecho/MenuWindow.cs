@@ -1784,7 +1784,9 @@ public sealed class MenuWindow : Window
             row.Children.Add(new TextBlock { Text = text, FontWeight = bold ? FontWeights.Bold : FontWeights.Normal, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
             return row;
         }
-        inner.Children.Add(Line("board", "Настолна игра", true));
+        var titleLine = Line("dice", "Настолна игра", true);
+        titleLine.HorizontalAlignment = HorizontalAlignment.Center;
+        inner.Children.Add(titleLine);
         inner.Children.Add(Line("pencil", done ? "Играта излезе!" : pr.Info.Name, false));
 
         // Лентата на етапа: зелена, докъдето сте стигнали.
@@ -1800,8 +1802,9 @@ public sealed class MenuWindow : Window
         }
 
         // Бутонът: целият проект (награда за вземане – по-видим).
-        var open = Button(claim ? "Вземи наградата!" : "Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: claim, icon: claim ? "gift" : "board");
-        open.Margin = new Thickness(0, 8 * U, 0, 0);
+        var open = Button(claim ? "Вземи наградата!" : "Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: claim, icon: claim ? "gift" : "tasks");
+        open.Margin = new Thickness(0, 10 * U, 0, 0);
+        open.Padding = new Thickness(8 * U, 5 * U, 8 * U, 6 * U);
         open.HorizontalAlignment = HorizontalAlignment.Stretch;
         inner.Children.Add(open);
 

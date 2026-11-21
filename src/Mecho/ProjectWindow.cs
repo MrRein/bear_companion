@@ -102,7 +102,7 @@ internal sealed class ProjectWindow : FloatWindow
         // Горе: „Настолна игра“ с иконка (и името ѝ), под него – на кой етап сте.
         _headTitle.Children.Clear();
         var title = new StackPanel { Orientation = Orientation.Horizontal };
-        var ic = Icon("board", 2);
+        var ic = Icon("dice", 2);
         ic.VerticalAlignment = VerticalAlignment.Center;
         ic.Margin = new Thickness(0, 0, 8 * U, 0);
         title.Children.Add(ic);
@@ -112,11 +112,19 @@ internal sealed class ProjectWindow : FloatWindow
             FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center,
         });
         _headTitle.Children.Add(title);
-        _headTitle.Children.Add(new TextBlock
+        // „Етап Механиките 2/15“ и под него – с малки наклонени букви какво прави мечокът.
+        var now = pet.ProjectNow;
+        var stageLine = new TextBlock { Margin = new Thickness(0, 4 * U, 0, 0) };
+        if (pet.ProjectDone) stageLine.Inlines.Add(new System.Windows.Documents.Run("Играта излезе!") { FontWeight = FontWeights.Bold });
+        else
         {
-            Text = pet.ProjectDone ? "Играта излезе!" : $"етап {pet.ProjectNow.Stage + 1} от {PetWindow.ProjectStages.Length}",
-            Foreground = Muted, Margin = new Thickness(0, 2 * U, 0, 0),
-        });
+            stageLine.Inlines.Add(new System.Windows.Documents.Run("Етап ") { Foreground = Muted });
+            stageLine.Inlines.Add(new System.Windows.Documents.Run(now.Info.Name) { FontWeight = FontWeights.Bold });
+            stageLine.Inlines.Add(new System.Windows.Documents.Run($"  {now.Stage + 1}/{PetWindow.ProjectStages.Length}") { Foreground = Muted });
+        }
+        _headTitle.Children.Add(stageLine);
+        if (!pet.ProjectDone && now.Info.Desc.Length > 0)
+            _headTitle.Children.Add(new TextBlock { Text = now.Info.Desc, FontStyle = FontStyles.Italic, Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1 * U, 0, 0) });
 
         _content.Children.Add(Track());
     }
@@ -226,9 +234,6 @@ internal sealed class ProjectWindow : FloatWindow
                 q.Opacity = 0.5;
                 inside.Children.Add(q);
             }
-            // Количеството лешници – малко в ъгъла.
-            if (plan.StartsWith("nuts:") && (shown || done))
-                inside.Children.Add(new TextBlock { Text = "+" + plan[5..], FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 4 * U, 2 * U), Foreground = done ? Ink : Muted });
             if (taken)
                 inside.Children.Add(new Border
                 {
@@ -286,7 +291,7 @@ internal sealed class ProjectWindow : FloatWindow
         // ── Мечо – на лентата, точно докъдето сте ──
         if (!pet.ProjectDone)
         {
-            var bear = Icon("bear", 2);
+            var bear = Icon("small_bear", 1);
             bear.ToolTip = Tip("Мечо е тук");
             var cell = new Grid { Width = 60 * U, Height = BarH };
             bear.HorizontalAlignment = HorizontalAlignment.Center;
