@@ -1858,7 +1858,7 @@ public sealed partial class PetWindow
             ProjectNoRewards = true;
             try
             {
-                _save.ProjectPoints = 0; _save.ProjectPaid = 0; _save.ProjectClaimed = 0; _save.GameName = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear();
+                _save.ProjectPoints = 0; _save.ProjectPaid = 0; _save.GameName = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear(); _save.ProjectOpened.Clear(); _save.ProjectOpenedInit = true; _save.ProjectTiers = ""; _save.HallOfFame.Clear(); _save.ProjectAnswers.Clear();
                 AddProjectPoints(59);
                 if (_save.ProjectPaid != 0) throw new Exception("етапът мина преди 60 точки");
                 AddProjectPoints(1);
@@ -1867,10 +1867,16 @@ public sealed partial class PetWindow
                 if (_save.ProjectPaid != 1 || _save.ProjectPoints < 60) throw new Exception("върнатата задача върна и платен етап");
                 AddProjectPoints(10000);
                 if (!ProjectDone || !ProjectHasClaim) throw new Exception("наградите не чакат да ги вземеш");
+                // Сандъчетата се отварят в какъвто ред искаш.
                 ClaimProjectReward(5);
-                if (ProjectClaimed != 0) throw new Exception("взе награда не по ред");
+                if (!IsProjectOpened(5) || IsProjectOpened(0)) throw new Exception("не се отвори сандъче не по ред");
                 for (int k = 0; k < ProjectStages.Length; k++) ClaimProjectReward(k);
                 if (ProjectHasClaim || !_save.Owned.Contains(GameBox)) throw new Exception("накрая няма кутия с играта");
+                if (_save.HallOfFame.Count != 1) throw new Exception("играта не влезе в Залата на славата");
+                // Ценността: 7 обикновени, 5 ценни, 3 много ценни (втората половина), специалното накрая.
+                string tiers = _save.ProjectTiers;
+                if (tiers.Length != ProjectStages.Length || tiers.Count(c => c == 'N') != 7 || tiers.Count(c => c == 'S') != 5 || tiers.Count(c => c == 'G') != 3 || tiers[^1] != 'X'
+                    || tiers.Take(ProjectStages.Length / 2).Contains('G')) throw new Exception("сандъчетата не са подредени както трябва: " + tiers);
                 if (!FurnitureKinds.Contains(GameBox)) throw new Exception("кутията не е в „Неща“");
                 NameGame("Горски тайни");
                 if (GameName != "Горски тайни") throw new Exception("името не се запази");
@@ -1880,7 +1886,7 @@ public sealed partial class PetWindow
                 if (Kitchen.Owns(_save, Kitchen.BoardGame) && FurnishingFor(Scenes.Focus)?.Kind != Kitchen.BoardGame) throw new Exception("работата по етапа не е при масичката");
                 _focusItem = null;
                 // Наградите: следващите три се виждат, по-нататък – „?“; решени веднъж, не се менят.
-                _save.ProjectPaid = 2; _save.ProjectClaimed = 1; _save.ProjectPoints = 60 + 90 + 40; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear();
+                _save.ProjectPaid = 2; _save.ProjectPoints = 60 + 90 + 40; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear(); _save.ProjectOpened.Clear(); _save.ProjectOpened.Add(0); _save.ProjectOpenedInit = true;
                 if (!ProjectRewardShown(2) || ProjectRewardShown(3)) throw new Exception("видими са награди отвъд сегашния етап");
                 if (ProjectNow.Info.Steps.Length != 3 || ProjectStepsDone != 1) throw new Exception("подетапите: " + ProjectStepsDone + " от " + ProjectNow.Info.Steps.Length);
                 string p3 = ProjectRewardPlan(3);
@@ -1895,7 +1901,7 @@ public sealed partial class PetWindow
                 Shot(pw, "project_opened");
                 pw.Close();
                 // За снимката на „Мечо“: по средата на първия етап (той не иска мебел – другите проверки на работата са с бюрото).
-                _save.ProjectPaid = 0; _save.ProjectClaimed = 0; _save.ProjectPoints = 30; _save.GameName = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear();
+                _save.ProjectPaid = 0; _save.ProjectPoints = 30; _save.GameName = ""; _save.ProjectPlan.Clear(); _save.ProjectGot.Clear(); _save.ProjectOpened.Clear(); _save.ProjectOpenedInit = true; _save.HallOfFame.Clear();
                 HideBubble();
             }
             finally { ProjectNoRewards = false; }

@@ -30,7 +30,7 @@ internal sealed class ProjectWindow : FloatWindow
     private readonly StackPanel _headTitle = new();
     private readonly Grid _overlay = new() { Visibility = Visibility.Collapsed };
     private readonly DispatcherTimer _wiggle = new();
-    private FrameworkElement? _claimBox;
+    private readonly List<FrameworkElement> _claimBoxes = new();
     private int _pop = -1;          // кое да подскочи (току-що минато или взето)
     private string _key = "";
 
@@ -74,10 +74,16 @@ internal sealed class ProjectWindow : FloatWindow
     {
         _open = this;
         Title = "Проектът на Мечо";
-        var root = new Grid();
-        root.Children.Add(_content);
-        root.Children.Add(_overlay);
-        Body.Content = root;
+        Body.Content = _content;
+        // Прозорчето „Получи:“ – върху целия прозорец (и рамката), не само върху съдържанието.
+        if (Content is UIElement frame)
+        {
+            Content = null;
+            var whole = new Grid();
+            whole.Children.Add(frame);
+            whole.Children.Add(_overlay);
+            Content = whole;
+        }
         Head.Children.Add(_headTitle);
         // Като другите прозорчета: цъкнеш ли извън него – затваря се.
         Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
@@ -91,7 +97,7 @@ internal sealed class ProjectWindow : FloatWindow
         _wiggle.Tick += (_, _) =>
         {
             _wiggle.Interval = TimeSpan.FromSeconds(3 + Random.Shared.NextDouble() * 3);
-            if (_claimBox != null) Wiggle(_claimBox);
+            if (_claimBoxes.Count > 0) Wiggle(_claimBoxes[Random.Shared.Next(_claimBoxes.Count)]);
         };
         Closed += (_, _) =>
         {
@@ -118,7 +124,7 @@ internal sealed class ProjectWindow : FloatWindow
         var pet = Pet;
         _key = Key;
         _content.Children.Clear();
-        _claimBox = null;
+        _claimBoxes.Clear();
         _wiggle.Stop();
 
         // Горе (в средата): „Настолна игра“ със зарчето и името ѝ; под него – моливче и етапът.
@@ -162,7 +168,36 @@ internal sealed class ProjectWindow : FloatWindow
             });
             _content.Children.Add(Steps());
         }
-        if (_claimBox != null && !Instant)
+        // Залата на славата: завършените игри – какво решихте заедно.
+        if (pet.Save.HallOfFame.Count > 0)
+        {
+            _content.Children.Add(Ribbon("Зала на славата", "star"));
+            foreach (var f in pet.Save.HallOfFame)
+            {
+                var entry = new StackPanel();
+                var head = new StackPanel { Orientation = Orientation.Horizontal };
+                var trophy = Icon("star", 2);
+                trophy.VerticalAlignment = VerticalAlignment.Center;
+                trophy.Margin = new Thickness(0, 0, 8 * U, 0);
+                head.Children.Add(trophy);
+                head.Children.Add(new TextBlock { Text = f.Kind + (f.Name.Length > 0 ? " „" + f.Name + "“" : ""), FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center });
+                entry.Children.Add(head);
+                void Line(string label, string value)
+                {
+                    if (value.Length == 0) return;
+                    var t = new TextBlock { Margin = new Thickness(34 * U, 2 * U, 0, 0), TextWrapping = TextWrapping.Wrap };
+                    t.Inlines.Add(new System.Windows.Documents.Run(label + " ") { Foreground = Muted });
+                    t.Inlines.Add(new System.Windows.Documents.Run(value) { FontWeight = FontWeights.Bold });
+                    entry.Children.Add(t);
+                }
+                Line("Тема:", f.Theme);
+                Line("Играчите:", f.Goal);
+                Line("Главен герой:", f.Hero);
+                entry.Children.Add(new TextBlock { Text = $"Направихте я заедно – Мечо и {pet.Save.OwnerName}, {f.Done}.", FontStyle = FontStyles.Italic, Foreground = Muted, Margin = new Thickness(34 * U, 4 * U, 0, 0), TextWrapping = TextWrapping.Wrap });
+                _content.Children.Add(PixelFrameAuto(entry));
+            }
+        }
+        if (_claimBoxes.Count > 0 && !Instant)
         {
             _wiggle.Interval = TimeSpan.FromSeconds(1.5);
             _wiggle.Start();
@@ -189,6 +224,16 @@ internal sealed class ProjectWindow : FloatWindow
             host.Children.Add(child);
             g.Children.Add(host);
         }
+        return g;
+    }
+
+    /// <summary>Пикселна рамка около съдържание (с размера на съдържанието).</summary>
+    private static Grid PixelFrameAuto(UIElement child)
+    {
+        var g = PixelFrame(0, 0, Soft(Honey, 0.25), Ink, Math.Max(2, P), null);
+        g.Width = g.Height = double.NaN;
+        g.Margin = new Thickness(0, 0, 0, 8 * U);
+        g.Children.Add(new Border { Padding = new Thickness(14 * U, 10 * U, 14 * U, 12 * U), Child = child });
         return g;
     }
 
@@ -219,11 +264,9 @@ internal sealed class ProjectWindow : FloatWindow
     }
 
     /// <summary>Сандъчето според това колко е пълно: обикновено (1–2), ценно (3), много ценно (4+); финалът – специално.</summary>
-    private static string ChestArt(string plan, bool final) =>
-        final ? "chest_legend" : PetWindow.RewardItems(plan).Length switch { >= 4 => "chest_gold", 3 => "chest_silver", _ => "chest" };
+    private static string ChestArt(char tier) => tier switch { 'X' => "chest_legend", 'G' => "chest_gold", 'S' => "chest_silver", _ => "chest" };
 
-    private static string ChestName(string plan, bool final) =>
-        final ? "Специалното сандъче" : PetWindow.RewardItems(plan).Length switch { >= 4 => "Много ценно сандъче", 3 => "Ценно сандъче", _ => "Сандъче" };
+    private static string ChestName(char tier) => tier switch { 'X' => "Специалното сандъче", 'G' => "Много ценно сандъче", 'S' => "Ценно сандъче", _ => "Сандъче" };
 
     /// <summary>Подсказката на сандъчето: заглавие и по ред за всяко нещо вътре (с иконка).</summary>
     private ToolTip RewardTip(string title, string plan)
@@ -304,7 +347,7 @@ internal sealed class ProjectWindow : FloatWindow
             int stage = i;
             bool final = i == n - 1;
             bool done = i < paid, isCur = i == cur;
-            bool claim = pet.CanClaimProject(i), taken = done && !claim && i < pet.ProjectClaimed;
+            bool claim = pet.CanClaimProject(i), taken = done && pet.IsProjectOpened(i);
             bool revealed = done || isCur;      // нататък – „?“
             string plan = pet.ProjectRewardPlan(i);
             string gotPlan = taken && i < pet.Save.ProjectGot.Count && pet.Save.ProjectGot[i].Length > 0 ? pet.Save.ProjectGot[i] : plan;
@@ -337,7 +380,7 @@ internal sealed class ProjectWindow : FloatWindow
             }
             else
             {
-                string chest = ChestArt(gotPlan, final);
+                string chest = ChestArt(pet.ProjectTier(i));
                 art = Art(pet.PropImage(taken ? chest + "_open" : chest), size * 0.64, gray: false);
             }
             art.HorizontalAlignment = HorizontalAlignment.Center;
@@ -350,14 +393,14 @@ internal sealed class ProjectWindow : FloatWindow
             if (claim && Honey is SolidColorBrush hb)
                 box.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = hb.Color, BlurRadius = 22, ShadowDepth = 0, Opacity = 1 };
             box.ToolTip = !revealed ? Tip(final ? "Специалното сандъче – най-пълното, чака те в края" : "Изненада – ще се види, като стигнете до него")
-                : RewardTip(ChestName(gotPlan, final) + (taken ? " – взе:" : claim ? " – цъкни, за да го отвориш:" : ":"), gotPlan);
+                : RewardTip(ChestName(pet.ProjectTier(i)) + (taken ? " – взе:" : claim ? " – цъкни, за да го отвориш:" : ":"), gotPlan);
             ToolTipService.SetInitialShowDelay(box, 150);
             if (claim)
             {
                 box.Cursor = link.Cursor = System.Windows.Input.Cursors.Hand;
                 TaskCards.Clickable(box, () => Claim(stage));
                 TaskCards.Clickable(link, () => Claim(stage));
-                _claimBox = box;
+                _claimBoxes.Add(box);
             }
             Canvas.SetLeft(box, cx - size / 2);
             Canvas.SetTop(box, boxTop);
@@ -410,7 +453,7 @@ internal sealed class ProjectWindow : FloatWindow
             canvas.Children.Add(hover);
         }
 
-        int focus = pet.ProjectHasClaim ? pet.ProjectClaimed : Math.Max(0, Math.Min(paid, n - 1));
+        int focus = pet.ProjectHasClaim ? pet.ProjectFirstClaim : Math.Max(0, Math.Min(paid, n - 1));
         return Scroller(canvas, Xc(focus));
     }
 
@@ -451,32 +494,61 @@ internal sealed class ProjectWindow : FloatWindow
         if (got.Length > 0) ShowOpened(stage, got);
     }
 
-    /// <summary>Прозорчето „Отвори сандъчето!“: отвореното сандъче и всичко, което получи.</summary>
+    /// <summary>
+    /// Прозорчето „Получи:“ върху целия прозорец: отвореното сандъче, а под него нещата –
+    /// всяко в тъмно слотче, голямо (дрехата – истинската, с цветовете ѝ), с името отдолу.
+    /// </summary>
     private void ShowOpened(int stage, string got)
     {
-        bool final = stage == PetWindow.ProjectStages.Length - 1;
         var panel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-        var chest = Art(Pet.PropImage(ChestArt(got, final) + "_open"), 72 * U, gray: false);
+        var chest = Art(Pet.PropImage(ChestArt(Pet.ProjectTier(stage)) + "_open"), 72 * U, gray: false);
         chest.HorizontalAlignment = HorizontalAlignment.Center;
         panel.Children.Add(chest);
-        var list = ItemsList("Получи:", got, 2);
-        list.Margin = new Thickness(0, 8 * U, 0, 10 * U);
-        panel.Children.Add(list);
+        panel.Children.Add(new TextBlock { Text = "Получи:", FontWeight = FontWeights.Bold, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6 * U, 0, 8 * U) });
+        var slots = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 470 * U };
+        double px = Math.Max(2, P);
+        foreach (var item in PetWindow.RewardItems(got))
+        {
+            var cell = new StackPanel { Width = 104 * U, Margin = new Thickness(4 * U, 0, 4 * U, 8 * U) };
+            var art = ItemArt(item, 54 * U);
+            art.HorizontalAlignment = HorizontalAlignment.Center;
+            art.VerticalAlignment = VerticalAlignment.Center;
+            var slot = PixelFrame(74 * U, 74 * U, Soft(Ink, 0.22), Ink, px, art);
+            slot.HorizontalAlignment = HorizontalAlignment.Center;
+            cell.Children.Add(slot);
+            cell.Children.Add(new TextBlock { Text = Pet.ItemLabel(item), TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4 * U, 0, 0) });
+            slots.Children.Add(cell);
+        }
+        panel.Children.Add(slots);
         var ok = Button("Супер!", () => _overlay.Visibility = Visibility.Collapsed, primary: true);
         ok.HorizontalAlignment = HorizontalAlignment.Center;
+        ok.Margin = new Thickness(0, 6 * U, 0, 0);
         panel.Children.Add(ok);
-        var card = PixelFrame(double.NaN, double.NaN, Cream, Ink, Math.Max(2, P) * 1.5, null);
-        card.Width = double.NaN;
-        card.Height = double.NaN;
-        card.HorizontalAlignment = HorizontalAlignment.Center;
-        card.VerticalAlignment = VerticalAlignment.Center;
-        var pad = new Border { Padding = new Thickness(22 * U, 14 * U, 22 * U, 14 * U), Child = panel };
-        card.Children.Add(pad);
+        var card = new Grid { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var frame = PixelFrame(0, 0, Cream, Ink, px * 1.5, null);
+        frame.Width = frame.Height = double.NaN;
+        card.Children.Add(frame);
+        card.Children.Add(new Border { Padding = new Thickness(24 * U, 14 * U, 24 * U, 14 * U), Child = panel });
         _overlay.Children.Clear();
-        _overlay.Children.Add(new Rectangle { Fill = new SolidColorBrush(Color.FromArgb(120, 40, 25, 15)) });
+        _overlay.Children.Add(new Rectangle { Fill = new SolidColorBrush(Color.FromArgb(150, 30, 18, 10)) });
         _overlay.Children.Add(card);
         _overlay.Visibility = Visibility.Visible;
         Pop(card, 0.6);
+    }
+
+    /// <summary>Голямата картинка на едно получено нещо (дрехата – самата дреха).</summary>
+    private FrameworkElement ItemArt(string item, double size)
+    {
+        string kind = item.Split(':')[0], id = item.Contains(':') ? item[(item.IndexOf(':') + 1)..] : "";
+        BitmapSource? src = kind switch
+        {
+            "cloth" when Clothes.All.FirstOrDefault(g => g.Id == id) is { } g => Pet.GarmentPreview(g),
+            "up" => Pet.ShopArt(item),
+            "box" => Pet.PropImage(PetWindow.GameBox),
+            _ => null,
+        };
+        src ??= LoadIcon(PetWindow.ItemIcon(item));
+        return src != null ? Art(src, size, gray: false) : Icon("gift", 3);
     }
 
     /// <summary>Самопроверката: прозорчето „Получи:“ за снимка.</summary>

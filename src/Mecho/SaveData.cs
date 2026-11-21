@@ -142,7 +142,15 @@ public sealed class SaveData
     public string ProjectNote { get; set; } = "";
     public List<string> ProjectPlan { get; set; } = new();          // наградата за всеки етап (решена предварително)
     public List<string> ProjectGot { get; set; } = new();
-    public int ProjectClaimed { get; set; } = -1;
+    public int ProjectClaimed { get; set; } = -1;                  // стар запис: колко са взети по ред
+    public List<int> ProjectOpened { get; set; } = new();          // кои сандъчета са отворени
+    public bool ProjectOpenedInit { get; set; }
+    public string ProjectTiers { get; set; } = "";                 // ценността на сандъчетата по етапи (N/S/G/X)
+    public List<int> Coupons { get; set; } = new();                // купоните (в %) – активираш един в магазина
+    public int ActiveCoupon { get; set; }
+    public string ActiveCouponDay { get; set; } = "";
+    public Dictionary<string, string> ProjectAnswers { get; set; } = new();   // какво каза за играта (тема, цел, герой)
+    public List<FameEntry> HallOfFame { get; set; } = new();         // завършените проекти
     public int CouponPercent { get; set; }                         // купон от проекта за следващата покупка (0 – няма)                  // колко награди от етапите са взети (-1 – стар запис)           // какво получи на минатите етапи                 // последното, което каза за проекта
     public List<SaidLine> Said { get; set; } = new();          // последните 10 неща, казани от него (и въпросите с избрания отговор)
     public int WishSmallCount { get; set; }                    // изпълнени желания от последното +1
@@ -1102,4 +1110,16 @@ public sealed class WeekGoal
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Text { get; set; } = "";
     public bool Done { get; set; }
+}
+
+
+/// <summary>Завършен проект в Залата на славата.</summary>
+public sealed class FameEntry
+{
+    public string Kind { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Theme { get; set; } = "";
+    public string Goal { get; set; } = "";
+    public string Hero { get; set; } = "";
+    public string Done { get; set; } = "";
 }

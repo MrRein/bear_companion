@@ -2425,6 +2425,7 @@ public sealed class MenuWindow : Window
         BuildGoal();
         _shopTiles.Children.Add(_goalBox);
         BuildDailyOffer();
+        BuildCoupons();
     }
 
     private readonly StackPanel _goalBox = new() { Margin = new Thickness(0, 0, 0, 12) };
@@ -2591,14 +2592,66 @@ public sealed class MenuWindow : Window
     private Button BuyButton(int price, Action buy, out string? why)
     {
         int nuts = _pet.Save.Hazelnuts;
-        var action = Button($"Купи  {price}", buy, primary: true, icon: "nut");
+        int cost = _pet.WithCoupon(price);
+        var action = Button($"Купи  {cost}", buy, primary: true, icon: "nut");
+        // С активен купон: старата цена задраскана, новата – удебелена.
+        if (cost != price)
+        {
+            var t = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+            t.Inlines.Add(new System.Windows.Documents.Run("Купи  "));
+            t.Inlines.Add(new System.Windows.Documents.Run(price.ToString()) { TextDecorations = TextDecorations.Strikethrough, Foreground = Muted });
+            t.Inlines.Add(new System.Windows.Documents.Run(" " + cost) { FontWeight = FontWeights.Bold });
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            var nut = Icon("nut");
+            nut.VerticalAlignment = VerticalAlignment.Center;
+            nut.Margin = new Thickness(0, 0, 5, 0);
+            row.Children.Add(nut);
+            row.Children.Add(t);
+            action.Content = row;
+        }
         why = null;
-        if (nuts < price)
+        if (nuts < cost)
         {
             action.IsEnabled = false;
-            why = $"Още {price - nuts} лешника.";
+            why = $"Още {cost - nuts} лешника.";
         }
         return action;
+    }
+
+    /// <summary>
+    /// Купоните (от проекта): цъкаш един – активира се (цените падат) до първата покупка и до
+    /// края на деня. Само един активен наведнъж.
+    /// </summary>
+    private void BuildCoupons()
+    {
+        int active = _pet.ActiveCoupon;
+        var list = _pet.Coupons;
+        if (active == 0 && list.Count == 0) return;
+        var box = new StackPanel();
+        _shopTiles.Children.Add(new Border
+        {
+            Background = Empty, BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(8 * U, 6 * U, 8 * U, 8 * U), Margin = new Thickness(0, 10 * U, 0, 0), Child = box,
+        }.Skinned("pocket"));
+        box.Children.Add(Ribbon("Купони", "coupon"));
+        if (active > 0)
+            box.Children.Add(new TextBlock
+            {
+                Text = $"Активен купон −{active}%: цените са намалени до първата покупка или до края на деня.",
+                FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 6 * U),
+            });
+        var chips = new WrapPanel();
+        for (int k = 0; k < list.Count; k++)
+        {
+            int idx = k;
+            var chip = Chip($"−{list[k]}%", () => { if (_pet.ActivateCoupon(idx)) Refresh(true); });
+            chip.Child = IconText("coupon", $"−{list[k]}%", bold: true);
+            chip.Margin = new Thickness(0, 0, 6, 4);
+            chip.ToolTip = Tip(active > 0 ? "Вече има активен купон – първо купи нещо (или изчакай утре)." : "Цъкни, за да го активираш: цените падат до първата покупка или до края на деня.");
+            chip.Opacity = active > 0 ? 0.5 : 1;
+            chips.Children.Add(chip);
+        }
+        if (chips.Children.Count > 0) box.Children.Add(chips);
     }
 
     private static TextBlock Description(string text) => new()
