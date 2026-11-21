@@ -505,11 +505,11 @@ internal sealed class ProjectWindow : FloatWindow
         chest.HorizontalAlignment = HorizontalAlignment.Center;
         panel.Children.Add(chest);
         panel.Children.Add(new TextBlock { Text = "Получи:", FontWeight = FontWeights.Bold, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6 * U, 0, 8 * U) });
-        var slots = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 470 * U };
+        var slots = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 640 * U };
         double px = Math.Max(2, P);
         foreach (var item in PetWindow.RewardItems(got))
         {
-            var cell = new StackPanel { Width = 104 * U, Margin = new Thickness(4 * U, 0, 4 * U, 8 * U) };
+            var cell = new StackPanel { Width = 150 * U, Margin = new Thickness(4 * U, 0, 4 * U, 8 * U) };
             var art = ItemArt(item, 54 * U);
             art.HorizontalAlignment = HorizontalAlignment.Center;
             art.VerticalAlignment = VerticalAlignment.Center;
