@@ -1800,7 +1800,7 @@ public sealed class MenuWindow : Window
         }
 
         // Бутонът: целият проект (награда за вземане – по-видим).
-        var open = Button(claim ? "Вземи наградата!" : "Виж целия проект", () => ProjectWindow.Toggle(_pet, this), primary: claim, icon: claim ? "gift" : "board");
+        var open = Button(claim ? "Вземи наградата!" : "Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: claim, icon: claim ? "gift" : "board");
         open.Margin = new Thickness(0, 8 * U, 0, 0);
         open.HorizontalAlignment = HorizontalAlignment.Stretch;
         inner.Children.Add(open);

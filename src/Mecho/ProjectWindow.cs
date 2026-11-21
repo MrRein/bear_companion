@@ -28,7 +28,7 @@ internal sealed class ProjectWindow : FloatWindow
 
     private static bool Instant => SelfTest.Running;
 
-    private static double SegW => 104 * U;      // едно звено
+    private static double SegW => 132 * U;      // едно звено
     private static double Gap => 8 * U;         // между звената
     private static double BoxSize => 76 * U;    // квадратчето с наградата
     private static double BarH => 30 * U;
@@ -286,14 +286,14 @@ internal sealed class ProjectWindow : FloatWindow
         // ── Мечо – на лентата, точно докъдето сте ──
         if (!pet.ProjectDone)
         {
-            var bear = Icon("bear", 3);
+            var bear = Icon("bear", 2);
             bear.ToolTip = Tip("Мечо е тук");
-            var cell = new Grid { Width = 60 * U, Height = BarH + 24 * U };
+            var cell = new Grid { Width = 60 * U, Height = BarH };
             bear.HorizontalAlignment = HorizontalAlignment.Center;
             bear.VerticalAlignment = VerticalAlignment.Center;
             cell.Children.Add(bear);
             Canvas.SetLeft(cell, reached - 30 * U);
-            Canvas.SetTop(cell, barY - 12 * U);
+            Canvas.SetTop(cell, barY);
             Panel.SetZIndex(cell, 5);
             canvas.Children.Add(cell);
             if (!Instant && frac > 0)
