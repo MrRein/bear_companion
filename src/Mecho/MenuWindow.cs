@@ -1325,6 +1325,8 @@ public sealed class MenuWindow : Window
     private UIElement BuildDiaryCard()
     {
         // Дневничето: проектът, по който работи, и под него – целта (мисията).
+        _todayBox.Children.Add(new TextBlock { Text = "Проект на мечока", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
+        _projectBox.Margin = new Thickness(0, 4, 0, 0);
         _todayBox.Children.Add(_projectBox);
         _todayBox.Children.Add(new TextBlock { Text = "Цел", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 12, 0, 0) });
         _bearGoalBox.Margin = new Thickness(0, 4, 0, 0);
@@ -1787,7 +1789,6 @@ public sealed class MenuWindow : Window
         var titleLine = Line("dice", "Настолна игра", true);
         titleLine.HorizontalAlignment = HorizontalAlignment.Center;
         inner.Children.Add(titleLine);
-        inner.Children.Add(Line("pencil", done ? "Играта излезе!" : pr.Info.Name, false));
 
         // Лентата на етапа: зелена, докъдето сте стигнали.
         if (!done)
@@ -1800,6 +1801,10 @@ public sealed class MenuWindow : Window
             bar.Children.Add(fill);
             inner.Children.Add(bar);
         }
+        // Под лентата – етапът (удебелен).
+        var stageRow = Line("pencil", done ? "Играта излезе!" : $"Етап „{pr.Info.Name}“", true);
+        stageRow.Margin = new Thickness(0, 6 * U, 0, 0);
+        inner.Children.Add(stageRow);
 
         // Бутонът: целият проект (награда за вземане – по-видим).
         var open = Button(claim ? "Вземи наградата!" : "Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: claim, icon: claim ? "gift" : "tasks");
