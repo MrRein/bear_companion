@@ -2903,7 +2903,8 @@ public sealed partial class PetWindow
                          "app.ask.dance", "app.ask.dance.no", "app.call.after", "app.call.good", "app.call.tired",
                          "reminder.added", "reminder.now", "reminder.missed", "reminder.done" })
                 if (!R.Has(key)) throw new Exception("няма реплики: " + key);
-            if (AppQuestion("game") != null && !WorksRandomly) throw new Exception("пита „Ти работиш ли?“, а не работи");
+            bool lateNow = DateTime.Now.Hour >= 23 || DateTime.Now.Hour < 4;   // късно – нарочно пита „Последна игра ли е?“
+            if (!lateNow && AppQuestion("game") != null && !WorksRandomly) throw new Exception("пита „Ти работиш ли?“, а не работи");
         }, 200);
         await step("напомняния: повторения, готово, отлагане", () =>
         {
