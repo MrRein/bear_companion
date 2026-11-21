@@ -1778,16 +1778,18 @@ public sealed class MenuWindow : Window
 
         FrameworkElement Line(string icon, string text, bool bold)
         {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4 * U) };
+            // DockPanel (не хоризонтален StackPanel) – дългият текст се пренася, а не се реже.
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 4 * U), LastChildFill = true };
             var ic = Icon(icon, bold ? 2 : 1);
             ic.VerticalAlignment = VerticalAlignment.Center;
             ic.Margin = new Thickness(0, 0, 7 * U, 0);
+            DockPanel.SetDock(ic, Dock.Left);
             row.Children.Add(ic);
             row.Children.Add(new TextBlock { Text = text, FontWeight = bold ? FontWeights.Bold : FontWeights.Normal, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
             return row;
         }
         var titleLine = Line("dice", "Настолна игра", true);
-        titleLine.HorizontalAlignment = HorizontalAlignment.Center;
+        titleLine.HorizontalAlignment = HorizontalAlignment.Center;   // в средата (DockPanel – колкото съдържанието)
         inner.Children.Add(titleLine);
 
         // Лентата на етапа: зелена, докъдето сте стигнали.
@@ -1803,6 +1805,7 @@ public sealed class MenuWindow : Window
         }
         // Под лентата – етапът (удебелен).
         var stageRow = Line("pencil", done ? "Играта излезе!" : $"Етап „{pr.Info.Name}“", true);
+        if (stageRow is DockPanel sd && sd.Children[0] is FrameworkElement pic) { pic.Width = pic.Height = 16 * U; }
         stageRow.Margin = new Thickness(0, 6 * U, 0, 0);
         inner.Children.Add(stageRow);
 
