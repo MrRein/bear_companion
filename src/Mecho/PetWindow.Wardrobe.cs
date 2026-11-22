@@ -143,9 +143,12 @@ public sealed partial class PetWindow
         NotifyCare();
     }
 
-    public void Wear(Garment g, string? line = null, bool byUser = true)
+    public void Wear(Garment g, string? line = null, bool byUser = true) => Wear(g, line, byUser, agreed: false);
+
+    private void Wear(Garment g, string? line, bool byUser, bool agreed)
     {
         if (!Clothes.Owns(_save, g)) return;
+        if (byUser && !agreed && OpinionGate(WearOpinion(g), () => Wear(g, line, byUser, agreed: true), () => { })) return;
         if (byUser) FulfilDesire("dress");
         NoteDid("dress");
         RememberLook();

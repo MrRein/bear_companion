@@ -1,0 +1,16 @@
+{
+  // Таговете за мнението на Мечо (фаза 2). Редактира се без програмиране.
+  //   heavy   – манджа/тежко: не му се яде на закуска (5–10 ч.)
+  //   complex – сложно за готвене: не му се готви, ако е изморен
+  //   warm    – топла дреха: не я иска в жега (24°C+)
+  //   light   – лятна дреха: не я иска в студ (5°C и по-малко)
+  "food": {
+    "heavy": ["soup_veg", "soup_roast", "meatballs", "potatoes", "pizza_margarita", "skewers", "pressed_pizza"],
+    "complex": ["pizza_margarita", "soup_roast", "skewers", "muffins", "pancakes", "waffle_chocolate", "waffle_blueberry", "waffle_icecream"]
+  },
+  "clothes": {
+    "warm": ["hoodie", "sweatshirt_gray", "sweater_red", "cardigan", "sweater_cream", "sweater_honey", "sweater_winter",
+             "sweater_lavender", "sweater_mint", "dots", "plaid_shirt", "winter", "mittens", "scarf_red", "scarf_stripes", "beanie", "boots"],
+    "light": ["tee_red", "tee_white", "tee_stripes", "tee_pink", "tee_green_dots", "sun"]
+  }
+}

@@ -79,7 +79,10 @@ public sealed partial class PetWindow
     /// Мечокът сготвя ястие (ако има уреда и лешниците). То се появява из екрана
     /// и Тут трябва да го занесе при него.
     /// </summary>
-    public void Cook(Food food)
+    public void Cook(Food food) => Cook(food, agreed: false);
+
+    /// <summary>agreed – мнението вече е питано (Мечо се съгласи).</summary>
+    private void Cook(Food food, bool agreed)
     {
         if (!Kitchen.CanCook(food, _save) || BusyEating()) return;
         if (IsResting)
@@ -119,6 +122,9 @@ public sealed partial class PetWindow
             Say($"Трябват ми {cost} 🌰, а имам {_save.Hazelnuts}. Да свършим някоя задача?", 4);
             return;
         }
+
+        // Мнението: преди да се плати. Мрънка/отказва – диалогче; иначе направо.
+        if (!agreed && OpinionGate(CookOpinion(food), () => Cook(food, agreed: true), () => OpenMenuPage(MenuWindow.PageFood))) return;
 
         _save.Hazelnuts -= CookCost(cost);
         if (food.Cost == 0) _save.BerriesReadyAt = DateTime.Now.AddMinutes(Kitchen.BerryMinutes);

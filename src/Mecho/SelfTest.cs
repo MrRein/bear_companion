@@ -126,6 +126,11 @@ public static class SelfTest
             pet.CoreEngine.Bus.Send(new Mecho.Core.Think("dev.test", 10));
             talk.Tick();
             if (said != "dev.test") throw new Exception("важната мисъл не се каза");
+            // Мнението: таговете се четат, модулът е вътре, ястие с тегло „heavy“ сутрин мрънка/отказва.
+            if (Mecho.Engine.CoreSetup.Opinion is not { } op) throw new Exception("няма модул за мнение");
+            if (!PetWindow.HasOpinionTag("food:soup_veg", "heavy") || !PetWindow.HasOpinionTag("cloth:hoodie", "warm")) throw new Exception("opinion.json не се чете");
+            var breakfast = new Mecho.Core.OpinionInput("cook", "soup_veg", new HashSet<string> { "heavy" }, DateTime.Today.AddHours(8), 70, 70, false, false, false);
+            if (op.Evaluate(breakfast).Stance is not (Mecho.Core.Stance.Grumbles or Mecho.Core.Stance.Refuses)) throw new Exception("манджа на закуска – без мнение");
             // Откъде е: наградата от сандъчето помни сандъчето.
             if (Backdrops.All.FirstOrDefault(b => b.Price > 0 && !Backdrops.Owns(pet.Save, b)) is { } bg)
             {
