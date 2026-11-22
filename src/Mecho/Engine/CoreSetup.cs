@@ -36,6 +36,9 @@ public static class CoreSetup
         engine.Modules.Add(new GardenModule(Kitchen.PlantPot)); // растението в саксията (зависи от economy)
         engine.Modules.Add(new EventDirector(automatic: !SelfTest.Running)); // събития: пижамен ден, болен ден, Коледа, пеперуда… (GameEvents.All)
         engine.Modules.Add(new InteractionsModule());     // колко често мечокът прави нещо с предметите на земята
+        engine.Modules.Add(new JournalModule());          // хрониката: спомени, дни заедно, откъде е всяко нещо
+        Talk = new ThoughtsModule();
+        engine.Modules.Add(Talk);                         // режисьорът на мислите: кое да каже сам и кога (приказливост)
         engine.Modules.Add(new LegacyBridgeModule(pet, save));
 
         // Пуска се веднага (не чак при показване на прозореца): старият код чете
@@ -44,6 +47,9 @@ public static class CoreSetup
         save.Bind(engine);
         return engine;
     }
+
+    /// <summary>Режисьорът на мислите (за прага в Developer).</summary>
+    public static ThoughtsModule? Talk { get; private set; }
 
     /// <summary>Последните записи на ядрото (Developer → „Ядро: лог“).</summary>
     public static MemoryLog? Memory { get; private set; }

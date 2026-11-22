@@ -306,6 +306,12 @@ public sealed partial class PetWindow
         yield return (nuts, "+1000", () => AddNuts(1000));
         yield return (nuts, "Нула", () => AddNuts(-_save.Hazelnuts));
 
+        const string alive = "Жив Мечо (мисли и спомени)";
+        yield return (alive, "Приказливост: покажи", () => Say(TalkReport(), 8));
+        yield return (alive, "Мисъл: средна (5)", () => CoreEngine.Bus.Send(new Mecho.Core.Think("dev.test", 5, Mecho.Core.Facts.Of(("важност", "5")))));
+        yield return (alive, "Мисъл: много важна (10)", () => CoreEngine.Bus.Send(new Mecho.Core.Think("dev.test", 10, Mecho.Core.Facts.Of(("важност", "10")))));
+        yield return (alive, "Забрави чакащите мисли", () => CoreEngine.Bus.Send(new Mecho.Core.ClearThoughts()));
+
         const string project = "Проектът на Мечо";
         yield return (project, "+50 точки", () => AddProjectPoints(50));
         yield return (project, "+500 точки", () => AddProjectPoints(500));

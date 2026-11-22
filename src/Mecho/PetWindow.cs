@@ -245,6 +245,7 @@ public sealed partial class PetWindow : Window
     private void OnStart()
     {
         CoreEngine.Start();
+        SetupAlive();
         Mecho.Core.GiftsModule.BaseChance = Math.Clamp(Loot.Setting("Подарък шанс за ден %", 70) / 100, 0, 1);
         // Балончето и пеперудата стоят над мечока (собственик = мечокът).
         _bubbleWindow.Owner = this;
@@ -1066,6 +1067,7 @@ public sealed partial class PetWindow : Window
     {
         if (!_pressed) return;
         _pressed = false;
+        Attention();
         _sprite.ReleaseMouseCapture();
         e.Handled = true;
 
@@ -1606,6 +1608,7 @@ public sealed partial class PetWindow : Window
     public void Say(string text, double seconds = 4)
     {
         NoteSaid(text);
+        NoteSpokeAside();
         Ui.SetRichText(_bubbleText, text);
         _bubble.Visibility = Visibility.Visible;
         // Нарежда балончето веднага (не на следващия кадър): иначе се мяркаше на

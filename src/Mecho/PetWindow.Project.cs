@@ -198,7 +198,7 @@ public sealed partial class PetWindow
         if (ProjectBlocked)
         {
             _save.ProjectBank = Math.Max(0, _save.ProjectBank + points);
-            if (points > 0) ProjectNudge();
+            if (points > 0) NudgeProject();
             Persist();
             return;
         }
@@ -818,6 +818,13 @@ public sealed partial class PetWindow
     /// Проектът чака: Мечо напомня (най-много на 15 минути) – пита въпроса или казва да
     /// отвориш сандъчето, с бутон, който отваря проекта направо при него.
     /// </summary>
+    /// <summary>Проектът чака: предлага мисъл на режисьора (той решава кога да напомни).</summary>
+    private void NudgeProject()
+    {
+        if (SelfTest.Running || ProjectNoRewards || !ProjectBlocked) return;
+        Think("project.nudge", 6, cooldownHours: 1);
+    }
+
     internal void ProjectNudge(bool force = false)
     {
         if (SelfTest.Running || ProjectNoRewards || ProjectDone && !ProjectHasClaim) return;

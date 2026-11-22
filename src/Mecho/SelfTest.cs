@@ -113,6 +113,20 @@ public static class SelfTest
             if (string.Join("|", gone) != "assets/ui/skin/tab.png|old.dll") throw new Exception("със списък: " + string.Join(", ", gone));
             Directory.Delete(root, true);
         }, 100);
+        await Step("жив Мечо: хроника и мисли", () =>
+        {
+            int before = pet.Journal.Moments.Count;
+            pet.Remember("selftest", 2, ("какво", "проба"));
+            if (pet.Journal.Moments.Count != before + 1 || pet.Journal.LastOf("selftest")?.Fact("какво") != "проба") throw new Exception("хрониката не запомни");
+            if (pet.Journal.FirstDay == DateTime.MinValue) throw new Exception("няма първи ден");
+            if (pet.Think("няма.такъв.ключ", 10)) throw new Exception("мисъл без реплики не бива да чака");
+            var talk = Mecho.Engine.CoreSetup.Talk ?? throw new Exception("няма режисьор");
+            string said = "";
+            pet.CoreEngine.Bus.Subscribe<Mecho.Core.SpeakNow>(new object(), s => said = s.Thought.Key);
+            pet.CoreEngine.Bus.Send(new Mecho.Core.Think("dev.test", 10));
+            talk.Tick();
+            if (said != "dev.test") throw new Exception("важната мисъл не се каза");
+        }, 300);
         await Step("loot_list: рядкост и цени", () =>
         {
             foreach (var c in PetWindow.AllLootCodes().Where(c => Rarities.PriceGroup(c) != null))
