@@ -1888,7 +1888,13 @@ public sealed partial class PetWindow
                 ClaimProjectReward(0);
                 if (PendingQuestion?.Key != "theme" || !ProjectBlocked) throw new Exception("не чака отговор за темата");
                 AnswerProject(PendingQuestion!, "Космос");
-                if (_save.ProjectBank > 0 || _save.ProjectPaid < 2) throw new Exception("отложената работа не влезе в проекта");
+                // Отложената работа влиза – но спира на следващия етап със сандъче (не го прескача).
+                if (_save.ProjectPaid != 2 || !ProjectBlocked) throw new Exception("отложената работа не спря на етап 2: " + _save.ProjectPaid);
+                if (_save.ProjectPoints > ProjectTotalTo(1) + 1e-6) throw new Exception("линията мина отвъд чакащия етап");
+                double banked = _save.ProjectBank;
+                if (banked <= 0) throw new Exception("излишъкът не се запази");
+                ClaimProjectReward(1);
+                if (_save.ProjectPaid < 3 && _save.ProjectBank >= banked) throw new Exception("отложената работа не продължи след сандъчето");
                 // До края: отваря сандъчетата (в обратен ред – може в какъвто ред искаш) и отговаря.
                 for (int guard = 0; guard < 200 && !ProjectDone; guard++)
                 {
