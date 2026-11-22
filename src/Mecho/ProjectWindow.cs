@@ -328,7 +328,7 @@ internal sealed class ProjectWindow : FloatWindow
         double lineH = 34 * U;
         var canvas = new Canvas { Width = width, Height = height };
 
-        double reached = pet.ProjectDone ? endX : (cur == 0 ? startX : Xc(cur - 1)) + ((cur == 0 ? Xc(0) - startX : colW)) * frac;
+        double reached = pet.ProjectDone ? Xc(n - 1) : (cur == 0 ? startX : Xc(cur - 1)) + ((cur == 0 ? Xc(0) - startX : colW)) * frac;
 
         // ── Линията: празна; изминатото – зелено, с готино крайче ──
         var line = PixelFrame(endX - startX, lineH, Empty, Ink, px, null);

@@ -206,6 +206,17 @@ public sealed partial class PetWindow
         _save.ProjectPoints = Math.Max(floor, _save.ProjectPoints + points);
         while (!ProjectDone && !ProjectBlocked && _save.ProjectPoints >= ProjectTotalTo(_save.ProjectPaid))
             FinishProjectStage(_save.ProjectPaid);
+        // Стигна етап и той чака (сандъче/отговор): лентата спира точно на него, а остатъкът
+        // се пази и влиза чак когато изпълниш условието. Накрая – не отвъд последния етап.
+        if (ProjectBlocked || ProjectDone)
+        {
+            double cap = ProjectTotalTo(Math.Max(0, _save.ProjectPaid - 1));
+            if (_save.ProjectPoints > cap)
+            {
+                if (!ProjectDone) _save.ProjectBank += _save.ProjectPoints - cap;
+                _save.ProjectPoints = cap;
+            }
+        }
         NotifyCare();
         Persist();
     }
@@ -436,11 +447,11 @@ public sealed partial class PetWindow
         return "NNNSNNSNGSNSGSG".PadRight(n - 1, 'N')[..(n - 1)] + "X";
     }
 
-    /// <summary>Кой купон: −25% (35%), безплатно готвене (20%), −50% дрехи (15%), −50% (10%), −30% мебели (10%), лотария (10%).</summary>
+    /// <summary>Кой купон: −25% (35%), безплатно готвене (20%), −50% дрехи (15%), −50% (10%), −30% мебели (10%), безплатно нещо (10%).</summary>
     private string RollCoupon()
     {
         int r = _rng.Next(100);
-        return r < 35 ? "pct25" : r < 55 ? "food" : r < 70 ? "cloth50" : r < 80 ? "pct50" : r < 90 ? "home30" : "luck";
+        return r < 35 ? "pct25" : r < 55 ? "food" : r < 70 ? "cloth50" : r < 80 ? "pct50" : r < 90 ? "home30" : "free";
     }
 
     /// <summary>Вид дреха (шапка, блуза…), от който има още нови – „коя да е“, разкрива се при отваряне.</summary>
@@ -638,109 +649,120 @@ public sealed partial class PetWindow
     public sealed record CouponKind(string Code, string Label, string Icon, string Tip);
 
     /// <summary>
-    /// Купоните: −25% / −50% за всичко в магазина; −50% за дрехи; −30% за мебели и уреди;
-    /// безплатно готвене (веднъж); лотариен билет (веднага 3–15 лешника).
+    /// Купоните. Всеки сваля цената на определен вид покупки: shop – всичко в магазина
+    /// (дрехи, мебели и уреди, тапети…), cloth – дрехи, home – мебели и уреди, food – готвене.
     /// </summary>
     public static readonly CouponKind[] CouponKinds =
     {
         new("pct25", "−25%", "coupon", "−25% за всичко в магазина"),
         new("pct50", "−50%", "coupon50", "−50% за всичко в магазина"),
-        new("cloth50", "−50% дрехи", "coupon_cloth", "−50% за дрехите в магазина"),
+        new("cloth50", "−50% дрехи", "coupon_cloth", "−50% за дрехите"),
         new("home30", "−30% мебели", "coupon_home", "−30% за мебелите и уредите"),
         new("food", "Безплатно готвене", "coupon_food", "Следващото ястие се готви без лешници"),
-        new("luck", "Лотариен билет", "coupon_luck", "Изтриваш го – веднага печелиш 3–15 лешника"),
+        new("free", "Безплатно нещо", "coupon_luck", "Едно нещо от магазина – безплатно"),
     };
 
     public static CouponKind CouponOf(string code) => CouponKinds.FirstOrDefault(k => k.Code == code) ?? CouponKinds[0];
 
-    /// <summary>Старите купони (числа) – в новия вид.</summary>
-    private void MigrateCoupons()
+    /// <summary>
+    /// Купоните винаги минават оттук – един източник на истината: стари записи → кодове;
+    /// активният от вчера се връща обратно (не се губи).
+    /// </summary>
+    private void SyncCoupons()
     {
         if (_save.CouponPercent > 0) { _save.CouponCodes.Add("pct" + _save.CouponPercent); _save.CouponPercent = 0; }
         foreach (int p in _save.Coupons) _save.CouponCodes.Add("pct" + p);
         _save.Coupons.Clear();
-        if (_save.ActiveCoupon > 0) { _save.ActiveCouponCode = "pct" + _save.ActiveCoupon; _save.ActiveCoupon = 0; }
-        if (_save.ActiveCouponCode.Length > 0 && _save.ActiveCouponDay != DayKey(DateTime.Today)) { _save.ActiveCouponCode = ""; _save.ActiveCouponDay = ""; }
+        if (_save.ActiveCoupon > 0) { _save.ActiveCouponCode = "pct" + _save.ActiveCoupon; _save.ActiveCouponDay = DayKey(DateTime.Today); _save.ActiveCoupon = 0; }
+        for (int k = 0; k < _save.CouponCodes.Count; k++) if (_save.CouponCodes[k] == "luck") _save.CouponCodes[k] = "free";
+        if (_save.ActiveCouponCode == "luck") _save.ActiveCouponCode = "free";
+        if (_save.ActiveCouponCode.Length > 0 && _save.ActiveCouponDay != DayKey(DateTime.Today))
+        {
+            _save.CouponCodes.Add(_save.ActiveCouponCode);   // денят свърши – изключва се сам, не се губи
+            _save.ActiveCouponCode = "";
+            _save.ActiveCouponDay = "";
+        }
     }
 
-    /// <summary>Активният купон (код), или "": важи до първата покупка, за която важи, и до края на деня.</summary>
+    /// <summary>Активният купон (код) или "". Пази се (и при затваряне на менюто), докато не купиш нещо, за което важи.</summary>
     public string ActiveCoupon
     {
-        get { MigrateCoupons(); return _save.ActiveCouponCode; }
+        get { SyncCoupons(); return _save.ActiveCouponCode; }
     }
 
-    /// <summary>Купоните по вид и колко са (за магазина: „5 [иконка] −50%“).</summary>
-    public IReadOnlyList<(CouponKind Kind, int Count)> CouponStacks
+    /// <summary>Купоните по вид и колко са (за менюто: „5 [иконка] −50%“). what – само тези, които важат за това (null – всички).</summary>
+    public IReadOnlyList<(CouponKind Kind, int Count)> CouponStacks(string? what = null)
     {
-        get
-        {
-            MigrateCoupons();
-            return CouponKinds.Select(k => (k, _save.CouponCodes.Count(c => c == k.Code))).Where(x => x.Item2 > 0).ToList();
-        }
+        SyncCoupons();
+        return CouponKinds.Where(k => what == null || CouponAppliesTo(k.Code, what))
+            .Select(k => (k, _save.CouponCodes.Count(c => c == k.Code))).Where(x => x.Item2 > 0).ToList();
     }
 
-    /// <summary>Цъкна купон: лотарията – веднага; другите – стават активни (само един наведнъж).</summary>
+    /// <summary>Активира купон. Има ли друг активен – той се връща обратно (сменят се).</summary>
     public bool UseCoupon(string code)
     {
-        MigrateCoupons();
+        SyncCoupons();
         int at = _save.CouponCodes.IndexOf(code);
         if (at < 0) return false;
-        if (code == "luck")
-        {
-            _save.CouponCodes.RemoveAt(at);
-            int won = LowRoll(3, 15);
-            GainNuts(won, "лотария");
-            Say($"Изтрих билета… +{won} 🌰!", 4);
-            NotifyCare();
-            Persist();
-            return true;
-        }
-        if (_save.ActiveCouponCode.Length > 0) return false;
         _save.CouponCodes.RemoveAt(at);
+        if (_save.ActiveCouponCode.Length > 0) _save.CouponCodes.Add(_save.ActiveCouponCode);
         _save.ActiveCouponCode = code;
         _save.ActiveCouponDay = DayKey(DateTime.Today);
-        Say($"Купон „{CouponOf(code).Tip}“ – важи до края на деня!", 4);
+        Say($"Купон „{CouponOf(code).Tip}“ – важи до първата покупка или до края на деня.", 4);
         NotifyCare();
         Persist();
         return true;
     }
 
-    /// <summary>Колко % сваля активният купон за този вид покупка (cloth / home / other).</summary>
-    private int CouponOff(string what) => what == "none" ? 0 : ActiveCoupon switch
+    /// <summary>✕ на активния купон: изключва се и се връща обратно (не се губи).</summary>
+    public void DeactivateCoupon()
     {
-        "pct25" => 25,
-        "pct50" => 50,
-        "cloth50" when what == "cloth" => 50,
-        "home30" when what == "home" => 30,
-        _ => 0,
+        SyncCoupons();
+        if (_save.ActiveCouponCode.Length == 0) return;
+        _save.CouponCodes.Add(_save.ActiveCouponCode);
+        _save.ActiveCouponCode = "";
+        _save.ActiveCouponDay = "";
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>Важи ли купонът за този вид покупка (shop/cloth/home/other – магазина; food – готвене; none – нищо).</summary>
+    private static bool CouponAppliesTo(string code, string what) => what switch
+    {
+        "none" => false,
+        "food" => code == "food",
+        "cloth" => code is "pct25" or "pct50" or "free" or "cloth50",
+        "home" => code is "pct25" or "pct50" or "free" or "home30",
+        _ => code is "pct25" or "pct50" or "free",
     };
 
-    /// <summary>Цената с активния купон (what: cloth – дрехи, home – мебели и уреди, other – друго).</summary>
+    /// <summary>Колко % сваля активният купон за този вид покупка (0 – не важи).</summary>
+    public int CouponOff(string what)
+    {
+        string code = ActiveCoupon;
+        if (code.Length == 0 || !CouponAppliesTo(code, what)) return 0;
+        return code switch { "pct25" => 25, "pct50" => 50, "cloth50" => 50, "home30" => 30, "food" => 100, "free" => 100, _ => 0 };
+    }
+
+    /// <summary>Цената с активния купон – навсякъде, където се показва или плаща цена.</summary>
     public int WithCoupon(int price, string what = "other") => CouponOff(what) is int off && off > 0 ? (int)Math.Round(price * (100 - off) / 100.0) : price;
 
-    /// <summary>Плаща с активния купон (ако важи за това) – купонът се използва.</summary>
+    /// <summary>Плаща: цената с купона; купонът (ако е важал) се използва.</summary>
     private int PayWithCoupon(int price, string what = "other")
     {
         int off = CouponOff(what);
         int cost = WithCoupon(price, what);
-        if (off > 0)
+        if (off > 0 && price > 0)
         {
-            Say($"Купонът свали цената с {off}%: {price} → {cost} 🌰", 4);
+            Say(off >= 100 ? $"Купонът го направи безплатно! ({price} → 0 🌰)" : $"Купонът свали цената с {off}%: {price} → {cost} 🌰", 4);
             _save.ActiveCouponCode = "";
             _save.ActiveCouponDay = "";
         }
         return cost;
     }
 
-    /// <summary>Готвене: с активен купон „Безплатно готвене“ – без лешници (купонът се използва).</summary>
-    private int CookCost(int cost)
-    {
-        if (cost <= 0 || ActiveCoupon != "food") return cost;
-        _save.ActiveCouponCode = "";
-        _save.ActiveCouponDay = "";
-        Say("Купонът плати готвенето! 🍲", 3);
-        return 0;
-    }
+    /// <summary>Готвене: цената с купона „Безплатно готвене“ (ако е активен – използва се).</summary>
+    private int CookCost(int cost) => PayWithCoupon(cost, "food");
 
     /// <summary>Безплатно: идва с доставка, както купеното.</summary>
     private string GiftUpgrade(Upgrade u)
@@ -858,6 +880,14 @@ public sealed partial class PetWindow
     /// <summary>Веднъж в секунда: разказва за проекта (в началото) и писмата от феновете (след етап 11).</summary>
     private void UpdateProject()
     {
+        // Стари записи: проектът чака, а точките са отвъд етапа – остатъкът отива настрана.
+        if ((ProjectBlocked || ProjectDone) && _save.ProjectPaid > 0 && _save.ProjectPoints > ProjectTotalTo(_save.ProjectPaid - 1))
+        {
+            double cap = ProjectTotalTo(_save.ProjectPaid - 1);
+            if (!ProjectDone) _save.ProjectBank += _save.ProjectPoints - cap;
+            _save.ProjectPoints = cap;
+            NotifyCare();
+        }
         // Докато работите: от време на време стрелкичката – проектът расте.
         bool working = InFocus || TimerRunning && _save.TimerIsWork;
         if (working && !ProjectDone && Now >= _nextProjectArrow)

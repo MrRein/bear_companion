@@ -1261,7 +1261,7 @@ public sealed class MenuWindow : Window
     private readonly StackPanel _todayBox = new();
     private readonly StackPanel _bearGoalBox = new() { Margin = new Thickness(0, 12, 0, 0) };
     private readonly StackPanel _projectBox = new() { Tag = "project" };
-    private readonly WrapPanel _doneProjectsBox = new();
+    private readonly StackPanel _doneProjectsBox = new();
     private string _projectKey = "";
     private string _nowKey = "", _moodKey = "", _timerKey = "", _wantsKey = "", _saidKey = "", _bearGoalKey = "";
     private double _bearWidth;
@@ -1790,12 +1790,35 @@ public sealed class MenuWindow : Window
         foreach (var f in list)
         {
             var entry = f;
-            string icon = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == f.Type)?.Icon ?? "star";
-            var chip = Chip("", () => CompletedProjectWindow.Show(_pet, entry, this));
-            chip.Child = IconText(icon, f.Kind + (f.Name.Length > 0 ? " „" + f.Name + "“" : ""), bold: true);
-            chip.Margin = new Thickness(0, 0, 6, 4);
-            chip.ToolTip = Tip("Цъкни, за да видиш какво направихте заедно");
-            _doneProjectsBox.Children.Add(chip);
+            var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == f.Type);
+            // Трофейна карта: финалният предмет (кутията с играта…) в медена рамка, името, видът и датата.
+            var row = new DockPanel();
+            FrameworkElement art = def?.FinalItem is { Length: > 0 } item ? Pixel(_pet.PropImage(item), 3) : Icon(def?.Icon ?? "star", 3);
+            art.VerticalAlignment = VerticalAlignment.Center;
+            var slot = new Border
+            {
+                Background = Soft(Honey, 0.45), BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(6 * U), Margin = new Thickness(0, 0, 10 * U, 0), Child = art, VerticalAlignment = VerticalAlignment.Center,
+            };
+            DockPanel.SetDock(slot, Dock.Left);
+            row.Children.Add(slot);
+            var star = Icon("star", 2);
+            star.VerticalAlignment = VerticalAlignment.Top;
+            DockPanel.SetDock(star, Dock.Right);
+            row.Children.Add(star);
+            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            text.Children.Add(new TextBlock { Text = f.Name.Length > 0 ? "„" + f.Name + "“" : f.Kind, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap });
+            text.Children.Add(new TextBlock { Text = f.Kind, Foreground = Muted });
+            text.Children.Add(new TextBlock { Text = f.Done, Foreground = Muted, FontStyle = FontStyles.Italic });
+            row.Children.Add(text);
+            var card = new Border
+            {
+                Background = Soft(Honey, 0.18), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(8 * U, 6 * U, 8 * U, 6 * U), Margin = new Thickness(0, 0, 0, 6 * U), Child = row,
+                Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Цъкни, за да видиш какво направихте заедно"),
+            };
+            TaskCards.Clickable(card, () => CompletedProjectWindow.Show(_pet, entry, this));
+            _doneProjectsBox.Children.Add(card);
         }
     }
 
@@ -2167,6 +2190,7 @@ public sealed class MenuWindow : Window
         // Страниците за следващата рецепта: най-отгоре (посочиш ли ги – обяснение).
         _recipeProgress.Margin = new Thickness(0, 0, 0, 10 * U);
         p.Children.Add(_recipeProgress);
+        p.Children.Add(_foodCoupons);
         _foodCats.Margin = new Thickness(0, 0, 0, 8 * U);
         p.Children.Add(_foodCats);
         p.Children.Add(_foodTiles);
@@ -2174,6 +2198,7 @@ public sealed class MenuWindow : Window
     }
 
     private readonly WrapPanel _foodCats = new();
+    private readonly ContentControl _foodCoupons = new();
 
     private string _foodCat = "Всичко";
     private string? _foodKey;
@@ -2188,9 +2213,10 @@ public sealed class MenuWindow : Window
         var wishes = _pet.WishedFoods();   // точните, видът (всички супи…), снак, топла напитка
         string key = string.Join("|", _foodCat, s.Hazelnuts, (int)s.Fullness, (int)s.Energy, Kitchen.BerriesIn(s),
             string.Join(",", wishes.Select(f => f.Id)), s.Owned.Count, s.RecipePages,
-            string.Join(",", s.Skins.Values));
+            string.Join(",", s.Skins.Values), _pet.ActiveCoupon, string.Join(",", s.CouponCodes));
         if (!force && key == _foodKey) return;
         _foodKey = key;
+        _foodCoupons.Content = CouponBar(shop: false);
         _foodTiles.Children.Clear();
         // Раздели: Всичко, Манджи, Закуски, Сладко, Напитки (само тези, в които има нещо).
         var known = Kitchen.Foods.Where(f => Kitchen.HasRecipe(f, s)).ToList();
@@ -2263,10 +2289,12 @@ public sealed class MenuWindow : Window
                     _pet.Cook(f);
                     Hide();
                 }, primary: true, icon: cost == 0 ? null : "nut");
-                if (s.Hazelnuts < cost)
+                if (cost > 0) SetPrice(action, "Сготви", cost, "food");
+                int pay = _pet.WithCoupon(cost, "food");
+                if (s.Hazelnuts < pay)
                 {
                     action.IsEnabled = false;
-                    why = $"Трябват {cost} лешника, а имаш {s.Hazelnuts}.";
+                    why = $"Трябват {pay} лешника, а имаш {s.Hazelnuts}.";
                 }
             }
             // Сърчице горе вдясно в картинката: това му се яде.
@@ -2484,8 +2512,9 @@ public sealed class MenuWindow : Window
         var s = _pet.Save;
         var goal = _pet.Goal;
         var choices = _pet.GoalChoices;
-        int filled = goal == null ? 0 : (int)Math.Min(Segments, Math.Floor((double)s.Hazelnuts / goal.Price * Segments));
-        string key = $"{goal?.Id}|{string.Join(",", choices.Select(c => c.Id))}|{_pet.GoalRerollUsed}|{filled}|{s.Hazelnuts}|{_pet.ShopSoldOut}";
+        int goalPrice = goal == null ? 0 : _pet.WithCoupon(goal.Price, "home");
+        int filled = goal == null ? 0 : (int)Math.Min(Segments, Math.Floor((double)s.Hazelnuts / Math.Max(1, goalPrice) * Segments));
+        string key = $"{goal?.Id}|{string.Join(",", choices.Select(c => c.Id))}|{_pet.GoalRerollUsed}|{filled}|{s.Hazelnuts}|{_pet.ShopSoldOut}|{_pet.ActiveCoupon}";
         if (key == _goalKey) return;
         _goalKey = key;
         _goalBox.Children.Clear();
@@ -2499,12 +2528,13 @@ public sealed class MenuWindow : Window
             DockPanel.SetDock(img, Dock.Left);
             row.Children.Add(img);
             bool soldOut = _pet.ShopSoldOut;
-            bool ready = s.Hazelnuts >= goal.Price && !soldOut;
-            var buy = Button(soldOut ? "Утре" : ready ? $"Купи  {goal.Price}" : $"{Math.Min(s.Hazelnuts, goal.Price)}/{goal.Price}", () =>
+            bool ready = s.Hazelnuts >= goalPrice && !soldOut;
+            var buy = Button(soldOut ? "Утре" : ready ? $"Купи  {goalPrice}" : $"{Math.Min(s.Hazelnuts, goalPrice)}/{goalPrice}", () =>
             {
                 _pet.TakeGoal();
                 Refresh(true);
             }, primary: ready, icon: "nut");
+            if (ready) SetPrice(buy, "Купи", goal.Price, "home");
             buy.IsEnabled = ready;
             buy.Margin = new Thickness(8, 0, 0, 0);
             DockPanel.SetDock(buy, Dock.Right);
@@ -2550,7 +2580,7 @@ public sealed class MenuWindow : Window
     private UIElement GoalChoice(Upgrade u, bool canReroll)
     {
         var details = new StackPanel();
-        var price = RichText($"{u.Price} 🌰");
+        var price = PriceText("", u.Price, "home");
         price.HorizontalAlignment = HorizontalAlignment.Center;
         details.Children.Add(price);
         details.Children.Add(Description(u.Description));
@@ -2641,21 +2671,7 @@ public sealed class MenuWindow : Window
         int nuts = _pet.Save.Hazelnuts;
         int cost = _pet.WithCoupon(price, what);
         var action = Button($"Купи  {cost}", buy, primary: true, icon: "nut");
-        // С активен купон: старата цена задраскана, новата – удебелена.
-        if (cost != price)
-        {
-            var t = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-            t.Inlines.Add(new System.Windows.Documents.Run("Купи  "));
-            t.Inlines.Add(new System.Windows.Documents.Run(price.ToString()) { TextDecorations = TextDecorations.Strikethrough, Foreground = Muted });
-            t.Inlines.Add(new System.Windows.Documents.Run(" " + cost) { FontWeight = FontWeights.Bold });
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            var nut = Icon("nut");
-            nut.VerticalAlignment = VerticalAlignment.Center;
-            nut.Margin = new Thickness(0, 0, 5, 0);
-            row.Children.Add(nut);
-            row.Children.Add(t);
-            action.Content = row;
-        }
+        SetPrice(action, "Купи", price, what);
         why = null;
         if (nuts < cost)
         {
@@ -2665,39 +2681,89 @@ public sealed class MenuWindow : Window
         return action;
     }
 
+    /// <summary>Тъмнозелено за новата (намалена) цена – чете се и върху меда на бутона.</summary>
+    private static readonly Brush SaleGreen = new SolidColorBrush(Color.FromRgb(40, 120, 40));
+
+    /// <summary>
+    /// Цената (навсякъде еднакво): с активен купон – старата сива и задраскана, новата зелена.
+    /// what: cloth – дрехи, home – мебели и уреди, food – готвене, other – друго в магазина.
+    /// </summary>
+    private FrameworkElement PriceText(string verb, int price, string what, bool icon = true)
+    {
+        int cost = _pet.WithCoupon(price, what);
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        if (icon)
+        {
+            var nut = Icon("nut");
+            nut.VerticalAlignment = VerticalAlignment.Center;
+            nut.Margin = new Thickness(0, 0, 5, 0);
+            row.Children.Add(nut);
+        }
+        var t = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.Bold };
+        if (verb.Length > 0) t.Inlines.Add(new System.Windows.Documents.Run(verb + "  "));
+        if (cost != price)
+        {
+            t.Inlines.Add(new System.Windows.Documents.Run(price.ToString()) { TextDecorations = TextDecorations.Strikethrough, Foreground = Muted, FontWeight = FontWeights.Normal });
+            t.Inlines.Add(new System.Windows.Documents.Run(" " + cost) { Foreground = SaleGreen });
+        }
+        else t.Inlines.Add(new System.Windows.Documents.Run(price.ToString()));
+        row.Children.Add(t);
+        return row;
+    }
+
+    /// <summary>Бутонът показва цената (с купона, ако важи).</summary>
+    private void SetPrice(Button b, string verb, int price, string what)
+    {
+        if (_pet.WithCoupon(price, what) != price) b.Content = PriceText(verb, price, what);
+    }
+
     /// <summary>
     /// Купоните (от проекта): цъкаш един – активира се (цените падат) до първата покупка и до
     /// края на деня. Само един активен наведнъж.
     /// </summary>
-    private void BuildCoupons()
+    private void BuildCoupons() => _shopTiles.Children.Add(CouponBar(shop: true));
+
+    /// <summary>
+    /// Купоните: в магазина – всички без готвенето; в „Храна“ – само „Безплатно готвене“.
+    /// Активният е отгоре с ✕ (махаш го – връща се, не се губи); другите – „5 [иконка] −50%“,
+    /// цъкаш и се активира (друг активен – сменят се). Пазят се, докато не купиш нещо, за което
+    /// важат, или до края на деня (тогава се връщат обратно).
+    /// </summary>
+    private FrameworkElement CouponBar(bool shop)
     {
         string active = _pet.ActiveCoupon;
-        var stacks = _pet.CouponStacks;
-        if (active.Length == 0 && stacks.Count == 0) return;
+        bool activeHere = active.Length > 0 && (shop ? active != "food" : active == "food");
+        var stacks = _pet.CouponStacks().Where(x => shop ? x.Kind.Code != "food" : x.Kind.Code == "food").ToList();
         var box = new StackPanel();
-        _shopTiles.Children.Add(new Border
+        if (!activeHere && stacks.Count == 0) return box;
+        var frame = new Border
         {
             Background = Empty, BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(8 * U, 6 * U, 8 * U, 8 * U), Margin = new Thickness(0, 10 * U, 0, 0), Child = box,
-        }.Skinned("pocket"));
+            Padding = new Thickness(8 * U, 6 * U, 8 * U, 8 * U), Margin = shop ? new Thickness(0, 10 * U, 0, 0) : new Thickness(0, 0, 0, 10 * U), Child = box,
+        }.Skinned("pocket");
         box.Children.Add(Ribbon("Купони", "coupon"));
-        if (active.Length > 0)
+        if (activeHere)
         {
             var on = PetWindow.CouponOf(active);
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(2, 0, 0, 6 * U) };
+            var row = new DockPanel { Margin = new Thickness(2, 0, 0, 6 * U) };
+            var off = Chip("", () => { _pet.DeactivateCoupon(); Refresh(true); });
+            off.Child = Icon("close");
+            off.ToolTip = Tip("Изключи купона (връща се при другите – не се губи)");
+            off.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(off, Dock.Right);
+            row.Children.Add(off);
             var ic = Icon(on.Icon, 2);
             ic.Margin = new Thickness(0, 0, 8 * U, 0);
             ic.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(ic, Dock.Left);
             row.Children.Add(ic);
-            row.Children.Add(new TextBlock { Text = "Активен: " + on.Tip + " – до първата покупка или до края на деня.", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 420 * U });
+            row.Children.Add(new TextBlock { Text = "Активен: " + on.Tip, FontWeight = FontWeights.Bold, Foreground = SaleGreen, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
             box.Children.Add(row);
         }
         var chips = new WrapPanel();
         foreach (var (kind, count) in stacks)
         {
             string code = kind.Code;
-            bool blocked = active.Length > 0 && code != "luck";
-            // „5 [иконка] −50%“: колко са, иконката на вида, името.
             var content = new StackPanel { Orientation = Orientation.Horizontal };
             content.Children.Add(new TextBlock { Text = count.ToString(), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) });
             var ic = Icon(kind.Icon);
@@ -2708,11 +2774,11 @@ public sealed class MenuWindow : Window
             var chip = Chip("", () => { if (_pet.UseCoupon(code)) Refresh(true); });
             chip.Child = content;
             chip.Margin = new Thickness(0, 0, 6, 4);
-            chip.ToolTip = Tip(kind.Tip + (code == "luck" ? " – цъкни, за да го изтриеш." : blocked ? " – вече има активен купон (първо купи нещо или изчакай утре)." : " – цъкни, за да го активираш (до първата покупка или до края на деня)."));
-            chip.Opacity = blocked ? 0.5 : 1;
+            chip.ToolTip = Tip(kind.Tip + " – цъкни, за да го активираш" + (active.Length > 0 ? " (активният се връща обратно)." : "."));
             chips.Children.Add(chip);
         }
         if (chips.Children.Count > 0) box.Children.Add(chips);
+        return frame;
     }
 
     private static TextBlock Description(string text) => new()

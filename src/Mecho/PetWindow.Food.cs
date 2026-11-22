@@ -114,7 +114,7 @@ public sealed partial class PetWindow
             }
         }
         int cost = Kitchen.CostOf(food, _save);
-        if (_save.Hazelnuts < cost)
+        if (_save.Hazelnuts < WithCoupon(cost, "food"))
         {
             Say($"Трябват ми {cost} 🌰, а имам {_save.Hazelnuts}. Да свършим някоя задача?", 4);
             return;

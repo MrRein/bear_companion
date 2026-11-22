@@ -108,7 +108,7 @@ public sealed partial class PetWindow
     /// <summary>„Купи“: купува целта (идва с доставка).</summary>
     public void TakeGoal()
     {
-        if (Goal is not { } u || _save.Hazelnuts < u.Price) return;
+        if (Goal is not { } u || _save.Hazelnuts < WithCoupon(u.Price, "home")) return;
         Buy(u);
     }
 
@@ -135,7 +135,7 @@ public sealed partial class PetWindow
     {
         if (Goal is not { } u) return false;
         string thing = $"{u.Icon} {u.Name.ToLowerInvariant()}";
-        if (_save.Hazelnuts >= u.Price)
+        if (_save.Hazelnuts >= WithCoupon(u.Price, "home"))
         {
             Mutter(R.Pick("goal.ready", _save.OwnerName).Replace("{нещо}", thing), 6);
             _goalReadySaid = true;
