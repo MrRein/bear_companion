@@ -62,7 +62,15 @@ public sealed partial class PetWindow
     /// <summary>
     /// Дава нещото (без лешниците – те са с количество). Връща името му или null, ако не може.
     /// </summary>
-    private string? GrantLoot(string code)
+    private string? GrantLoot(string code, string? from = null)
+    {
+        string? got = GrantLootNow(code);
+        // Откъде е – след като е в инвентара (ItemAcquired записва общия източник, това го уточнява).
+        if (got != null && from != null && !code.StartsWith("coupon:") && code != "page") SetOrigin(InventoryId(code), from);
+        return got;
+    }
+
+    private string? GrantLootNow(string code)
     {
         if (!LootAvailable(code)) return null;
         var (kind, id) = SplitCode(code);

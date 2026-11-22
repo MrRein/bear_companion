@@ -126,6 +126,16 @@ public static class SelfTest
             pet.CoreEngine.Bus.Send(new Mecho.Core.Think("dev.test", 10));
             talk.Tick();
             if (said != "dev.test") throw new Exception("важната мисъл не се каза");
+            // Откъде е: наградата от сандъчето помни сандъчето.
+            if (Backdrops.All.FirstOrDefault(b => b.Price > 0 && !Backdrops.Owns(pet.Save, b)) is { } bg)
+            {
+                bool wardrobe = pet.Save.Owned.Contains(Kitchen.Wardrobe);
+                if (!wardrobe) pet.Save.Owned.Add(Kitchen.Wardrobe);
+                pet.SelfTestGrant("bg:" + bg.Id, "от сандъчето на „Проба“");
+                if (pet.Journal.OriginOf("bg_" + bg.Id)?.From != "от сандъчето на „Проба“") throw new Exception("не помни откъде е тапетът: " + pet.Journal.OriginOf("bg_" + bg.Id)?.From);
+                if (pet.OriginNote("bg_" + bg.Id) is not { } note || !note.StartsWith("От сандъчето")) throw new Exception("няма подсказка откъде е");
+                if (!wardrobe) pet.Save.Owned.Remove(Kitchen.Wardrobe);
+            }
         }, 300);
         await Step("loot_list: рядкост и цени", () =>
         {

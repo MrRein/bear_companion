@@ -575,6 +575,7 @@ public sealed partial class PetWindow
                     {
                         var g = pool[_rng.Next(pool.Count)];
                         _save.OwnedClothes.Add(g.Id);
+                        SetOrigin(g.Id, ChestOrigin);
                         said.Add(g.Name);
                         _gotItems.Add("cloth:" + g.Id);
                         continue;
@@ -583,10 +584,11 @@ public sealed partial class PetWindow
                 }
                 case "cloth" when Clothes.All.FirstOrDefault(g => g.Id == id) is { } g && !Clothes.Owns(_save, g):
                     _save.OwnedClothes.Add(g.Id);
+                    SetOrigin(g.Id, ChestOrigin);
                     said.Add(g.Name);
                     _gotItems.Add(item);
                     continue;
-                case "up" or "pajama" or "bg" or "theme" or "skin" when GrantLoot(item) is { } got:
+                case "up" or "pajama" or "bg" or "theme" or "skin" when GrantLoot(item, ChestOrigin) is { } got:
                     said.Add(got);
                     _gotItems.Add(item);
                     continue;
@@ -740,6 +742,7 @@ public sealed partial class PetWindow
     {
         if (CurrentProject.FinalItem.Length > 0 && !_save.Owned.Contains(CurrentProject.FinalItem)) _save.Owned.Add(CurrentProject.FinalItem);
         TodayRec.Hobbies.Add("game_release");
+        RememberProjectDone();
         // Залата на славата: играта, която направихте заедно – с това, което ти реши за нея.
         string day = DateTime.Today.ToString("d MMMM yyyy", new System.Globalization.CultureInfo("bg-BG"));
         if (!_save.HallOfFame.Any(f => f.Name == _save.GameName && f.Done == day))

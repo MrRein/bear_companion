@@ -720,6 +720,7 @@ public sealed partial class PetWindow
     {
         StartNewDay();
         RecordPomodoro(FocusLength.TotalMinutes);
+        CheckPomodoroMilestone();
         int nuts = PayForMinutes(FocusLength.TotalMinutes) + LazyBonus();
         if (Kitchen.Owns(_save, Kitchen.Headphones))
         {

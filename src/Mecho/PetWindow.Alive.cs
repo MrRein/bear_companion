@@ -59,6 +59,7 @@ public sealed partial class PetWindow
         if (first != DateTime.MaxValue) CoreEngine.Bus.Send(new SetFirstDay(first));
         // Напомнянето за проекта: с бутон към него (вместо проста реплика).
         OnThought("project.nudge", _ => ProjectNudge(force: true));
+        SetupMoments();
         OnThought("dev.test", t => Say($"(мисъл с важност {t.Fact("важност")} – режисьорът реши да я кажа сега)", 5));
     }
 

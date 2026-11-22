@@ -210,24 +210,24 @@ public sealed partial class PetWindow
                 learned != null ? $"Научи {learned.Name}!" : $"Следваща рецепта: {_save.RecipePages}/{Recipes.Pages} страници.");
             Later(1.2, () => Say(R.Text(learned != null ? "gift.got.recipe" : "gift.got.page", _save.OwnerName, ("храна", (learned?.Name ?? "").ToLowerInvariant())), 5));
         }
-        else if (kind == "cloth" && Clothes.All.FirstOrDefault(x => x.Id == id) is { } g && GrantLoot(code!) != null)
+        else if (kind == "cloth" && Clothes.All.FirstOrDefault(x => x.Id == id) is { } g && GrantLoot(code!, "от един подарък") != null)
         {
             var art = GarmentPreview(g);
             window.Reveal(art, Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 3, 8), g.Name, RarityTag(code!) + "Отиде в гардероба.");
             GiftReaction("gift.got.clothes", g.Name, "Да го облека ли сега?", p => p.WearGift(g));
         }
-        else if (kind == "theme" && UiThemes.All.FirstOrDefault(x => x.Id == id) is { } t && GrantLoot(code!) != null)
+        else if (kind == "theme" && UiThemes.All.FirstOrDefault(x => x.Id == id) is { } t && GrantLoot(code!, "от един подарък") != null)
         {
             window.Reveal(UiThemes.Preview(t), 4, $"Меню: {t.Name}", RarityTag(code!) + "Сложи го от гардероба → Меню.");
             GiftReaction("gift.got.theme", t.Name, "Да сменя ли менюто с него?", p => p.UseUiTheme(t));
         }
-        else if (kind == "bg" && GrantLoot(code!) != null)
+        else if (kind == "bg" && GrantLoot(code!, "от един подарък") != null)
         {
             var b = Backdrops.Find(id);
             window.Reveal(BackdropImage(b), 2, $"Тапет: {b.Name}", RarityTag(code!) + "Сложи го от гардероба (Тапети) или с клик на портрета.");
             GiftReaction("gift.got.backdrop", b.Name, "Да го сложа ли за фон?", p => p.UseBackdrop(b));
         }
-        else if (kind != "nuts" && code != null && GrantLoot(code) is { } got)
+        else if (kind != "nuts" && code != null && GrantLoot(code, "от един подарък") is { } got)
         {
             // Купон, мебел, облик, пижама…
             var art = LootArt(code) ?? Ui.LoadIcon(LootIcon(code)) ?? _lib.GetProp("nut", 5, 6, 0).Image;

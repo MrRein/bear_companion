@@ -128,7 +128,8 @@ public sealed partial class PetWindow
         {
             _save.MemoryDay = today;
             _save.FavFoodSaid = false;   // нов ден – пак може да каже какво му се яде
-            if (MorningMemory()) _memoryAt = now + 600;
+            ThinkMorning();   // през режисьора: спомен, връщане, годишнина
+            _memoryAt = now + 600;
             Persist();
             return;
         }
@@ -136,12 +137,11 @@ public sealed partial class PetWindow
         if (_save.MemoryLaterDay != today && hour is >= 14 and < 19 && _rng.Next(6) == 0)
         {
             _save.MemoryLaterDay = today;
-            if (_rng.Next(2) == 0) LaterMemory();
-            else SayFavoriteWish();
+            ThinkAfternoon();
             Persist();
         }
         else if (!_save.FavFoodSaid && hour is >= 10 and < 20 && _save.Fullness < 60 && _rng.Next(8) == 0)
-            SayFavoriteWish();
+            Think("wish.favorite", 4);
     }
 
     /// <summary>„Нещо ми се яде… / Дояде ми се…“ – напомня желанието (веднъж на ден).</summary>

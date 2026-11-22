@@ -62,6 +62,7 @@ public sealed partial class PetWindow
     {
         if (!Furniture.Owns(_save, skin)) return;
         _save.Skins[skin.Item] = skin.Id;
+        MentionOrigin($"skin_{skin.Item}_{skin.Id}", skin.Name);
         if (skin.Item == Kitchen.Bed) _save.BedSkin = skin.Id;
         if (skin.Item == Kitchen.Couch) _save.CouchSkin = skin.Id;
         _bedProp = null;
@@ -140,6 +141,7 @@ public sealed partial class PetWindow
     {
         if (!Clothes.Owns(_save, p)) return;
         _save.Pajama = p.Id;
+        MentionOrigin(p.Key, p.Name);
         Persist();
         NotifyCare();
     }

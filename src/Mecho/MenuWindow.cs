@@ -3214,7 +3214,7 @@ public sealed class MenuWindow : Window
                     action.IsEnabled = false;
                 }
                 else action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
-                grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, null, owned: used, artScale: 2, rarity: Loot.RarityOf("bg:" + b.Id)));
+                grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, _pet.OriginNote("bg_" + b.Id), owned: used, artScale: 2, rarity: Loot.RarityOf("bg:" + b.Id)));
             }
             return "Нови тапети има в офертата на деня.";
         }
@@ -3250,7 +3250,7 @@ public sealed class MenuWindow : Window
                 Foreground = Muted,
                 TextAlignment = TextAlignment.Center,
             };
-            grid.Children.Add(MakeTile(art, g.Name, details, action, dim: false, null, owned: worn, artScale: scale, rarity: Loot.RarityOf("cloth:" + g.Id)));
+            grid.Children.Add(MakeTile(art, g.Name, details, action, dim: false, _pet.OriginNote(g.Id), owned: worn, artScale: scale, rarity: Loot.RarityOf("cloth:" + g.Id)));
         }
         return $"Още нямаш {slot.Name.ToLowerInvariant()}.";
     }

@@ -38,8 +38,12 @@ public static class Facts
 /// <summary>Произходът на предмет: откъде (текст) и кога.</summary>
 public sealed record Origin(string From, DateTime When);
 
-public sealed record JournalState(ImmutableList<Moment> Moments, ImmutableDictionary<string, Origin> Origins, DateTime FirstDay) : IStateSlice
+public sealed record JournalState(ImmutableList<Moment> Moments, ImmutableDictionary<string, Origin> Origins, DateTime FirstDay,
+    ImmutableDictionary<string, int>? Counters = null) : IStateSlice
 {
+    /// <summary>Брояч за цялото време (мечо-дора, проекти…) – не изветрява.</summary>
+    public int Counter(string name) => Counters != null && Counters.TryGetValue(name, out var n) ? n : 0;
+
     public static JournalState Empty { get; } = new(ImmutableList<Moment>.Empty, ImmutableDictionary<string, Origin>.Empty, DateTime.MinValue);
 
     public Moment? LastOf(string kind) => Moments.LastOrDefault(m => m.Kind == kind);
@@ -61,11 +65,15 @@ public sealed record JournalState(ImmutableList<Moment> Moments, ImmutableDictio
 public sealed record Remember(string Kind, ImmutableDictionary<string, string>? Facts = null, int Importance = 3, DateTime? When = null) : IGameCommand;
 /// <summary>Уточни откъде е предмет (Force – и ако вече има записан).</summary>
 public sealed record SetOrigin(string ItemId, string From, bool Force = true) : IGameCommand;
+/// <summary>Брои нещо за цялото време (Tally("pomodoro")). Пуска TallyReached на кръгли числа.</summary>
+public sealed record Tally(string Name, int By = 1) : IGameCommand;
 /// <summary>Първият ден заедно (стари записи: от най-стария ден).</summary>
 public sealed record SetFirstDay(DateTime Day) : IGameCommand;
 
 // ── Сигнали ──
 public sealed record MomentRemembered(Moment Moment) : ISignal;
+/// <summary>Броячът стигна кръгло число (Milestones).</summary>
+public sealed record TallyReached(string Name, int Value) : ISignal;
 
 /// <summary>Модулът „хроника“ (Id: journal).</summary>
 public sealed class JournalModule : GameModule
@@ -75,6 +83,9 @@ public sealed class JournalModule : GameModule
     public const int MaxMoments = 600;
     public const int KeepImportant = 5;
     public static readonly TimeSpan KeepMinor = TimeSpan.FromDays(90);
+
+    /// <summary>Кръглите числа за TallyReached.</summary>
+    public static readonly int[] Milestones = { 1, 10, 50, 100, 250, 500, 1000, 2000, 5000 };
 
     public override string Id => ModuleId;
 
@@ -95,6 +106,16 @@ public sealed class JournalModule : GameModule
             var s = State<JournalState>();
             if (!c.Force && s.Origins.ContainsKey(c.ItemId)) return CommandResult.Done;
             Store.Set(s with { Origins = s.Origins.SetItem(c.ItemId, new Origin(c.From ?? "", Clock.Now)) });
+            return CommandResult.Done;
+        });
+        Handle<Tally>(c =>
+        {
+            if (string.IsNullOrWhiteSpace(c.Name) || c.By <= 0) return CommandResult.Rejected("невалиден брояч");
+            var s = State<JournalState>();
+            int old = s.Counter(c.Name), now = old + c.By;
+            Store.Set(s with { Counters = (s.Counters ?? ImmutableDictionary<string, int>.Empty).SetItem(c.Name, now) });
+            foreach (int m in Milestones)
+                if (old < m && now >= m) Emit(new TallyReached(c.Name, m));
             return CommandResult.Done;
         });
         Handle<SetFirstDay>(c =>

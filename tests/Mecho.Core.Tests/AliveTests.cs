@@ -172,4 +172,15 @@ public class AliveTests
         Assert.Equal("подарък", j.OriginOf("bg_space")!.From);
         Assert.Single(e2.Store.Get<TalkState>().Pending);
     }
+
+    [Fact]
+    public void Tally_counts_forever_and_reports_round_numbers()
+    {
+        var (e, _, signals, _) = Started();
+        for (int i = 0; i < 99; i++) e.Bus.Send(new Tally("pomodoro"));
+        Assert.DoesNotContain(signals.OfType<TallyReached>(), t => t.Value == 100);
+        e.Bus.Send(new Tally("pomodoro"));
+        Assert.Contains(signals.OfType<TallyReached>(), t => t.Name == "pomodoro" && t.Value == 100);
+        Assert.Equal(100, e.Store.Get<JournalState>().Counter("pomodoro"));
+    }
 }

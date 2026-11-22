@@ -330,7 +330,7 @@ public sealed partial class PetWindow
         Emote("sparkle", 4);
         // Наградата – от loot_list (колона „Цел“): лешници или нещо ново (дреха, тапет, меню…).
         string? code = RollLoot(Loot.Mission);
-        if (code != null && code != "nuts" && GrantLoot(code) is { } name)
+        if (code != null && code != "nuts" && GrantLoot(code, "награда за изпълнена цел") is { } name)
         {
             Say(R.Pick("goal.done", _save.OwnerName) + $" Награда: {name}!", 8);
             Persist();

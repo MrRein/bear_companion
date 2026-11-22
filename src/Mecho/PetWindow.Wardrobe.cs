@@ -152,6 +152,7 @@ public sealed partial class PetWindow
         _save.Outfit[g.SlotId] = g.Id;
         TodayRec.Clothes++;
         Dress(line ?? Lines.Pick(g.SlotId == Clothes.Hat.Id ? Lines.PutOnHat : Lines.PutOn, _save.OwnerName));
+        if (byUser) MentionOrigin(g.Id, g.Name);
     }
 
     public void TakeOff(Slot slot)
@@ -225,6 +226,7 @@ public sealed partial class PetWindow
         _save.Hazelnuts -= PayWithCoupon(b.Price);
         _save.Owned.Add("bg_" + b.Id);
         _save.Background = b.Id;
+        MentionOrigin("bg_" + b.Id, "тапета „" + b.Name + "“");
         Persist();
         NotifyCare();
     }
@@ -246,6 +248,7 @@ public sealed partial class PetWindow
         if (!UiThemes.Owns(_save, t)) return;
         _save.UiTheme = t.Id;
         Ui.Apply(t);
+        MentionOrigin(t.Key, "менюто „" + t.Name + "“");
         Persist();
         NotifyCare();
     }
