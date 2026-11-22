@@ -1894,6 +1894,8 @@ public sealed partial class PetWindow
                 double banked = _save.ProjectBank;
                 if (banked <= 0) throw new Exception("излишъкът не се запази");
                 ClaimProjectReward(1);
+                if (PendingQuestion?.Key != "goal" || _save.ProjectBank < banked) throw new Exception("не чака въпроса за играчите");
+                AnswerProject(PendingQuestion!, "Събират мед");
                 if (_save.ProjectPaid < 3 && _save.ProjectBank >= banked) throw new Exception("отложената работа не продължи след сандъчето");
                 // До края: отваря сандъчетата (в обратен ред – може в какъвто ред искаш) и отговаря.
                 for (int guard = 0; guard < 200 && !ProjectDone; guard++)
