@@ -245,6 +245,7 @@ public sealed partial class PetWindow : Window
     private void OnStart()
     {
         CoreEngine.Start();
+        Mecho.Core.GiftsModule.BaseChance = Math.Clamp(Loot.Setting("Подарък шанс за ден %", 70) / 100, 0, 1);
         // Балончето и пеперудата стоят над мечока (собственик = мечокът).
         _bubbleWindow.Owner = this;
         _butterflyWindow.Owner = this;

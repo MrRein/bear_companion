@@ -39,7 +39,7 @@ public sealed class GiftsModule : GameModule
     public const string Key = "gifts";
 
     /// <summary>В 7 от 10 дни има подарък (× Mods.GiftChance, най-много 1).</summary>
-    public const double BaseChance = 0.7;
+    public static double BaseChance { get; set; } = 0.7;   // приложението го взима от loot_list
 
     public override string Id => ModuleId;
 

@@ -318,7 +318,7 @@ public sealed partial class PetWindow
     {
         var g = CurrentMission;
         if (g.Done || g.Have < g.Target) return;
-        PayMission(g.Text, LowRoll(15, 25));   // наградата е изненада: 15–25, по-често ниско
+        PayMission(g.Text, LootNuts("Цел лешници", 15, 25));   // изненада: 15–25 (loot_list), по-често ниско
     }
 
     private void PayMission(string text, int reward)
@@ -328,30 +328,14 @@ public sealed partial class PetWindow
         NoteProud();
         Log("star", "Мисията изпълнена: " + text.ToLowerInvariant());
         Emote("sparkle", 4);
-        // Понякога (1 от 6, ако има гардероб) вместо лешници – нещо ново: дреха, тапет или цвят на менюто.
-        if (DailyOffer.HasWardrobe(_save) && _rng.Next(6) == 0)
+        // Наградата – от loot_list (колона „Цел“): лешници или нещо ново (дреха, тапет, меню…).
+        string? code = RollLoot(Loot.Mission);
+        if (code != null && code != "nuts" && GrantLoot(code) is { } name)
         {
-            var prizes = Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(_save, g)).Select(g => (object)g)
-                .Concat(Backdrops.All.Where(b => !Backdrops.Owns(_save, b)).Select(b => (object)b))
-                .Concat(UiThemes.All.Where(t => !UiThemes.Owns(_save, t)).Select(t => (object)t)).ToList();
-            if (prizes.Count > 0)
-            {
-                string name;
-                switch (prizes[_rng.Next(prizes.Count)])
-                {
-                    case Garment g: _save.OwnedClothes.Add(g.Id); name = g.Name; break;
-                    case Backdrop b: _save.Owned.Add("bg_" + b.Id); name = "тапет „" + b.Name + "“"; break;
-                    case UiTheme t: _save.Owned.Add(t.Key); name = "меню „" + t.Name + "“"; break;
-                    default: name = ""; break;
-                }
-                if (name.Length > 0)
-                {
-                    Say(R.Pick("goal.done", _save.OwnerName) + $" Награда: {name}! Виж в гардероба.", 8);
-                    Persist();
-                    NotifyCare();
-                    return;
-                }
-            }
+            Say(R.Pick("goal.done", _save.OwnerName) + $" Награда: {name}!", 8);
+            Persist();
+            NotifyCare();
+            return;
         }
         GainNuts(reward, "мисия");
         Say(R.Pick("goal.done", _save.OwnerName) + $" +{reward} 🌰", 7);

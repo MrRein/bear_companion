@@ -575,10 +575,8 @@ internal sealed class ProjectWindow : FloatWindow
         string kind = item.Split(':')[0], id = item.Contains(':') ? item[(item.IndexOf(':') + 1)..] : "";
         BitmapSource? src = kind switch
         {
-            "cloth" when Clothes.All.FirstOrDefault(g => g.Id == id) is { } g => Pet.GarmentPreview(g),
-            "up" => Pet.ShopArt(item),
             "box" => Pet.PropImage(PetWindow.GameBox),
-            _ => null,
+            _ => Pet.LootArt(item),
         };
         src ??= LoadIcon(PetWindow.ItemIcon(item));
         return src != null ? Art(src, size, gray: false) : Icon("gift", 3);

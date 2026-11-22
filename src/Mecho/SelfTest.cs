@@ -113,6 +113,18 @@ public static class SelfTest
             if (string.Join("|", gone) != "assets/ui/skin/tab.png|old.dll") throw new Exception("със списък: " + string.Join(", ", gone));
             Directory.Delete(root, true);
         }, 100);
+        await Step("loot_list: всички предмети", () =>
+        {
+            if (Loot.LoadError != null) throw new Exception("loot_list.xlsx не се чете: " + Loot.LoadError);
+            var codes = Loot.Rows.Select(r => r.Code).ToHashSet();
+            var missing = PetWindow.AllLootCodes().Where(c => !codes.Contains(c)).ToList();
+            if (missing.Count > 0) throw new Exception("липсват в loot_list (пусни tools/make_loot_list.py): " + string.Join(", ", missing));
+            var unknown = codes.Where(c => !PetWindow.AllLootCodes().Contains(c)).ToList();
+            if (unknown.Count > 0) throw new Exception("непознати кодове в loot_list: " + string.Join(", ", unknown));
+            foreach (var src in Loot.Sources)
+                if (!Loot.Rows.Any(r => r.W(src) > 0)) throw new Exception("празна колона: " + src);
+            if (Math.Abs(Mecho.Core.GiftsModule.BaseChance - Loot.Setting("Подарък шанс за ден %", 70) / 100) > 1e-9) throw new Exception("шансът за подарък не е от loot_list");
+        }, 100);
         await pet.SelfTestSteps(Step);
 
         async Task Step(string name, Action action, int waitMs)
@@ -1338,9 +1350,9 @@ public sealed partial class PetWindow
             _save.MissionDone = false;
             int petted = rec.DesiresMet;
             rec.DesiresMet = 20;
-            int before = _save.Hazelnuts, items = _save.Owned.Count + _save.OwnedClothes.Count;
+            int before = _save.Hazelnuts, items = _save.Owned.Count + _save.OwnedClothes.Count + _save.CouponCodes.Count + _save.RecipePages;
             CheckBearGoal();
-            if (!_save.MissionDone || (_save.Hazelnuts <= before && _save.Owned.Count + _save.OwnedClothes.Count <= items)) throw new Exception("мисията не даде награда");
+            if (!_save.MissionDone || (_save.Hazelnuts <= before && _save.Owned.Count + _save.OwnedClothes.Count + _save.CouponCodes.Count + _save.RecipePages <= items)) throw new Exception("мисията не даде награда");
             int after = _save.Hazelnuts;
             CheckBearGoal();
             if (_save.Hazelnuts != after) throw new Exception("мисията плати два пъти");

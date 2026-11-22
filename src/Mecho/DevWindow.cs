@@ -443,6 +443,12 @@ public sealed partial class PetWindow
         });
         yield return (clothes, "Съблечи", Undress);
         yield return (food, "+1 страница рецепта", () => FindRecipePage());
+        yield return (food, "Презареди loot_list", () =>
+        {
+            Loot.Reload();
+            Mecho.Core.GiftsModule.BaseChance = Math.Clamp(Loot.Setting("Подарък шанс за ден %", 70) / 100, 0, 1);
+            Say(Loot.LoadError == null ? $"loot_list: {Loot.Rows.Count} предмета." : "loot_list: " + Loot.LoadError, 5);
+        });
         yield return (food, "Научи следващата рецепта", () =>
         {
             for (int i = 0; i < Recipes.Pages && Recipes.Next(_save) != null; i++)

@@ -358,39 +358,28 @@ public sealed partial class PetWindow
     private string RollProjectReward(int i)
     {
         var items = new List<string>();
-        if (i == ProjectStages.Length - 1)
-        {
-            // Финалът – специалното сандъче, най-пълното: кутията с играта и много неща.
-            items.Add("box");
-            items.Add("nuts:" + ProjectNutsFor(i) * 3);
-            items.Add("coupon:pct50");
-            if (Recipes.Next(_save) != null) items.Add("page");
-            if (DailyOffer.HasWardrobe(_save) && RandomSlot() is { } fs) items.Add(fs);
-            if (RandomUpgrade(Kitchen.FurnitureShelf, i) is { } ff) items.Add(ff);
-            return string.Join("|", items);
-        }
+        bool final = i == ProjectStages.Length - 1;
+        char tier = final ? 'X' : ProjectTier(i);
+        string source = TierSource(tier);
+        if (final) items.Add("box");
         if (i == 8) items.Add("name");
         // Следващият етап иска нещо, което го няма (бюрото, масичката, статива, компютъра).
-        if (StageNeeds(i + 1) is { } need && !OwnsOrOrdered(need) && !PlannedElsewhere("up:" + need, i)) items.Add("up:" + need);
-        // Колко неща – според ценността на сандъчето: обикновено 1–2, ценно 3, много ценно 4.
-        char tier = ProjectTier(i);
-        int count = Math.Max(items.Count + (tier == 'N' ? 0 : 1), tier == 'G' ? 4 : tier == 'S' ? 3 : 1 + _rng.Next(2));
-        bool wardrobe = DailyOffer.HasWardrobe(_save);
-        var used = new HashSet<string>();
+        if (!final && StageNeeds(i + 1) is { } need && !OwnsOrOrdered(need) && !PlannedElsewhere("up:" + need, i)) items.Add("up:" + need);
+        // Колко неща – от loot_list („Настройки“): обикновено 1–2, ценно 3, много ценно 4, финалът 5 (+ кутията).
+        var (cmin, cmax) = tier switch { 'S' => (3, 3), 'G' => (4, 4), 'X' => (5, 5), _ => (1, 2) };
+        cmin = Loot.SettingInt($"{source} неща мин", cmin);
+        cmax = Math.Max(cmin, Loot.SettingInt($"{source} неща макс", cmax));
+        int rolled = cmin + _rng.Next(cmax - cmin + 1);
+        int count = final ? items.Count + rolled : Math.Max(items.Count + (tier == 'N' ? 0 : 1), rolled);
+        int upFrom = Loot.SettingInt("мебели от етап", 9);
         for (int guard = 0; items.Count < count && guard < 30; guard++)
         {
-            int w = _rng.Next(100);
-            string kind = w < 32 ? "nuts" : w < 60 ? "page" : w < 80 ? "coupon" : w < 97 ? "slot" : "up";   // виж docs/loot_list.md
-            if (!used.Add(kind)) continue;
-            string? item = kind switch
-            {
-                "nuts" => "nuts:" + ProjectNutsFor(i),
-                "page" => Recipes.Next(_save) != null ? "page" : null,
-                "coupon" => "coupon:" + RollCoupon(),
-                "slot" => wardrobe ? RandomSlot() : null,
-                _ => i >= ProjectStages.Length / 2 ? RandomUpgrade(Kitchen.FurnitureShelf, i) : null,   // мебел – рядко и чак във втората половина
-            };
-            if (item != null) items.Add(item);
+            string? code = RollLoot(source, c =>
+                !items.Any(x => x == c || x.StartsWith(c + ":"))
+                && !PlannedElsewhere(c, i)
+                && (!c.StartsWith("up:") || i + 1 >= upFrom));
+            if (code == null) break;
+            items.Add(code == "nuts" ? "nuts:" + ProjectNutsFor(i) * (final ? 3 : 1) : code);
         }
         if (items.Count == 0) items.Add("nuts:" + ProjectNutsFor(i));
         // Само едно нещо – по-голямо.
@@ -400,13 +389,19 @@ public sealed partial class PetWindow
             else if (items[0].StartsWith("coupon:")) items[0] = "coupon:pct50";
         }
         // Понякога едно от тях е скрито (не нещата, които етапът изисква).
-        if (items.Count >= 2 && _rng.Next(3) == 0)
+        if (!final && items.Count >= 2 && _rng.Next(100) < Loot.Setting("скрито нещо %", 33))
         {
             int k = 1 + _rng.Next(items.Count - 1);
             if (!items[k].StartsWith("up:") && items[k] is not ("name" or "box")) items[k] = "?" + items[k];
         }
         return string.Join("|", items);
     }
+
+    /// <summary>Колоната в loot_list за вида сандъче.</summary>
+    private static string TierSource(char tier) => tier switch
+    {
+        'S' => Loot.Silver, 'G' => Loot.Gold, 'X' => Loot.Legend, _ => Loot.Wood,
+    };
 
     /// <summary>
     /// Ценността на сандъчето на етап i: N – обикновено, S – ценно, G – много ценно, X – финалът.
@@ -431,9 +426,14 @@ public sealed partial class PetWindow
         for (int attempt = 0; attempt < 400; attempt++)
         {
             var rest = new List<char>();
-            rest.AddRange(Enumerable.Repeat('N', 4));
-            rest.AddRange(Enumerable.Repeat('S', 5));
-            rest.AddRange(Enumerable.Repeat('G', 3));
+            // Колко от всеки вид – от шансовете в loot_list (44 / 31 / 19 / 6 → на 16 етапа 7 / 5 / 3 / 1).
+            int ns = (int)Math.Round(n * Loot.Setting("шанс " + Loot.Silver + " %", 31) / 100);
+            int ng = (int)Math.Round(n * Loot.Setting("шанс " + Loot.Gold + " %", 19) / 100);
+            ns = Math.Clamp(ns, 0, n - 4);
+            ng = Math.Clamp(ng, 0, n - 4 - ns);
+            rest.AddRange(Enumerable.Repeat('N', n - 1 - 3 - ns - ng));
+            rest.AddRange(Enumerable.Repeat('S', ns));
+            rest.AddRange(Enumerable.Repeat('G', ng));
             var order = new List<char> { 'N', 'N', 'N' };
             order.AddRange(rest.OrderBy(_ => _rng.Next()));
             bool ok = true;
@@ -445,20 +445,6 @@ public sealed partial class PetWindow
             if (ok && order.Count == n - 1) return new string(order.ToArray()) + "X";
         }
         return "NNNSNNSNGSNSGSG".PadRight(n - 1, 'N')[..(n - 1)] + "X";
-    }
-
-    /// <summary>Кой купон: −25% (35%), безплатно готвене (20%), −50% дрехи (15%), −50% (10%), −30% мебели (10%), безплатно нещо (10%).</summary>
-    private string RollCoupon()
-    {
-        int r = _rng.Next(100);
-        return r < 35 ? "pct25" : r < 55 ? "food" : r < 70 ? "cloth50" : r < 80 ? "pct50" : r < 90 ? "home30" : "free";
-    }
-
-    /// <summary>Вид дреха (шапка, блуза…), от който има още нови – „коя да е“, разкрива се при отваряне.</summary>
-    private string? RandomSlot()
-    {
-        var slots = Clothes.Shelves.Where(sl => Clothes.All.Any(g => !g.Hidden && g.SlotId == sl.Id && !Clothes.Owns(_save, g))).ToList();
-        return slots.Count == 0 ? null : "slot:" + slots[_rng.Next(slots.Count)].Id;
     }
 
     /// <summary>Нещата в сандъчето (стар запис – едно нещо).</summary>
@@ -477,6 +463,7 @@ public sealed partial class PetWindow
             "slot" => SlotName(id) + " (изненада коя)",
             "cloth" => Clothes.All.FirstOrDefault(g => g.Id == id)?.Name ?? "Дреха",
             "up" => Kitchen.Find(id)?.Name ?? "Мебел",
+            "pajama" or "bg" or "theme" or "skin" => LootName(item),
             "name" => "Името на играта",
             "box" => "Кутията с играта + титла „Издател“",
             _ => item,   // стар запис – вече е текст
@@ -496,6 +483,7 @@ public sealed partial class PetWindow
             "slot" => Clothes.Slots.FirstOrDefault(s => s.Id == id)?.Icon ?? "shirt",
             "cloth" => Clothes.All.FirstOrDefault(g => g.Id == id) is { } g ? g.Slot.Icon : "shirt",
             "up" => "couch",
+            "pajama" or "bg" or "theme" or "skin" => LootIcon(item),
             "name" => "pencil",
             "box" => "star",
             _ => "gift",
@@ -514,19 +502,6 @@ public sealed partial class PetWindow
     private bool PlannedElsewhere(string item, int i) =>
         _save.ProjectPlan.Where((p, k) => k != i && k >= _save.ProjectPaid).Any(p => RewardItems(p).Any(x => x.TrimStart('?') == item));
 
-    private string? RandomUpgrade(string shelf, int i)
-    {
-        var list = Kitchen.Upgrades.Where(u => u.Shelf == shelf && u.Id is not (Kitchen.Wardrobe or Kitchen.Heater) && !OwnsOrOrdered(u.Id) && !PlannedElsewhere("up:" + u.Id, i)).ToList();
-        return list.Count == 0 ? null : "up:" + list[_rng.Next(list.Count)].Id;
-    }
-
-    /// <summary>Дреха, която още нямаш (тениска, шапка…) – само с гардероб.</summary>
-    private string? RandomCloth(int i)
-    {
-        var list = Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(_save, g) && !PlannedElsewhere("cloth:" + g.Id, i)).ToList();
-        return list.Count == 0 ? null : "cloth:" + list[_rng.Next(list.Count)].Id;
-    }
-
     /// <summary>Какъв вид е пакетчето (видимо отвън, преди да го отвориш).</summary>
     public static string ProjectRewardKind(string plan) => plan.Split(':')[0] switch
     {
@@ -534,23 +509,12 @@ public sealed partial class PetWindow
         "coupon" => "Купон за магазина",
         "page" => "Страница от рецепта",
         "cloth" => "Нещо за гардероба",
-        "up" => "Нещо за бърлогата",
+        "up" or "skin" => "Нещо за бърлогата",
+        "pajama" or "bg" or "theme" => "Нещо за гардероба",
         "name" => "Името на играта",
         "box" => "Голямата награда",
         _ => "Изненада",
     };
-
-    /// <summary>Нещо от магазина, което още нямаш: уред/хоби, а с гардероб – и дреха, тапет или меню.</summary>
-    private string? RandomShopThing(int i)
-    {
-        var pool = Kitchen.Upgrades.Where(u => u.Shelf != Kitchen.FurnitureShelf && !OwnsOrOrdered(u.Id)).Select(u => "up:" + u.Id);
-        if (DailyOffer.HasWardrobe(_save))
-            pool = pool.Concat(Clothes.All.Where(g => !g.Hidden && !Clothes.Owns(_save, g)).Select(g => "cloth:" + g.Id))
-                .Concat(Backdrops.All.Where(b => !Backdrops.Owns(_save, b)).Select(b => "bg:" + b.Id))
-                .Concat(UiThemes.All.Where(t => !UiThemes.Owns(_save, t)).Select(t => "theme:" + t.Key));
-        var list = pool.Where(p => !PlannedElsewhere(p, i)).ToList();
-        return list.Count == 0 ? null : list[_rng.Next(list.Count)];
-    }
 
     /// <summary>Как се казва наградата (в прогреса и в дневника).</summary>
     public string ProjectRewardLabel(string plan) => string.Join(", ", RewardItems(plan).Select(ItemLabel));
@@ -622,9 +586,8 @@ public sealed partial class PetWindow
                     said.Add(g.Name);
                     _gotItems.Add(item);
                     continue;
-                case "up" when Kitchen.Find(id) is { } u && !OwnsOrOrdered(id):
-                    GiftUpgrade(u);
-                    said.Add(u.Name + " (идва с доставка)");
+                case "up" or "pajama" or "bg" or "theme" or "skin" when GrantLoot(item) is { } got:
+                    said.Add(got);
                     _gotItems.Add(item);
                     continue;
                 case "name":

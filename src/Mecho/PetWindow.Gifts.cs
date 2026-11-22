@@ -197,14 +197,12 @@ public sealed partial class PetWindow
         }
         _save.GiftPending = false;
         Log("gift", "Отвори подарък");
-        // Дрехи, аксесоари и тапети – само ако има гардероб.
+        // Какво има вътре – от loot_list (колона „Подарък“). Ако няма нищо за даване – лешници.
         bool wardrobe = DailyOffer.HasWardrobe(_save);
-        var clothes = Clothes.All.Where(g => wardrobe && !g.Hidden && !Clothes.Owns(_save, g)).Select(g => (object)g);
-        var backdrops = Backdrops.All.Where(b => wardrobe && !Backdrops.Owns(_save, b)).Select(b => (object)b);
-        var themes = UiThemes.All.Where(t => wardrobe && !UiThemes.Owns(_save, t)).Select(t => (object)t);
-        var prizes = clothes.Concat(backdrops).Concat(themes).ToList();
-        // Понякога (по-често, ако няма какво друго) – страница от готварската книга.
-        if (Recipes.Next(_save) != null && _rng.Next(100) < (prizes.Count == 0 ? 60 : 25))
+        string? code = RollLoot(Loot.Gift);
+        string kind = code?.Split(':')[0] ?? "nuts";
+        string id = code != null && code.Contains(':') ? code[(code.IndexOf(':') + 1)..] : "";
+        if (kind == "page")
         {
             FindRecipePage();
             var learned = LastLearned;
@@ -212,34 +210,37 @@ public sealed partial class PetWindow
                 learned != null ? $"Научи {learned.Name}!" : $"Следваща рецепта: {_save.RecipePages}/{Recipes.Pages} страници.");
             Later(1.2, () => Say(R.Text(learned != null ? "gift.got.recipe" : "gift.got.page", _save.OwnerName, ("храна", (learned?.Name ?? "").ToLowerInvariant())), 5));
         }
-        else if (prizes.Count == 0)
+        else if (kind == "cloth" && Clothes.All.FirstOrDefault(x => x.Id == id) is { } g && GrantLoot(code!) != null)
         {
-            int nuts = LowRoll(3, 10);   // 3–10, най-често ниско; 10 – много рядко
-            GainNuts(nuts, "подарък");
-            window.Reveal(_lib.GetProp("nut", 5, 6, 0).Image, 8, $"{nuts} лешника!", wardrobe ? "Имаш вече всичко, затова лешници." : "С гардероб тук може да има и дрехи.");
-            Later(1.2, () => Say(R.Text("gift.got.nuts", _save.OwnerName, ("число", nuts.ToString())), 4));
+            var art = GarmentPreview(g);
+            window.Reveal(art, Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 3, 8), g.Name, "Отиде в гардероба.");
+            GiftReaction("gift.got.clothes", g.Name, "Да го облека ли сега?", p => p.WearGift(g));
+        }
+        else if (kind == "theme" && UiThemes.All.FirstOrDefault(x => x.Id == id) is { } t && GrantLoot(code!) != null)
+        {
+            window.Reveal(UiThemes.Preview(t), 4, $"Меню: {t.Name}", "Сложи го от гардероба → Меню.");
+            GiftReaction("gift.got.theme", t.Name, "Да сменя ли менюто с него?", p => p.UseUiTheme(t));
+        }
+        else if (kind == "bg" && GrantLoot(code!) != null)
+        {
+            var b = Backdrops.Find(id);
+            window.Reveal(BackdropImage(b), 2, $"Тапет: {b.Name}", "Сложи го от гардероба (Тапети) или с клик на портрета.");
+            GiftReaction("gift.got.backdrop", b.Name, "Да го сложа ли за фон?", p => p.UseBackdrop(b));
+        }
+        else if (kind != "nuts" && code != null && GrantLoot(code) is { } got)
+        {
+            // Купон, мебел, облик, пижама…
+            var art = LootArt(code) ?? Ui.LoadIcon(LootIcon(code)) ?? _lib.GetProp("nut", 5, 6, 0).Image;
+            window.Reveal(art, Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 2, 8), LootName(code), char.ToUpper(got[0]) + got[1..] + ".");
+            string thing = LootName(code);
+            Later(1.2, () => Say(R.Text("gift.got.thing", _save.OwnerName, ("нещо", thing.ToLowerInvariant())), 4));
         }
         else
         {
-            switch (prizes[_rng.Next(prizes.Count)])
-            {
-                case Garment g:
-                    _save.OwnedClothes.Add(g.Id);
-                    var art = GarmentPreview(g);
-                    window.Reveal(art, Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 3, 8), g.Name, "Отиде в гардероба.");
-                    GiftReaction("gift.got.clothes", g.Name, "Да го облека ли сега?", p => p.WearGift(g));
-                    break;
-                case UiTheme t:
-                    _save.Owned.Add(t.Key);
-                    window.Reveal(UiThemes.Preview(t), 4, $"Меню: {t.Name}", "Сложи го от гардероба → Меню.");
-                    GiftReaction("gift.got.theme", t.Name, "Да сменя ли менюто с него?", p => p.UseUiTheme(t));
-                    break;
-                case Backdrop b:
-                    _save.Owned.Add("bg_" + b.Id);
-                    window.Reveal(BackdropImage(b), 2, $"Тапет: {b.Name}", "Сложи го от гардероба (Тапети) или с клик на портрета.");
-                    GiftReaction("gift.got.backdrop", b.Name, "Да го сложа ли за фон?", p => p.UseBackdrop(b));
-                    break;
-            }
+            int nuts = LootNuts("Подарък лешници", 3, 10);   // 3–10, най-често ниско
+            GainNuts(nuts, "подарък");
+            window.Reveal(_lib.GetProp("nut", 5, 6, 0).Image, 8, $"{nuts} лешника!", wardrobe ? "Лешници за магазина." : "С гардероб тук може да има и дрехи.");
+            Later(1.2, () => Say(R.Text("gift.got.nuts", _save.OwnerName, ("число", nuts.ToString())), 4));
         }
         React("dance", 2.5);
         Persist();
