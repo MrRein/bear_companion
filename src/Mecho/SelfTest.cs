@@ -113,6 +113,26 @@ public static class SelfTest
             if (string.Join("|", gone) != "assets/ui/skin/tab.png|old.dll") throw new Exception("със списък: " + string.Join(", ", gone));
             Directory.Delete(root, true);
         }, 100);
+        await Step("loot_list: рядкост и цени", () =>
+        {
+            foreach (var c in PetWindow.AllLootCodes().Where(c => Rarities.PriceGroup(c) != null))
+                if (Loot.RarityOf(c) == null) throw new Exception("няма рядкост: " + c);
+            var tee = Clothes.All.First(g => g.Id == "tee_red");
+            int want = Loot.SettingInt("цена дрехи " + Rarities.Name(Loot.RarityOf("cloth:tee_red")!.Value), -1);
+            if (tee.Price != want) throw new Exception($"цената на дрехата не е по рядкостта: {tee.Price} ≠ {want}");
+            if (Backdrops.All[0].Price != 0 || Furniture.SkinsFor(Kitchen.Couch)[0].Price != 0) throw new Exception("безплатното стана платено");
+            // Безценното в офертата е рядко, обикновеното – често.
+            var rng = new Random(7);
+            var codes = Loot.Rows.Where(r => r.Code.StartsWith("cloth:")).Select(r => r.Code).ToList();
+            int legend = 0, common = 0;
+            for (int i = 0; i < 4000; i++)
+            {
+                var r = Loot.RarityOf(Loot.RollByRarity(Loot.Offer, codes, rng)!);
+                if (r == Rarity.Legendary) legend++;
+                if (r == Rarity.Common) common++;
+            }
+            if (legend > 4000 * 0.04 || common < 4000 * 0.4) throw new Exception($"офертата: безценни {legend}, обикновени {common} от 4000");
+        }, 100);
         await Step("loot_list: всички предмети", () =>
         {
             if (Loot.LoadError != null) throw new Exception("loot_list.xlsx не се чете: " + Loot.LoadError);
@@ -1921,6 +1941,8 @@ public sealed partial class PetWindow
                 // Снимката: етап 3, сандъчето на етап 2 чака.
                 Reset();
                 _save.ProjectAnswers["theme"] = "Космос"; _save.ProjectAnswers["goal"] = "Събират мед";
+                // Един завършен проект – за снимката на „Завършени проекти“ (menu_bear).
+                _save.HallOfFame.Add(new FameEntry { Kind = "Настолна игра", Type = BoardGameProject.Id, Name = "Горски тайни", Facts = new List<string> { "Тема: Космос" }, Done = "22.11.2026" });
                 _save.ProjectPaid = 2; _save.ProjectPoints = 60 + 90 + 40; _save.ProjectOpened.Add(0); _save.GameName = "Горски тайни";
                 if (!ProjectRewardShown(2) || ProjectRewardShown(3)) throw new Exception("видими са награди отвъд сегашния етап");
                 if (ProjectNow.Info.Steps.Length != 3 || ProjectStepsDone != 1) throw new Exception("подетапите: " + ProjectStepsDone + " от " + ProjectNow.Info.Steps.Length);

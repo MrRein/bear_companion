@@ -3,7 +3,11 @@ using System.Linq;
 namespace Mecho;
 
 /// <summary>Фон за портрета на мечока в менюто (assets/backgrounds/bg_&lt;Id&gt;.png, 50 x 50).</summary>
-public sealed record Backdrop(string Id, string Name, int Price);
+public sealed record Backdrop(string Id, string Name, int BasePrice)
+{
+    /// <summary>Цената – по рядкостта от loot_list.</summary>
+    public int Price => Loot.PriceFor("bg:" + Id, BasePrice);
+}
 
 public static class Backdrops
 {

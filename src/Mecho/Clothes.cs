@@ -19,10 +19,13 @@ public enum Anchor { Bottom, Center, Top }
 public enum Pattern { None, Stripes, Dots, Checks }
 
 /// <summary>Пижама: сет от горнище и долнище (скрити дрехи), купува се цяла.</summary>
-public sealed record PajamaSet(string Id, string Name, int Price, string Top, string Pants)
+public sealed record PajamaSet(string Id, string Name, int BasePrice, string Top, string Pants)
 {
     /// <summary>Как се пази в купените дрехи (OwnedClothes).</summary>
     public string Key => "pajama_" + Id;
+
+    /// <summary>Цената – по рядкостта от loot_list.</summary>
+    public int Price => Loot.PriceFor("pajama:" + Id, BasePrice);
 }
 
 /// <summary>
@@ -31,10 +34,13 @@ public sealed record PajamaSet(string Id, string Name, int Price, string Top, st
 /// с Main (и Alt за шарката). Ако има готова цветна лента &lt;anim&gt;_&lt;слот&gt;_&lt;Id&gt;.png,
 /// се ползва тя: така може да се нарисува и уникална дреха.
 /// </summary>
-public sealed record Garment(string Id, string Name, string SlotId, int Price, Color Main, Color Alt, Pattern Pattern = Pattern.None)
+public sealed record Garment(string Id, string Name, string SlotId, int BasePrice, Color Main, Color Alt, Pattern Pattern = Pattern.None)
 {
     /// <summary>Не се продава и не стои в гардероба (пижамата).</summary>
     public bool Hidden { get; init; }
+
+    /// <summary>Цената – по рядкостта от loot_list (скритите – от кода).</summary>
+    public int Price => Hidden ? BasePrice : Loot.PriceFor("cloth:" + Id, BasePrice);
 
     /// <summary>Блуза с дълъг ръкав: оцветява и ръкавите (иначе – къс ръкав, ръцете се виждат).</summary>
     public bool LongSleeves { get; init; }

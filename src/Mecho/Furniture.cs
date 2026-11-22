@@ -9,10 +9,13 @@ namespace Mecho;
 /// Класическият е безплатен; другите се купуват в офертата на деня (само щом
 /// предметът е купен) и се сменят в гардероба („Мебели и уреди“).
 /// </summary>
-public sealed record Skin(string Item, string Id, string Name, int Price)
+public sealed record Skin(string Item, string Id, string Name, int BasePrice)
 {
     /// <summary>Рисунката (без кадъра): couch_velvet, cook_pot_copper, heater_fireplace…</summary>
     public string Prop => Furniture.Art(Item, Id);
+
+    /// <summary>Цената – по рядкостта от loot_list.</summary>
+    public int Price => Loot.PriceFor($"skin:{Item}:{Id}", BasePrice);
 }
 
 public static class Furniture

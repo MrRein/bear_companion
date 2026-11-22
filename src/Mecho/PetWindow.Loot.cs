@@ -173,6 +173,14 @@ public sealed partial class PetWindow
         };
     }
 
+    /// <summary>„Страхотно! “ пред описанието (обикновеното – без надпис); безценното – и искри.</summary>
+    private string RarityTag(string code)
+    {
+        if (Loot.RarityOf(code) is not { } r || r == Rarity.Common) return "";
+        if (r == Rarity.Legendary) Emote("sparkle", 4);
+        return Rarities.Name(r) + "! ";
+    }
+
     /// <summary>Лешниците от loot_list: „Настройки“ → ключ.мин / ключ.макс (по-често ниско).</summary>
     private int LootNuts(string key, int min, int max) =>
         LowRoll(Loot.SettingInt(key + " мин", min), Math.Max(Loot.SettingInt(key + " мин", min), Loot.SettingInt(key + " макс", max)));

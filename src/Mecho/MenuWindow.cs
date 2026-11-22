@@ -2820,7 +2820,7 @@ public sealed class MenuWindow : Window
         if (owned) why = "Вече е в гардероба.";
         var art = _pet.GarmentPreview(g);
         int scale = Math.Clamp(80 / Math.Max(art.PixelWidth, art.PixelHeight), 3, 8);
-        return MakeTile(art, g.Name, Description(""), action, dim: false, why, owned, scale);
+        return MakeTile(art, g.Name, Description(""), action, dim: false, why, owned, scale, rarity: Loot.RarityOf("cloth:" + g.Id));
     }
 
     /// <summary>„В гардероба“: купеното от офертата се слага/сменя от гардероба (отваря раздела).</summary>
@@ -2838,7 +2838,7 @@ public sealed class MenuWindow : Window
         Button action;
         if (owned) action = ToWardrobe("wallpapers", out why);   // от офертата: купеното се слага от гардероба
         else action = BuyButton(b.Price, () => _pet.BuyBackdrop(b), out why);
-        return MakeTile(_pet.BackdropImage(b), b.Name, Description("Тапет за портрета на Мечо."), action, dim: false, why, owned, 2);
+        return MakeTile(_pet.BackdropImage(b), b.Name, Description("Тапет за портрета на Мечо."), action, dim: false, why, owned, 2, rarity: Loot.RarityOf("bg:" + b.Id));
     }
 
     /// <summary>Цвят на менюто: в магазина се купува (и отива в гардероба), в гардероба се слага.</summary>
@@ -2856,7 +2856,7 @@ public sealed class MenuWindow : Window
         }
         else if (owned) action = Button("Сложи", () => { _pet.UseUiTheme(t); BuildWardrobe(); }, primary: true);
         else action = BuyButton(t.Price, () => { _pet.BuyUiTheme(t); BuildWardrobe(); }, out why);
-        return MakeTile(UiThemes.Preview(t), t.Name, Description("Цвят на меню"), action, dim: false, why, owned && (used || !shop), 3);
+        return MakeTile(UiThemes.Preview(t), t.Name, Description("Цвят на меню"), action, dim: false, why, owned && (used || !shop), 3, rarity: Loot.RarityOf("theme:" + t.Id));
     }
 
     /// <summary>Пижама: в магазина се купува (и става избраната), в гардероба се избира.</summary>
@@ -2874,7 +2874,7 @@ public sealed class MenuWindow : Window
         }
         else if (owned) action = Button("Избери", () => _pet.UsePajama(p), primary: true);
         else action = BuyButton(p.Price, () => _pet.BuyPajama(p), out why, "cloth");
-        return MakeTile(_pet.PajamaPreview(p), p.Name, Description(shop ? "Пижама за вечерта." : ""), action, dim: false, why, owned && (used || !shop), 2);
+        return MakeTile(_pet.PajamaPreview(p), p.Name, Description(shop ? "Пижама за вечерта." : ""), action, dim: false, why, owned && (used || !shop), 2, rarity: Loot.RarityOf("pajama:" + p.Id));
     }
 
     /// <summary>Скин за мебел или уред: в магазина се купува, в гардероба се слага.</summary>
@@ -2902,7 +2902,7 @@ public sealed class MenuWindow : Window
             }
         }
         string note = shop ? $"Друг вид „{Kitchen.Find(skin.Item)?.Name}“." : "";
-        return MakeTile(_pet.SkinImage(skin), skin.Name, Description(note), action, dim: false, why, owned && (used || !shop), 2);
+        return MakeTile(_pet.SkinImage(skin), skin.Name, Description(note), action, dim: false, why, owned && (used || !shop), 2, rarity: Loot.RarityOf($"skin:{skin.Item}:{skin.Id}"));
     }
 
     /// <summary>
@@ -2910,7 +2910,7 @@ public sealed class MenuWindow : Window
     /// в мрежата всички бутони стоят на една линия, колкото и дълги да са имената.
     /// why = подсказка при посочване (защо е заключено и т.н.).
     /// </summary>
-    private static Border MakeTile(BitmapSource art, string name, UIElement details, Button action, bool dim, string? why, bool owned = false, int artScale = 4, bool heart = false)
+    private static Border MakeTile(BitmapSource art, string name, UIElement details, Button action, bool dim, string? why, bool owned = false, int artScale = 4, bool heart = false, Rarity? rarity = null)
     {
         var image = Pixel(art, ArtScale(artScale));
         image.HorizontalAlignment = HorizontalAlignment.Center;
@@ -2937,11 +2937,20 @@ public sealed class MenuWindow : Window
             badge.Margin = new Thickness(0, 4, 6, 0);
             artGrid.Children.Add(badge);
         }
+        if (rarity == Rarity.Legendary)
+        {
+            // Безценното: искрица в ъгъла.
+            var spark = Icon("emote_sparkle", 2);
+            spark.HorizontalAlignment = HorizontalAlignment.Left;
+            spark.VerticalAlignment = VerticalAlignment.Top;
+            spark.Margin = new Thickness(6, 4, 0, 0);
+            artGrid.Children.Add(spark);
+        }
         var artBox = new Border
         {
             Background = TileArt,
-            BorderBrush = WoodDark,
-            BorderThickness = Flat,
+            BorderBrush = rarity is { } rr ? RarityColors.Brush(rr) : WoodDark,
+            BorderThickness = rarity is null or Rarity.Common ? Flat : new Thickness(Math.Max(2, P)),
             CornerRadius = new CornerRadius(4),
             MinHeight = 96 * U,
             Child = artGrid,
@@ -2970,8 +2979,18 @@ public sealed class MenuWindow : Window
             FontWeight = FontWeights.Bold,
             TextAlignment = TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 8 * U, 0, 6 * U),
+            Margin = new Thickness(0, 8 * U, 0, rarity == null ? 6 * U : 0),
         });
+        if (rarity is { } r)
+            middle.Children.Add(new TextBlock
+            {
+                Text = Rarities.Name(r),
+                Foreground = RarityColors.Brush(r),
+                FontWeight = FontWeights.Bold,
+                FontSize = Math.Max(9, 11 * U),
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 6 * U),
+            });
         middle.Children.Add(details);
         dock.Children.Add(middle);
 
@@ -3195,7 +3214,7 @@ public sealed class MenuWindow : Window
                     action.IsEnabled = false;
                 }
                 else action = Button("Сложи", () => _pet.UseBackdrop(b), primary: true);
-                grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, null, owned: used, artScale: 2));
+                grid.Children.Add(MakeTile(_pet.BackdropImage(b), b.Name, new TextBlock(), action, dim: false, null, owned: used, artScale: 2, rarity: Loot.RarityOf("bg:" + b.Id)));
             }
             return "Нови тапети има в офертата на деня.";
         }
@@ -3231,7 +3250,7 @@ public sealed class MenuWindow : Window
                 Foreground = Muted,
                 TextAlignment = TextAlignment.Center,
             };
-            grid.Children.Add(MakeTile(art, g.Name, details, action, dim: false, null, owned: worn, artScale: scale));
+            grid.Children.Add(MakeTile(art, g.Name, details, action, dim: false, null, owned: worn, artScale: scale, rarity: Loot.RarityOf("cloth:" + g.Id)));
         }
         return $"Още нямаш {slot.Name.ToLowerInvariant()}.";
     }

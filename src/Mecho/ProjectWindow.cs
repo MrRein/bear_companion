@@ -546,10 +546,14 @@ internal sealed class ProjectWindow : FloatWindow
             var art = ItemArt(item, 54 * U);
             art.HorizontalAlignment = HorizontalAlignment.Center;
             art.VerticalAlignment = VerticalAlignment.Center;
-            var slot = PixelFrame(74 * U, 74 * U, Soft(Ink, 0.22), Ink, px, art);
+            var rarity = Loot.RarityOf(item.TrimStart('?'));
+            var edge = rarity is { } rc ? RarityColors.Brush(rc) : Ink;
+            var slot = PixelFrame(74 * U, 74 * U, rarity is { } rb ? Soft(RarityColors.Brush(rb), 0.25) : Soft(Ink, 0.22), edge, px, art);
             slot.HorizontalAlignment = HorizontalAlignment.Center;
             cell.Children.Add(slot);
             cell.Children.Add(new TextBlock { Text = Pet.ItemLabel(item), TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4 * U, 0, 0) });
+            if (rarity is { } r)
+                cell.Children.Add(new TextBlock { Text = Rarities.Name(r), Foreground = RarityColors.Brush(r), FontWeight = FontWeights.Bold, TextAlignment = TextAlignment.Center });
             slots.Children.Add(cell);
         }
         panel.Children.Add(slots);

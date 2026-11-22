@@ -54,6 +54,21 @@ public static class DailyOffer
         return groups;
     }
 
+    /// <summary>Кодът в loot_list за нещо от офертата (g:шапка → cloth:шапка…).</summary>
+    public static string LootCode(string key)
+    {
+        int i = key.IndexOf(':');
+        if (i < 0) return key;
+        string rest = key[(i + 1)..];
+        return key[..i] switch
+        {
+            "g" => "cloth:" + rest,
+            "pj" => "pajama:" + rest,
+            "ui" => "theme:" + rest,
+            _ => key,   // bg:, skin:
+        };
+    }
+
     /// <summary>Групата на нещо от офертата (от един вид има най-много едно).</summary>
     internal static string GroupOf(string key)
     {
@@ -108,7 +123,11 @@ public static class DailyOffer
                 roll -= Weight(groups[i].Key);
             }
             var items = groups[i].Value;
-            s.OfferItems.Add(items[Rng.Next(items.Count)]);
+            // Вътре в групата – по рядкостта (безценното излиза много рядко).
+            string pick = Loot.RollByRarity(Loot.Offer, items.Select(LootCode).ToList(), Rng) is { } code
+                ? items.FirstOrDefault(k => LootCode(k) == code) ?? items[Rng.Next(items.Count)]
+                : items[Rng.Next(items.Count)];
+            s.OfferItems.Add(pick);
             groups.RemoveAt(i);
         }
         return s.OfferItems;

@@ -19,9 +19,11 @@ namespace Mecho;
 public static class Loot
 {
     public const string Mission = "Цел", Gift = "Подарък", Wood = "Дървено", Silver = "Сребърно", Gold = "Златно", Legend = "Лилаво";
+    /// <summary>Офертата на деня в магазина (няма колона – само рядкостта решава).</summary>
+    public const string Offer = "Оферта";
     public static readonly string[] Sources = { Mission, Gift, Wood, Silver, Gold, Legend };
 
-    public sealed record Row(string Code, string Name, string Kind, IReadOnlyDictionary<string, double> Weights)
+    public sealed record Row(string Code, string Name, string Kind, IReadOnlyDictionary<string, double> Weights, Rarity? Rarity = null)
     {
         public double W(string source) => Weights.TryGetValue(source, out var w) ? w : 0;
     }
@@ -36,7 +38,14 @@ public static class Loot
 
     public static IReadOnlyList<Row> Rows { get { Load(); return _rows!; } }
 
-    public static Row? Find(string code) => Rows.FirstOrDefault(r => r.Code == code);
+    private static Dictionary<string, Row>? _byCode;
+
+    public static Row? Find(string code)
+    {
+        Load();
+        _byCode ??= _rows!.GroupBy(r => r.Code).ToDictionary(g => g.Key, g => g.First());
+        return _byCode.TryGetValue(code, out var r) ? r : null;
+    }
 
     /// <summary>Число от „Настройки“ (ако го няма – def).</summary>
     public static double Setting(string key, double def)
@@ -48,24 +57,93 @@ public static class Loot
     public static int SettingInt(string key, int def) => (int)Math.Round(Setting(key, def));
 
     /// <summary>Чете наново (след редакция на файла).</summary>
-    public static void Reload() { _rows = null; _settings = null; Load(); }
+    public static void Reload() { _rows = null; _settings = null; _byCode = null; Load(); }
+
+    /// <summary>Рядкостта на предмета (null – няма, напр. лешници, купони, уреди).</summary>
+    public static Rarity? RarityOf(string code) => Find(code)?.Rarity;
+
+    /// <summary>
+    /// Цената в магазина по рядкостта („Настройки“ → „цена дрехи Хубаво“…). Безплатните
+    /// (началните) остават безплатни; без рядкост – цената от кода.
+    /// </summary>
+    public static int PriceFor(string code, int fallback)
+    {
+        if (fallback <= 0 || RarityOf(code) is not { } r || Rarities.PriceGroup(code) is not { } g) return fallback;
+        return Math.Max(1, SettingInt($"цена {g} {Rarities.Name(r)}", Rarities.DefaultPrice(g, r)));
+    }
+
+    private static readonly Dictionary<string, double[]> RarityDefaults = new()
+    {
+        [Offer] = new double[] { 62, 28, 9, 1 },
+        [Gift] = new double[] { 60, 30, 9, 1 },
+        [Mission] = new double[] { 50, 35, 13, 2 },
+        [Wood] = new double[] { 70, 25, 5, 0 },
+        [Silver] = new double[] { 40, 40, 17, 3 },
+        [Gold] = new double[] { 15, 40, 35, 10 },
+        [Legend] = new double[] { 0, 10, 50, 40 },
+    };
+
+    /// <summary>Колко често излиза дадена рядкост от източника („Настройки“ → „рядкост Златно Безценно“).</summary>
+    public static double RarityWeight(string source, Rarity r) =>
+        Math.Max(0, Setting($"рядкост {source} {Rarities.Name(r)}", RarityDefaults.TryGetValue(source, out var d) ? d[(int)r] : 1));
+
+    private static string Category(string code) => code.StartsWith("skin:") ? "skin" : code.Split(':')[0];
 
     /// <summary>
     /// Тегли едно нещо от източника: само от редовете с тегло &gt; 0, за които available казва „да“.
+    /// За нещата с рядкост: видът (дрехи, тапети…) взима общото си тегло от колоната, а вътре
+    /// рядкостта се тегли по таблицата „рядкост …“ (каквито рядкости има още), после – предметът.
     /// null – няма какво.
     /// </summary>
     public static string? Roll(string source, Random rng, Func<string, bool> available)
     {
         var pool = Rows.Where(r => r.W(source) > 0 && available(r.Code)).ToList();
-        double total = pool.Sum(r => r.W(source));
+        if (pool.Count == 0) return null;
+        var eff = Effective(pool, source, r => r.W(source));
+        return Pick(pool, eff, rng)?.Code;
+    }
+
+    /// <summary>Тегли между дадени предмети само по рядкостта им (офертата на деня).</summary>
+    public static string? RollByRarity(string source, IReadOnlyList<string> codes, Random rng)
+    {
+        if (codes.Count == 0) return null;
+        var pool = codes.Select(c => Find(c) ?? new Row(c, c, "", new Dictionary<string, double>())).ToList();
+        var eff = Effective(pool, source, _ => 1);
+        return Pick(pool, eff, rng)?.Code ?? codes[rng.Next(codes.Count)];
+    }
+
+    private static double[] Effective(List<Row> pool, string source, Func<Row, double> w)
+    {
+        var eff = new double[pool.Count];
+        foreach (var cat in pool.Select((r, i) => (r, i)).GroupBy(x => Category(x.r.Code)))
+        {
+            var withR = cat.Where(x => x.r.Rarity != null).ToList();
+            foreach (var x in cat.Where(x => x.r.Rarity == null)) eff[x.i] = w(x.r);
+            if (withR.Count == 0) continue;
+            double mass = withR.Sum(x => w(x.r));
+            var byR = withR.GroupBy(x => x.r.Rarity!.Value).ToList();
+            double rsum = byR.Sum(g => RarityWeight(source, g.Key));
+            if (rsum <= 0) continue;
+            foreach (var g in byR)
+            {
+                double share = mass * RarityWeight(source, g.Key) / rsum, inner = g.Sum(x => w(x.r));
+                foreach (var x in g) eff[x.i] = inner > 0 ? share * w(x.r) / inner : 0;
+            }
+        }
+        return eff;
+    }
+
+    private static Row? Pick(List<Row> pool, double[] eff, Random rng)
+    {
+        double total = eff.Sum();
         if (total <= 0) return null;
         double x = rng.NextDouble() * total;
-        foreach (var r in pool)
+        for (int i = 0; i < pool.Count; i++)
         {
-            x -= r.W(source);
-            if (x < 0) return r.Code;
+            x -= eff[i];
+            if (x < 0) return pool[i];
         }
-        return pool[^1].Code;
+        return pool[^1];
     }
 
     private static void Load()
@@ -82,7 +160,7 @@ public static class Loot
                 if (head < 0) throw new InvalidDataException("лист „Предмети“ няма ред „Код“");
                 var cols = items[head];
                 int Col(string name) => cols.FindIndex(c => c.Trim() == name);
-                int name = Col("Име"), kind = Col("Вид");
+                int name = Col("Име"), kind = Col("Вид"), rarity = Col("Рядкост");
                 var src = Sources.ToDictionary(s => s, Col);
                 foreach (var r in items.Skip(head + 1))
                 {
@@ -91,7 +169,7 @@ public static class Loot
                     var w = new Dictionary<string, double>();
                     foreach (var (s, c) in src)
                         if (c >= 0 && Num(Cell(r, c)) is double v && v > 0) w[s] = v;
-                    _rows.Add(new Row(code, Cell(r, name), Cell(r, kind), w));
+                    _rows.Add(new Row(code, Cell(r, name), Cell(r, kind), w, Rarities.Parse(Cell(r, rarity))));
                 }
             }
             else throw new InvalidDataException("няма лист „Предмети“");

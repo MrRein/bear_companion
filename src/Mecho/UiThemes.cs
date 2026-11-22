@@ -11,13 +11,16 @@ namespace Mecho;
 /// офертата на деня и се сменят в гардероба → „Меню“.
 /// </summary>
 public sealed record UiTheme(
-    string Id, string Name, int Price,
+    string Id, string Name, int BasePrice,
     Color Ink, Color Wood, Color WoodDark, Color WoodLight,
     Color Paper, Color PaperDark, Color Tile, Color TileArt,
     Color Hover, Color Honey, Color Cream, Color Muted, Color Empty)
 {
     /// <summary>Как се пази в купените неща (Owned).</summary>
     public string Key => "ui_" + Id;
+
+    /// <summary>Цената – по рядкостта от loot_list.</summary>
+    public int Price => Loot.PriceFor("theme:" + Id, BasePrice);
 }
 
 public static class UiThemes

@@ -94,6 +94,26 @@ def defaults(code, kind):
         w["Лилаво"] = round(20 / len(furn), 3)
     return w
 
+# ---- рядкостта: по раздели, по цената (най-скъпите – най-редки) ----
+RAR = ["Обикновено", "Хубаво", "Страхотно", "Безценно"]
+def quotas(n, ratio):
+    t = sum(ratio); raw = [n * r / t for r in ratio]; q = [int(x) for x in raw]
+    for i in sorted(range(4), key=lambda i: raw[i] - q[i], reverse=True)[: n - sum(q)]: q[i] += 1
+    return q
+rarity = {}
+sections = {}
+for it in items:
+    sec = it[2] if not it[0].startswith(("up:",)) else None
+    if sec: sections.setdefault(sec, []).append(it)
+for sec, lst in sections.items():
+    ratio = (7, 5, 3, 1) if sec.startswith("Дреха") or sec == "Пижама" else (4, 3, 2, 1)
+    q = quotas(len(lst), ratio)
+    order = sorted(range(len(lst)), key=lambda i: (lst[i][3], i))   # евтините – обикновени
+    k = 0
+    for level, cnt in enumerate(q):
+        for _ in range(cnt):
+            rarity[lst[order[k]][0]] = RAR[level]; k += 1
+
 rows = [("nuts", "Лешници", "Лешници", "", "винаги (количеството – в „Настройки“)"),
         ("page", "Страница от рецепта", "Рецепта", "", "има още рецепти")]
 rows += [(f"coupon:{c}", n, "Купон", "", "винаги") for c, n, _ in coupons]
@@ -117,9 +137,16 @@ SETTINGS = [
     ("скрито нещо %", 33, "Шанс в сандъче с 2+ неща едно да е „???“ до отваряне"),
     ("мебели от етап", 9, "Мебели/уреди от сандъчетата – чак от този етап нататък"),
 ]
+PRICES = {"дрехи": (20, 30, 50, 70), "пижами": (20, 30, 50, 70), "тапети": (35, 45, 65, 90), "менюта": (35, 45, 65, 90), "облици": (35, 45, 65, 90)}
+for g, ps in PRICES.items():
+    for rname, pr in zip(RAR, ps): SETTINGS.append((f"цена {g} {rname}", pr, f"Цена в магазина: {g}, {rname.lower()}"))
+RTAB = {"Оферта": (62, 28, 9, 1), "Подарък": (60, 30, 9, 1), "Цел": (50, 35, 13, 2), "Дървено": (70, 25, 5, 0),
+        "Сребърно": (40, 40, 17, 3), "Златно": (15, 40, 35, 10), "Лилаво": (0, 10, 50, 40)}
+for src, ws_ in RTAB.items():
+    for rname, wv in zip(RAR, ws_): SETTINGS.append((f"рядкост {src} {rname}", wv, f"Колко често: {rname.lower()} от {src.lower()}" + (" (офертата на деня в магазина)" if src == "Оферта" else "")))
 
 # ---- запазва старите стойности ----
-old_w, old_s = {}, {}
+old_w, old_s, old_r = {}, {}, {}
 if os.path.exists(OUT):
     wb0 = load_workbook(OUT)
     if "Предмети" in wb0.sheetnames:
@@ -130,6 +157,7 @@ if os.path.exists(OUT):
                 continue
             if r and r[0] and not str(r[0]).startswith("#"):
                 old_w[r[0]] = {s: (r[head.index(s)] or 0) for s in SOURCES if s in head}
+                if "Рядкост" in head and r[head.index("Рядкост")]: old_r[r[0]] = r[head.index("Рядкост")]
     if "Настройки" in wb0.sheetnames:
         for r in wb0["Настройки"].iter_rows(min_row=4, values_only=True):
             if r and r[0]: old_s[r[0]] = r[1]
@@ -150,29 +178,37 @@ ws = wb.active; ws.title = "Предмети"
 ws["A1"] = "Master loot_list – какво може да се падне и с какво тегло"; ws["A1"].font = Font(bold=True, size=14)
 ws["A2"] = "Пиши само числа (без %). 0 или празно = никога. Нещата, които вече имаш, се пропускат и останалите се преразпределят. Виж лист „Легенда“."
 ws["A2"].font = Font(italic=True, color="7A5A3A")
-cols = ["Код", "Име", "Вид", "Цена", "Условие"] + SOURCES
+cols = ["Код", "Име", "Вид", "Рядкост", "Цена", "Условие"] + SOURCES
 HR = 4
 for c, h in enumerate(cols, 1):
     x = ws.cell(HR, c, h); x.font = HF; x.fill = H; x.border = BR; x.alignment = Alignment(horizontal="center")
-ws.cell(3, 5, "Сума →").font = Font(bold=True)
+ws.cell(3, 6, "Сума →").font = Font(bold=True)
+RCOL = {"Обикновено": "8B643E", "Хубаво": "6080A8", "Страхотно": "C48C18", "Безценно": "8C46B4"}
+from openpyxl.worksheet.datavalidation import DataValidation
+dv = DataValidation(type="list", formula1='"' + ",".join(RAR) + '"', allow_blank=True); ws.add_data_validation(dv)
 first = HR + 1
 for i, (code, name, kind, price, cond) in enumerate(rows):
     r = first + i
     w = defaults(code, kind)
     if code in old_w: w.update({k: v for k, v in old_w[code].items()})
-    vals = [code, name, kind, price, cond] + [w[s] if w[s] else None for s in SOURCES]
+    rar = old_r.get(code, rarity.get(code)) if code in rarity or code in old_r else None
+    grp = {"cloth": "дрехи", "pajama": "пижами", "bg": "тапети", "theme": "менюта", "skin": "облици"}.get(code.split(":")[0])
+    price_v = (f'=IFERROR(VLOOKUP("цена {grp} "&D{r},Настройки!$A:$B,2,FALSE),"")' if grp else (price if price != "" else None))
+    vals = [code, name, kind, rar, price_v, cond] + [w[s] if w[s] else None for s in SOURCES]
     for c, v in enumerate(vals, 1):
         x = ws.cell(r, c, v); x.border = BR
-        if c <= 5: x.fill = kfill(kind)
+        if c <= 6: x.fill = kfill(kind)
         else: x.number_format = "0.###"; x.alignment = Alignment(horizontal="center")
+    if rar:
+        ws.cell(r, 4).font = Font(bold=True, color=RCOL.get(rar, "000000")); dv.add(ws.cell(r, 4))
 last = first + len(rows) - 1
 for k, s in enumerate(SOURCES):
-    col = 6 + k; L = ws.cell(HR, col).column_letter
+    col = 7 + k; L = ws.cell(HR, col).column_letter
     x = ws.cell(3, col, f"=SUM({L}{first}:{L}{last})"); x.font = Font(bold=True); x.number_format = "0.#"; x.alignment = Alignment(horizontal="center")
     ws.conditional_formatting.add(f"{L}{first}:{L}{last}", ColorScaleRule(start_type="num", start_value=0, start_color="FFFFFF", end_type="max", end_color="7BB662"))
-for col, wdt in zip("ABCDEFGHIJK", (26, 30, 24, 7, 26, 9, 10, 10, 10, 10, 9)): ws.column_dimensions[col].width = wdt
+for col, wdt in zip("ABCDEFGHIJKL", (26, 30, 24, 13, 7, 26, 9, 10, 10, 10, 10, 9)): ws.column_dimensions[col].width = wdt
 ws.freeze_panes = ws.cell(first, 3)
-ws.auto_filter.ref = f"A{HR}:K{last}"
+ws.auto_filter.ref = f"A{HR}:L{last}"
 
 st = wb.create_sheet("Настройки")
 st["A1"] = "Настройки – числата около наградите"; st["A1"].font = Font(bold=True, size=14)
@@ -188,11 +224,14 @@ lg["A1"] = "Легенда"; lg["A1"].font = Font(bold=True, size=14)
 legend = [
     ("КОЛОНИ", ""),
     ("Код", "Как играта познава предмета. Не го променяй (иначе предметът няма да се намери)."),
+    ("Рядкост", "Обикновено · Хубаво · Страхотно · Безценно (избираш от списъка). От нея идват цената и колко често излиза."),
     ("Име / Вид / Цена", "За справка (името и цената идват от играта)."),
     ("Условие", "Кога предметът изобщо може да се падне. Нещата, които вече имаш, никога не се падат."),
     ("Цел", "Наградата за изпълнена цел (мисия). Лешници или едно нещо."),
     ("Подарък", "Подаръкът на деня. Едно нещо; ако няма какво – лешници."),
     ("Дървено / Сребърно / Златно / Лилаво", "Сандъчетата в проекта. Всяко нещо в сандъчето се тегли отделно от тази колона (едно и също не се повтаря)."),
+    ("Как работи рядкостта", "Колоната дава общия шанс на вида (напр. всички дрехи заедно). Вътре в него рядкостта се тегли по таблиците „рядкост …“ в „Настройки“, после – предмет от тази рядкост. Ако нямаш повече от дадена рядкост, шансът се дели между другите."),
+    ("Цена", "Изчислява се от „Настройки“ → „цена … “ според рядкостта. Безплатните (началните) неща остават безплатни."),
     ("Сума", "Ред 3 събира колоната. Ако е 100 – числата са точно проценти; ако не е – пак работят като тегла (дял от сумата)."),
     ("", ""),
     ("ВИДОВЕ ПРЕДМЕТИ (код)", ""),
