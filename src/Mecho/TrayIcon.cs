@@ -36,6 +36,9 @@ public sealed class TrayIcon : IDisposable
             save.FirstRunDone = true;
             // Нов мечок: започваш с 20 лешника (за първите ястия).
             if (save.Hazelnuts < 20) save.Hazelnuts = 20;
+            // Почва без проект: „Избери нов проект“ → зинчето; гардеробът (и магазинът) – от него.
+            save.ProjectType = "";
+            save.GuidedStart = true;
             SetStartWithWindows(save.StartWithWindows);
             save.Save();
         }

@@ -133,13 +133,13 @@ internal sealed class ProjectWindow : FloatWindow
         // Горе (в средата): „Настолна игра“ със зарчето и името ѝ; под него – моливче и етапът.
         _headTitle.Children.Clear();
         var title = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-        var ic = Icon("dice", 2);
+        var ic = Icon(pet.CurrentProject.Icon, 2);
         ic.VerticalAlignment = VerticalAlignment.Center;
         ic.Margin = new Thickness(0, 0, 8 * U, 0);
         title.Children.Add(ic);
         title.Children.Add(new TextBlock
         {
-            Text = "Настолна игра" + (pet.GameName.Length > 0 ? " „" + pet.GameName + "“" : ""),
+            Text = pet.CurrentProject.Kind + (pet.GameName.Length > 0 ? " „" + pet.GameName + "“" : ""),
             FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center,
         });
         _headTitle.Children.Add(title);
@@ -150,7 +150,7 @@ internal sealed class ProjectWindow : FloatWindow
         pencil.Margin = new Thickness(0, 0, 6 * U, 0);
         stageRow.Children.Add(pencil);
         var stageLine = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-        if (pet.ProjectDone) stageLine.Inlines.Add(new System.Windows.Documents.Run("Играта излезе!") { FontWeight = FontWeights.Bold });
+        if (pet.ProjectDone) stageLine.Inlines.Add(new System.Windows.Documents.Run(pet.CurrentProject.DoneText) { FontWeight = FontWeights.Bold });
         else
         {
             stageLine.Inlines.Add(new System.Windows.Documents.Run("Етап ") { Foreground = Muted });
@@ -587,7 +587,7 @@ internal sealed class ProjectWindow : FloatWindow
         string kind = item.Split(':')[0], id = item.Contains(':') ? item[(item.IndexOf(':') + 1)..] : "";
         BitmapSource? src = kind switch
         {
-            "box" => Pet.PropImage(PetWindow.GameBox),
+            "box" when Pet.CurrentProject.FinalItem.Length > 0 => Pet.PropImage(Pet.CurrentProject.FinalItem),
             _ => Pet.LootArt(item),
         };
         src ??= LoadIcon(PetWindow.ItemIcon(item));

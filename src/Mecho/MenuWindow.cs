@@ -1106,7 +1106,7 @@ public sealed class MenuWindow : Window
         _workTile = MakeTile("tasks", "Работи си", () =>
         {
             // Без избор: сяда да работи по етапа на проекта (масичката, статива, бюрото).
-            if (_pet.WorksRandomly || _pet.CurrentFun is { } f && Scenes.Work.Contains(f)) _pet.GetUp();
+            if (_pet.WorksRandomly || _pet.WorksAtScene || _pet.CurrentFun is { } f && Scenes.Work.Contains(f)) _pet.GetUp();
             else _pet.WorkOnProject();
             _workOpen = _relaxOpen = false;
             _sleepOpen = _quietOpen = _walkOpen = _placeOpen = false;
@@ -1837,7 +1837,11 @@ public sealed class MenuWindow : Window
             if (_projectKey == "none") return;
             _projectKey = "none";
             _projectBox.Children.Clear();
-            _projectBox.Children.Add(new TextBlock { Text = "Няма", Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
+            // Няма проект (нов мечок или предишният е готов): бутон за нов.
+            var pick = Button("Избери нов проект", () => { Hide(); _pet.ChooseProject(); }, primary: true, icon: "pencil");
+            pick.HorizontalAlignment = HorizontalAlignment.Stretch;
+            pick.ToolTip = Tip("Мечо работи по проекта, докато ти работиш – етапи, сандъчета с награди");
+            _projectBox.Children.Add(pick);
             return;
         }
         var pr = _pet.ProjectNow;
@@ -1877,7 +1881,7 @@ public sealed class MenuWindow : Window
             inner.Children.Add(bar);
         }
         // Под лентата – етапът (удебелен).
-        var stageRow = Line("pencil", done ? "Играта излезе!" : $"Етап „{pr.Info.Name}“", true);
+        var stageRow = Line("pencil", done ? _pet.CurrentProject.DoneText : $"Етап „{pr.Info.Name}“", true);
         if (stageRow is DockPanel sd && sd.Children[0] is FrameworkElement pic) { pic.Width = pic.Height = 16 * U; }
         stageRow.Margin = new Thickness(0, 6 * U, 0, 0);
         inner.Children.Add(stageRow);
@@ -1934,7 +1938,7 @@ public sealed class MenuWindow : Window
         SetTile(_walkTile, _pet.OnWalk ? "Повикай" : "Разходка", "walk");
         TileState(_walkTile, _walkOpen || _pet.OnWalk);
         TileState(_relaxTile, _relaxOpen || _pet.RelaxesRandomly || _pet.CurrentFun is { } rf && Scenes.Fun.Contains(rf));
-        TileState(_workTile, _workOpen || _pet.WorksRandomly || _pet.CurrentFun is { } wf && Scenes.Work.Contains(wf));
+        TileState(_workTile, _workOpen || _pet.WorksRandomly || _pet.WorksAtScene || _pet.CurrentFun is { } wf && Scenes.Work.Contains(wf));
         _drawTile.Button.Visibility = Kitchen.Owns(s, Kitchen.Easel) ? Visibility.Visible : Visibility.Collapsed;
         if (_pet.IsQuiet) SetTile(_quietTile, "Говори", "bell");
         else SetTile(_quietTile, "Тихо", "quiet");
@@ -2516,6 +2520,20 @@ public sealed class MenuWindow : Window
     private void BuildShopTiles()
     {
         _shopTiles.Children.Clear();
+        // Нов мечок: магазинът се отваря с гардероба (наградата за първото зинче).
+        if (_pet.Save.GuidedStart && !DailyOffer.HasWardrobe(_pet.Save))
+        {
+            _shopTiles.Children.Add(Ribbon("Магазинът още е затворен", "lock"));
+            _shopTiles.Children.Add(new TextBlock
+            {
+                Text = "Отваря се, когато пристигне гардеробът – той е наградата в края на първото зинче.",
+                Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 10 * U),
+            });
+            var go = Button(_pet.HasActiveProject ? "Към проекта" : "Избери проект", () => { Hide(); if (_pet.HasActiveProject) ProjectWindow.Toggle(_pet); else _pet.ChooseProject(); }, primary: true, icon: "pencil");
+            go.HorizontalAlignment = HorizontalAlignment.Center;
+            _shopTiles.Children.Add(go);
+            return;
+        }
         _goalKey = "";
         BuildGoal();
         _shopTiles.Children.Add(_goalBox);
@@ -3063,7 +3081,7 @@ public sealed class MenuWindow : Window
 
         // Без гардероб: заключено, с бутон към магазина.
         _wardrobeLock.Children.Add(Ribbon("Гардеробът е заключен", "lock"));
-        _wardrobeLock.Children.Add(new TextBlock
+        _wardrobeLock.Children.Add(_wardrobeLockText = new TextBlock
         {
             Text = "Първо гардеробът – избери го в магазина.",
             Foreground = Muted,
@@ -3127,6 +3145,8 @@ public sealed class MenuWindow : Window
         if (_wornList.Children.Count == 0) _wornList.Children.Add(MutedText("Нищо."));
         _wardrobeShelves.Children.Clear();
         _wardrobeLock.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Collapsed : Visibility.Visible;
+        if (_wardrobeLockText != null)
+            _wardrobeLockText.Text = s.GuidedStart ? "Гардеробът е наградата в края на първото зинче." : "Първо гардеробът – избери го в магазина.";
         _wardrobeBody.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
         if (!DailyOffer.HasWardrobe(s)) return;
 
@@ -3268,6 +3288,7 @@ public sealed class MenuWindow : Window
     private string _wardrobeSection = "";   // празно – първият подраздел на първия раздел („Всичко“ е тежко – само ако го избереш)
     private readonly StackPanel _wardrobeBody = new();
     private readonly StackPanel _wardrobeLock = new();
+    private TextBlock? _wardrobeLockText;
 
     /// <summary>Самопроверка: определен раздел на гардероба (за снимка).</summary>
     internal void SelfTestWardrobeSection(string section)

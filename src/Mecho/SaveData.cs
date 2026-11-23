@@ -140,6 +140,7 @@ public sealed class SaveData
     public string GameName { get; set; } = "";
     public string ProjectFanDay { get; set; } = "";
     public string ProjectNote { get; set; } = "";
+    public bool GuidedStart { get; set; }                           // нов мечок след 1.0.x: почва без проект, магазинът – с гардероба
     public int ProjectPlanVersion { get; set; }                     // 2 – невидимите награди вече не са теглени предварително
     public List<string> ProjectPlan { get; set; } = new();          // наградата за всеки етап (решена предварително)
     public List<string> ProjectGot { get; set; } = new();

@@ -256,6 +256,9 @@ public sealed partial class PetWindow
 
     public bool WorksRandomly => _save.StayPut && _save.StayScene == RandomWork;
 
+    /// <summary>„Работи си“ – остава на работно кътче (бюро, статив, масичка, тефтер), дори докато още отива.</summary>
+    public bool WorksAtScene => _save.StayPut && Scenes.Work.Any(s => s.Id == _save.StayScene);
+
     /// <summary>Сам е решил да си почива/работи (по часовника) – Тут може да го изключи.</summary>
     public bool AutoMode => _save.StayPut && _save.AutoMode;
 

@@ -43,6 +43,18 @@ public sealed partial class PetWindow
         public string[] Names { get; init; } = Array.Empty<string>();
         /// <summary>Какво остава накрая (предмет за „Неща“), или "".</summary>
         public string FinalItem { get; init; } = "";
+        /// <summary>Как се казва финалът в сандъчето („Кутията с играта + титла „Издател““).</summary>
+        public string FinalLabel { get; init; } = "Готовият проект";
+        /// <summary>Какво казва Мечо, когато вземе финала.</summary>
+        public string FinishLine { get; init; } = "Готово! Направихме го заедно!";
+        /// <summary>Надписът, когато всичко е готово („Играта излезе!“).</summary>
+        public string DoneText { get; init; } = "Готово!";
+        /// <summary>Наградите по етапи, ако са предварително решени (иначе – от loot_list). Като „up:desk|nuts:4“.</summary>
+        public string[]? FixedRewards { get; init; }
+        /// <summary>Ценността на сандъчетата, ако е предварително решена („NSNSGX“).</summary>
+        public string? FixedTiers { get; init; }
+        /// <summary>Репликите при минат етап: „{LinesKey}.stage.N“.</summary>
+        public string LinesKey { get; init; } = "project";
     }
 
     private static readonly ProjectStage[] BoardGameStages =
@@ -74,6 +86,9 @@ public sealed partial class PetWindow
         Icon = "dice",
         Stages = BoardGameStages,
         FinalItem = GameBox,
+        FinalLabel = "Кутията с играта + титла „Издател“",
+        FinishLine = "Вече съм Издател! Кутията с играта е в „Неща“ – сложи я, където искаш.",
+        DoneText = "Играта излезе!",
         Names = new[]
         {
             "Горски тайни", "Медено приключение", "Лешникова треска", "Пътят на мечето", "Бърлогата",
@@ -88,17 +103,91 @@ public sealed partial class PetWindow
         },
     };
 
-    /// <summary>Всички видове проекти (за сега – настолната игра; после – комикс, илюстрация…).</summary>
-    public static readonly ProjectDef[] ProjectDefs = { BoardGameProject };
+    /// <summary>
+    /// Зинчето с рисунки – кратък първи проект (6 етапа). Води те през играта: бюрото идва от
+    /// първото сандъче, стативът – когато трябва да рисува, накрая – гардеробът (с него се
+    /// отваря и магазинът). По пътя – 5 страници рецепта, купон за храна и лешници.
+    /// </summary>
+    public static readonly ProjectDef ZineProject = new()
+    {
+        Id = "zine",
+        Kind = "Зинче с рисунки",
+        Icon = "book",
+        LinesKey = "project.zine",
+        FinalLabel = "Готовото зинче",
+        FinishLine = "Зинчето е готово! И гардеробът пристига – вече може да се обличам, а магазинът е отворен!",
+        DoneText = "Зинчето е готово!",
+        Stages = new ProjectStage[]
+        {
+            new("Идея", "мисли за какво да е зинчето", 40) { Desc = "В този етап мечокът решава за какво ще е зинчето.", Steps = new[] { "Драска идеи в тефтера", "Избира темата", "Решава колко страници да има" } },
+            new("Скици", "скицира страниците", 60) { Desc = "В този етап мечокът скицира всяка страница на бюрото.", Steps = new[] { "Сгъва листа на страници", "Скицира корицата", "Скицира вътрешните страници" }, Needs = Kitchen.Desk },
+            new("Рисунки", "рисува илюстрациите", 80) { Desc = "В този етап мечокът рисува илюстрациите на статива.", Steps = new[] { "Рисува корицата", "Рисува страниците", "Оцветява всичко" }, Needs = Kitchen.Easel },
+            new("Надписи", "пише текстовете", 80) { Desc = "В този етап мечокът пише заглавието и надписите.", Steps = new[] { "Пише заглавието", "Пише надписите", "Проверява правописа" }, Needs = Kitchen.Desk },
+            new("Сгъване", "сгъва и подвързва", 90) { Desc = "В този етап мечокът сгъва, реже и подвързва бройките.", Steps = new[] { "Копира страниците", "Сгъва листите", "Подвързва с конец" }, Needs = Kitchen.Desk },
+            new("Раздаване", "раздава зинчето", 100) { Desc = "В този етап мечокът раздава зинчето на горските приятели.", Steps = new[] { "Подарява на зайчето", "Оставя едно в библиотеката", "Пази едно за себе си" } },
+        },
+        Names = new[] { "Горски дневник", "Мечешки истории", "Малки радости", "Листопад", "Медена книжка", "Тихата гора", "Пътешествие", "Звездна нощ" },
+        Questions = new[]
+        {
+            new ProjectQuestion("theme", 0, "Тема", "За какво да е зинчето? Ти реши!", new[] { "Гората", "Храна и рецепти", "Приятелите ми", "Сезоните" }),
+            new ProjectQuestion("name", 3, "Име", "Зинчето почти е готово… Как да го кръстим?", Array.Empty<string>(), "Или измисли свое име:"),
+        },
+        // Сандъчетата: бюрото – веднага; стативът – точно преди рисунките; накрая – гардеробът.
+        FixedTiers = "NSNSGX",
+        FixedRewards = new[]
+        {
+            "up:desk|nuts:4",
+            "up:easel|page",
+            "page|nuts:5",
+            "coupon:food|page",
+            "page|page|nuts:6",
+            "box|up:wardrobe|nuts:8",
+        },
+    };
+
+    /// <summary>Всички видове проекти (после – комикс, видео игра, книга с илюстрации…).</summary>
+    public static readonly ProjectDef[] ProjectDefs = { BoardGameProject, ZineProject };
+
+    /// <summary>Няма започнат проект (нов мечок или избира следващия).</summary>
+    public bool NoProject => string.IsNullOrEmpty(_save.ProjectType);
 
     /// <summary>Проектът, по който работи (или последният завършен).</summary>
-    public ProjectDef CurrentProject => ProjectDefs.FirstOrDefault(d => d.Id == _save.ProjectType) ?? ProjectDefs[0];
+    public ProjectDef CurrentProject => ProjectDefs.FirstOrDefault(d => d.Id == _save.ProjectType) ?? ZineProject;
+
+    /// <summary>Какво може да се избере за нов проект: в самото начало – само зинчето.</summary>
+    public IReadOnlyList<ProjectDef> ProjectChoices =>
+        _save.GuidedStart && _save.HallOfFame.Count == 0 ? new[] { ZineProject } : ProjectDefs;
+
+    /// <summary>Почва нов проект от избрания вид (всичко на проекта – отначало).</summary>
+    public void StartProject(ProjectDef def)
+    {
+        if (HasActiveProject) return;
+        _save.ProjectType = def.Id;
+        _save.ProjectPoints = 0; _save.ProjectPaid = 0; _save.ProjectBank = 0;
+        _save.GameName = ""; _save.ProjectNote = "";
+        _save.ProjectPlan.Clear(); _save.ProjectGot.Clear(); _save.ProjectOpened.Clear(); _save.ProjectOpenedInit = true;
+        _save.ProjectTiers = ""; _save.ProjectAnswers.Clear(); _save.ProjectPlanVersion = 2;
+        Remember("project.start", 5, ("вид", def.Kind));
+        Say($"Почваме: {def.Kind.ToLowerInvariant()}! Като работиш, и аз работя по него.", 5);
+        Emote("sparkle", 3);
+        NotifyCare();
+        Persist();
+    }
+
+    /// <summary>„Избери нов проект“: Мечо пита какво да почнете (в началото – само зинчето).</summary>
+    public void ChooseProject()
+    {
+        if (HasActiveProject) { ProjectWindow.Toggle(this); return; }
+        var options = ProjectChoices.Select(d => new ChatOption(d.Kind, p => p.StartProject(d))).ToList();
+        options.Add(new ChatOption("После", _ => { }));
+        Ask(new ChatQuestion(ProjectChoices.Count == 1 ? "Да направим заедно нещо? Почваме с малко зинче с рисунки!" : "Какъв проект да почнем?", options.ToArray()));
+    }
 
     /// <summary>Етапите на сегашния проект.</summary>
     public ProjectStage[] ProjectStages => CurrentProject.Stages;
 
     /// <summary>Има ли активен проект (не е завършен – или финалното сандъче още чака).</summary>
-    public bool HasActiveProject => !ProjectDone || ProjectHasClaim;
+    public bool HasActiveProject => !NoProject && (!ProjectDone || ProjectHasClaim);
 
     /// <summary>Ранговете на Мечо по пътя – нов на всеки три етапа (последният – когато играта излезе).</summary>
     private static readonly string[] ProjectRanks = { "Мечтател", "Изобретател", "Тестер", "Художник", "Предприемач", "Издател" };
@@ -113,7 +202,7 @@ public sealed partial class PetWindow
     private int ProjectTotalTo(int stage) => ProjectStages.Take(stage + 1).Sum(s => s.Points);
 
     /// <summary>Готов ли е целият проект (играта е пусната).</summary>
-    public bool ProjectDone => _save.ProjectPaid >= ProjectStages.Length;
+    public bool ProjectDone => NoProject || _save.ProjectPaid >= ProjectStages.Length;
 
     /// <summary>Сегашният етап (0…15), докъде е и колко трябват.</summary>
     public (int Stage, ProjectStage Info, double Have, int Need) ProjectNow
@@ -233,7 +322,8 @@ public sealed partial class PetWindow
         ProjectRewardPlan(i);   // наградата е решена отдавна (виждаше се в пътя) – чака да я вземеш
         LastStageDone = i;
         StageDone?.Invoke(i, "");
-        string line = R.Text($"project.stage.{i + 1}", _save.OwnerName, ("игра", GameTitle));
+        string key = $"{CurrentProject.LinesKey}.stage.{i + 1}";
+        string line = R.Has(key) ? R.Text(key, _save.OwnerName, ("игра", GameTitle)) : $"Етап „{st.Name}“ – готово!";
         _save.ProjectNote = line;
         Log("star", $"Проектът: „{st.Name}“ – готово!");
         Emote("sparkle", 4);
@@ -324,7 +414,7 @@ public sealed partial class PetWindow
         _ => new[] { "focus", "focus", "think", "focus_write", "write_sit", "read" },
     };
 
-    private string GameTitle => _save.GameName.Length > 0 ? "„" + _save.GameName + "“" : "играта";
+    private string GameTitle => _save.GameName.Length > 0 ? "„" + _save.GameName + "“" : CurrentProject == ZineProject ? "зинчето" : "играта";
 
     private int ProjectNutsFor(int i) => i < 5 ? 3 + _rng.Next(3) : i < 10 ? 4 + _rng.Next(3) : 5 + _rng.Next(3);
 
@@ -357,6 +447,7 @@ public sealed partial class PetWindow
     /// </summary>
     private string RollProjectReward(int i)
     {
+        if (CurrentProject.FixedRewards is { } fixedPlan && i < fixedPlan.Length) return fixedPlan[i];
         var items = new List<string>();
         bool final = i == ProjectStages.Length - 1;
         char tier = final ? 'X' : ProjectTier(i);
@@ -414,7 +505,7 @@ public sealed partial class PetWindow
         int n = ProjectStages.Length;
         if (_save.ProjectTiers.Length != n)
         {
-            _save.ProjectTiers = RollTiers(n);
+            _save.ProjectTiers = CurrentProject.FixedTiers is { } ft && ft.Length == n ? ft : RollTiers(n);
             // Наградите отвъд сегашния етап (още невидими) – наново, по новите сандъчета.
             for (int k = _save.ProjectPaid + 1; k < _save.ProjectPlan.Count; k++) _save.ProjectPlan[k] = "";
         }
@@ -464,8 +555,8 @@ public sealed partial class PetWindow
             "cloth" => Clothes.All.FirstOrDefault(g => g.Id == id)?.Name ?? "Дреха",
             "up" => Kitchen.Find(id)?.Name ?? "Мебел",
             "pajama" or "bg" or "theme" or "skin" => LootName(item),
-            "name" => "Името на играта",
-            "box" => "Кутията с играта + титла „Издател“",
+            "name" => "Името (ти избираш)",
+            "box" => CurrentProject.FinalLabel,
             _ => item,   // стар запис – вече е текст
         };
     }
@@ -511,7 +602,7 @@ public sealed partial class PetWindow
         "cloth" => "Нещо за гардероба",
         "up" or "skin" => "Нещо за бърлогата",
         "pajama" or "bg" or "theme" => "Нещо за гардероба",
-        "name" => "Името на играта",
+        "name" => "Името",
         "box" => "Голямата награда",
         _ => "Изненада",
     };
@@ -597,7 +688,7 @@ public sealed partial class PetWindow
                     continue;
                 case "box":
                     FinishGame();
-                    said.Add("кутията с играта и титла „Издател“");
+                    said.Add(CurrentProject.FinalLabel.ToLowerInvariant());
                     _gotItems.Add(item);
                     continue;
             }
@@ -761,7 +852,7 @@ public sealed partial class PetWindow
                 Hero = _save.ProjectAnswers.GetValueOrDefault("hero", ""),
                 Done = day,
             });
-        return "Вече съм Издател! Кутията с играта е в „Неща“ – сложи я, където искаш.";
+        return CurrentProject.FinishLine;
     }
 
     /// <summary>Отговорен ли е въпросът (името – с името на проекта).</summary>
@@ -846,16 +937,24 @@ public sealed partial class PetWindow
     internal void NameGame(string name)
     {
         _save.GameName = name;
-        _save.ProjectNote = $"Играта се казва „{name}“!";
-        Say($"„{name}“! Звучи страхотно – пиша го на кутията.", 5);
+        _save.ProjectNote = $"{CurrentProject.Kind} се казва „{name}“!";
+        Say($"„{name}“! Звучи страхотно – пиша го на корицата.", 5);
         Emote("sparkle", 3);
         NotifyCare();
         Persist();
     }
 
     /// <summary>Веднъж в секунда: разказва за проекта (в началото) и писмата от феновете (след етап 11).</summary>
+    private double _nextChooseNudge;
+
     private void UpdateProject()
     {
+        // Няма проект: от време на време Мечо пита какво да почнете (през режисьора).
+        if (NoProject && !SelfTest.Running && Now >= _nextChooseNudge)
+        {
+            _nextChooseNudge = Now + 60;
+            Think("project.choose", 7, cooldownHours: 6);
+        }
         // Стари записи: наградите отвъд видимото бяха теглени предварително (често без дрехи,
         // защото още нямаше гардероб) – теглят се наново, когато се стигне до тях.
         if (_save.ProjectPlanVersion < 2)

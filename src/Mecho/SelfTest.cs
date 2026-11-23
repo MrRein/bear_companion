@@ -146,6 +146,27 @@ public static class SelfTest
                 if (!wardrobe) pet.Save.Owned.Remove(Kitchen.Wardrobe);
             }
         }, 300);
+        await Step("проект: нов мечок почва без проект – само зинчето", () =>
+        {
+            var s = pet.Save;
+            var keep = (s.ProjectType, s.GuidedStart, s.ProjectPaid, s.ProjectPoints, s.HallOfFame.ToList());
+            s.ProjectType = ""; s.GuidedStart = true; s.HallOfFame.Clear();
+            if (pet.HasActiveProject || !pet.NoProject) throw new Exception("нов мечок, а има проект");
+            if (pet.ProjectChoices.Count != 1 || pet.ProjectChoices[0] != PetWindow.ZineProject) throw new Exception("в началото трябва да е само зинчето");
+            pet.StartProject(PetWindow.ZineProject);
+            if (!pet.HasActiveProject || pet.ProjectStages.Length != 6) throw new Exception("зинчето не почна");
+            if (pet.ProjectTier(5) != 'X' || pet.ProjectTier(0) != 'N') throw new Exception("сандъчетата на зинчето: " + s.ProjectTiers);
+            if (!pet.ProjectRewardPlan(0).Contains("up:" + Kitchen.Desk) || !pet.ProjectRewardPlan(1).Contains("up:" + Kitchen.Easel)
+                || !pet.ProjectRewardPlan(5).Contains("up:" + Kitchen.Wardrobe)) throw new Exception("наградите на зинчето");
+            int pages = Enumerable.Range(0, 6).Sum(i => PetWindow.RewardItems(pet.ProjectRewardPlan(i)).Count(x => x == "page"));
+            if (pages != 5) throw new Exception("страниците рецепта в зинчето: " + pages);
+            // След първия проект – изборът е от всички видове.
+            s.HallOfFame.Add(new FameEntry { Kind = "Зинче с рисунки", Type = "zine", Name = "Проба" });
+            if (pet.ProjectChoices.Count < 2) throw new Exception("след първото зинче няма избор");
+            (s.ProjectType, s.GuidedStart, s.ProjectPaid, s.ProjectPoints) = (keep.Item1, keep.Item2, keep.Item3, keep.Item4);
+            s.HallOfFame.Clear(); s.HallOfFame.AddRange(keep.Item5);
+            s.ProjectPlan.Clear(); s.ProjectTiers = ""; s.ProjectGot.Clear();
+        }, 100);
         await Step("loot_list: рядкост и цени", () =>
         {
             foreach (var c in PetWindow.AllLootCodes().Where(c => Rarities.PriceGroup(c) != null))
