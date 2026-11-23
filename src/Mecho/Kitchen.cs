@@ -6,8 +6,8 @@ namespace Mecho;
 
 /// <summary>
 /// Храна или напитка, която мечокът готви. Cost е в лешници (0 = безплатна);
-/// Tool е уредът, който трябва да е купен (null = не трябва нищо). Count е на
-/// колко парчета се появява из екрана (само с Pieces); рисунката е assets/props/food/{Id}.png.
+/// Tool е уредът, който трябва да е купен (null = не трябва нищо). Count – винаги 1:
+/// сготвеното излиза като една порция; рисунката е assets/props/food/{Id}.png.
 /// </summary>
 public sealed record Food(
     string Id, string Name, string Icon, double Fullness, double Energy, int Cost, int Count, string? Tool, string[] Lines)
@@ -17,12 +17,6 @@ public sealed record Food(
 
     /// <summary>Чия рисунка ползва (food_{Art}.png), ако няма своя; null – своята (food_{Id}).</summary>
     public string? Art { get; init; }
-
-    /// <summary>
-    /// food_pieces: сготвено излиза на парчета (Count) с отделна рисунка {Id}_piece.png,
-    /// ако я има. Без – едно цяло, със същата рисунка като в менюто.
-    /// </summary>
-    public bool Pieces { get; init; }
 
     /// <summary>На колко хапки го изяжда (0 – 4–6, както обикновено). Пуканките – много.</summary>
     public int Bites { get; init; }
@@ -64,14 +58,13 @@ public static class Kitchen
     public const int BerryMinutes = 10;
 
     /// <summary>
-    /// Рисунките (assets/props/food/): {Id}.png е цялото ястие – в менюто и сготвено.
-    /// С Pieces = true сготвеното излиза на Count парчета ({Id}_piece.png, ако я има);
-    /// иначе е едно цяло (Count = 1) и се яде на хапки (Bites).
+    /// Рисунките (assets/props/food/): {Id}.png – едно ястие, в менюто и сготвено. Всяко
+    /// ястие излиза като една порция (Count = 1) и се яде на хапки (Bites).
     /// </summary>
     public static readonly Food[] Foods =
     {
-        new("berries", "Боровинки", "🫐", 20, 0, 0, 3, null,
-            new[] { "Боровинки! Сини като небето.", "Ням! Още една.", "Кисело-сладко. Обичам." }) { Pieces = true },
+        new("berries", "Боровинки", "🫐", 20, 0, 0, 1, null,
+            new[] { "Боровинки! Сини като небето.", "Ням! Още една.", "Кисело-сладко. Обичам." }),
         new("sandwich_veg", "Сандвич с домат", "🫓", 28, 0, 3, 1, Table,
             new[] { "Сандвич! Прост и перфектен.", "Хляб, домат, сирене… ням!", "Най-хубавото е, когато ти го направиш." }),
         new("sandwich_ham", "Сандвич с шунка", "🥪", 32, 0, 4, 1, Table, Array.Empty<string>()),
@@ -79,8 +72,8 @@ public static class Kitchen
         new("sandwich_olives", "Сандвич с маслини", "🫒", 28, 0, 4, 1, Table, Array.Empty<string>()),
         new("popcorn", "Пуканки", "🍿", 24, 0, 3, 1, Pot,
             new[] { "Пук! Хванах я с уста!", "Хрус-хрус.", "Пуканки като за кино вечер!" }) { Bites = 14 },
-        new("meatballs", "Кюфтенца", "🍖", 40, 0, 5, 3, Pan,
-            new[] { "Ох, горещо! *духа* Мммм.", "Кюфтенце! Най-хубавият ден!", "Цвър-цвър… ням." }) { Pieces = true },
+        new("meatballs", "Кюфтенца", "🍖", 40, 0, 5, 1, Pan,
+            new[] { "Ох, горещо! *духа* Мммм.", "Кюфтенце! Най-хубавият ден!", "Цвър-цвър… ням." }),
         new("potatoes", "Мечешки картофки", "🥔", 50, 0, 7, 1, Oven,
             new[] { "Мечешки картофки от фурната! Ухааа.", "Хрупкави отвън, меки отвътре. Перфектни.", "Ще ги направя пак утре. И вдругиден." }) { Bites = 8 },
         new("coffee", "Кафе", "☕", 3, 35, 2, 1, CoffeeMachine,
@@ -97,7 +90,7 @@ public static class Kitchen
         new("soup_veg", "Зеленчукова супа", "🥣", 35, 0, 5, 1, Pot,
             new[] { "Зеленчукова супа! Морков, картоф, мммм.", "*духа* Топличко за коремчето.", "Като на баба Мецана." }),
         new("soup_roast", "Печена супа", "🫕", 45, 0, 5, 1, Pot, Array.Empty<string>()) { Prep = Oven },
-        new("corn", "Царевица на кочан", "🌽", 20, 0, 3, 2, Pot, Array.Empty<string>()) { Pieces = true },
+        new("corn", "Царевица на кочан", "🌽", 20, 0, 3, 1, Pot, Array.Empty<string>()),
         new("cocoa", "Какао", "🍫", 8, 8, 2, 1, Kettle, Array.Empty<string>()),
         new("linden_tea", "Липов чай", "🌼", 5, 5, 2, 1, Kettle, Array.Empty<string>()),
 
@@ -105,15 +98,15 @@ public static class Kitchen
         // Без уред: идва готово (като от аптеката) – не се „бърка“ в каничката за сок.
         new(Medicine, "Лекарство: липов чай с мед", "🌼", 4, 10, 2, 1, null,
             new[] { "*сърба* Горчичко… но ми става по-добре.", "Благодаря, че се грижиш за мен.", "Мм. Вече не ми е толкова студено." }) { Art = "linden_tea" },
-        new("eggs", "Яйца на очи", "🥚", 25, 5, 4, 2, Pan, Array.Empty<string>()) { Pieces = true },
-        new("pancakes", "Палачинки с мед", "🥞", 40, 0, 5, 3, Pan, Array.Empty<string>()) { Prep = Mixer, Pieces = true },
+        new("eggs", "Яйца на очи", "🥚", 25, 5, 4, 1, Pan, Array.Empty<string>()),
+        new("pancakes", "Палачинки с мед", "🥞", 40, 0, 5, 1, Pan, Array.Empty<string>()) { Prep = Mixer },
         new("espresso", "Еспресо", "🫘", 2, 40, 3, 1, CoffeeMachine, Array.Empty<string>()),
         new("latte", "Лате", "🥛", 6, 30, 3, 1, CoffeeMachine, Array.Empty<string>()),
         new("cappuccino", "Капучино", "🫧", 6, 40, 3, 1, Mixer, Array.Empty<string>()) { Prep = CoffeeMachine },
         new("iced_coffee", "Ледено кафе", "🧋", 6, 30, 3, 1, IceCream, Array.Empty<string>()) { Prep = CoffeeMachine },
-        new("cookies", "Бисквитки", "🍪", 15, 0, 3, 4, Oven, Array.Empty<string>()) { Pieces = true },
-        new("muffins", "Мъфини с боровинки", "🧁", 30, 5, 5, 3, Oven, Array.Empty<string>()) { Prep = Mixer, Pieces = true },
-        new("pizza_margarita", "Пица Маргарита", "🍕", 60, 0, 7, 4, Oven, Array.Empty<string>()) { Prep = Mixer, Pieces = true },
+        new("cookies", "Бисквитки", "🍪", 15, 0, 3, 1, Oven, Array.Empty<string>()),
+        new("muffins", "Мъфини с боровинки", "🧁", 30, 5, 5, 1, Oven, Array.Empty<string>()) { Prep = Mixer },
+        new("pizza_margarita", "Пица Маргарита", "🍕", 60, 0, 7, 1, Oven, Array.Empty<string>()) { Prep = Mixer },
         new("smoothie", "Смути", "🥤", 12, 15, 3, 1, Mixer, Array.Empty<string>()),
         new("pressed_cheese", "Мачкан с кашкавал", "🍞", 25, 0, 3, 1, SandwichMaker, Array.Empty<string>()),
         new("pressed_ham", "Мачкан с шунка", "🥓", 35, 0, 4, 1, SandwichMaker, Array.Empty<string>()),
@@ -127,12 +120,8 @@ public static class Kitchen
         new("skewers", "Шишчета", "🍢", 50, 0, 6, 1, Grill, Array.Empty<string>()) { Bites = 7 },
     };
 
-    /// <summary>
-    /// Рисунката на сготвеното: с Pieces – парчето (food_{Art}_piece), ако е нарисувано;
-    /// иначе цялото ястие (food_{Art}), както в менюто.
-    /// </summary>
-    public static string CookedArt(Food f, Func<string, bool> has) =>
-        f.Pieces && has($"food_{f.ArtId}_piece") ? $"food_{f.ArtId}_piece" : "food_" + f.ArtId;
+    /// <summary>Рисунката на сготвеното – същата като в менюто (една порция).</summary>
+    public static string CookedArt(Food f, Func<string, bool> has) => "food_" + f.ArtId;
 
     /// <summary>Стари ястия, сменени с нови (за научените рецепти, желанията и любимата храна в стари записи).</summary>
     public static readonly Dictionary<string, string> Renamed = new()

@@ -1056,18 +1056,17 @@ public sealed partial class PetWindow
         }, 800);
         await step("рисунките по папки (food, kitchen, furniture, skins)", () =>
         {
-            foreach (var name in new[] { "food_pizza_margarita", "food_pizza_margarita_piece", "food_meatballs_piece", "cook_oven", "cook_oven_retro_b",
+            foreach (var name in new[] { "food_pizza_margarita", "food_meatballs", "cook_oven", "cook_oven_retro_b",
                                          "couch", "couch_velvet", "plant_cactus_3", "gift_red", "shop_couch" })
                 if (!_lib.HasProp(name)) throw new Exception("не намира рисунката " + name);
             if (Ui.LoadIcon("food_pizza_margarita") == null) throw new Exception("няма иконка food_pizza_margarita");
         }, 200);
-        await step("храната: всяко ястие има рисунка; без парчета – едно цяло; бързо доядане", () =>
+        await step("храната: всяко ястие има рисунка и излиза като една порция; бързо доядане", () =>
         {
             foreach (var f in Kitchen.Foods)
             {
                 if (!_lib.HasProp("food_" + f.ArtId)) throw new Exception("няма рисунка food_" + f.ArtId);
-                if (!f.Pieces && f.Count != 1) throw new Exception(f.Id + ": без парчета, а излиза на " + f.Count);
-                if (f.Pieces && !_lib.HasProp($"food_{f.ArtId}_piece")) throw new Exception(f.Id + ": food_pieces, а няма food_" + f.ArtId + "_piece");
+                if (f.Count != 1) throw new Exception(f.Id + ": излиза на " + f.Count + " парчета, а трябва една порция");
             }
             if (Kitchen.CookedArt(Kitchen.Foods.First(f => f.Id == "popcorn"), _lib.HasProp) != "food_popcorn") throw new Exception("пуканките още са на парчета");
             if (Kitchen.Foods.First(f => f.Id == "popcorn").Bites < 10) throw new Exception("пуканките не се ядат дълго");
