@@ -117,8 +117,19 @@ public sealed class GiftWindow : Window
         NativeMethods.MoveWindow(this, _to.X, _to.Y - Math.Abs(Math.Sin(_t * 3)) * 10);
     }
 
+    /// <summary>Лентичка с рядкостта (цветна, с бял надпис).</summary>
+    internal static Border RarityRibbon(Rarity r) => new()
+    {
+        Background = RarityColors.Brush(r),
+        CornerRadius = new CornerRadius(3),
+        Padding = new Thickness(6, 1, 6, 2),
+        Margin = new Thickness(0, 3, 0, 0),
+        HorizontalAlignment = HorizontalAlignment.Center,
+        Child = new TextBlock { Text = Rarities.Name(r), Foreground = Brushes.White, FontWeight = FontWeights.Bold },
+    };
+
     /// <summary>Отворен: капакът хвръква, отдолу излиза какво има вътре.</summary>
-    public void Reveal(BitmapSource art, int artScale, string name, string note)
+    public void Reveal(BitmapSource art, int artScale, string name, string note, Rarity? rarity = null)
     {
         _opened = true;
         _openedAt = DateTime.Now;
@@ -132,8 +143,14 @@ public sealed class GiftWindow : Window
         image.Margin = new Thickness(0, 0, 0, 6);
         prize.Children.Add(image);
         prize.Children.Add(new TextBlock { Text = name, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center });
+        if (rarity is { } r) prize.Children.Add(RarityRibbon(r));
         prize.Children.Add(new TextBlock { Text = note, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0) });
         var card = Frame(prize, new Thickness(12, 10, 12, 10));
+        if (rarity is { } rc and not Rarity.Common)
+        {
+            card.BorderBrush = RarityColors.Brush(rc);
+            card.BorderThickness = new Thickness(3);
+        }
         card.Margin = new Thickness(0, 0, 0, 4);
         card.Cursor = Cursors.Hand;
         card.MouseLeftButtonUp += (_, _) => Close();

@@ -186,7 +186,7 @@ public sealed partial class PetWindow
     {
         if (Loot.RarityOf(code) is not { } r || r == Rarity.Common) return "";
         if (r == Rarity.Legendary) Emote("sparkle", 4);
-        return Rarities.Name(r) + "! ";
+        return "";   // рядкостта се вижда на цветната лентичка
     }
 
     /// <summary>Лешниците от loot_list: „Настройки“ → ключ.мин / ключ.макс (по-често ниско).</summary>

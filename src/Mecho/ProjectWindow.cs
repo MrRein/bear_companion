@@ -119,6 +119,9 @@ internal sealed class ProjectWindow : FloatWindow
 
     private static Brush Soft(Brush tint, double mix) => MenuWindow.Soft(tint, mix);
 
+    /// <summary>Докъде е показана зелената лента (−1 – още не е; анимира се само растежът).</summary>
+    private double _shownGreen = -1;
+
     public void Rebuild()
     {
         var pet = Pet;
@@ -354,9 +357,13 @@ internal sealed class ProjectWindow : FloatWindow
             Canvas.SetLeft(green, startX + px);
             Canvas.SetTop(green, lineY - lineH / 2 + px);
             canvas.Children.Add(green);
-            if (!Instant)
-                green.Loaded += (_, _) => green.BeginAnimation(WidthProperty, new DoubleAnimation(Math.Max(0, greenW - colW * 0.6), greenW, TimeSpan.FromMilliseconds(1000))
+            // Анимира се само при отваряне и когато лентата наистина е пораснала (не при всяко прерисуване –
+            // напр. след име или отговор).
+            double from = _shownGreen < 0 ? Math.Max(0, greenW - colW * 0.6) : _shownGreen;
+            if (!Instant && greenW > from + 0.5)
+                green.Loaded += (_, _) => green.BeginAnimation(WidthProperty, new DoubleAnimation(from, greenW, TimeSpan.FromMilliseconds(1000))
                 { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop });
+            _shownGreen = greenW;
         }
 
         for (int i = 0; i < n; i++)
@@ -553,7 +560,7 @@ internal sealed class ProjectWindow : FloatWindow
             cell.Children.Add(slot);
             cell.Children.Add(new TextBlock { Text = Pet.ItemLabel(item), TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4 * U, 0, 0) });
             if (rarity is { } r)
-                cell.Children.Add(new TextBlock { Text = Rarities.Name(r), Foreground = RarityColors.Brush(r), FontWeight = FontWeights.Bold, TextAlignment = TextAlignment.Center });
+                cell.Children.Add(GiftWindow.RarityRibbon(r));
             slots.Children.Add(cell);
         }
         panel.Children.Add(slots);

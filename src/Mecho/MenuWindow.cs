@@ -1100,15 +1100,18 @@ public sealed class MenuWindow : Window
             if (_pet.RelaxesRandomly || _pet.CurrentFun is { } f && Scenes.Fun.Contains(f)) { _pet.GetUp(); _relaxOpen = false; }
             else { _relaxOpen = !_relaxOpen; _workOpen = false; }
             _sleepOpen = _quietOpen = _walkOpen = _placeOpen = false;
+            if (_relaxOpen) AutoPickRelax();
             Refresh(true);
         }, tip: "Какво да прави за почивка – избери или „Ти си избери“");
         _workTile = MakeTile("tasks", "Работи си", () =>
         {
-            if (_pet.WorksRandomly || _pet.CurrentFun is { } f && Scenes.Work.Contains(f)) { _pet.GetUp(); _workOpen = false; }
-            else { _workOpen = !_workOpen; _relaxOpen = false; }
+            // Без избор: сяда да работи по етапа на проекта (масичката, статива, бюрото).
+            if (_pet.WorksRandomly || _pet.CurrentFun is { } f && Scenes.Work.Contains(f)) _pet.GetUp();
+            else _pet.WorkOnProject();
+            _workOpen = _relaxOpen = false;
             _sleepOpen = _quietOpen = _walkOpen = _placeOpen = false;
             Refresh(true);
-        }, tip: "Какво да работи до теб – избери или „Ти си избери“");
+        }, tip: "Работи по проекта до теб");
         // Рисувай – само със статива.
         _drawTile = MakeTile("pencil", "Рисувай", () => { Hide(); _pet.OpenDrawing(); });
         // Тихо: за колко (30 мин, 1 ч, 2 ч). Тих ли е – пак говори.
@@ -2077,6 +2080,23 @@ public sealed class MenuWindow : Window
     private readonly UniformGrid _relaxGrid = new() { Columns = 2 };
     private readonly UniformGrid _workGrid = new() { Columns = 2 };
     private bool _relaxOpen, _workOpen;
+    private int _relaxOpenedAt;
+
+    /// <summary>„Почивай си“ е отворено: ако до 10 с нищо не избереш – „Ти си избери“ и лентата се затваря.</summary>
+    private void AutoPickRelax()
+    {
+        int stamp = ++_relaxOpenedAt;
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (!_relaxOpen || stamp != _relaxOpenedAt) return;
+            _relaxOpen = false;
+            _pet.RelaxRandom();
+            Refresh(true);
+        };
+        timer.Start();
+    }
 
     private readonly StackPanel _relaxBox = new(), _workBox2 = new();
     private Button _relaxAny = null!, _workAny = null!;
@@ -2732,8 +2752,8 @@ public sealed class MenuWindow : Window
     private FrameworkElement CouponBar(bool shop)
     {
         string active = _pet.ActiveCoupon;
-        bool activeHere = active.Length > 0 && (shop ? active != "food" : active == "food");
-        var stacks = _pet.CouponStacks().Where(x => shop ? x.Kind.Code != "food" : x.Kind.Code == "food").ToList();
+        bool activeHere = active.Length > 0 && (shop ? active is not ("food" or "food50") : active is "food" or "food50");
+        var stacks = _pet.CouponStacks().Where(x => shop ? x.Kind.Code is not ("food" or "food50") : x.Kind.Code is "food" or "food50").ToList();
         var box = new StackPanel();
         if (!activeHere && stacks.Count == 0) return box;
         var frame = new Border
@@ -2946,6 +2966,14 @@ public sealed class MenuWindow : Window
             spark.Margin = new Thickness(6, 4, 0, 0);
             artGrid.Children.Add(spark);
         }
+        if (rarity is { } rb)
+        {
+            // Лентичката с рядкостта – долу в картинката, в цвета ѝ.
+            var ribbon = GiftWindow.RarityRibbon(rb);
+            ribbon.VerticalAlignment = VerticalAlignment.Bottom;
+            ribbon.Margin = new Thickness(0, 0, 0, 5 * U);
+            artGrid.Children.Add(ribbon);
+        }
         var artBox = new Border
         {
             Background = TileArt,
@@ -2981,16 +3009,7 @@ public sealed class MenuWindow : Window
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 8 * U, 0, rarity == null ? 6 * U : 0),
         });
-        if (rarity is { } r)
-            middle.Children.Add(new TextBlock
-            {
-                Text = Rarities.Name(r),
-                Foreground = RarityColors.Brush(r),
-                FontWeight = FontWeights.Bold,
-                FontSize = Math.Max(9, 11 * U),
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 6 * U),
-            });
+        if (rarity != null) middle.Children.Add(new Border { Height = 6 * U });
         middle.Children.Add(details);
         dock.Children.Add(middle);
 
@@ -3258,6 +3277,15 @@ public sealed class MenuWindow : Window
     private string _wardrobeSection = "";   // празно – първият подраздел на първия раздел („Всичко“ е тежко – само ако го избереш)
     private readonly StackPanel _wardrobeBody = new();
     private readonly StackPanel _wardrobeLock = new();
+
+    /// <summary>Самопроверка: определен раздел на гардероба (за снимка).</summary>
+    internal void SelfTestWardrobeSection(string section)
+    {
+        _wardrobeSection = section;
+        ShowPage(PageWardrobe);
+        BuildWardrobe();
+        UpdateLayout();
+    }
 
     /// <summary>Самопроверка: гардеробът с дрехите и фоновете.</summary>
     internal void SelfTestWardrobe()

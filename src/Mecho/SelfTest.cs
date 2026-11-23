@@ -890,6 +890,18 @@ public sealed partial class PetWindow
             LeaveScene();
         }, 300);
         await step("гардероб", () => { OpenMenu(MenuWindow.WardrobeTab); _menu!.SelfTestWardrobe(); }, 800);
+        await step("гардероб: рядкост на плочките", () =>
+        {
+            // Блузи от всяка рядкост – за снимката (лентичките и рамките).
+            if (!_save.Owned.Contains(Kitchen.Wardrobe)) _save.Owned.Add(Kitchen.Wardrobe);
+            foreach (var r in Rarities.All)
+                foreach (var g in Clothes.All.Where(g => g.SlotId == "shirt" && !g.Hidden && Loot.RarityOf("cloth:" + g.Id) == r).Take(2))
+                    if (!Clothes.Owns(_save, g)) _save.OwnedClothes.Add(g.Id);
+            OpenMenu(MenuWindow.WardrobeTab);
+            _menu!.SelfTestWardrobeSection("shirt");
+            _menu.UpdateLayout();
+            Shot(_menu, "wardrobe_rarity");
+        }, 600);
         await step("скин на менюто", () =>
         {
             foreach (var t in UiThemes.All)

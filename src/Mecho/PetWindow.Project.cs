@@ -619,10 +619,13 @@ public sealed partial class PetWindow
     /// </summary>
     public static readonly CouponKind[] CouponKinds =
     {
+        // Червени – за всичко; синият – дрехи; зеленият – мебели; оранжевите – храна; лилавият – безплатно нещо.
+        new("pct15", "−15%", "coupon15", "−15% за всичко в магазина"),
         new("pct25", "−25%", "coupon", "−25% за всичко в магазина"),
         new("pct50", "−50%", "coupon50", "−50% за всичко в магазина"),
         new("cloth50", "−50% дрехи", "coupon_cloth", "−50% за дрехите"),
         new("home30", "−30% мебели", "coupon_home", "−30% за мебелите и уредите"),
+        new("food50", "−50% храна", "coupon_food50", "Следващото ястие – на половин цена"),
         new("food", "Безплатно готвене", "coupon_food", "Следващото ястие се готви без лешници"),
         new("free", "Безплатно нещо", "coupon_luck", "Едно нещо от магазина – безплатно"),
     };
@@ -695,10 +698,10 @@ public sealed partial class PetWindow
     private static bool CouponAppliesTo(string code, string what) => what switch
     {
         "none" => false,
-        "food" => code == "food",
-        "cloth" => code is "pct25" or "pct50" or "free" or "cloth50",
-        "home" => code is "pct25" or "pct50" or "free" or "home30",
-        _ => code is "pct25" or "pct50" or "free",
+        "food" => code is "food" or "food50",
+        "cloth" => code is "pct15" or "pct25" or "pct50" or "free" or "cloth50",
+        "home" => code is "pct15" or "pct25" or "pct50" or "free" or "home30",
+        _ => code is "pct15" or "pct25" or "pct50" or "free",
     };
 
     /// <summary>Колко % сваля активният купон за този вид покупка (0 – не важи).</summary>
@@ -706,7 +709,7 @@ public sealed partial class PetWindow
     {
         string code = ActiveCoupon;
         if (code.Length == 0 || !CouponAppliesTo(code, what)) return 0;
-        return code switch { "pct25" => 25, "pct50" => 50, "cloth50" => 50, "home30" => 30, "food" => 100, "free" => 100, _ => 0 };
+        return code switch { "pct15" => 15, "food50" => 50, "pct25" => 25, "pct50" => 50, "cloth50" => 50, "home30" => 30, "food" => 100, "free" => 100, _ => 0 };
     }
 
     /// <summary>Цената с активния купон – навсякъде, където се показва или плаща цена.</summary>

@@ -259,6 +259,22 @@ public sealed partial class PetWindow
     /// <summary>Сам е решил да си почива/работи (по часовника) – Тут може да го изключи.</summary>
     public bool AutoMode => _save.StayPut && _save.AutoMode;
 
+    /// <summary>Къде се работи по сегашния етап на проекта: масичката, статива или бюрото (иначе – тефтерът).</summary>
+    public Scene ProjectWorkScene => (ProjectDone ? null : StageNeeds(ProjectNow.Stage)) switch
+    {
+        Kitchen.BoardGame when CanDo(Scenes.Board) => Scenes.Board,
+        Kitchen.Easel when CanDo(Scenes.Painting) => Scenes.Painting,
+        _ when CanDo(Scenes.Desk) => Scenes.Desk,
+        _ => Scenes.Write,
+    };
+
+    /// <summary>„Работи си“: без избор – сяда да работи по етапа на проекта (няма проект – сменя заниманията).</summary>
+    public void WorkOnProject()
+    {
+        if (ProjectDone) { WorkRandom(); return; }
+        Relax(ProjectWorkScene);
+    }
+
     /// <summary>„Работи си“: сменя работните занимания (бюро, тефтер, игра, статив), докато не стане.</summary>
     public void WorkRandom()
     {
