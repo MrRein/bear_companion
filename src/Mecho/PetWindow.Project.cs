@@ -222,9 +222,23 @@ public sealed partial class PetWindow
     public void ChooseProject()
     {
         if (HasActiveProject) { ProjectWindow.Toggle(this); return; }
-        var options = ProjectChoices.Select(d => new ChatOption(d.Kind, p => p.StartProject(d))).ToList();
-        options.Add(new ChatOption("После", _ => { }));
-        Ask(new ChatQuestion(ProjectChoices.Count == 1 ? "Да направим заедно нещо? Почваме с малко зинче с рисунки!" : "Какъв проект да почнем?", options.ToArray()));
+        var all = ProjectChoices;
+        if (all.Count == 1)
+        {
+            Ask(new ChatQuestion("Да направим заедно нещо? Почваме с малко зинче с рисунки!",
+                new ChatOption(all[0].Kind, p => p.StartProject(all[0])), new ChatOption("После", _ => { })));
+            return;
+        }
+        // Мечо предлага два (различни от последния завършен, ако може) – ти избираш или „Ти избери“.
+        string last = _save.HallOfFame.LastOrDefault()?.Type ?? "";
+        var pool = all.Where(d => d.Id != last).ToList();
+        if (pool.Count < 2) pool = all.ToList();
+        var two = pool.OrderBy(_ => _rng.Next()).Take(2).ToArray();
+        Ask(new ChatQuestion($"Мечтая да направим {two[0].Kind.ToLowerInvariant()}… или пък {two[1].Kind.ToLowerInvariant()}? Какво ще кажеш?",
+            new ChatOption(two[0].Kind, p => p.StartProject(two[0])),
+            new ChatOption(two[1].Kind, p => p.StartProject(two[1])),
+            new ChatOption("Ти избери", p => p.StartProject(two[p._rng.Next(2)])),
+            new ChatOption("После", _ => { })));
     }
 
     /// <summary>Етапите на сегашния проект.</summary>

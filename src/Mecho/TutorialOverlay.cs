@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -19,7 +20,7 @@ public sealed class TutorialOverlay
     private readonly Window _frame;
     private readonly Window _panel;
     private readonly TextBlock _text;
-    private readonly Button _stop;
+    private readonly WrapPanel _buttons = new() { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
     private readonly DispatcherTimer _timer;
     private Func<Rect?> _target = () => null;
     private double _phase;
@@ -49,12 +50,9 @@ public sealed class TutorialOverlay
         _frame.SourceInitialized += (_, _) => NativeMethods.MakeClickThrough(new WindowInteropHelper(_frame).Handle);
 
         _text = Wrapped("", 300);
-        _stop = Button("Добре, стига", () => Stop(), primary: false);
-        _stop.HorizontalAlignment = HorizontalAlignment.Right;
-        _stop.Margin = new Thickness(0, 8 * P / 4, 0, 0);
-        var body = new StackPanel { MaxWidth = 320 };
+        var body = new StackPanel { MaxWidth = 340 };
         body.Children.Add(_text);
-        body.Children.Add(_stop);
+        body.Children.Add(_buttons);
         _panel = new Window
         {
             WindowStyle = WindowStyle.None,
@@ -80,10 +78,20 @@ public sealed class TutorialOverlay
     public bool IsShown => _panel.IsVisible;
 
     /// <summary>Нова стъпка: текстът, кое да се огражда (или нищо) и надписът на бутона.</summary>
-    public void Show(string text, Func<Rect?> target, string button = "Добре, стига")
+    public void Show(string text, Func<Rect?> target, string button = "Добре, стига") =>
+        Show(text, target, new[] { (button, (Action)Stop, false) });
+
+    /// <summary>Стъпка с бутони (напред, избор, „Стига“…). Бутон с Do = null – спира обиколката.</summary>
+    public void Show(string text, Func<Rect?> target, IReadOnlyList<(string Label, Action? Do, bool Primary)> buttons)
     {
         SetRichText(_text, text);
-        SetButton(_stop, button);
+        _buttons.Children.Clear();
+        foreach (var (label, act, primary) in buttons)
+        {
+            var b = Button(label, () => (act ?? Stop)(), primary: primary);
+            b.Margin = new Thickness(6, 0, 0, 0);
+            _buttons.Children.Add(b);
+        }
         _target = target;
         if (!_panel.IsVisible) _panel.Show();
         _timer.Start();

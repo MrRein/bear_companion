@@ -75,7 +75,21 @@ public sealed class MenuWindow : Window
             return TutorialOverlay.ScreenRect(_fullRow) is Rect a && TutorialOverlay.ScreenRect(_energyRow) is Rect b ? Rect.Union(a, b) : null;
         if (what.StartsWith("tab:") && int.TryParse(what[4..], out int i) && i >= 0 && i < _tabButtons.Length)
             return TutorialOverlay.ScreenRect(_tabButtons[i]);
-        return null;
+        if (what.StartsWith("nav:") && _navItems.TryGetValue(what[4..], out var nav)) return TutorialOverlay.ScreenRect(nav.Item);
+        FrameworkElement? e = what switch
+        {
+            "nuts" => _nuts.Parent as FrameworkElement ?? _nuts,
+            "diary" => _nowCard,
+            "projects" => _todayCard,
+            "actions" => _actionGrid,
+            "tile:food" => _foodTile.Button,
+            "foodinfo" => _foodInfo,
+            "page" => _tabs[_tab] as FrameworkElement,
+            "addtask" => Work?.TutorialAddRow,
+            "timeline" => Work?.TodayTimeline,
+            _ => null,
+        };
+        return TutorialOverlay.ScreenRect(e);
     }
     private TextBlock _fullText = null!, _energyText = null!, _mood = null!, _weather = null!;
     private StackPanel _weatherRow = null!;
@@ -137,6 +151,13 @@ public sealed class MenuWindow : Window
     public MenuWindow(PetWindow pet)
     {
         _pet = pet;
+        // Обиколката, стъпка „разгледай“: цъкане по менюто продължава, бутоните не се натискат.
+        PreviewMouseLeftButtonDown += (_, e) =>
+        {
+            if (!_pet.TutorialWaitsNext) return;
+            e.Handled = true;
+            _pet.TutorialEvent("next");
+        };
         Title = "Мечо";
         WindowStyle = WindowStyle.None;
         // Размерът се мени с дръжката долу вдясно (нещата се пренареждат, страниците се
@@ -249,7 +270,8 @@ public sealed class MenuWindow : Window
         // Цъкнато другаде – менюто се скрива; но не и когато е към отделните прозорчета за задачи.
         Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
         {
-            if (!IsActive && !FloatWindow.AnyActive) Hide();
+            // Балончетата и въпросите на Мечо не затварят менюто (и цъкането по тях – също).
+            if (!IsActive && !FloatWindow.AnyActive && !_pet.BubbleActive) Hide();
         }, System.Windows.Threading.DispatcherPriority.Input);
         IsVisibleChanged += (_, _) =>
         {
@@ -360,6 +382,7 @@ public sealed class MenuWindow : Window
         UpdateNavSelection();
         UpdateHero();
         if (page.Work) _pet.TutorialEvent("tab:" + PomodoroTab);   // обиколката: „отвори Работа“
+        _pet.TutorialEvent("page:" + page.Id);
     }
 
     private void SelectTab(int index)

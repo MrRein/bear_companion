@@ -337,11 +337,31 @@ internal sealed class NewTaskWindow : FloatWindow
         _current.FillMeta();
         _current.Place(near ?? pet.MenuWin);
         _current.Show();
+        pet.TutorialEvent("newtask");
         _current.Activate();
+    }
+
+    private readonly Dictionary<string, FrameworkElement> _parts = new();
+
+    /// <summary>Обиколката: къде е част от прозорчето („newtask:day“, „newtask:time“…).</summary>
+    internal Rect? TutorialTarget(string what)
+    {
+        if (what == "newtask") return new Rect(Left, Top, ActualWidth, ActualHeight);
+        string part = what["newtask:".Length..];
+        var r = _parts.TryGetValue(part, out var e) ? TutorialOverlay.ScreenRect(e) : null;
+        // „Време“ и „Етикет“ – заедно.
+        if (part == "time" && r is Rect a && _parts.TryGetValue("tag", out var t) && TutorialOverlay.ScreenRect(t) is Rect b) return Rect.Union(a, b);
+        return r;
     }
 
     private NewTaskWindow(PetWindow pet, DateTime? day, string tag, int priority) : base(pet, "newtask", 640 * U)
     {
+        PreviewMouseLeftButtonDown += (_, e) =>
+        {
+            if (!Pet.TutorialWaitsNext) return;
+            e.Handled = true;
+            Pet.TutorialEvent("next");
+        };
         _day = day;
         _tag = TaskTags.Find(tag) != null ? tag : "";
         _priority = priority;
@@ -355,6 +375,7 @@ internal sealed class NewTaskWindow : FloatWindow
         _meta.Margin = new Thickness(0, 10 * U, 0, 0);
         var row = new DockPanel();
         var add = Ui.Button("Добави", Add, primary: true, icon: "plus");
+        _parts["add"] = add;
         add.Margin = new Thickness(6 * U, 10 * U, 0, 6 * U);
         add.VerticalAlignment = VerticalAlignment.Top;
         add.ToolTip = Tip("Добави (Enter)");
@@ -376,7 +397,7 @@ internal sealed class NewTaskWindow : FloatWindow
         // Тук има „Добави“: цъкнеш ли извън прозорчето – затваря се, без да записва нищо.
         Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
         {
-            if (!IsLoaded || IsActive || SelfTest.Running) return;
+            if (!IsLoaded || IsActive || SelfTest.Running || Pet.TutorialRunning) return;
             if (PixelPopup.Last is { IsOpen: true }) return;   // избира се от изскачащо меню
             Close();
         }, DispatcherPriority.Input);
@@ -386,26 +407,27 @@ internal sealed class NewTaskWindow : FloatWindow
     {
         var today = Pet.TaskToday;
         _meta.Children.Clear();
-        _meta.Children.Add(MetaChip("clock", DayPicker.Name(_day, today, _bucket), chip =>
+        _parts.Clear();
+        _meta.Children.Add(_parts["day"] = MetaChip("clock", DayPicker.Name(_day, today, _bucket), chip =>
             DayPicker.Show(chip, _day, today, d => { _day = d; _start = _start is { } s0 && d is { } nd ? nd.Add(s0.TimeOfDay) : null; FillMeta(); },
                 pickBucket: b => { _day = null; _start = null; _bucket = b; FillMeta(); }, currentBucket: _bucket),
             "Кога", on: true));
         // „График“: от колко часа (само ако има ден). Не избереш ли – не влиза в графика.
         if (_day != null)
-            _meta.Children.Add(MetaChip("calendar", _start is { } st ? "от " + st.ToString("H:mm") : "График", chip =>
+            _meta.Children.Add(_parts["schedule"] = MetaChip("calendar", _start is { } st ? "от " + st.ToString("H:mm") : "График", chip =>
                 PixelPopup.Show(chip, "От колко часа?", () => TaskCards.ScheduleTimes(_start?.TimeOfDay, at =>
                 {
                     _start = at is { } a && _day is { } d ? d.Add(a) : null;
                     FillMeta();
                 })),
                 "В графика на деня (По часове) от този час", on: _start != null));
-        _meta.Children.Add(MetaChip("hourglass", _minutes > 0 ? TaskCards.Duration(_minutes) : "Време", chip =>
+        _meta.Children.Add(_parts["time"] = MetaChip("hourglass", _minutes > 0 ? TaskCards.Duration(_minutes) : "Време", chip =>
             PixelPopup.Show(chip, "Колко време?", () => TaskCards.Estimates
                 .Select(m => new PixelPopup.Entry(TaskCards.Duration(m), null, () => { _minutes = m; FillMeta(); }, On: _minutes == m))
                 .Append(new PixelPopup.Entry("Не знам", null, () => { _minutes = 0; FillMeta(); }, On: _minutes == 0))),
             "Колко време ще отнеме", on: _minutes > 0));
         var tag = TaskTags.Find(_tag);
-        _meta.Children.Add(MetaChip("pin", tag?.Name ?? "Етикет", chip =>
+        _meta.Children.Add(_parts["tag"] = MetaChip("pin", tag?.Name ?? "Етикет", chip =>
             PixelPopup.Show(chip, "Етикет", () => TaskTags.All
                 .Select(t => new PixelPopup.Entry(t.Name, null, () => { _tag = t.Key; FillMeta(); }, On: _tag == t.Key, Swatch: t.Key))
                 .Append(new PixelPopup.Entry("Без етикет", null, () => { _tag = ""; FillMeta(); }, On: _tag.Length == 0))
@@ -415,12 +437,12 @@ internal sealed class NewTaskWindow : FloatWindow
                 }))),
             "Етикет", tag?.Color, on: tag != null));
         var pr = TaskCards.PriorityOf(_priority);
-        _meta.Children.Add(MetaChip(TaskCards.FlagIcon(_priority), _priorityChosen || _priority != 0 ? pr.Name : "Приоритет", chip =>
+        _meta.Children.Add(_parts["priority"] = MetaChip(TaskCards.FlagIcon(_priority), _priorityChosen || _priority != 0 ? pr.Name : "Приоритет", chip =>
             PixelPopup.Show(chip, "Приоритет", () => TaskCards.Priorities
                 .Select(x => new PixelPopup.Entry(x.Name, TaskCards.FlagIcon(x.Level), () => { _priority = x.Level; _priorityChosen = true; FillMeta(); },
                     On: (_priorityChosen || _priority != 0) && _priority == x.Level))),
             "Приоритет", on: _priorityChosen || _priority != 0));
-        _meta.Children.Add(MetaChip(_size > 0 ? TaskCards.SizeIcon(_size) : "nut", _size > 0 ? TaskCards.Capital(TaskCards.SizeName(_size)) : "Сложност", chip =>
+        _meta.Children.Add(_parts["size"] = MetaChip(_size > 0 ? TaskCards.SizeIcon(_size) : "nut", _size > 0 ? TaskCards.Capital(TaskCards.SizeName(_size)) : "Сложност", chip =>
             PixelPopup.Show(chip, "Сложност", () => TaskCards.SizeEntries(_size, n => { _size = n; FillMeta(); })),
             "Сложност – колко лешника носи", on: _size > 0));
     }
@@ -439,6 +461,7 @@ internal sealed class NewTaskWindow : FloatWindow
             minutes: _minutes, quiet: true, before: first?.Id, priority: _priority, bucket: _bucket);
         if (added != null && _start is { } st && _day == st.Date) Pet.ScheduleTask(added, st, _minutes > 0 ? null : 30);
         Close();
+        if (added != null) Pet.TutorialEvent("taskadded");
     }
 }
 

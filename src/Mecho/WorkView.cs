@@ -1198,6 +1198,9 @@ public sealed class WorkView : Border
     }
 
     /// <summary>„+ Задача“: цъкаш – изскача картата за нова задача (за този ден).</summary>
+    /// <summary>„+ Задача“ в „Днес“ (за обиколката).</summary>
+    internal Border? TutorialAddRow { get; private set; }
+
     private Border AddRow(string text, DateTime? day, bool full = true)
     {
         var content = IconText("plus", text, bold: true);
@@ -1232,6 +1235,7 @@ public sealed class WorkView : Border
             if (!full) foreach (var tb in words) tb.Visibility = Visibility.Collapsed;
         };
         TaskCards.Clickable(row, () => OpenForm(day, row));
+        if (_view == View.Today) TutorialAddRow = row;
         return row;
     }
 

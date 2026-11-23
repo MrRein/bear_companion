@@ -1228,16 +1228,20 @@ public sealed partial class PetWindow : Window
         // Скрит (Тут го е скрила, на разходка е или минава към друг екран): не пита нищо –
         // освен ако Тут сама е избрала нещо от менюто (то е на фокус) или е дошъл за напомняне.
         if (!IsVisible && !MenuIsActive && _popIn == null) return;
-        if (MenuIsOpen) _menu!.Hide();
-        HideBubble();
+        HideBubble();   // менюто остава отворено – въпросът е до мечока
         _chat ??= new ChatWindow(this);
         NoteQuestion(question.Text);
         _chat.Ask(question, _bearRect, Area);
     }
 
+    /// <summary>Сега е активно балонче или въпрос на Мечо (тогава менюто не се затваря).</summary>
+    internal bool BubbleActive => (_chat?.IsActive ?? false) || _bubbleWindow.IsActive;
+
     internal void ChatClosed()
     {
         _chatClosedAt = Now;
+        // Менюто е отворено: връща се на него (иначе цъкане встрани вече не би го затворило).
+        if (MenuIsOpen) Dispatcher.BeginInvoke(() => { if (MenuIsOpen) _menu!.Activate(); }, System.Windows.Threading.DispatcherPriority.Input);
         AfterReminderChat();
     }
 
