@@ -822,7 +822,7 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         if (f.WorkMinutes > 0) Stat("hourglass", f.WorkMinutes >= 60 ? $"{f.WorkMinutes / 60:0.#} ч работа" : $"{f.WorkMinutes:0} мин работа");
         if (f.Tasks > 0) Stat("check", $"{f.Tasks} задачи");
         if (f.Chests > 0) Stat("gift", $"{f.Chests} сандъчета");
-        if (f.Items > 0) Stat("star", f.Rare > 0 ? $"{f.Items} неща, {f.Rare} редки" : $"{f.Items} неща");
+        if (f.Items > 0) Stat("star", f.Rare > 0 ? $"{f.Items} неща, {f.Rare} " + (f.Rare == 1 ? "рядко" : "редки") : $"{f.Items} неща");
         if (f.Nuts > 0) Stat("nut", $"{f.Nuts} лешника");
         if (stats.Children.Count > 0) card.Children.Add(stats);
 
