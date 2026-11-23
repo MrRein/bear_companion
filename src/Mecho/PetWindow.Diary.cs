@@ -314,8 +314,12 @@ public sealed partial class PetWindow
     private DateTime _nextGoalCheck;
 
     /// <summary>Стигнал ли си мисията: лешниците и нещо специално (веднъж).</summary>
+    /// <summary>Целта (мисията) още не е отключена: нов мечок – след първия завършен проект.</summary>
+    public bool MissionLocked => _save.GuidedStart && _save.HallOfFame.Count == 0;
+
     private void CheckBearGoal()
     {
+        if (MissionLocked) return;
         var g = CurrentMission;
         if (g.Done || g.Have < g.Target) return;
         PayMission(g.Text, LootNuts("Цел лешници", 15, 25));   // изненада: 15–25 (loot_list), по-често ниско

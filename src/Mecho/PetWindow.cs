@@ -215,6 +215,11 @@ public sealed partial class PetWindow : Window
             SyncCompanions();
         };
         Activated += (_, _) => RaiseCompanions();
+        // Цъкна мечока (менюто остана отворено), после – някъде другаде: менюто се затваря, както винаги.
+        Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            if (MenuIsOpen && !_menu!.IsActive && !FloatWindow.AnyActive && !BubbleActive) _menu.Hide();
+        }, DispatcherPriority.Input);
         PreviewMouseLeftButtonUp += (_, _) => Dispatcher.BeginInvoke(RaiseCompanions, DispatcherPriority.Background);
 
         _timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
@@ -553,6 +558,8 @@ public sealed partial class PetWindow : Window
 
     private void UpdateIdle(double now)
     {
+        // Обиколката: стои мирно (само яде, ако му донесеш нещо).
+        if (TutorialRunning && _food.Count == 0) return;
         // Отиде до кашона: нищо друго, докато не се върне на мястото си (ако нещо
         // го е спряло по пътя – продължава; след 90 с пак е свободен).
         if (_trip != null)
@@ -938,6 +945,8 @@ public sealed partial class PetWindow : Window
 
     private void OnMouseDown(object sender, MouseButtonEventArgs e)
     {
+        // Обиколката: мечокът е „на урок“ – не се цъка и не се влачи.
+        if (TutorialRunning) { e.Handled = true; return; }
         _pressed = true;
         _pressScreen = MouseScreen(e);
         _chatOpenAtPress = ChatIsOpen || Now - _chatClosedAt < 0.3;
@@ -1085,6 +1094,7 @@ public sealed partial class PetWindow : Window
 
     private void OnRightDown(object sender, MouseButtonEventArgs e)
     {
+        if (TutorialRunning && TutorialNow?.Until != "menu") { e.Handled = true; _menuOpenAtPress = true; return; }
         _menuOpenAtPress = MenuIsOpen || Now - _menuClosedAt < 0.3;
         e.Handled = true;
     }
@@ -1092,6 +1102,7 @@ public sealed partial class PetWindow : Window
     private void OnRightUp(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
+        if (TutorialRunning && TutorialNow?.Until != "menu") return;
         if (_state is BearState.Drag or BearState.Falling) return;
         OnRightClick();
     }
@@ -1228,6 +1239,7 @@ public sealed partial class PetWindow : Window
         // Скрит (Тут го е скрила, на разходка е или минава към друг екран): не пита нищо –
         // освен ако Тут сама е избрала нещо от менюто (то е на фокус) или е дошъл за напомняне.
         if (!IsVisible && !MenuIsActive && _popIn == null) return;
+        if (TutorialRunning) return;
         HideBubble();   // менюто остава отворено – въпросът е до мечока
         _chat ??= new ChatWindow(this);
         NoteQuestion(question.Text);
@@ -1235,7 +1247,7 @@ public sealed partial class PetWindow : Window
     }
 
     /// <summary>Сега е активно балонче или въпрос на Мечо (тогава менюто не се затваря).</summary>
-    internal bool BubbleActive => (_chat?.IsActive ?? false) || _bubbleWindow.IsActive;
+    internal bool BubbleActive => (_chat?.IsActive ?? false) || _bubbleWindow.IsActive || IsActive;
 
     internal void ChatClosed()
     {
@@ -1611,6 +1623,7 @@ public sealed partial class PetWindow : Window
 
     public void Say(string text, double seconds = 4)
     {
+        if (TutorialRunning) return;   // по време на обиколката говори само тя
         NoteSaid(text);
         NoteSpokeAside();
         Ui.SetRichText(_bubbleText, text);

@@ -25,10 +25,16 @@ public static class Recipes
     /// рецепта, а всеки уред идва със своята първа рецепта (Kitchen.DefaultRecipe).
     /// </summary>
     /// Учат се само рецепти за уредите, които вече има (иначе няма с какво да се сготвят).
-    private static Food[] Unknown(SaveData s) => Kitchen.Foods.Where(f => f.Cost > 0 && Kitchen.Regular(f) && !Kitchen.IsDefaultRecipe(f) && !Kitchen.HasRecipe(f, s) && Kitchen.HasTool(f, s)).ToArray();
+    /// Без такива (още няма уред) – и за уредите, които ще дойдат: рецептата чака уреда.
+    private static Food[] Unknown(SaveData s)
+    {
+        var all = Kitchen.Foods.Where(f => f.Cost > 0 && Kitchen.Regular(f) && !Kitchen.IsDefaultRecipe(f) && !Kitchen.HasRecipe(f, s)).ToArray();
+        var withTool = all.Where(f => Kitchen.HasTool(f, s)).ToArray();
+        return withTool.Length > 0 ? withTool : all;
+    }
 
-    /// <summary>Страници се събират чак след първия купен кухненски уред.</summary>
-    public static bool Started(SaveData s) => Kitchen.Upgrades.Any(u => u.Shelf == Kitchen.KitchenShelf && Kitchen.Owns(s, u.Id));
+    /// <summary>Страниците се събират от самото начало (нов мечок без уреди – също: зинчето дава страници).</summary>
+    public static bool Started(SaveData s) => true;
 
     /// <summary>Следващата рецепта (избира я, ако още няма). null = знае всички (или още няма уред).</summary>
     public static Food? Next(SaveData s)

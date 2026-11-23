@@ -83,6 +83,7 @@ public sealed class MenuWindow : Window
             "projects" => _todayCard,
             "actions" => _actionGrid,
             "tile:food" => _foodTile.Button,
+            "berries" => _berriesButton is { IsVisible: true } bb ? bb : _tabs[_tab] as FrameworkElement,
             "foodinfo" => _foodInfo.IsVisible && _foodInfo.ActualWidth > 0 ? _foodInfo : _tabs[_tab] as FrameworkElement,
             "page" => _tabs[_tab] as FrameworkElement,
             "addtask" => Work?.TutorialAddRow,
@@ -151,13 +152,9 @@ public sealed class MenuWindow : Window
     public MenuWindow(PetWindow pet)
     {
         _pet = pet;
-        // Обиколката, стъпка „разгледай“: цъкане по менюто продължава, бутоните не се натискат.
-        PreviewMouseLeftButtonDown += (_, e) =>
-        {
-            if (!_pet.TutorialWaitsNext) return;
-            e.Handled = true;
-            _pet.TutorialEvent("next");
-        };
+        // Обиколката: може да се цъкне само това, което трябва (останалото не се натиска).
+        PreviewMouseLeftButtonDown += (_, e) => _pet.TutorialGate(this, e, right: false);
+        PreviewMouseRightButtonDown += (_, e) => _pet.TutorialGate(this, e, right: true);
         Title = "Мечо";
         WindowStyle = WindowStyle.None;
         // Размерът се мени с дръжката долу вдясно (нещата се пренареждат, страниците се
@@ -458,6 +455,7 @@ public sealed class MenuWindow : Window
     public new void Hide()
     {
         if (!IsVisible || _hiding) return;
+        if (_pet.TutorialLocksMenu) return;   // обиколката: менюто стои отворено, докато не свърши
         _hiding = true;
         _pet.MenuClosed();   // цъкане по мечока точно сега не бива да го отвори пак
         _pet.Persist();      // размерът и страницата
@@ -1346,7 +1344,7 @@ public sealed class MenuWindow : Window
         stack.Children.Add(_timerBox);
         stack.Children.Add(_saidBox);
         // Най-отдолу – целта (мисията), с обяснение при посочване.
-        var goalTitle = new TextBlock
+        var goalTitle = _goalTitle = new TextBlock
         {
             Text = "Цел", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 12, 0, 0),
             ToolTip = Tip("Цел, която мечето си е избрало. Като я постигнеш, получаваш бонуси."), Background = Brushes.Transparent,
@@ -1365,7 +1363,7 @@ public sealed class MenuWindow : Window
         _todayBox.Children.Add(new TextBlock { Text = "Активен проект", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
         _projectBox.Margin = new Thickness(0, 4, 0, 0);
         _todayBox.Children.Add(_projectBox);
-        _todayBox.Children.Add(new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 12, 0, 0) });
+        _todayBox.Children.Add(_doneTitle = new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 12, 0, 0) });
         _doneProjectsBox.Margin = new Thickness(0, 4, 0, 0);
         _todayBox.Children.Add(_doneProjectsBox);
         return _todayBox;
@@ -1801,9 +1799,20 @@ public sealed class MenuWindow : Window
     private string _doneKey = "";
 
     /// <summary>„Завършени проекти“: всеки е бутон (иконката на вида и името) – отваря какво сте направили.</summary>
+    private TextBlock? _doneTitle, _goalTitle;
+    private Button? _berriesButton;
+
     private void RefreshDoneProjects()
     {
         var list = _pet.Save.HallOfFame;
+        // Още няма завършени: разделът изобщо го няма (без „Няма“).
+        var vis = list.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (_doneTitle != null) _doneTitle.Visibility = vis;
+        _doneProjectsBox.Visibility = vis;
+        // Целта (мисията) – отключва се след първия проект (нов мечок).
+        var goalVis = _pet.MissionLocked ? Visibility.Collapsed : Visibility.Visible;
+        if (_goalTitle != null) _goalTitle.Visibility = goalVis;
+        _bearGoalBox.Visibility = goalVis;
         string key = string.Join("|", list.Select(f => f.Type + f.Name + f.Done));
         if (key == _doneKey && _doneProjectsBox.Children.Count > 0) return;
         _doneKey = key;
@@ -1860,7 +1869,7 @@ public sealed class MenuWindow : Window
         var pr = _pet.ProjectNow;
         bool done = _pet.ProjectDone;
         bool claim = _pet.ProjectHasClaim;
-        string key = $"{pr.Stage}|{(int)(_pet.ProjectProgress * 20)}|{done}|{_pet.GameName}|{claim}|{_pet.ProjectStepsDone}";
+        string key = $"{pr.Stage}|{(int)(_pet.ProjectProgress * 20)}|{done}|{_pet.GameName}|{claim}|{_pet.ProjectStepsDone}|{_pet.ProjectBlocked}";
         if (key == _projectKey) return;
         _projectKey = key;
         _projectBox.Children.Clear();
@@ -1910,7 +1919,10 @@ public sealed class MenuWindow : Window
         }
 
         // Бутонът: целият проект (награда за вземане – по-видим).
-        var open = Button(claim ? "Вземи наградата!" : "Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: claim, icon: claim ? "gift" : "tasks");
+        // Има нещо за правене вътре (сандъче, име, въпрос): медено, с „!“.
+        bool todo = _pet.ProjectBlocked;
+        var open = Button("Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: todo, icon: todo ? "emote_exclaim" : "tasks");
+        if (todo) open.ToolTip = Tip(claim ? "Чака те сандъче!" : "Мечо чака твоя отговор");
         open.Margin = new Thickness(0, 10 * U, 0, 0);
         open.Padding = new Thickness(8 * U, 5 * U, 8 * U, 6 * U);
         open.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -2321,10 +2333,11 @@ public sealed class MenuWindow : Window
             {
                 action = Button(cost == 0 ? "Набери" : $"Сготви  {cost}", () =>
                 {
-                    // Храната се появява из екрана; панелът се скрива, за да я занесеш.
+                    // Храната се появява из екрана; панелът се скрива, за да я занесеш (в обиколката – остава отзад).
                     _pet.Cook(f);
                     Hide();
                 }, primary: true, icon: cost == 0 ? null : "nut");
+                if (f.Cost == 0) _berriesButton = action;
                 if (cost > 0) SetPrice(action, "Сготви", cost, "food");
                 int pay = _pet.WithCoupon(cost, "food");
                 if (s.Hazelnuts < pay)

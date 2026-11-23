@@ -2116,7 +2116,11 @@ public sealed partial class PetWindow
                 bool noTarget = st.Target != "none" && TutorialTarget(st.Target) == null;
                 if (st.Next)
                 {
-                    if (!TutorialWaitsNext) throw new Exception("стъпката „разгледай“ не чака цъкане");
+                    if (!TutorialWaitsNext) throw new Exception("стъпката „разгледай“ не чака „Напред“");
+                    if (_menu != null && _menu.IsVisible && !TutorialLocksMenu) throw new Exception("менюто може да се затвори по време на обиколката");
+                    // Нищо в менюто не се натиска на „разгледай“ (освен местенето на задачи).
+                    if (st.Allow != "drag" && _menu != null && _menu.IsVisible && TutorialAllowsClick(new Point(_menu.Left + 20, _menu.Top + 20), false, _menu))
+                        throw new Exception("на „разгледай“ менюто се цъка");
                     TutorialEvent("next");
                     if (noTarget) throw new Exception($"няма квадратче около „{st.Target}“");
                     return;
@@ -2126,7 +2130,9 @@ public sealed partial class PetWindow
                 {
                     case "menu": OpenMenu(MenuWindow.BearTab); break;
                     case "newtask": NewTaskWindow.Show(this, TaskToday, near: _menu); break;
-                    case "taskadded": TutorialEvent("taskadded"); break;
+                    case "taskadded": TutorialTaskAdded(false); break;
+                    case "cook:berries": Cook(Kitchen.Foods.First(f => f.Cost == 0)); break;
+                    case "ate:berries": DevClearFood(); TutorialEvent("ate:berries"); break;
                     case { } u when u.StartsWith("page:"): _menu!.ShowPage(u[5..]); break;
                 }
                 if (st.Until == "taskadded") Dispatcher.BeginInvoke(() => NewTaskWindow.Current?.Close());

@@ -293,7 +293,7 @@ public static class Kitchen
 
     public static bool HasRecipe(Food food, SaveData save) =>
         EventTag(food) is { } tag ? ExtrasNow().Contains(tag)
-        : food.Cost == 0 || food.Tool == Table || Owns(save, RecipeId(food));
+        : food.Cost == 0 || IsDefaultRecipe(food) && food.Tool == Table || Owns(save, RecipeId(food));
 
     /// <summary>Разделите в „Храна“.</summary>
     public static readonly string[] Categories = { "Сандвичи", "Манджи", "Хапки", "Сладко", "Кафе и чай", "Сокове" };

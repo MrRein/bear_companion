@@ -13,11 +13,13 @@ public sealed partial class PetWindow
 {
     /// <summary>
     /// Стъпка: текст, кое се огражда, и как се продължава:
-    ///   Next – „разгледай“: продължава с „Напред →“ или с цъкане върху менюто (бутоните тогава не се натискат);
-    ///   иначе – чака да направиш нещо (Until: „menu“, „page:food“, „newtask“, „taskadded“…).
-    /// Choices – избор (само първата стъпка); Last – последната.
+    ///   Next – „разгледай“: само с „Напред →“ (по менюто нищо не се натиска);
+    ///   иначе – чака да направиш нещо (Until: „menu“, „page:food“, „newtask“, „taskadded“…) – и може да се
+    ///   цъкне САМО огражданото (Allow: „target“), цялото прозорче (Allow: „window“) или да се местят задачи (Allow: „drag“).
+    /// Choices – избор (само първата стъпка); Last – последната; Place – къде е балончето („right“).
     /// </summary>
-    private sealed record TutorialStep(string Text, string Target, string? Until = null, bool Next = false, string[]? Choices = null, string? Button = null, bool Last = false);
+    private sealed record TutorialStep(string Text, string Target, string? Until = null, bool Next = false, string[]? Choices = null,
+        string? Button = null, bool Last = false, string Allow = "target", string? Place = null);
 
     private const string Nav = "nav:";
 
@@ -34,6 +36,8 @@ public sealed partial class PetWindow
         new("Това са всички действия, които можеш да правиш с мен. Няма да влизам в детайл – ако се чудиш за нещо, питай Големия Мечок.", "actions", Next: true),
         new("От тук ме храниш – отвори менюто.", "tile:food", Until: "page:" + MenuWindow.PageFood),
         new("Това е менюто с храна, която можеш да ми готвиш. Храните се купуват с лешници.", "page", Next: true),
+        new("Цъкни „Набери“ на Боровинките.", "berries", Until: "cook:berries"),
+        new("Като сготвиш нещо, трябва да ми го донесеш, за да го хапна. Да знаеш, че повечето неща се готвят за време.", "none", Until: "ate:berries", Allow: "none"),
         new("Ще отключваме нови рецепти, като събираме странички за рецепти. Не го мисли за сега, с времето ще разбереш.", "foodinfo", Next: true),
         new("Върни се към главното меню.", Nav + MenuWindow.PageBear, Until: "page:" + MenuWindow.PageBear),
         new("Цъкни върху Бележки.", Nav + MenuWindow.PageNotes, Until: "page:" + MenuWindow.PageNotes),
@@ -43,13 +47,14 @@ public sealed partial class PetWindow
         new("Тук имаш различни опции да опишеш задачата си.", "newtask", Next: true),
         new("Там, където пише „Днес“, е денят, в който тази задача ще бъде.", "newtask:day", Next: true),
         new("График е кога в този ден искаш да я свършиш. Това можеш и после да го добавиш.", "newtask:schedule", Next: true),
-        new("Време е времето, което мислиш, че ще ти отнеме да я направиш. Етикет е какъв тип работа ще е. Можеш да добавиш собствени етикети.", "newtask:time", Next: true),
+        new("Време е времето, което мислиш, че ще ти отнеме да я направиш.", "newtask:time", Next: true),
+        new("Етикет е какъв тип работа ще е. Можеш да добавиш собствени етикети.", "newtask:tag", Next: true),
         new("Приоритет е колко ти е спешна тази задача.", "newtask:priority", Next: true),
         new("Сложност е колко сложна е задачата ти. Това определя колко лешници ще ти донесе.", "newtask:size", Next: true),
-        new("Добави една задача.", "newtask", Until: "taskadded"),
-        new("Браво. Това отстрани ти е графикът по часове на деня. Можеш да движиш задачите там.", "timeline", Next: true),
+        new("Добави една задача.", "newtask", Until: "taskadded", Allow: "window", Place: "right"),
+        new("{timeline}", "page", Next: true, Allow: "drag"),
         new("Цъкни върху Седмица.", Nav + MenuWindow.PageWeek, Until: "page:" + MenuWindow.PageWeek),
-        new("Това тук ти е разбивка на дните и всички задачи, които имаш и си си написала. Можеш да си местиш задачите в различни дни лесно.", "page", Next: true),
+        new("Това тук ти е разбивка на дните и всички задачи, които имаш и си си написала. Можеш да си местиш задачите в различни дни лесно – хвани една и я пренеси.", "page", Next: true, Allow: "drag"),
         new("Цъкни Фокус.", Nav + MenuWindow.PageFocus, Until: "page:" + MenuWindow.PageFocus),
         new("Това е доста важно. От тук можеш да си пускаш мечо-дорота и таймери за работа. Има различни конфигурации мечо-доро и поредност да се пускат по няколко пъти подред. Като си ги пускаш за работа, ни носят лешници.", "page", Next: true),
         new("Остана малко – цъкни Календара.", Nav + MenuWindow.PageCalendar, Until: "page:" + MenuWindow.PageCalendar),
@@ -65,12 +70,53 @@ public sealed partial class PetWindow
 
     private TutorialOverlay? _tutorial;
     private int _tutorialStep = -1;
+    private bool _tutorialTaskScheduled;
 
     /// <summary>Обиколката тече.</summary>
     public bool TutorialRunning => _tutorialStep >= 0 && !_save.TutorialDone;
 
-    /// <summary>Стъпка „разгледай“: цъкане върху менюто продължава (а бутоните там не се натискат).</summary>
-    public bool TutorialWaitsNext => TutorialRunning && _tutorialStep < TutorialSteps.Length && TutorialSteps[_tutorialStep].Next;
+    /// <summary>Сегашната стъпка (или null).</summary>
+    private TutorialStep? TutorialNow => TutorialRunning && _tutorialStep < TutorialSteps.Length ? TutorialSteps[_tutorialStep] : null;
+
+    /// <summary>Стъпка „разгледай“: продължава само с „Напред“.</summary>
+    public bool TutorialWaitsNext => TutorialNow?.Next == true;
+
+    /// <summary>Обиколката: менюто не се затваря (след като веднъж е отворено).</summary>
+    public bool TutorialLocksMenu => TutorialRunning && _tutorialStep >= 2;
+
+    /// <summary>
+    /// Обиколката: може ли да се цъкне тук (екранна точка в DIP) в менюто/прозорчето за задача.
+    /// Десният бутон – никъде; иначе – само огражданото (или прозорчето, или местене на задачи).
+    /// </summary>
+    internal bool TutorialAllowsClick(Point screen, bool right, Window from)
+    {
+        if (TutorialNow is not { } st) return true;
+        if (right || st.Next && st.Allow != "drag") return false;
+        return st.Allow switch
+        {
+            "window" => from is NewTaskWindow,
+            "drag" => from is MenuWindow && TutorialTarget("page") is Rect pg && pg.Contains(screen),
+            "none" => false,
+            _ => TutorialTarget(st.Target) is Rect r && r.Contains(screen),
+        };
+    }
+
+    /// <summary>Обиколката: спира цъкането в прозорец (меню, нова задача), ако там не бива.</summary>
+    internal void TutorialGate(Window w, System.Windows.Input.MouseButtonEventArgs e, bool right)
+    {
+        if (!TutorialRunning) return;
+        var src = PresentationSource.FromVisual(w);
+        if (src?.CompositionTarget == null) return;
+        var dip = src.CompositionTarget.TransformFromDevice.Transform(w.PointToScreen(e.GetPosition(w)));
+        if (!TutorialAllowsClick(dip, right, w)) e.Handled = true;
+    }
+
+    /// <summary>Самопроверка/прозорчето за задача: задачата е добавена (с график ли е).</summary>
+    internal void TutorialTaskAdded(bool scheduled)
+    {
+        _tutorialTaskScheduled = scheduled;
+        TutorialEvent("taskadded");
+    }
 
     /// <summary>Пуска обиколката от началото (или от дадена стъпка).</summary>
     public void StartTutorial(int step = 0)
@@ -81,19 +127,30 @@ public sealed partial class PetWindow
             React("happy");
             return;
         }
-        if (step == 0) _save.TutorialDone = false;
+        if (step == 0)
+        {
+            _save.TutorialDone = false;
+            _save.MenuPage = MenuWindow.PageBear;   // десният бутон отваря „Мечо“
+        }
         if (OnWalk) ReturnFromWalk(called: true);
         if (IsAsleep) WakeUp();
         // Отначало: менюто е затворено, за да се започне от „цъкни ме“.
-        if (step == 0 && MenuIsOpen) _menu!.Hide();
+        if (step == 0 && MenuIsOpen) { _tutorialStep = -1; _menu!.Hide(); }
+        int prev = _tutorialStep;
         _tutorialStep = step;
         var s = TutorialSteps[step];
+        // Боровинките: тук трябва да може да се наберат веднага.
+        if (s.Until == "cook:berries") _save.BerriesReadyAt = DateTime.MinValue;
+        // Менюто – отзад, докато носиш боровинките; после – пак отпред.
+        if (_menu != null) _menu.Topmost = s.Until != "ate:berries";
         if (_tutorial == null)
         {
             _tutorial = new TutorialOverlay();
             _tutorial.Stopped += () => FinishTutorial();
         }
-        string text = s.Text.Replace("{име}", _save.OwnerName);
+        string text = s.Text.Replace("{име}", _save.OwnerName).Replace("{timeline}", _tutorialTaskScheduled
+            ? "Браво! Можеш да движиш задачата по часовете в графика – хвани я и я пренеси."
+            : "Браво! Можеш да сложиш задачата в графика, като я хванеш и пренесеш, а след това можеш да я движиш в графика по часове.");
         string target = s.Target;
         var buttons = new List<(string, Action?, bool)>();
         if (s.Choices is { } ch)
@@ -104,11 +161,22 @@ public sealed partial class PetWindow
         else if (s.Last) buttons.Add((s.Button ?? "Готово", () => { FinishTutorial(); React("happy"); }, true));
         else
         {
+            if (step > 1) buttons.Add(("← Назад", () => TutorialBack(), false));
             buttons.Add(("Стига", null, false));
             if (s.Next) buttons.Add((s.Button ?? "Напред →", () => TutorialEvent("next"), true));
         }
-        _tutorial.Show(step == 0 || s.Last ? text : text + $"  ({step}/{TutorialSteps.Length - 2})", () => TutorialTarget(target), buttons);
-        if (step > 0) Emote(s.Last ? "heart" : "idea", 2);
+        _tutorial.Show(step == 0 || s.Last ? text : text + $"  ({step}/{TutorialSteps.Length - 2})", () => TutorialTarget(target), buttons, s.Place);
+        if (step > 0 && prev != step) Emote(s.Last ? "heart" : "idea", 2);
+    }
+
+    /// <summary>„← Назад“: предишната стъпка (стъпките с действие – до последната „разгледай“ преди тях).</summary>
+    private void TutorialBack()
+    {
+        int k = _tutorialStep - 1;
+        // Назад от „донеси боровинките“ / „добави задача“ няма смисъл да се повтаря действието.
+        while (k > 1 && TutorialSteps[k].Until is "ate:berries" or "cook:berries" or "taskadded" or "newtask") k--;
+        if (k == 1 && MenuIsOpen) k = 2;   // менюто вече е отворено
+        StartTutorial(Math.Max(1, k));
     }
 
     /// <summary>Направи нещо (отвори менюто, таб, вдигна го…): ако стъпката чака точно него – напред.</summary>
@@ -138,6 +206,7 @@ public sealed partial class PetWindow
     private void FinishTutorial()
     {
         _tutorialStep = -1;
+        if (_menu != null) _menu.Topmost = true;
         _tutorial?.Close();
         _save.TutorialDone = true;
         Persist();

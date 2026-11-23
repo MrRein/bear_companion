@@ -356,12 +356,8 @@ internal sealed class NewTaskWindow : FloatWindow
 
     private NewTaskWindow(PetWindow pet, DateTime? day, string tag, int priority) : base(pet, "newtask", 640 * U)
     {
-        PreviewMouseLeftButtonDown += (_, e) =>
-        {
-            if (!Pet.TutorialWaitsNext) return;
-            e.Handled = true;
-            Pet.TutorialEvent("next");
-        };
+        PreviewMouseLeftButtonDown += (_, e) => Pet.TutorialGate(this, e, right: false);
+        PreviewMouseRightButtonDown += (_, e) => Pet.TutorialGate(this, e, right: true);
         _day = day;
         _tag = TaskTags.Find(tag) != null ? tag : "";
         _priority = priority;
@@ -461,7 +457,7 @@ internal sealed class NewTaskWindow : FloatWindow
             minutes: _minutes, quiet: true, before: first?.Id, priority: _priority, bucket: _bucket);
         if (added != null && _start is { } st && _day == st.Date) Pet.ScheduleTask(added, st, _minutes > 0 ? null : 30);
         Close();
-        if (added != null) Pet.TutorialEvent("taskadded");
+        if (added != null) Pet.TutorialTaskAdded(_start != null);
     }
 }
 

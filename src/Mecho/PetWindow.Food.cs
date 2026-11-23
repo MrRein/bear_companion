@@ -127,6 +127,7 @@ public sealed partial class PetWindow
         if (!agreed && OpinionGate(CookOpinion(food), () => Cook(food, agreed: true), () => OpenMenuPage(MenuWindow.PageFood))) return;
 
         _save.Hazelnuts -= CookCost(cost);
+        if (food.Cost == 0) TutorialEvent("cook:berries");
         if (food.Cost == 0) _save.BerriesReadyAt = DateTime.Now.AddMinutes(Kitchen.BerryMinutes);
         if (food.Energy >= 30) _save.CoffeeTimes.Add(DateTime.Now);
 
@@ -358,6 +359,7 @@ public sealed partial class PetWindow
         var bite = food.Art;
         food.Close();
         _food.Remove(food);
+        if (food.Food.Cost == 0 && !_food.Any(x => x.Food.Cost == 0)) TutorialEvent("ate:berries");
         bool last = _food.Count == 0;
         // Казва нещо за точно това ядене („Мммм, кафе!“), и колко остават.
         var talk = FoodTalk.For(food.Food);

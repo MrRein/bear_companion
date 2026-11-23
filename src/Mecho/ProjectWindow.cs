@@ -327,7 +327,8 @@ internal sealed class ProjectWindow : FloatWindow
         double boxBottom = 10 * U + FinalBox, lineY = boxBottom + 34 * U, nameY = lineY + 30 * U;
         double width = colW * n + 24 * U, height = nameY + 2.8 * Ui.Body + 6 * U;
         double Xc(int i) => 12 * U + i * colW + colW / 2;
-        double startX = Xc(0) - colW / 2 + 6 * U, endX = Xc(n - 1) + colW / 2 - 6 * U;
+        // Линията свършва на финалното звено (не продължава след него).
+        double startX = Xc(0) - colW / 2 + 6 * U, endX = Xc(n - 1) + 4 * U;
         double lineH = 34 * U;
         var canvas = new Canvas { Width = width, Height = height };
 

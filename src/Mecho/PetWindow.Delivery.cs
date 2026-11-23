@@ -18,6 +18,7 @@ public sealed partial class PetWindow
     private Delivery? _parcelItem;
     private double _nextDelivery, _parcelLast;
     private bool _parcelLanded, _parcelOpening;
+    private double _parcelLandedAt;
 
     /// <summary>Колко голямо е: 0 – малко, 1 – средно, 2 – голямо (кашонът е такъв).</summary>
     private static int SizeOf(string upgradeId) => upgradeId switch
@@ -49,9 +50,16 @@ public sealed partial class PetWindow
             DropParcel(_deliveries.Dequeue());
             return;
         }
-        if (_parcel.Step(dt)) _parcelLanded = true;
-        // Кацна: щом може, мечокът спира каквото прави и отива до кашона.
-        if (_parcelLanded && !_parcelOpening && _trip == null && !_holdParcelTrip && CanGoToParcel) StartParcelTrip();
+        if (_parcel.Step(dt) && !_parcelLanded)
+        {
+            _parcelLanded = true;
+            _parcelLandedAt = now;
+        }
+        if (!_parcelLanded || _parcelOpening || _trip != null || _holdParcelTrip || _parcel.IsDragging || _parcel.IsFalling) return;
+        // Кацна: доставката е с предимство – мечокът спира каквото прави и отива до кашона.
+        if (CanGoToParcel) StartParcelTrip();
+        // Не може да отиде (яде, готви, спи…): след малко кашонът се отваря сам.
+        else if (now - _parcelLandedAt > 4) OpenParcel();
     }
 
     /// <summary>Какво правеше, преди да тръгне към кашона (за да продължи после).</summary>
@@ -62,7 +70,7 @@ public sealed partial class PetWindow
 
     private bool CanGoToParcel =>
         !IsAsleep && _eating == null && !WaitingForFood && !CookFinale
-        && _state is BearState.Idle or BearState.Walk or BearState.Couch or BearState.Bounce;
+        && _state is BearState.Idle or BearState.Walk or BearState.Couch or BearState.Bounce or BearState.Busy;
 
     private void StartParcelTrip()
     {
@@ -199,6 +207,14 @@ public sealed partial class PetWindow
         Companion(_parcel);
         _parcel.SetTime(null);
         _parcel.Clicked += OpenParcel;
+        // Преместиш ли го – пада долу (не остава да виси във въздуха), после мечокът пак отива при него.
+        _parcel.Dropped += (cx, bottom) =>
+        {
+            if (_parcel == null) return;
+            _parcel.FallTo(cx, AreaAt(cx, bottom - 2).Bottom);
+            _parcelLanded = false;
+            if (_trip != null && !_parcelOpening) Later(0.6, ContinueParcelTrip);
+        };
         _parcel.SetAway(!IsVisible);
         _parcel.Place(_lib.GetProp(BoxArt(d.Size, false), w, h, 0).Image, PixelSize, x, area.Top + 40);
         _parcel.FallTo(x, area.Bottom);
@@ -245,6 +261,11 @@ public sealed partial class PetWindow
     private void LearnOwnedDefaultRecipes()
     {
         LearnDefaultRecipe(Kitchen.Jug);
+        LearnDefaultRecipe(Kitchen.Table);   // сандвичът с домат – от самото начало
+        // Стари записи: всички сандвичи бяха отключени – остават (новият мечок ги учи от страници).
+        if (!_save.GuidedStart)
+            foreach (var f in Kitchen.Foods.Where(f => f.Tool == Kitchen.Table && Kitchen.Regular(f)))
+                if (!_save.Owned.Contains(Kitchen.RecipeId(f))) _save.Owned.Add(Kitchen.RecipeId(f));
         foreach (var u in Kitchen.Upgrades)
             if (Kitchen.Owns(_save, u.Id)) LearnDefaultRecipe(u.Id);
     }

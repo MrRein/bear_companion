@@ -23,6 +23,9 @@ public sealed class TutorialOverlay
     private readonly WrapPanel _buttons = new() { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
     private readonly DispatcherTimer _timer;
     private Func<Rect?> _target = () => null;
+    private string? _place;
+    private DateTime _fadeAt;
+    private bool _placed;
     private double _phase;
 
     public event Action? Stopped;
@@ -82,8 +85,13 @@ public sealed class TutorialOverlay
         Show(text, target, new[] { (button, (Action)Stop, false) });
 
     /// <summary>Стъпка с бутони (напред, избор, „Стига“…). Бутон с Do = null – спира обиколката.</summary>
-    public void Show(string text, Func<Rect?> target, IReadOnlyList<(string Label, Action? Do, bool Primary)> buttons)
+    public void Show(string text, Func<Rect?> target, IReadOnlyList<(string Label, Action? Do, bool Primary)> buttons, string? place = null)
     {
+        _place = place;
+        // Плавно: новото балонче изплува (не се появява рязко).
+        _panel.BeginAnimation(UIElement.OpacityProperty, null);
+        _panel.Opacity = 0;
+        _fadeAt = DateTime.Now;
         SetRichText(_text, text);
         _buttons.Children.Clear();
         foreach (var (label, act, primary) in buttons)
@@ -100,6 +108,7 @@ public sealed class TutorialOverlay
 
     public void Close()
     {
+        _placed = false;
         _timer.Stop();
         _frame.Hide();
         _panel.Hide();
@@ -133,10 +142,12 @@ public sealed class TutorialOverlay
         {
             if (_frame.IsVisible) _frame.Hide();
             _panel.UpdateLayout();
-            _panel.Left = screen.Left + (screen.Width - _panel.ActualWidth) / 2;
-            _panel.Top = screen.Top + (screen.Height - _panel.ActualHeight) / 2;
+            Glide(screen.Left + (screen.Width - _panel.ActualWidth) / 2, screen.Top + (screen.Height - _panel.ActualHeight) / 2);
         }
-        // Над всичко (и над менюто, което е „винаги отгоре“).
+        // Изплуване (за ~250 мс).
+        _panel.Opacity = Math.Clamp((DateTime.Now - _fadeAt).TotalMilliseconds / 250, 0, 1);
+        // Над всичко (и над менюто) – но не над изскачащите менюта (Време, Етикет…), докато са отворени.
+        if (PixelPopup.Last is { IsOpen: true }) return;
         NativeMethods.BringToTop(new WindowInteropHelper(_frame).Handle);
         NativeMethods.BringToTop(new WindowInteropHelper(_panel).Handle);
     }
@@ -146,6 +157,12 @@ public sealed class TutorialOverlay
     {
         _panel.UpdateLayout();
         double w = _panel.ActualWidth, h = _panel.ActualHeight, gap = 3 * P;
+        // „Вдясно“ (напр. до прозорчето за нова задача), ако има място.
+        if (_place == "right" && r.Right + gap + w <= screen.Right)
+        {
+            Glide(r.Right + gap, Math.Clamp(r.Y, screen.Top, Math.Max(screen.Top, screen.Bottom - h)));
+            return;
+        }
         double x = Math.Clamp(r.X + r.Width / 2 - w / 2, screen.Left, Math.Max(screen.Left, screen.Right - w));
         double y = r.Bottom + gap;
         if (y + h > screen.Bottom) y = r.Top - gap - h;
@@ -154,8 +171,24 @@ public sealed class TutorialOverlay
             y = Math.Clamp(r.Y, screen.Top, Math.Max(screen.Top, screen.Bottom - h));
             x = r.Right + gap + w <= screen.Right ? r.Right + gap : Math.Max(screen.Left, r.Left - gap - w);
         }
-        _panel.Left = x;
-        _panel.Top = y;
+        Glide(x, y);
+    }
+
+    /// <summary>Балончето отива плавно на новото място (първия път – направо).</summary>
+    private void Glide(double x, double y)
+    {
+        if (!_placed || double.IsNaN(_panel.Left))
+        {
+            _panel.Left = x;
+            _panel.Top = y;
+            _placed = true;
+            return;
+        }
+        double k = 0.3;
+        _panel.Left += (x - _panel.Left) * k;
+        _panel.Top += (y - _panel.Top) * k;
+        if (Math.Abs(x - _panel.Left) < 0.5) _panel.Left = x;
+        if (Math.Abs(y - _panel.Top) < 0.5) _panel.Top = y;
     }
 
     /// <summary>Работната площ на екрана, на който е квадратчето.</summary>
