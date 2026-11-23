@@ -19,13 +19,23 @@ public sealed partial class PetWindow
     private bool _speakingThought;
 
     /// <summary>Свой начин да се покаже мисъл (въпрос с бутони, сцена…), вместо реплика.</summary>
-    internal void OnThought(string key, Action<Thought> show) => _thoughtPresenters[key] = show;
+    internal void OnThought(string key, Action<Thought> show, bool needsLines = false)
+    {
+        _thoughtPresenters[key] = show;
+        if (needsLines) _thoughtNeedsLines.Add(key);
+    }
+
+    private readonly HashSet<string> _thoughtNeedsLines = new();
+
+    /// <summary>Има ли какво да каже за ключа: свой показвач (и реплики, ако ги иска) или реплики.</summary>
+    private bool CanSayThought(string key) =>
+        _thoughtPresenters.ContainsKey(key) ? !_thoughtNeedsLines.Contains(key) || R.Has(key) : R.Has(key);
 
     /// <summary>Предлага мисъл на режисьора. false – няма какво да каже (празен раздел) или скоро е казано.</summary>
     public bool Think(string key, int importance, double cooldownHours = 0, params (string Name, string Value)[] facts)
     {
         if (!CoreEngine.Started) return false;
-        if (!_thoughtPresenters.ContainsKey(key) && !R.Has(key)) return false;
+        if (!CanSayThought(key)) return false;
         return CoreEngine.Bus.Send(new Think(key, importance, Facts.Of(facts), cooldownHours)).Ok;
     }
 
@@ -54,6 +64,9 @@ public sealed partial class PetWindow
     private void SetupAlive()
     {
         CoreEngine.Bus.Subscribe<SpeakNow>(this, s => ShowThought(s.Thought));
+        if (Mecho.Engine.CoreSetup.Talk is { } talk) talk.CanSay = key => key.StartsWith("dev.") || CanSayThought(key);
+        if (Mecho.Engine.CoreSetup.Care is { } care) care.Context = CareContextNow;
+        SetupCare();
         // Стари записи: първият ден заедно – най-старият записан ден.
         var first = _save.Days.Select(d => DateTime.TryParse(d.Date, out var x) ? x : DateTime.MaxValue).DefaultIfEmpty(DateTime.MaxValue).Min();
         if (first != DateTime.MaxValue) CoreEngine.Bus.Send(new SetFirstDay(first));

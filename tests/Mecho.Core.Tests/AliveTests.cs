@@ -183,4 +183,13 @@ public class AliveTests
         Assert.Contains(signals.OfType<TallyReached>(), t => t.Name == "pomodoro" && t.Value == 100);
         Assert.Equal(100, e.Store.Get<JournalState>().Counter("pomodoro"));
     }
+
+    [Fact]
+    public void Thoughts_without_lines_are_not_queued()
+    {
+        var (e, _, _, talk) = Started();
+        talk.CanSay = k => k == "has.lines";
+        Assert.False(e.Bus.Send(new Think("no.lines", 9)).Ok);
+        Assert.True(e.Bus.Send(new Think("has.lines", 9)).Ok);
+    }
 }

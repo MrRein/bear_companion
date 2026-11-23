@@ -68,6 +68,9 @@ public sealed class ThoughtsModule : GameModule
 
     public TalkSettings Settings { get; private set; } = new();
 
+    /// <summary>Има ли какво да каже за този ключ (приложението: има ли реплики/показвач). null – всичко.</summary>
+    public Func<string, bool>? CanSay { get; set; }
+
     public override string Id => ModuleId;
 
     protected override void OnRegister()
@@ -76,6 +79,7 @@ public sealed class ThoughtsModule : GameModule
         Handle<Think>(c =>
         {
             if (string.IsNullOrWhiteSpace(c.Key)) return CommandResult.Rejected("празен ключ");
+            if (CanSay != null && !CanSay(c.Key)) return CommandResult.Rejected("няма какво да каже");
             var s = State<TalkState>();
             var now = Clock.Now;
             if (c.CooldownHours > 0 && s.LastByKey.TryGetValue(c.Key, out var last) && now - last < TimeSpan.FromHours(c.CooldownHours))

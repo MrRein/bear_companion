@@ -39,6 +39,8 @@ public static class CoreSetup
         engine.Modules.Add(new JournalModule());          // хрониката: спомени, дни заедно, откъде е всяко нещо
         Talk = new ThoughtsModule();
         engine.Modules.Add(Talk);
+        Care = new CareModule();
+        engine.Modules.Add(Care);                         // Мечо забелязва теб: дълга работа, отлагана задача, голяма задача… (фаза 3)
         Opinion = new OpinionModule { WhimCandidates = pet.WhimFoods };
         engine.Modules.Add(Opinion);                      // мнението в момента: мрънка/отказва/обожава (фаза 2)                         // режисьорът на мислите: кое да каже сам и кога (приказливост)
         engine.Modules.Add(new LegacyBridgeModule(pet, save));
@@ -52,6 +54,9 @@ public static class CoreSetup
 
     /// <summary>Режисьорът на мислите (за прага в Developer).</summary>
     public static ThoughtsModule? Talk { get; private set; }
+
+    /// <summary>Наблюденията (Мечо забелязва теб).</summary>
+    public static CareModule? Care { get; private set; }
 
     /// <summary>Мнението на мечока (готвене, обличане…).</summary>
     public static OpinionModule? Opinion { get; private set; }

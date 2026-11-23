@@ -126,6 +126,10 @@ public static class SelfTest
             pet.CoreEngine.Bus.Send(new Mecho.Core.Think("dev.test", 10));
             talk.Tick();
             if (said != "dev.test") throw new Exception("важната мисъл не се каза");
+            // Наблюденията (фаза 3): модулът е вътре и знае какво става.
+            if (Mecho.Engine.CoreSetup.Care?.Context is not { } careCtx || careCtx().Now.Date != DateTime.Today) throw new Exception("наблюденията нямат обстановка");
+            if (pet.CoreEngine.Bus.Send(new Mecho.Core.Think("care.badday", 4)).Ok != R.Has("care.badday")) throw new Exception("мисъл без реплики не бива да чака (от ядрото)");
+            pet.CoreEngine.Bus.Send(new Mecho.Core.ClearThoughts());
             // Мнението: таговете се четат, модулът е вътре, ястие с тегло „heavy“ сутрин мрънка/отказва.
             if (Mecho.Engine.CoreSetup.Opinion is not { } op) throw new Exception("няма модул за мнение");
             if (!PetWindow.HasOpinionTag("food:soup_veg", "heavy") || !PetWindow.HasOpinionTag("cloth:hoodie", "warm")) throw new Exception("opinion.json не се чете");
