@@ -140,6 +140,9 @@ public sealed class SaveData
     public string GameName { get; set; } = "";
     public string ProjectFanDay { get; set; } = "";
     public string ProjectNote { get; set; } = "";
+    public DateTime? ProjectStartedAt { get; set; }                 // кога е почнат сегашният проект
+    public double ProjectWorkMinutes { get; set; }                  // работа по сегашния проект
+    public int ProjectTasks { get; set; }                           // задачи по време на сегашния проект
     public bool GuidedStart { get; set; }                           // нов мечок след 1.0.x: почва без проект, магазинът – с гардероба
     public int ProjectPlanVersion { get; set; }                     // 2 – невидимите награди вече не са теглени предварително
     public List<string> ProjectPlan { get; set; } = new();          // наградата за всеки етап (решена предварително)
@@ -1131,4 +1134,13 @@ public sealed class FameEntry
     public string Type { get; set; } = "";
     /// <summary>Какво реши Тут за проекта: „Тема: Космос“, „Главен герой: Таралежът“…</summary>
     public List<string> Facts { get; set; } = new();
+    // Статистиките (от 1.0.x нататък; по-старите са празни).
+    public string Started { get; set; } = "";       // кога е почнат (yyyy-MM-dd)
+    public string DoneDay { get; set; } = "";       // кога е завършен (yyyy-MM-dd)
+    public double WorkMinutes { get; set; }         // работа (мечо-доро/таймер), докато е вървял
+    public int Tasks { get; set; }                  // свършени задачи, докато е вървял
+    public int Chests { get; set; }                 // отворени сандъчета
+    public int Items { get; set; }                  // неща от сандъчетата (без лешниците)
+    public int Nuts { get; set; }                   // лешници от сандъчетата
+    public int Rare { get; set; }                   // от тях – Страхотни и Безценни
 }

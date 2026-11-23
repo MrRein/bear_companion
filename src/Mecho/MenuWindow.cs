@@ -1781,7 +1781,7 @@ public sealed class MenuWindow : Window
     private void RefreshDoneProjects()
     {
         var list = _pet.Save.HallOfFame;
-        string key = string.Join("|", list.Select(f => f.Name + f.Done));
+        string key = string.Join("|", list.Select(f => f.Type + f.Name + f.Done));
         if (key == _doneKey && _doneProjectsBox.Children.Count > 0) return;
         _doneKey = key;
         _doneProjectsBox.Children.Clear();
@@ -1790,39 +1790,29 @@ public sealed class MenuWindow : Window
             _doneProjectsBox.Children.Add(new TextBlock { Text = "Няма", Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
             return;
         }
-        foreach (var f in list)
+        // Трофеите (иконката на всеки завършен проект) в един ред + брой; цъкаш – отваря всички.
+        var row = new DockPanel { LastChildFill = true };
+        var count = new TextBlock { Text = $"{list.Count}", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6 * U, 0, 0, 0) };
+        DockPanel.SetDock(count, Dock.Right);
+        row.Children.Add(count);
+        var icons = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
+        foreach (var f in Enumerable.Reverse(list).Take(8))
         {
-            var entry = f;
             var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == f.Type);
-            // Трофейна карта: финалният предмет (кутията с играта…) в медена рамка, името, видът и датата.
-            var row = new DockPanel();
-            FrameworkElement art = def?.FinalItem is { Length: > 0 } item ? Pixel(_pet.PropImage(item), 3) : Icon(def?.Icon ?? "star", 3);
-            art.VerticalAlignment = VerticalAlignment.Center;
-            var slot = new Border
-            {
-                Background = Soft(Honey, 0.45), BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(6 * U), Margin = new Thickness(0, 0, 10 * U, 0), Child = art, VerticalAlignment = VerticalAlignment.Center,
-            };
-            DockPanel.SetDock(slot, Dock.Left);
-            row.Children.Add(slot);
-            var star = Icon("star", 2);
-            star.VerticalAlignment = VerticalAlignment.Top;
-            DockPanel.SetDock(star, Dock.Right);
-            row.Children.Add(star);
-            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            text.Children.Add(new TextBlock { Text = f.Name.Length > 0 ? "„" + f.Name + "“" : f.Kind, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap });
-            text.Children.Add(new TextBlock { Text = f.Kind, Foreground = Muted });
-            text.Children.Add(new TextBlock { Text = f.Done, Foreground = Muted, FontStyle = FontStyles.Italic });
-            row.Children.Add(text);
-            var card = new Border
-            {
-                Background = Soft(Honey, 0.18), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(5),
-                Padding = new Thickness(8 * U, 6 * U, 8 * U, 6 * U), Margin = new Thickness(0, 0, 0, 6 * U), Child = row,
-                Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Цъкни, за да видиш какво направихте заедно"),
-            };
-            TaskCards.Clickable(card, () => CompletedProjectWindow.Show(_pet, entry, this));
-            _doneProjectsBox.Children.Add(card);
+            var art = _pet.TrophyArt(def, 2);
+            art.Margin = new Thickness(0, 0, 6 * U, 0);
+            art.ToolTip = Tip(f.Name.Length > 0 ? $"{f.Kind} „{f.Name}“" : f.Kind);
+            icons.Children.Add(art);
         }
+        row.Children.Add(icons);
+        var card = new Border
+        {
+            Background = Soft(Honey, 0.18), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(8 * U, 6 * U, 8 * U, 6 * U), Child = row,
+            Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Цъкни – всички завършени проекти и статистиките им"),
+        };
+        TaskCards.Clickable(card, () => CompletedProjectsWindow.Show(_pet, this));
+        _doneProjectsBox.Children.Add(card);
     }
 
     /// <summary>
@@ -2022,7 +2012,6 @@ public sealed class MenuWindow : Window
         Add(Kitchen.Couch, "Диван", _pet.FurniturePlaced(Kitchen.Couch));
         Add(Kitchen.YogaMat, "Постелка", _pet.FurniturePlaced(Kitchen.YogaMat));
         Add(Kitchen.Bed, "Легло", _pet.FurniturePlaced(Kitchen.Bed));
-        Add(PetWindow.GameBox, "📦 " + (_pet.GameName.Length > 0 ? _pet.GameName : "Играта на Мечо"), _pet.FurniturePlaced(PetWindow.GameBox));
     }
 
     private void GoForWalk(double minutes)

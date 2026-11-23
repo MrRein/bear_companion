@@ -1992,7 +1992,9 @@ public sealed partial class PetWindow
                 }
                 for (int k = 0; k < ProjectStages.Length; k++) ClaimProjectReward(k);
                 if (!ProjectDone || ProjectHasClaim || HasActiveProject) throw new Exception("проектът не завърши");
-                if (!_save.Owned.Contains(GameBox) || !FurnitureKinds.Contains(GameBox)) throw new Exception("накрая няма кутия с играта");
+                // Кутията вече не е в „Неща“ – трофеят е в „Завършени проекти“, със статистиките.
+                if (_save.HallOfFame.Count != 1 || _save.HallOfFame[0].Chests != ProjectStages.Length || _save.HallOfFame[0].DoneDay.Length == 0)
+                    throw new Exception("завършеният проект няма статистики");
                 if (_save.HallOfFame.Count != 1 || _save.HallOfFame[0].Name != "Горски тайни" || !_save.HallOfFame[0].Facts.Any(x => x.Contains("Космос")))
                     throw new Exception("играта не влезе в „Завършени проекти“ както трябва");
                 // Ценността: 7 обикновени, 5 ценни, 3 много ценни (втората половина), специалното накрая.
@@ -2008,7 +2010,13 @@ public sealed partial class PetWindow
                 Reset();
                 _save.ProjectAnswers["theme"] = "Космос"; _save.ProjectAnswers["goal"] = "Събират мед";
                 // Един завършен проект – за снимката на „Завършени проекти“ (menu_bear).
-                _save.HallOfFame.Add(new FameEntry { Kind = "Настолна игра", Type = BoardGameProject.Id, Name = "Горски тайни", Facts = new List<string> { "Тема: Космос" }, Done = "22.11.2026" });
+                _save.HallOfFame.Add(new FameEntry { Kind = "Зинче с рисунки", Type = ZineProject.Id, Name = "Горски дневник", Facts = new List<string> { "Тема: Гората" }, Done = "2.11.2026",
+                    Started = "2026-10-28", DoneDay = "2026-11-02", WorkMinutes = 410, Tasks = 12, Chests = 6, Items = 11, Nuts = 23, Rare = 1 });
+                _save.HallOfFame.Add(new FameEntry { Kind = "Настолна игра", Type = BoardGameProject.Id, Name = "Горски тайни", Facts = new List<string> { "Тема: Космос", "Играчите: Събират мед", "Главен герой: Таралежът" }, Done = "22.11.2026",
+                    Started = "2026-11-03", DoneDay = "2026-11-22", WorkMinutes = 2350, Tasks = 48, Chests = 16, Items = 34, Nuts = 71, Rare = 5 });
+                var cw = CompletedProjectsWindow.Show(this);
+                cw?.UpdateLayout();
+                if (cw != null) { Shot(cw, "completed_projects"); cw.Close(); }
                 _save.ProjectPaid = 2; _save.ProjectPoints = 60 + 90 + 40; _save.ProjectOpened.Add(0); _save.GameName = "Горски тайни";
                 if (!ProjectRewardShown(2) || ProjectRewardShown(3)) throw new Exception("видими са награди отвъд сегашния етап");
                 if (ProjectNow.Info.Steps.Length != 3 || ProjectStepsDone != 1) throw new Exception("подетапите: " + ProjectStepsDone + " от " + ProjectNow.Info.Steps.Length);

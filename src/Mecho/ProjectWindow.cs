@@ -710,58 +710,130 @@ internal sealed class ProjectWindow : FloatWindow
 /// Завършен проект (от „Завършени проекти“ в менюто): какво направиха Мечо и Тут заедно –
 /// видът, името, какво реши Тут (тема, герой…), кога е завършен.
 /// </summary>
-internal sealed class CompletedProjectWindow : FloatWindow
+/// <summary>
+/// „Завършени проекти“: всички проекти, един под друг – всеки в своя рамка, с трофея
+/// (иконката на играта, зинчето…), какво реши Тут за него и статистиките: за колко дни,
+/// колко работа и задачи, колко сандъчета и неща (и редки).
+/// </summary>
+internal sealed class CompletedProjectsWindow : FloatWindow
 {
-    public static void Show(PetWindow pet, FameEntry entry, Window? near = null)
+    private static CompletedProjectsWindow? _open;
+
+    public static CompletedProjectsWindow? Show(PetWindow pet, Window? near = null)
     {
-        var w = new CompletedProjectWindow(pet, entry);
+        if (_open is { IsLoaded: true })
+        {
+            _open.Close();
+            return null;
+        }
+        var w = new CompletedProjectsWindow(pet);
+        _open = w;
+        w.Closed += (_, _) => { if (_open == w) _open = null; };
         w.Place(near ?? pet.MenuWin);
         w.Show();
         w.Activate();
+        return w;
     }
 
-    private CompletedProjectWindow(PetWindow pet, FameEntry f) : base(pet, "completed", 420 * U)
+    private CompletedProjectsWindow(PetWindow pet) : base(pet, "completed", 460 * U)
     {
-        Title = f.Kind;
-        var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == f.Type);
+        Title = "Завършени проекти";
         var head = new StackPanel { Orientation = Orientation.Horizontal };
-        var ic = Icon(def?.Icon ?? "star", 2);
+        var ic = Icon("star", 2);
         ic.VerticalAlignment = VerticalAlignment.Center;
         ic.Margin = new Thickness(0, 0, 8 * U, 0);
         head.Children.Add(ic);
-        head.Children.Add(new TextBlock { Text = f.Kind, FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center });
+        head.Children.Add(new TextBlock { Text = $"Завършени проекти ({pet.Save.HallOfFame.Count})", FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center });
         Head.Children.Add(head);
 
-        var p = new StackPanel();
-        if (f.Name.Length > 0)
-            p.Children.Add(new TextBlock { Text = "„" + f.Name + "“", FontWeight = FontWeights.Bold, FontSize = Ui.Title, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 8 * U) });
-        if (def?.FinalItem is { Length: > 0 } item)
-        {
-            var img = Ui.Pixel(pet.PropImage(item), 5);
-            img.HorizontalAlignment = HorizontalAlignment.Center;
-            img.Margin = new Thickness(0, 0, 0, 10 * U);
-            p.Children.Add(img);
-        }
-        var facts = f.Facts.Count > 0 ? f.Facts : new[] { ("Тема", f.Theme), ("Играчите", f.Goal), ("Главен герой", f.Hero) }
-            .Where(x => x.Item2.Length > 0).Select(x => x.Item1 + ": " + x.Item2).ToList();
-        foreach (var fact in facts)
-        {
-            int c = fact.IndexOf(':');
-            var t = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2 * U, 0, 0) };
-            t.Inlines.Add(new System.Windows.Documents.Run((c > 0 ? fact[..(c + 1)] : "") + " ") { Foreground = Muted });
-            t.Inlines.Add(new System.Windows.Documents.Run(c > 0 ? fact[(c + 1)..].Trim() : fact) { FontWeight = FontWeights.Bold });
-            p.Children.Add(t);
-        }
-        p.Children.Add(new TextBlock
-        {
-            Text = $"Направихте го заедно – Мечо и {pet.Save.OwnerName}, {f.Done}.",
-            FontStyle = FontStyles.Italic, Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10 * U, 0, 0),
-        });
-        Body.Content = p;
+        var list = new StackPanel();
+        // Най-новият – най-отгоре.
+        foreach (var f in Enumerable.Reverse(pet.Save.HallOfFame)) list.Children.Add(Card(pet, f));
+        if (pet.Save.HallOfFame.Count == 0) list.Children.Add(new TextBlock { Text = "Още няма – първият предстои!", Foreground = Muted });
+        Body.Content = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 520 * U };
         Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
         {
             if (!IsLoaded || IsActive || SelfTest.Running) return;
             Close();
         }, DispatcherPriority.Input);
+    }
+
+    private static string Day(string iso) => DateTime.TryParse(iso, out var d) ? d.ToString("d.MM.yyyy") : "";
+
+    private static FrameworkElement Card(PetWindow pet, FameEntry f)
+    {
+        var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == f.Type);
+        var card = new StackPanel();
+
+        // Горе: трофеят, името и видът, датата.
+        var top = new DockPanel { LastChildFill = true };
+        var art = pet.TrophyArt(def, 3);
+        art.VerticalAlignment = VerticalAlignment.Center;
+        var slot = new Border
+        {
+            Background = MenuWindow.Soft(Honey, 0.45), BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(6 * U), Margin = new Thickness(0, 0, 10 * U, 0), Child = art, VerticalAlignment = VerticalAlignment.Top,
+        };
+        DockPanel.SetDock(slot, Dock.Left);
+        top.Children.Add(slot);
+        var title = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        title.Children.Add(new TextBlock { Text = f.Name.Length > 0 ? "„" + f.Name + "“" : f.Kind, FontWeight = FontWeights.Bold, FontSize = Ui.Title, TextWrapping = TextWrapping.Wrap });
+        title.Children.Add(new TextBlock { Text = f.Kind, Foreground = Muted });
+        string when = f.Started.Length > 0 && f.DoneDay.Length > 0 ? $"{Day(f.Started)} – {Day(f.DoneDay)}" : f.Done;
+        title.Children.Add(new TextBlock { Text = when, Foreground = Muted, FontStyle = FontStyles.Italic });
+        top.Children.Add(title);
+        card.Children.Add(top);
+
+        // Какво реши Тут (тема, герой…).
+        var facts = f.Facts.Count > 0 ? f.Facts : new[] { ("Тема", f.Theme), ("Играчите", f.Goal), ("Главен герой", f.Hero) }
+            .Where(x => x.Item2.Length > 0).Select(x => x.Item1 + ": " + x.Item2).ToList();
+        if (facts.Count > 0)
+        {
+            var box = new WrapPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
+            foreach (var fact in facts)
+            {
+                int c = fact.IndexOf(':');
+                var t = new TextBlock { Margin = new Thickness(0, 0, 14 * U, 2 * U) };
+                t.Inlines.Add(new System.Windows.Documents.Run((c > 0 ? fact[..(c + 1)] : "") + " ") { Foreground = Muted });
+                t.Inlines.Add(new System.Windows.Documents.Run(c > 0 ? fact[(c + 1)..].Trim() : fact) { FontWeight = FontWeights.Bold });
+                box.Children.Add(t);
+            }
+            card.Children.Add(box);
+        }
+
+        // Статистиките (по-старите проекти ги нямат).
+        var stats = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(0, 8 * U, 0, 0) };
+        void Stat(string icon, string text)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2 * U, 8 * U, 2 * U) };
+            var i = Icon(icon, 1);
+            i.VerticalAlignment = VerticalAlignment.Center;
+            i.Margin = new Thickness(0, 0, 6 * U, 0);
+            row.Children.Add(i);
+            row.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
+            stats.Children.Add(row);
+        }
+        if (DateTime.TryParse(f.Started, out var a) && DateTime.TryParse(f.DoneDay, out var b))
+        {
+            int days = Math.Max(1, (int)(b - a).TotalDays + 1);
+            Stat("calendar", days == 1 ? "за 1 ден" : $"за {days} дни");
+        }
+        if (f.WorkMinutes > 0) Stat("hourglass", f.WorkMinutes >= 60 ? $"{f.WorkMinutes / 60:0.#} ч работа" : $"{f.WorkMinutes:0} мин работа");
+        if (f.Tasks > 0) Stat("check", $"{f.Tasks} задачи");
+        if (f.Chests > 0) Stat("gift", $"{f.Chests} сандъчета");
+        if (f.Items > 0) Stat("star", f.Rare > 0 ? $"{f.Items} неща ({f.Rare} редки)" : $"{f.Items} неща");
+        if (f.Nuts > 0) Stat("nut", $"{f.Nuts} лешника");
+        if (stats.Children.Count > 0) card.Children.Add(stats);
+
+        card.Children.Add(new TextBlock
+        {
+            Text = $"Направихте го заедно – Мечо и {pet.Save.OwnerName}.",
+            FontStyle = FontStyles.Italic, Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8 * U, 0, 0),
+        });
+        return new Border
+        {
+            Background = MenuWindow.Soft(Honey, 0.15), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10 * U, 8 * U, 10 * U, 8 * U), Margin = new Thickness(0, 0, 0, 10 * U), Child = card,
+        };
     }
 }
