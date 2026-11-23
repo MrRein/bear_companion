@@ -845,25 +845,25 @@ public static class Ui
             for (int x = 0; x < w; x++)
                 if (Solid(x, y)) { bottom = y; break; }
         if (bottom < 0) return art;
-        // Сянката: пикселен овал ЗАД основата (вижда се само около нея и отдолу), в топлия
-        // кафяв на контурите, по-прозрачна към краищата.
+        // Сянката: пикселен овал ЗАД основата, в топлия кафяв на контурите.
         int x0 = w, x1 = -1;
         for (int y = Math.Max(0, bottom - 3); y <= bottom; y++)
             for (int x = 0; x < w; x++)
                 if (Solid(x, y)) { x0 = Math.Min(x0, x); x1 = Math.Max(x1, x); }
-        double cx = (x0 + x1 + 1) / 2.0, rw = (x1 - x0 + 1) / 2.0 + 1;
-        int nh = bottom + 2 <= h ? h : bottom + 2;
+        // Малка и закръглена: ~3/4 от ширината на основата, три реда (горният – зад рисунката,
+        // средният – най-широк, долният – по-къс).
+        double cx = (x0 + x1 + 1) / 2.0, half = Math.Max(2.0, (x1 - x0 + 1) / 2.0 * 0.72);
+        int nh = Math.Max(h, bottom + 3);
         var px = new byte[nh * stride];
         Array.Copy(src, px, src.Length);
-        foreach (var (y, r, top) in new[] { (bottom, rw, 70.0), (bottom + 1, rw - 1, 95.0) })
+        foreach (var (y, r, alpha) in new[] { (bottom, half - 0.5, 60), (bottom + 1, half, 80), (bottom + 2, half - 1.5, 55) })
             for (int x = 0; x < w; x++)
             {
-                double d = Math.Abs(x + 0.5 - cx) / Math.Max(1, r);
-                if (d > 1) continue;
+                if (Math.Abs(x + 0.5 - cx) > r) continue;
                 int i = y * stride + x * 4;
                 if (px[i + 3] != 0) continue;   // зад рисунката
-                px[i] = 30; px[i + 1] = 40; px[i + 2] = 70;   // Bgra: тъмнокафяво
-                px[i + 3] = (byte)(top * (1 - 0.55 * d * d));
+                px[i] = 30; px[i + 1] = 40; px[i + 2] = 70;   // Bgra: топло тъмнокафяво
+                px[i + 3] = (byte)alpha;
             }
         var result = BitmapSource.Create(w, nh, 96, 96, PixelFormats.Bgra32, null, px, stride);
         result.Freeze();
