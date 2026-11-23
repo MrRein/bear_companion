@@ -90,7 +90,9 @@ def defaults(code, kind):
         if code == "coupon:free": w["Лилаво"] = 3
     if wearable:
         w["Цел"] = round(17 / n_wear, 3); w["Подарък"] = round(75 / n_wear, 3)
-    # Дрехи от сандъчетата – не (само от подарък, цел и магазина).
+    if kind.startswith("Дреха"):
+        for s in ("Дървено", "Сребърно", "Златно"): w[s] = round(17 / n_cloth, 3)
+        w["Лилаво"] = round(20 / n_cloth, 3)
     if any(code == f[0] for f in furn):
         for s in ("Сребърно", "Златно"): w[s] = round(3 / len(furn), 3)
         w["Лилаво"] = round(30 / len(furn), 3)

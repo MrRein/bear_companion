@@ -373,7 +373,9 @@ internal sealed class ProjectWindow : FloatWindow
             bool done = i < paid, isCur = i == cur;
             bool claim = pet.CanClaimProject(i), taken = done && pet.IsProjectOpened(i);
             bool revealed = done || isCur;      // нататък – „?“
-            string plan = pet.ProjectRewardPlan(i);
+            // Наградата се решава чак когато се види (иначе всички 16 се теглеха при първото
+            // отваряне – напр. още без гардероб, и после никъде нямаше дрехи).
+            string plan = revealed || claim ? pet.ProjectRewardPlan(i) : "";
             string gotPlan = taken && i < pet.Save.ProjectGot.Count && pet.Save.ProjectGot[i].Length > 0 ? pet.Save.ProjectGot[i] : plan;
             string name = pet.ProjectStages[i].Name;
             double cx = Xc(i), size = final ? FinalBox : BoxSize, boxTop = boxBottom - size;

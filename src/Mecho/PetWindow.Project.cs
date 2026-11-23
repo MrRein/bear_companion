@@ -856,6 +856,14 @@ public sealed partial class PetWindow
     /// <summary>Веднъж в секунда: разказва за проекта (в началото) и писмата от феновете (след етап 11).</summary>
     private void UpdateProject()
     {
+        // Стари записи: наградите отвъд видимото бяха теглени предварително (често без дрехи,
+        // защото още нямаше гардероб) – теглят се наново, когато се стигне до тях.
+        if (_save.ProjectPlanVersion < 2)
+        {
+            for (int k = _save.ProjectPaid + 1; k < _save.ProjectPlan.Count; k++)
+                if (!_save.ProjectOpened.Contains(k)) _save.ProjectPlan[k] = "";
+            _save.ProjectPlanVersion = 2;
+        }
         // Стари записи: проектът чака, а точките са отвъд етапа – остатъкът отива настрана.
         if ((ProjectBlocked || ProjectDone) && _save.ProjectPaid > 0 && _save.ProjectPoints > ProjectTotalTo(_save.ProjectPaid - 1))
         {

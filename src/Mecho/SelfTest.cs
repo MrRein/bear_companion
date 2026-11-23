@@ -1995,6 +1995,8 @@ public sealed partial class PetWindow
                 if (ProjectRewardPlan(3) != p3 || ProjectRewardLabel(p3).Length == 0) throw new Exception("наградата се мени или няма име");
                 var pw = ProjectWindow.Open(this, null, 1, "");
                 pw.UpdateLayout();
+                // Невидимите сандъчета не се теглят предварително (иначе – без дрехи, ако гардеробът дойде по-късно).
+                if (_save.ProjectPlan.Skip(5).Any(p => p.Length > 0)) throw new Exception("наградите отвъд видимото са теглени предварително");
                 Shot(pw, "project_window");
                 LayoutReport(pw, "project_window");
                 pw.TestOpened(0, "nuts:6|coupon:pct25|slot:hat");
