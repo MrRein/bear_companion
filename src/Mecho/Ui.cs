@@ -845,26 +845,43 @@ public static class Ui
             for (int x = 0; x < w; x++)
                 if (Solid(x, y)) { bottom = y; break; }
         if (bottom < 0) return art;
-        // Сянката: пикселен овал ЗАД основата, в топлия кафяв на контурите.
-        int x0 = w, x1 = -1;
-        for (int y = Math.Max(0, bottom - 3); y <= bottom; y++)
+        // Сянката: силуетът на самото нещо, 1 пиксел надолу и съвсем леко размазан, в топлия
+        // кафяв на контурите – зад рисунката.
+        int nh = h + 2;
+        var sil = new double[nh, w];
+        for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
-                if (Solid(x, y)) { x0 = Math.Min(x0, x); x1 = Math.Max(x1, x); }
-        // Малка и закръглена: ~3/4 от ширината на основата, три реда (горният – зад рисунката,
-        // средният – най-широк, долният – по-къс).
-        double cx = (x0 + x1 + 1) / 2.0, half = Math.Max(2.0, (x1 - x0 + 1) / 2.0 * 0.72);
-        int nh = Math.Max(h, bottom + 1);
+                if (Solid(x, y)) sil[y + 1, x] = 1;
         var px = new byte[nh * stride];
-        Array.Copy(src, px, src.Length);
-        // По-нагоре (почти изцяло зад храната) и бледа.
-        foreach (var (y, r, alpha) in new[] { (bottom - 2, half - 0.5, 35), (bottom - 1, half, 50), (bottom, half - 1.5, 35) })
+        // Леко размазване и бледо.
+        int[,] k = { { 0, 1, 0 }, { 1, 8, 1 }, { 0, 1, 0 } };
+        const double Strength = 45, KSum = 12;
+        for (int y = 0; y < nh; y++)
             for (int x = 0; x < w; x++)
             {
-                if (Math.Abs(x + 0.5 - cx) > r) continue;
+                double sum = 0;
+                for (int dy = -1; dy <= 1; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int yy = y + dy, xx = x + dx;
+                        if (yy >= 0 && yy < nh && xx >= 0 && xx < w) sum += sil[yy, xx] * k[dy + 1, dx + 1];
+                    }
                 int i = y * stride + x * 4;
-                if (px[i + 3] != 0) continue;   // зад рисунката
-                px[i] = 30; px[i + 1] = 40; px[i + 2] = 70;   // Bgra: топло тъмнокафяво
-                px[i + 3] = (byte)alpha;
+                byte a = (byte)(Strength * sum / KSum);
+                if (a == 0) continue;
+                px[i] = 30; px[i + 1] = 40; px[i + 2] = 70; px[i + 3] = a;   // Bgra: топло тъмнокафяво
+            }
+        // Отгоре – самата рисунка (където е плътна – тя; полупрозрачните ръбове – върху сянката).
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                int si = y * stride + x * 4;
+                byte sa = src[si + 3];
+                if (sa == 0) continue;
+                if (sa == 255 || px[si + 3] == 0) { Array.Copy(src, si, px, si, 4); continue; }
+                double fa = sa / 255.0, ba = px[si + 3] / 255.0, oa = fa + ba * (1 - fa);
+                for (int c = 0; c < 3; c++) px[si + c] = (byte)((src[si + c] * fa + px[si + c] * ba * (1 - fa)) / oa);
+                px[si + 3] = (byte)(oa * 255);
             }
         var result = BitmapSource.Create(w, nh, 96, 96, PixelFormats.Bgra32, null, px, stride);
         result.Freeze();
