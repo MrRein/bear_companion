@@ -83,7 +83,7 @@ public sealed class MenuWindow : Window
             "projects" => _todayCard,
             "actions" => _actionGrid,
             "tile:food" => _foodTile.Button,
-            "foodinfo" => _foodInfo,
+            "foodinfo" => _foodInfo.IsVisible && _foodInfo.ActualWidth > 0 ? _foodInfo : _tabs[_tab] as FrameworkElement,
             "page" => _tabs[_tab] as FrameworkElement,
             "addtask" => Work?.TutorialAddRow,
             "timeline" => Work?.TodayTimeline,

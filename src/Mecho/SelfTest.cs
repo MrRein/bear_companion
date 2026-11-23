@@ -2113,11 +2113,12 @@ public sealed partial class PetWindow
             {
                 if (_tutorialStep != stepNo) throw new Exception($"обиколката е на стъпка {_tutorialStep}, а трябва {stepNo}");
                 var st = TutorialSteps[stepNo];
-                if (st.Target != "none" && TutorialTarget(st.Target) == null) throw new Exception($"няма квадратче около „{st.Target}“");
+                bool noTarget = st.Target != "none" && TutorialTarget(st.Target) == null;
                 if (st.Next)
                 {
                     if (!TutorialWaitsNext) throw new Exception("стъпката „разгледай“ не чака цъкане");
                     TutorialEvent("next");
+                    if (noTarget) throw new Exception($"няма квадратче около „{st.Target}“");
                     return;
                 }
                 TutorialEvent("next");               // „напред“ не бива да прескача стъпка с действие
@@ -2129,6 +2130,7 @@ public sealed partial class PetWindow
                     case { } u when u.StartsWith("page:"): _menu!.ShowPage(u[5..]); break;
                 }
                 if (st.Until == "taskadded") Dispatcher.BeginInvoke(() => NewTaskWindow.Current?.Close());
+                if (noTarget) throw new Exception($"няма квадратче около „{st.Target}“");
             }, 450);
         }
         await step("обиколка: край", () =>
