@@ -845,22 +845,26 @@ public static class Ui
             for (int x = 0; x < w; x++)
                 if (Solid(x, y)) { bottom = y; break; }
         if (bottom < 0) return art;
+        // Сянката: пикселен овал ЗАД основата (вижда се само около нея и отдолу), в топлия
+        // кафяв на контурите, по-прозрачна към краищата.
         int x0 = w, x1 = -1;
-        for (int y = Math.Max(0, bottom - 1); y <= bottom; y++)
+        for (int y = Math.Max(0, bottom - 3); y <= bottom; y++)
             for (int x = 0; x < w; x++)
                 if (Solid(x, y)) { x0 = Math.Min(x0, x); x1 = Math.Max(x1, x); }
-        int nh = bottom + 1 < h ? h : h + 1;
+        double cx = (x0 + x1 + 1) / 2.0, rw = (x1 - x0 + 1) / 2.0 + 1;
+        int nh = bottom + 2 <= h ? h : bottom + 2;
         var px = new byte[nh * stride];
         Array.Copy(src, px, src.Length);
-        int sy = bottom + 1;
-        for (int x = x0; x <= x1; x++)
-        {
-            int i = sy * stride + x * 4;
-            if (px[i + 3] != 0) continue;
-            byte a = (byte)(x == x0 || x == x1 ? 40 : 80);
-            // Предварително умножени цветове не трябват: Bgra32 е с обикновена прозрачност.
-            px[i] = 28; px[i + 1] = 18; px[i + 2] = 13; px[i + 3] = a;
-        }
+        foreach (var (y, r, top) in new[] { (bottom, rw, 70.0), (bottom + 1, rw - 1, 95.0) })
+            for (int x = 0; x < w; x++)
+            {
+                double d = Math.Abs(x + 0.5 - cx) / Math.Max(1, r);
+                if (d > 1) continue;
+                int i = y * stride + x * 4;
+                if (px[i + 3] != 0) continue;   // зад рисунката
+                px[i] = 30; px[i + 1] = 40; px[i + 2] = 70;   // Bgra: тъмнокафяво
+                px[i + 3] = (byte)(top * (1 - 0.55 * d * d));
+            }
         var result = BitmapSource.Create(w, nh, 96, 96, PixelFormats.Bgra32, null, px, stride);
         result.Freeze();
         Shadows.Add(art, result);
