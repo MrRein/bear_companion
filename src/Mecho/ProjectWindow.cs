@@ -735,7 +735,7 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         return w;
     }
 
-    private CompletedProjectsWindow(PetWindow pet) : base(pet, "completed", 460 * U)
+    private CompletedProjectsWindow(PetWindow pet) : base(pet, "completed", 540 * U)
     {
         Title = "Завършени проекти";
         var head = new StackPanel { Orientation = Orientation.Horizontal };
@@ -743,7 +743,7 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         ic.VerticalAlignment = VerticalAlignment.Center;
         ic.Margin = new Thickness(0, 0, 8 * U, 0);
         head.Children.Add(ic);
-        head.Children.Add(new TextBlock { Text = $"Завършени проекти ({pet.Save.HallOfFame.Count})", FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center });
+        head.Children.Add(new TextBlock { Text = $"Завършени проекти ({pet.Save.HallOfFame.Count})", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
         Head.Children.Add(head);
 
         var list = new StackPanel();
@@ -805,10 +805,11 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         var stats = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(0, 8 * U, 0, 0) };
         void Stat(string icon, string text)
         {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2 * U, 8 * U, 2 * U) };
+            var row = new DockPanel { Margin = new Thickness(0, 2 * U, 8 * U, 2 * U), LastChildFill = true };
             var i = Icon(icon, 1);
             i.VerticalAlignment = VerticalAlignment.Center;
             i.Margin = new Thickness(0, 0, 6 * U, 0);
+            DockPanel.SetDock(i, Dock.Left);
             row.Children.Add(i);
             row.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
             stats.Children.Add(row);
@@ -821,7 +822,7 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         if (f.WorkMinutes > 0) Stat("hourglass", f.WorkMinutes >= 60 ? $"{f.WorkMinutes / 60:0.#} ч работа" : $"{f.WorkMinutes:0} мин работа");
         if (f.Tasks > 0) Stat("check", $"{f.Tasks} задачи");
         if (f.Chests > 0) Stat("gift", $"{f.Chests} сандъчета");
-        if (f.Items > 0) Stat("star", f.Rare > 0 ? $"{f.Items} неща ({f.Rare} редки)" : $"{f.Items} неща");
+        if (f.Items > 0) Stat("star", f.Rare > 0 ? $"{f.Items} неща, {f.Rare} редки" : $"{f.Items} неща");
         if (f.Nuts > 0) Stat("nut", $"{f.Nuts} лешника");
         if (stats.Children.Count > 0) card.Children.Add(stats);
 
