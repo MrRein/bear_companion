@@ -364,6 +364,7 @@ public sealed class MenuWindow : Window
     {
         var page = Pages.FirstOrDefault(p => p.Id == id) ?? Pages[0];
         if (page.Tab == WardrobeTab && !DailyOffer.HasWardrobe(_pet.Save)) page = Pages[0];
+        if (page.Id == PageShop && _pet.Save.GuidedStart && !DailyOffer.HasWardrobe(_pet.Save)) page = Pages[0];   // магазинът още е затворен
         _page = page.Id;
         _pet.Save.MenuPage = page.Id;
         if (page.Work) _workNavOpen = true;
@@ -4450,6 +4451,9 @@ public sealed class MenuWindow : Window
         _workBadge.ToolTip = Tip($"Остават {leftToday} от {allToday} задачи за днес");
         if (_navItems.TryGetValue(PageWardrobe, out var wardrobe))
             wardrobe.Item.Visibility = DailyOffer.HasWardrobe(s) ? Visibility.Visible : Visibility.Collapsed;
+        // Нов мечок: „Магазин“ го няма в лентата, докато не дойде гардеробът.
+        if (_navItems.TryGetValue(PageShop, out var shop))
+            shop.Item.Visibility = s.GuidedStart && !DailyOffer.HasWardrobe(s) ? Visibility.Collapsed : Visibility.Visible;
 
         // Мечо
         _portrait.Source = _pet.Portrait;   // само основното (без различни изражения) – как е, пише в „За Мечо“
