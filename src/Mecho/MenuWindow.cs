@@ -2957,28 +2957,20 @@ public sealed class MenuWindow : Window
             badge.Margin = new Thickness(0, 4, 6, 0);
             artGrid.Children.Add(badge);
         }
-        if (rarity == Rarity.Legendary)
-        {
-            // Безценното: искрица в ъгъла.
-            var spark = Icon("emote_sparkle", 2);
-            spark.HorizontalAlignment = HorizontalAlignment.Left;
-            spark.VerticalAlignment = VerticalAlignment.Top;
-            spark.Margin = new Thickness(6, 4, 0, 0);
-            artGrid.Children.Add(spark);
-        }
         if (rarity is { } rb)
         {
-            // Лентичката с рядкостта – долу в картинката, в цвета ѝ.
-            var ribbon = GiftWindow.RarityRibbon(rb);
-            ribbon.VerticalAlignment = VerticalAlignment.Bottom;
-            ribbon.Margin = new Thickness(0, 0, 0, 5 * U);
-            artGrid.Children.Add(ribbon);
+            // Рядкостта: звездичка долу вдясно в картинката (името – при посочване).
+            var star = RarityColors.Star(rb, 2);
+            star.HorizontalAlignment = HorizontalAlignment.Right;
+            star.VerticalAlignment = VerticalAlignment.Bottom;
+            star.Margin = new Thickness(0, 0, 5 * U, 5 * U);
+            artGrid.Children.Add(star);
         }
         var artBox = new Border
         {
             Background = TileArt,
-            BorderBrush = rarity is { } rr ? RarityColors.Brush(rr) : WoodDark,
-            BorderThickness = rarity is null or Rarity.Common ? Flat : new Thickness(Math.Max(2, P)),
+            BorderBrush = WoodDark,
+            BorderThickness = Flat,
             CornerRadius = new CornerRadius(4),
             MinHeight = 96 * U,
             Child = artGrid,
@@ -3009,7 +3001,6 @@ public sealed class MenuWindow : Window
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 8 * U, 0, rarity == null ? 6 * U : 0),
         });
-        if (rarity != null) middle.Children.Add(new Border { Height = 6 * U });
         middle.Children.Add(details);
         dock.Children.Add(middle);
 
@@ -3285,6 +3276,20 @@ public sealed class MenuWindow : Window
         ShowPage(PageWardrobe);
         BuildWardrobe();
         UpdateLayout();
+        // До плочките: най-външният скрол на страницата – най-долу.
+        foreach (var sv in Descendants<ScrollViewer>(this).Where(s => s.IsVisible && s.ScrollableHeight > 0))
+            sv.ScrollToEnd();
+        UpdateLayout();
+    }
+
+    private static System.Collections.Generic.IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T t) yield return t;
+            foreach (var d in Descendants<T>(child)) yield return d;
+        }
     }
 
     /// <summary>Самопроверка: гардеробът с дрехите и фоновете.</summary>
