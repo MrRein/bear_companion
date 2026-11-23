@@ -1823,29 +1823,35 @@ public sealed class MenuWindow : Window
             _doneProjectsBox.Children.Add(new TextBlock { Text = "Няма", Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
             return;
         }
-        if (_doneTitle != null) _doneTitle.Text = "Завършени проекти";
-        // Само малко статистика – самите проекти са в прозореца („Отвори“).
-        int n = list.Count, tasks = list.Sum(f => f.Tasks), items = list.Sum(f => f.Items);
-        double hours = list.Sum(f => f.WorkMinutes) / 60;
-        var card = new DockPanel { LastChildFill = true };
-        var open = Button("Отвори", () => CompletedProjectsWindow.Show(_pet, this), icon: "star");
-        open.VerticalAlignment = VerticalAlignment.Center;
-        open.Margin = new Thickness(8 * U, 0, 0, 0);
-        DockPanel.SetDock(open, Dock.Right);
-        card.Children.Add(open);
-        var stats = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        stats.Children.Add(new TextBlock { Text = n == 1 ? "1 завършен проект" : $"{n} завършени проекта", FontWeight = FontWeights.Bold });
-        var parts = new List<string>();
-        if (hours >= 1) parts.Add($"{hours:0} ч работа");
-        if (tasks > 0) parts.Add($"{tasks} задачи");
-        if (items > 0) parts.Add($"{items} награди");
-        if (parts.Count > 0) stats.Children.Add(new TextBlock { Text = string.Join(" · ", parts), Foreground = Muted, TextWrapping = TextWrapping.Wrap });
-        card.Children.Add(stats);
-        _doneProjectsBox.Children.Add(new Border
+        if (_doneTitle != null) _doneTitle.Text = $"Завършени проекти ({list.Count})";
+        // Рафт с трофеи: всеки завършен проект стои на дървената полица (най-новият – вляво).
+        // Посочиш – името; цъкнеш – прозорецът със статистиките.
+        var trophies = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(4 * U, 0, 4 * U, 0) };
+        foreach (var f in Enumerable.Reverse(list).Take(12))
         {
-            Background = Soft(Honey, 0.15), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(1, P / 2)), CornerRadius = new CornerRadius(5),
-            Padding = new Thickness(8 * U, 6 * U, 8 * U, 6 * U), Child = card,
-        });
+            var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == f.Type);
+            var art = _pet.TrophyArt(def, 3);
+            art.VerticalAlignment = VerticalAlignment.Bottom;
+            var slot = new Border
+            {
+                Background = Brushes.Transparent, Padding = new Thickness(4 * U, 2 * U, 4 * U, 0), Child = art,
+                VerticalAlignment = VerticalAlignment.Bottom, Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = Tip((f.Name.Length > 0 ? $"„{f.Name}“ – " : "") + f.Kind + (f.Done.Length > 0 ? $"\n{f.Done}" : "")),
+            };
+            TaskCards.Clickable(slot, () => CompletedProjectsWindow.Show(_pet, this));
+            trophies.Children.Add(slot);
+        }
+        var shelf = new StackPanel();
+        shelf.Children.Add(trophies);
+        // Полицата: дърво с по-светъл ръб отгоре и сянка отдолу.
+        shelf.Children.Add(new Border { Height = Math.Max(2, P), Background = WoodLight });
+        shelf.Children.Add(new Border { Height = 5 * U, Background = Wood, BorderBrush = Ink, BorderThickness = new Thickness(0, 0, 0, Math.Max(1, P / 2)) });
+        shelf.Children.Add(new Border { Height = 3 * U, Margin = new Thickness(6 * U, 0, 6 * U, 0), Background = Soft(Ink, 0.15) });
+        _doneProjectsBox.Children.Add(shelf);
+        var all = Chip("Виж всички →", () => CompletedProjectsWindow.Show(_pet, this));
+        all.HorizontalAlignment = HorizontalAlignment.Right;
+        all.Margin = new Thickness(0, 6 * U, 0, 0);
+        _doneProjectsBox.Children.Add(all);
     }
 
     /// <summary>
