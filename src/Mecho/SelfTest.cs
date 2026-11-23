@@ -2019,6 +2019,9 @@ public sealed partial class PetWindow
                 var cw = CompletedProjectsWindow.Show(this);
                 cw?.UpdateLayout();
                 if (cw != null) { Shot(cw, "completed_projects"); cw.Close(); }
+                OpenMenu(MenuWindow.BearTab);
+                _menu!.SelfTestShowProjects();
+                Shot(_menu, "menu_projects");
                 _save.ProjectPaid = 2; _save.ProjectPoints = 60 + 90 + 40; _save.ProjectOpened.Add(0); _save.GameName = "Горски тайни";
                 if (!ProjectRewardShown(2) || ProjectRewardShown(3)) throw new Exception("видими са награди отвъд сегашния етап");
                 if (ProjectNow.Info.Steps.Length != 3 || ProjectStepsDone != 1) throw new Exception("подетапите: " + ProjectStepsDone + " от " + ProjectNow.Info.Steps.Length);

@@ -1823,29 +1823,35 @@ public sealed class MenuWindow : Window
             _doneProjectsBox.Children.Add(new TextBlock { Text = "Няма", Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
             return;
         }
-        // Трофеите (иконката на всеки завършен проект) в един ред + брой; цъкаш – отваря всички.
-        var row = new DockPanel { LastChildFill = true };
-        var count = new TextBlock { Text = $"{list.Count}", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6 * U, 0, 0, 0) };
-        DockPanel.SetDock(count, Dock.Right);
-        row.Children.Add(count);
-        var icons = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
-        foreach (var f in Enumerable.Reverse(list).Take(8))
+        if (_doneTitle != null) _doneTitle.Text = $"Завършени проекти ({list.Count})";
+        // Рафт с трофеи: всеки завършен проект стои на дървената полица (най-новият – вляво).
+        // Посочиш – името; цъкнеш – прозорецът със статистиките.
+        var trophies = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(4 * U, 0, 4 * U, 0) };
+        foreach (var f in Enumerable.Reverse(list).Take(12))
         {
             var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == f.Type);
-            var art = _pet.TrophyArt(def, 2);
-            art.Margin = new Thickness(0, 0, 6 * U, 0);
-            art.ToolTip = Tip(f.Name.Length > 0 ? $"{f.Kind} „{f.Name}“" : f.Kind);
-            icons.Children.Add(art);
+            var art = _pet.TrophyArt(def, 3);
+            art.VerticalAlignment = VerticalAlignment.Bottom;
+            var slot = new Border
+            {
+                Background = Brushes.Transparent, Padding = new Thickness(4 * U, 2 * U, 4 * U, 0), Child = art,
+                VerticalAlignment = VerticalAlignment.Bottom, Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = Tip((f.Name.Length > 0 ? $"„{f.Name}“ – " : "") + f.Kind + (f.Done.Length > 0 ? $"\n{f.Done}" : "")),
+            };
+            TaskCards.Clickable(slot, () => CompletedProjectsWindow.Show(_pet, this));
+            trophies.Children.Add(slot);
         }
-        row.Children.Add(icons);
-        var card = new Border
-        {
-            Background = Soft(Honey, 0.18), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(5),
-            Padding = new Thickness(8 * U, 6 * U, 8 * U, 6 * U), Child = row,
-            Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Цъкни – всички завършени проекти и статистиките им"),
-        };
-        TaskCards.Clickable(card, () => CompletedProjectsWindow.Show(_pet, this));
-        _doneProjectsBox.Children.Add(card);
+        var shelf = new StackPanel();
+        shelf.Children.Add(trophies);
+        // Полицата: дърво с по-светъл ръб отгоре и сянка отдолу.
+        shelf.Children.Add(new Border { Height = Math.Max(2, P), Background = WoodLight });
+        shelf.Children.Add(new Border { Height = 5 * U, Background = Wood, BorderBrush = Ink, BorderThickness = new Thickness(0, 0, 0, Math.Max(1, P / 2)) });
+        shelf.Children.Add(new Border { Height = 3 * U, Margin = new Thickness(6 * U, 0, 6 * U, 0), Background = Soft(Ink, 0.15) });
+        _doneProjectsBox.Children.Add(shelf);
+        var all = Chip("Виж всички →", () => CompletedProjectsWindow.Show(_pet, this));
+        all.HorizontalAlignment = HorizontalAlignment.Right;
+        all.Margin = new Thickness(0, 6 * U, 0, 0);
+        _doneProjectsBox.Children.Add(all);
     }
 
     /// <summary>
@@ -3315,6 +3321,18 @@ public sealed class MenuWindow : Window
     private readonly StackPanel _wardrobeBody = new();
     private readonly StackPanel _wardrobeLock = new();
     private TextBlock? _wardrobeLockText;
+
+    /// <summary>Самопроверка: „Проекти на Мечока“ (с рафта с трофеите) – в кадъра.</summary>
+    internal void SelfTestShowProjects()
+    {
+        ShowPage(PageBear);
+        _projectKey = "";
+        _doneKey = "";
+        RefreshProject();
+        UpdateLayout();
+        _doneProjectsBox.BringIntoView();
+        UpdateLayout();
+    }
 
     /// <summary>Самопроверка: определен раздел на гардероба (за снимка).</summary>
     internal void SelfTestWardrobeSection(string section)
