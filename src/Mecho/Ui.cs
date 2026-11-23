@@ -853,11 +853,11 @@ public static class Ui
         // Малка и закръглена: ~3/4 от ширината на основата, три реда (горният – зад рисунката,
         // средният – най-широк, долният – по-къс).
         double cx = (x0 + x1 + 1) / 2.0, half = Math.Max(2.0, (x1 - x0 + 1) / 2.0 * 0.72);
-        int nh = Math.Max(h, bottom + 2);
+        int nh = Math.Max(h, bottom + 1);
         var px = new byte[nh * stride];
         Array.Copy(src, px, src.Length);
         // По-нагоре (почти изцяло зад храната) и бледа.
-        foreach (var (y, r, alpha) in new[] { (bottom - 1, half - 0.5, 35), (bottom, half, 50), (bottom + 1, half - 1.5, 35) })
+        foreach (var (y, r, alpha) in new[] { (bottom - 2, half - 0.5, 35), (bottom - 1, half, 50), (bottom, half - 1.5, 35) })
             for (int x = 0; x < w; x++)
             {
                 if (Math.Abs(x + 0.5 - cx) > r) continue;
