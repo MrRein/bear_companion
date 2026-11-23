@@ -524,7 +524,10 @@ public sealed partial class PetWindow
         await step("рецепти от страници", () =>
         {
             var t = new SaveData();
-            if (Recipes.Next(t) != null || Recipes.AddPage(t) != null) throw new Exception("страници без нито един уред");
+            // Страниците се събират от самото начало – и без уред (рецептата чака уреда).
+            if (Recipes.Next(t) == null) throw new Exception("без уред няма какво да се учи от страници");
+            if (Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "sandwich_ham"), t)) throw new Exception("сандвичът с шунка е отключен от самото начало");
+            if (!Kitchen.HasRecipe(Kitchen.Foods.First(f => f.Id == "sandwich_veg"), t)) throw new Exception("сандвичът с домат не е отключен");
             // Учат се само рецепти за уреди, които ги има: с всички уреди – всички рецепти.
             foreach (var u in Kitchen.Upgrades) t.Owned.Add(u.Id);
             int learned = 0, pages = 0;
