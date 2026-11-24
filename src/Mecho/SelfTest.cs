@@ -277,7 +277,7 @@ public sealed partial class PetWindow
                 var dv = new DrawingVisual();
                 var brush = new VisualBrush(v)
                 {
-                    Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top,
+                    Stretch = Stretch.Fill,
                     ViewboxUnits = BrushMappingMode.Absolute, Viewbox = new Rect(0, 0, v.ActualWidth, v.ActualHeight),
                 };
                 using (var dc = dv.RenderOpen())
