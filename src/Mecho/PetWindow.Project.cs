@@ -191,6 +191,19 @@ public sealed partial class PetWindow
         return Ui.Icon(def?.Icon ?? "star", Math.Max(1, scale - 1));
     }
 
+    /// <summary>
+    /// Наградата за проекти – значка, която пада от финалното сандъче и сменя предишната.
+    /// Каква е – според броя завършени проекти: камък 1–3, бронз 4–6, сребро 7–10, злато 11–15,
+    /// изумруд 16–20, диамант 21–28, митрил 29+ (assets/ui/rank_*.png).
+    /// </summary>
+    public static readonly (string Id, int From)[] RankTiers =
+        { ("stone", 1), ("bronze", 4), ("silver", 7), ("gold", 11), ("emerald", 16), ("diamond", 21), ("mythril", 29) };
+
+    public static string RankFor(int done) => done <= 0 ? "" : RankTiers.Last(t => done >= t.From).Id;
+
+    /// <summary>Сегашната значка (стари записи без нея – по броя завършени).</summary>
+    public string RankBadge => _save.RankBadge.Length > 0 ? _save.RankBadge : RankFor(_save.HallOfFame.Count);
+
     /// <summary>Няма започнат проект (нов мечок или избира следващия).</summary>
     public bool NoProject => string.IsNullOrEmpty(_save.ProjectType);
 
@@ -511,6 +524,14 @@ public sealed partial class PetWindow
     /// </summary>
     private string RollProjectReward(int i)
     {
+        string plan = RollProjectRewardItems(i);
+        // Финалното сандъче: и наградата за проекти (значката – според това кой поред е проектът).
+        if (i == ProjectStages.Length - 1) plan += "|rank:" + RankFor(_save.HallOfFame.Count + 1);
+        return plan;
+    }
+
+    private string RollProjectRewardItems(int i)
+    {
         if (CurrentProject.FixedRewards is { } fixedPlan && i < fixedPlan.Length) return fixedPlan[i];
         var items = new List<string>();
         bool final = i == ProjectStages.Length - 1;
@@ -621,6 +642,7 @@ public sealed partial class PetWindow
             "pajama" or "bg" or "theme" or "skin" => LootName(item),
             "name" => "Името (ти избираш)",
             "box" => CurrentProject.FinalLabel,
+            "rank" => "Награда за проект",
             _ => item,   // стар запис – вече е текст
         };
     }
@@ -639,6 +661,7 @@ public sealed partial class PetWindow
             "cloth" => Clothes.All.FirstOrDefault(g => g.Id == id) is { } g ? g.Slot.Icon : "shirt",
             "up" => "couch",
             "pajama" or "bg" or "theme" or "skin" => LootIcon(item),
+            "rank" => "rank_" + id,
             "name" => "pencil",
             "box" => "star",
             _ => "gift",
@@ -667,6 +690,7 @@ public sealed partial class PetWindow
         "up" or "skin" => "Нещо за бърлогата",
         "pajama" or "bg" or "theme" => "Нещо за гардероба",
         "name" => "Името",
+        "rank" => "Награда за проект",
         "box" => "Голямата награда",
         _ => "Изненада",
     };
@@ -748,6 +772,11 @@ public sealed partial class PetWindow
                     _gotItems.Add(item);
                     continue;
                 case "name":
+                    _gotItems.Add(item);
+                    continue;
+                case "rank":
+                    _save.RankBadge = id;
+                    said.Add("награда за проект");
                     _gotItems.Add(item);
                     continue;
                 case "box":
@@ -932,7 +961,7 @@ public sealed partial class PetWindow
 
     /// <summary>Всичко получено от сандъчетата на сегашния проект (+ последното, което се отваря сега).</summary>
     private IEnumerable<string> GotItems() =>
-        _save.ProjectGot.SelectMany(RewardItems).Concat(_gotItems).Where(x => x is not ("box" or "name")).Select(x => x.TrimStart('?'));
+        _save.ProjectGot.SelectMany(RewardItems).Concat(_gotItems).Where(x => x is not ("box" or "name") && !x.StartsWith("rank:")).Select(x => x.TrimStart('?'));
 
     /// <summary>Отговорен ли е въпросът (името – с името на проекта).</summary>
     public bool Answered(ProjectQuestion q) => q.Key == "name" ? _save.GameName.Length > 0 : _save.ProjectAnswers.ContainsKey(q.Key);

@@ -158,6 +158,9 @@ public static class SelfTest
             if (pet.ProjectTier(5) != 'X' || pet.ProjectTier(0) != 'N') throw new Exception("сандъчетата на зинчето: " + s.ProjectTiers);
             if (!pet.ProjectRewardPlan(0).Contains("up:" + Kitchen.Desk) || !pet.ProjectRewardPlan(1).Contains("up:" + Kitchen.Easel)
                 || !pet.ProjectRewardPlan(5).Contains("up:" + Kitchen.Wardrobe)) throw new Exception("наградите на зинчето");
+            if (!pet.ProjectRewardPlan(5).Contains("rank:stone")) throw new Exception("във финалното сандъче няма награда за проект (каменна значка)");
+            if (PetWindow.RankFor(1) != "stone" || PetWindow.RankFor(4) != "bronze" || PetWindow.RankFor(11) != "gold" || PetWindow.RankFor(40) != "mythril")
+                throw new Exception("наградите за проекти по брой");
             int pages = Enumerable.Range(0, 6).Sum(i => PetWindow.RewardItems(pet.ProjectRewardPlan(i)).Count(x => x == "page"));
             if (pages != 5) throw new Exception("страниците рецепта в зинчето: " + pages);
             // След първия проект – изборът е от всички видове.
