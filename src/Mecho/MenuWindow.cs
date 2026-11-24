@@ -1861,8 +1861,8 @@ public sealed class MenuWindow : Window
         // Последният завършен проект – име и дата.
         var lastDone = list[^1];
         var lastLine = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0) };
-        lastLine.Inlines.Add(new System.Windows.Documents.Run("Последен: "));
-        lastLine.Inlines.Add(new System.Windows.Documents.Run(lastDone.Name.Length > 0 ? $"„{lastDone.Name}“" : lastDone.Kind) { FontWeight = FontWeights.Bold, Foreground = Ink });
+        lastLine.Inlines.Add(new System.Windows.Documents.Run(lastDone.Name.Length > 0 ? $"„{lastDone.Name}“" : lastDone.Kind));
+        lastLine.ToolTip = Tip("Последният завършен проект");
         if (DateTime.TryParse(lastDone.DoneDay, out var ld)) lastLine.Inlines.Add(new System.Windows.Documents.Run($" – {ld:d.MM}"));
         inner.Children.Add(lastLine);
 
