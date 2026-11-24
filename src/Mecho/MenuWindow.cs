@@ -1843,11 +1843,8 @@ public sealed class MenuWindow : Window
         };
         DockPanel.SetDock(totalPill, Dock.Right);
         head.Children.Add(totalPill);
-        head.Children.Add(new Viewbox
-        {
-            Child = new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, FontSize = Ui.Title },
-            StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
-        });
+        // Нормален размер; в тясна колона – на два реда (не се смалява).
+        head.Children.Add(new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
         inner.Children.Add(head);
         inner.Children.Add(new Border { Height = Math.Max(1, P / 2), Background = Soft(Ink, 0.25), Margin = new Thickness(0, 8 * U, 0, 8 * U) });
 
