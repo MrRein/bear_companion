@@ -1823,21 +1823,29 @@ public sealed class MenuWindow : Window
             _doneProjectsBox.Children.Add(new TextBlock { Text = "Няма", Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
             return;
         }
-        // Медена пластина: горе вляво „Завършени“ с броя до него; отдолу – значка за всеки вид
-        // проект (×брой в ъгъла, рамката расте с броя). Наградата за проекти е отделно – медал,
-        // закачен в горния десен ъгъл на пластината като печат (не е „броят“).
-        var inner = new StackPanel();
-        var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 44 * U, 0) };
-        head.Children.Add(new TextBlock { Text = "Завършени", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
-        head.Children.Add(new Border
+        // Карта в стила на „Активен“ (бежова, с рамка), всичко в средата: медалът (наградата
+        // за проекти) като емблема горе в медено кръгче, под него „Завършени · брой“, под тях –
+        // значка за всеки вид проект („×N“ само от 2 нагоре; рамката расте с броя).
+        var inner = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+        if (_pet.RankBadge is { Length: > 0 } rank)
         {
-            Background = Ink, CornerRadius = new CornerRadius(4), Padding = new Thickness(6 * U, 0, 6 * U, 1 * U), Margin = new Thickness(8 * U, 0, 0, 0),
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = new TextBlock { Text = list.Count.ToString(), Foreground = Brushes.White, FontWeight = FontWeights.Bold },
+            var medal = Icon("rank_" + rank, 3);
+            medal.HorizontalAlignment = HorizontalAlignment.Center;
+            medal.VerticalAlignment = VerticalAlignment.Center;
+            inner.Children.Add(new Border
+            {
+                Width = 54 * U, Height = 54 * U, CornerRadius = new CornerRadius(27 * U), Background = Soft(Honey, 0.6),
+                BorderBrush = Ink, BorderThickness = Flat, HorizontalAlignment = HorizontalAlignment.Center, Child = medal,
+                ToolTip = Tip("Награда за проект"),
+            });
+        }
+        inner.Children.Add(new TextBlock
+        {
+            Text = $"Завършени · {list.Count}", FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 6 * U, 0, 0),
         });
-        inner.Children.Add(head);
 
-        var badges = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10 * U, 0, 0) };
+        var badges = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6 * U, 0, 0) };
         foreach (var g in list.GroupBy(f => f.Type).OrderByDescending(g => g.Count()))
         {
             var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == g.Key);
@@ -1857,46 +1865,28 @@ public sealed class MenuWindow : Window
                     Child = new Grid { Children = { new Border { Height = Math.Max(1, P / 2), VerticalAlignment = VerticalAlignment.Top, Background = new SolidColorBrush(Color.FromArgb(110, 255, 255, 255)) }, ic } },
                 },
             });
-            tile.Children.Add(new Border
-            {
-                Background = Ink, CornerRadius = new CornerRadius(3), Padding = new Thickness(3 * U, 0, 3 * U, 1 * U),
-                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, -5 * U, -5 * U),
-                Child = new TextBlock { Text = "×" + n, Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = Math.Max(9, 11 * U) },
-            });
+            if (n >= 2)
+                tile.Children.Add(new Border
+                {
+                    Background = Ink, CornerRadius = new CornerRadius(3), Padding = new Thickness(3 * U, 0, 3 * U, 1 * U),
+                    HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, -5 * U, -5 * U),
+                    Child = new TextBlock { Text = "×" + n, Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = Math.Max(9, 11 * U) },
+                });
             string last = g.Last().Name;
             tile.ToolTip = Tip($"{def?.Kind ?? g.Key}: {n}" + (last.Length > 0 ? $" – последният „{last}“" : ""));
-            tile.Margin = new Thickness(0, 2 * U, 12 * U, 6 * U);
+            tile.Margin = new Thickness(5 * U, 0, 5 * U, 2 * U);
             badges.Children.Add(tile);
         }
         inner.Children.Add(badges);
 
-        var plate = new Border
-        {
-            Background = Soft(Honey, 0.55), BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(12 * U, 10 * U, 12 * U, 8 * U), Margin = new Thickness(0, 14 * U, 0, 0),
-            Child = new Border { Child = inner },
-        };
-        // Светла ивица отгоре и по-тъмна отдолу – като медна пластина.
-        var plateGrid = new Grid();
-        plateGrid.Children.Add(plate);
-        plateGrid.Children.Add(new Border { Height = Math.Max(1, P / 2), Margin = new Thickness(6 * U, 14 * U + Flat.Top + 2, 6 * U, 0), VerticalAlignment = VerticalAlignment.Top, Background = new SolidColorBrush(Color.FromArgb(120, 255, 255, 255)), IsHitTestVisible = false });
-        // Медалът – закачен в горния десен ъгъл (наполовина над ръба).
-        if (_pet.RankBadge is { Length: > 0 } rank)
-        {
-            var medal = Icon("rank_" + rank, 3);
-            medal.HorizontalAlignment = HorizontalAlignment.Right;
-            medal.VerticalAlignment = VerticalAlignment.Top;
-            medal.Margin = new Thickness(0, 0, 10 * U, 0);
-            medal.ToolTip = Tip("Награда за проект");
-            plateGrid.Children.Add(medal);
-        }
         var plaque = new Border
         {
-            Background = Brushes.Transparent, Margin = new Thickness(0, 8, 0, 0), Child = plateGrid,
+            Background = PaperDark, BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(10 * U, 8 * U, 10 * U, 9 * U), Margin = new Thickness(0, 4, 0, 0), Child = inner,
             Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Всички завършени проекти – цъкни"),
         };
-        plaque.MouseEnter += (_, _) => plate.Background = Soft(Honey, 0.75);
-        plaque.MouseLeave += (_, _) => plate.Background = Soft(Honey, 0.55);
+        plaque.MouseEnter += (_, _) => plaque.Background = Soft(Honey, 0.25);
+        plaque.MouseLeave += (_, _) => plaque.Background = PaperDark;
         TaskCards.Clickable(plaque, () => CompletedProjectsWindow.Show(_pet, this));
         _doneProjectsBox.Children.Add(plaque);
     }
