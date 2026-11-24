@@ -292,6 +292,17 @@ public sealed partial class PetWindow
     /// <summary>Паролата за Developer е въведена (до затваряне на програмата).</summary>
     internal bool DevUnlocked { get; set; }
 
+    /// <summary>Dev: сменя медала (наградата за проекти) с едно ниво нагоре/надолу; под камъка – няма медал.</summary>
+    private void DevRankStep(int dir)
+    {
+        int i = Array.FindIndex(RankTiers, t => t.Id == RankBadge);
+        i = Math.Clamp(i + dir, -1, RankTiers.Length - 1);
+        _save.RankBadge = i < 0 ? "" : RankTiers[i].Id;
+        if (i < 0 && _save.HallOfFame.Count > 0) _save.RankBadge = "none";
+        Say(i < 0 ? "Медал: няма" : $"Медал: {RankTiers[i].Id}", 3);
+        NotifyCare();
+    }
+
     internal bool DevPasswordOk(string password) => string.Equals(password.Trim(), "mecho", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Всички бутони на Developer панела: (група, надпис, действие).</summary>
@@ -322,6 +333,8 @@ public sealed partial class PetWindow
             Reviews.Export(_save.HallOfFame);
             Say($"Копирах {_save.HallOfFame.Count} проекта – и са в „Завършени проекти.txt“ до записа.", 5);
         });
+        yield return (project, "Медал: ниво нагоре", () => DevRankStep(+1));
+        yield return (project, "Медал: ниво надолу", () => DevRankStep(-1));
         yield return (project, "+500 точки", () => AddProjectPoints(500));
         yield return (project, "Следващ етап", () => { if (!ProjectDone) AddProjectPoints(ProjectNow.Need - ProjectNow.Have + 0.01); });
         yield return (project, "Кръсти играта", AskGameName);

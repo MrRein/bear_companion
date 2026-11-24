@@ -199,10 +199,25 @@ public sealed partial class PetWindow
     public static readonly (string Id, int From)[] RankTiers =
         { ("stone", 1), ("bronze", 4), ("silver", 7), ("gold", 11), ("emerald", 16), ("diamond", 21), ("mythril", 29) };
 
+    /// <summary>Цветът на нивото (светлият тон за плочката, тъмният за рамката) – взети от медала.</summary>
+    public static (System.Windows.Media.Color Light, System.Windows.Media.Color Dark) RankColors(string id) => id switch
+    {
+        "stone" => (Rgb(176, 168, 160), Rgb(96, 84, 80)),
+        "bronze" => (Rgb(222, 132, 72), Rgb(110, 44, 20)),
+        "silver" => (Rgb(184, 204, 226), Rgb(84, 100, 120)),
+        "gold" => (Rgb(240, 192, 40), Rgb(124, 68, 0)),
+        "emerald" => (Rgb(96, 192, 96), Rgb(28, 76, 24)),
+        "diamond" => (Rgb(60, 200, 236), Rgb(0, 84, 116)),
+        "mythril" => (Rgb(196, 112, 212), Rgb(72, 20, 84)),
+        _ => (Rgb(240, 192, 40), Rgb(124, 68, 0)),
+    };
+
+    private static System.Windows.Media.Color Rgb(byte r, byte g, byte b) => System.Windows.Media.Color.FromRgb(r, g, b);
+
     public static string RankFor(int done) => done <= 0 ? "" : RankTiers.Last(t => done >= t.From).Id;
 
     /// <summary>Сегашната значка (стари записи без нея – по броя завършени).</summary>
-    public string RankBadge => _save.RankBadge.Length > 0 ? _save.RankBadge : RankFor(_save.HallOfFame.Count);
+    public string RankBadge => _save.RankBadge == "none" ? "" : _save.RankBadge.Length > 0 ? _save.RankBadge : RankFor(_save.HallOfFame.Count);
 
     /// <summary>Няма започнат проект (нов мечок или избира следващия).</summary>
     public bool NoProject => string.IsNullOrEmpty(_save.ProjectType);

@@ -1866,14 +1866,17 @@ public sealed class MenuWindow : Window
         if (DateTime.TryParse(lastDone.DoneDay, out var ld)) lastLine.Inlines.Add(new System.Windows.Documents.Run($" – {ld:d.MM}"));
         inner.Children.Add(lastLine);
 
+        // Плочката е в цвета на медала (камък – сиво, бронз – меден… митрил – лилаво).
+        var (rankLight, rankDark) = PetWindow.RankColors(_pet.RankBadge);
+        Brush plaqueBg = Soft(new SolidColorBrush(rankLight), 0.45), plaqueHover = Soft(new SolidColorBrush(rankLight), 0.65);
         var plaque = new Border
         {
-            Background = PaperDark, BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(4),
+            Background = plaqueBg, BorderBrush = new SolidColorBrush(rankDark), BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(4),
             Padding = new Thickness(10 * U, 8 * U, 10 * U, 9 * U), Margin = new Thickness(0, 4, 0, 0), Child = row,
             Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Всички завършени проекти – цъкни"),
         };
-        plaque.MouseEnter += (_, _) => plaque.Background = Soft(Honey, 0.25);
-        plaque.MouseLeave += (_, _) => plaque.Background = PaperDark;
+        plaque.MouseEnter += (_, _) => plaque.Background = plaqueHover;
+        plaque.MouseLeave += (_, _) => plaque.Background = plaqueBg;
         TaskCards.Clickable(plaque, () => CompletedProjectsWindow.Show(_pet, this));
         _doneProjectsBox.Children.Add(plaque);
     }
@@ -3347,6 +3350,8 @@ public sealed class MenuWindow : Window
     private TextBlock? _wardrobeLockText;
 
     /// <summary>Самопроверка: „Проекти на Мечока“ (с рафта с трофеите) – в кадъра.</summary>
+    internal FrameworkElement DoneProjectsBox => _doneProjectsBox;
+
     internal void SelfTestShowProjects()
     {
         ShowPage(PageBear);
