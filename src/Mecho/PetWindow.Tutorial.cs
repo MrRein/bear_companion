@@ -187,7 +187,8 @@ public sealed partial class PetWindow
         if (what == "next" ? !st.Next : st.Until != what) return;
         int next = _tutorialStep + 1;
         // Малко по-късно: менюто/табът първо да се нарисува, после квадратчето отива там.
-        Later(0.35, () =>
+        // В самопроверката – почти веднага (бавната машина иначе не смогва за проверката).
+        Later(SelfTest.Running ? 0.05 : 0.35, () =>
         {
             if (_tutorialStep == next - 1 && !_save.TutorialDone) StartTutorial(next);
         });
