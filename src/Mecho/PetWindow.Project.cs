@@ -905,6 +905,7 @@ public sealed partial class PetWindow
         if (!_save.HallOfFame.Any(f => f.Name == _save.GameName && f.Done == day))
             _save.HallOfFame.Add(new FameEntry
             {
+                Id = Reviews.NewId(CurrentProject.Id, _save.HallOfFame),
                 Kind = CurrentProject.Kind,
                 Type = CurrentProject.Id,
                 Name = _save.GameName,
@@ -923,6 +924,9 @@ public sealed partial class PetWindow
                 Nuts = GotItems().Where(x => x.StartsWith("nuts:")).Sum(x => int.TryParse(x[5..], out int n) ? n : 0),
                 Rare = GotItems().Count(x => Loot.RarityOf(x) is Rarity.Rare or Rarity.Legendary),
             });
+        // Стари записи без код – получават; после – файлът за разработчика (ревютата).
+        foreach (var f in _save.HallOfFame.Where(f => f.Id.Length == 0)) f.Id = Reviews.NewId(f.Type.Length > 0 ? f.Type : "project", _save.HallOfFame);
+        if (!SelfTest.Running) Reviews.Export(_save.HallOfFame);
         return CurrentProject.FinishLine;
     }
 

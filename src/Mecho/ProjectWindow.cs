@@ -736,7 +736,7 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         return w;
     }
 
-    private CompletedProjectsWindow(PetWindow pet) : base(pet, "completed", 540 * U)
+    private CompletedProjectsWindow(PetWindow pet) : base(pet, "completed", 900 * U)
     {
         Title = "Завършени проекти";
         var head = new StackPanel { Orientation = Orientation.Horizontal };
@@ -747,11 +747,13 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         head.Children.Add(new TextBlock { Text = $"Завършени проекти ({pet.Save.HallOfFame.Count})", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
         Head.Children.Add(head);
 
-        var list = new StackPanel();
-        // Най-новият – най-отгоре.
+        // Стари записи без код (за ревютата) – получават.
+        foreach (var f in pet.Save.HallOfFame.Where(f => f.Id.Length == 0)) f.Id = Reviews.NewId(f.Type.Length > 0 ? f.Type : "project", pet.Save.HallOfFame);
+        // Две колони; най-новият – най-отгоре вляво.
+        var list = new System.Windows.Controls.Primitives.UniformGrid { Columns = pet.Save.HallOfFame.Count > 1 ? 2 : 1, VerticalAlignment = VerticalAlignment.Top };
         foreach (var f in Enumerable.Reverse(pet.Save.HallOfFame)) list.Children.Add(Card(pet, f));
         if (pet.Save.HallOfFame.Count == 0) list.Children.Add(new TextBlock { Text = "Още няма – първият предстои!", Foreground = Muted });
-        Body.Content = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 520 * U };
+        Body.Content = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 620 * U };
         Deactivated += (_, _) => Dispatcher.BeginInvoke(() =>
         {
             if (!IsLoaded || IsActive || SelfTest.Running) return;
@@ -827,6 +829,32 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         if (f.Nuts > 0) Stat("nut", $"{f.Nuts} лешника");
         if (stats.Children.Count > 0) card.Children.Add(stats);
 
+        // Ревютата (пише ги разработчикът в assets/reviews.txt под кода на проекта).
+        var reviews = Reviews.For(f.Id);
+        var rv = new StackPanel { Margin = new Thickness(0, 10 * U, 0, 0) };
+        rv.Children.Add(new TextBlock { Text = "Ревюта", FontWeight = FontWeights.Bold });
+        if (reviews.Count == 0)
+            rv.Children.Add(new TextBlock { Text = "Ревютата още се пишат…", Foreground = Muted, FontStyle = FontStyles.Italic });
+        foreach (var r in reviews)
+        {
+            var box = new Border
+            {
+                Background = MenuWindow.Soft(Ink, 0.06), CornerRadius = new CornerRadius(4), Padding = new Thickness(8 * U, 5 * U, 8 * U, 5 * U),
+                Margin = new Thickness(0, 4 * U, 0, 0),
+            };
+            var body = new StackPanel();
+            if (r.Author.Length > 0 || r.Stars > 0)
+            {
+                var head = new TextBlock();
+                if (r.Author.Length > 0) head.Inlines.Add(new System.Windows.Documents.Run(r.Author + "  ") { FontWeight = FontWeights.Bold });
+                if (r.Stars > 0) head.Inlines.Add(new System.Windows.Documents.Run(new string('★', r.Stars) + new string('☆', 5 - r.Stars)) { Foreground = Honey });
+                body.Children.Add(head);
+            }
+            body.Children.Add(new TextBlock { Text = r.Text, TextWrapping = TextWrapping.Wrap });
+            box.Child = body;
+            rv.Children.Add(box);
+        }
+        card.Children.Add(rv);
         card.Children.Add(new TextBlock
         {
             Text = $"Направихте го заедно – Мечо и {pet.Save.OwnerName}.",
@@ -835,7 +863,7 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         return new Border
         {
             Background = MenuWindow.Soft(Honey, 0.15), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(10 * U, 8 * U, 10 * U, 8 * U), Margin = new Thickness(0, 0, 0, 10 * U), Child = card,
+            Padding = new Thickness(10 * U, 8 * U, 10 * U, 8 * U), Margin = new Thickness(0, 0, 10 * U, 10 * U), Child = card,
         };
     }
 }

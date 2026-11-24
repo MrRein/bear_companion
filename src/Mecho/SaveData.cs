@@ -1125,6 +1125,8 @@ public sealed class WeekGoal
 /// <summary>Завършен проект в Залата на славата.</summary>
 public sealed class FameEntry
 {
+    /// <summary>Кодът на проекта (за ревютата в assets/reviews.txt): „boardgame-20261124-1“.</summary>
+    public string Id { get; set; } = "";
     public string Kind { get; set; } = "";
     public string Name { get; set; } = "";
     public string Theme { get; set; } = "";

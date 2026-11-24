@@ -2012,9 +2012,9 @@ public sealed partial class PetWindow
                 Reset();
                 _save.ProjectAnswers["theme"] = "Космос"; _save.ProjectAnswers["goal"] = "Събират мед";
                 // Един завършен проект – за снимката на „Завършени проекти“ (menu_bear).
-                _save.HallOfFame.Add(new FameEntry { Kind = "Зинче с рисунки", Type = ZineProject.Id, Name = "Горски дневник", Facts = new List<string> { "Тема: Гората" }, Done = "2.11.2026",
+                _save.HallOfFame.Add(new FameEntry { Id = "selftest-zine", Kind = "Зинче с рисунки", Type = ZineProject.Id, Name = "Горски дневник", Facts = new List<string> { "Тема: Гората" }, Done = "2.11.2026",
                     Started = "2026-10-28", DoneDay = "2026-11-02", WorkMinutes = 410, Tasks = 12, Chests = 6, Items = 11, Nuts = 23, Rare = 1 });
-                _save.HallOfFame.Add(new FameEntry { Kind = "Настолна игра", Type = BoardGameProject.Id, Name = "Горски тайни", Facts = new List<string> { "Тема: Космос", "Играчите: Събират мед", "Главен герой: Таралежът" }, Done = "22.11.2026",
+                _save.HallOfFame.Add(new FameEntry { Id = "selftest-boardgame", Kind = "Настолна игра", Type = BoardGameProject.Id, Name = "Горски тайни", Facts = new List<string> { "Тема: Космос", "Играчите: Събират мед", "Главен герой: Таралежът" }, Done = "22.11.2026",
                     Started = "2026-11-03", DoneDay = "2026-11-22", WorkMinutes = 2350, Tasks = 48, Chests = 16, Items = 34, Nuts = 71, Rare = 5 });
                 var cw = CompletedProjectsWindow.Show(this);
                 cw?.UpdateLayout();

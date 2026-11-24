@@ -314,6 +314,14 @@ public sealed partial class PetWindow
 
         const string project = "Проектът на Мечо";
         yield return (project, "+50 точки", () => AddProjectPoints(50));
+        yield return (project, "Завършени проекти: копирай (за ревюта)", () =>
+        {
+            foreach (var f in _save.HallOfFame.Where(f => f.Id.Length == 0)) f.Id = Reviews.NewId(f.Type.Length > 0 ? f.Type : "project", _save.HallOfFame);
+            string text = Reviews.Describe(_save.HallOfFame);
+            try { System.Windows.Clipboard.SetText(text); } catch { }
+            Reviews.Export(_save.HallOfFame);
+            Say($"Копирах {_save.HallOfFame.Count} проекта – и са в „Завършени проекти.txt“ до записа.", 5);
+        });
         yield return (project, "+500 точки", () => AddProjectPoints(500));
         yield return (project, "Следващ етап", () => { if (!ProjectDone) AddProjectPoints(ProjectNow.Need - ProjectNow.Have + 0.01); });
         yield return (project, "Кръсти играта", AskGameName);
