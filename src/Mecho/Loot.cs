@@ -77,10 +77,10 @@ public static class Loot
         [Offer] = new double[] { 62, 28, 9, 1 },
         [Gift] = new double[] { 60, 30, 9, 1 },
         [Mission] = new double[] { 50, 35, 13, 2 },
-        [Wood] = new double[] { 70, 25, 5, 0 },
-        [Silver] = new double[] { 40, 40, 17, 3 },
-        [Gold] = new double[] { 15, 40, 35, 10 },
-        [Legend] = new double[] { 0, 10, 50, 40 },
+        [Wood] = new double[] { 72, 24, 4, 0 },
+        [Silver] = new double[] { 50, 38, 11, 1 },
+        [Gold] = new double[] { 25, 45, 27, 3 },
+        [Legend] = new double[] { 5, 35, 48, 12 },
     };
 
     /// <summary>Колко често излиза дадена рядкост от източника („Настройки“ → „рядкост Златно Безценно“).</summary>

@@ -557,12 +557,21 @@ internal sealed class ProjectWindow : FloatWindow
             art.HorizontalAlignment = HorizontalAlignment.Center;
             art.VerticalAlignment = VerticalAlignment.Center;
             var rarity = Loot.RarityOf(item.TrimStart('?'));
-            var slot = PixelFrame(74 * U, 74 * U, Soft(Ink, 0.22), Ink, px, art);
+            // Рядкостта – звездичка в ъгъла на квадратчето (като в магазина); името – при посочване.
+            var inside = new Grid();
+            inside.Children.Add(art);
+            if (rarity is { } r)
+            {
+                var star = RarityColors.Star(r, 2);
+                star.HorizontalAlignment = HorizontalAlignment.Right;
+                star.VerticalAlignment = VerticalAlignment.Bottom;
+                star.Margin = new Thickness(0, 0, 2 * U, 2 * U);
+                inside.Children.Add(star);
+            }
+            var slot = PixelFrame(74 * U, 74 * U, Soft(Ink, 0.22), Ink, px, inside);
             slot.HorizontalAlignment = HorizontalAlignment.Center;
             cell.Children.Add(slot);
             cell.Children.Add(new TextBlock { Text = Pet.ItemLabel(item), TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4 * U, 0, 0) });
-            if (rarity is { } r)
-                cell.Children.Add(RarityColors.Tag(r));
             slots.Children.Add(cell);
         }
         panel.Children.Add(slots);
@@ -577,7 +586,8 @@ internal sealed class ProjectWindow : FloatWindow
         card.Children.Add(new Border { Padding = new Thickness(24 * U, 14 * U, 24 * U, 14 * U), Child = panel });
         _overlay.Children.Clear();
         _overlay.Children.Add(new Rectangle { Fill = new SolidColorBrush(Color.FromArgb(150, 30, 18, 10)) });
-        _overlay.Children.Add(card);
+        // Не се побира в прозореца (много неща) – смалява се, вместо да се реже отдолу.
+        _overlay.Children.Add(new Viewbox { Child = card, StretchDirection = StretchDirection.DownOnly, Margin = new Thickness(10 * U) });
         _overlay.Visibility = Visibility.Visible;
         Pop(card, 0.6);
     }

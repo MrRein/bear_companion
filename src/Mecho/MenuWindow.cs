@@ -1826,17 +1826,21 @@ public sealed class MenuWindow : Window
         // Само една плочка-постижение (като „Залата на славата“): купата, броят и надписът.
         // Цъкаш – вътре са всички проекти.
         if (_doneTitle != null) _doneTitle.Visibility = Visibility.Collapsed;
+        // [купа] Завършени проекти – на един ред; отдолу – броят.
         var inner = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        var cup = Icon("trophy", 4);
-        cup.HorizontalAlignment = HorizontalAlignment.Center;
-        inner.Children.Add(cup);
-        inner.Children.Add(new TextBlock { Text = list.Count.ToString(), FontWeight = FontWeights.Bold, FontSize = Ui.Title * 1.4, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4 * U, 0, 0) });
-        inner.Children.Add(new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center });
+        var head = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+        var cup = Icon("trophy", 2);
+        cup.VerticalAlignment = VerticalAlignment.Center;
+        cup.Margin = new Thickness(0, 0, 6 * U, 0);
+        head.Children.Add(cup);
+        head.Children.Add(new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
+        inner.Children.Add(head);
+        inner.Children.Add(new TextBlock { Text = list.Count.ToString(), FontWeight = FontWeights.Bold, FontSize = Ui.Title * 1.6, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4 * U, 0, 0) });
         var plaque = new Border
         {
             Background = Soft(Honey, 0.28), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(6),
             Padding = new Thickness(10 * U, 10 * U, 10 * U, 10 * U), Margin = new Thickness(0, 12, 0, 0), Child = inner,
-            MinHeight = 120 * U, Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Всички завършени проекти – цъкни"),
+            Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Всички завършени проекти – цъкни"),
         };
         plaque.MouseEnter += (_, _) => plaque.Background = Soft(Honey, 0.45);
         plaque.MouseLeave += (_, _) => plaque.Background = Soft(Honey, 0.28);
