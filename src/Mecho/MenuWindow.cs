@@ -1808,7 +1808,7 @@ public sealed class MenuWindow : Window
         var list = _pet.Save.HallOfFame;
         // Още няма завършени: разделът изобщо го няма (без „Няма“).
         var vis = list.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (_doneTitle != null) _doneTitle.Visibility = vis;
+        if (_doneTitle != null) _doneTitle.Visibility = Visibility.Collapsed;   // надписът е в самата плочка
         _doneProjectsBox.Visibility = vis;
         // Целта (мисията) – отключва се след първия проект (нов мечок).
         var goalVis = _pet.MissionLocked ? Visibility.Collapsed : Visibility.Visible;
@@ -1823,35 +1823,25 @@ public sealed class MenuWindow : Window
             _doneProjectsBox.Children.Add(new TextBlock { Text = "Няма", Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
             return;
         }
-        if (_doneTitle != null) _doneTitle.Text = $"Завършени проекти ({list.Count})";
-        // Рафт с трофеи: всеки завършен проект стои на дървената полица (най-новият – вляво).
-        // Посочиш – името; цъкнеш – прозорецът със статистиките.
-        var trophies = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(4 * U, 0, 4 * U, 0) };
-        foreach (var f in Enumerable.Reverse(list).Take(12))
+        // Само една плочка-постижение (като „Залата на славата“): купата, броят и надписът.
+        // Цъкаш – вътре са всички проекти.
+        if (_doneTitle != null) _doneTitle.Visibility = Visibility.Collapsed;
+        var inner = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var cup = Icon("trophy", 4);
+        cup.HorizontalAlignment = HorizontalAlignment.Center;
+        inner.Children.Add(cup);
+        inner.Children.Add(new TextBlock { Text = list.Count.ToString(), FontWeight = FontWeights.Bold, FontSize = Ui.Title * 1.4, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4 * U, 0, 0) });
+        inner.Children.Add(new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center });
+        var plaque = new Border
         {
-            var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == f.Type);
-            var art = _pet.TrophyArt(def, 3);
-            art.VerticalAlignment = VerticalAlignment.Bottom;
-            var slot = new Border
-            {
-                Background = Brushes.Transparent, Padding = new Thickness(4 * U, 2 * U, 4 * U, 0), Child = art,
-                VerticalAlignment = VerticalAlignment.Bottom, Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = Tip((f.Name.Length > 0 ? $"„{f.Name}“ – " : "") + f.Kind + (f.Done.Length > 0 ? $"\n{f.Done}" : "")),
-            };
-            TaskCards.Clickable(slot, () => CompletedProjectsWindow.Show(_pet, this));
-            trophies.Children.Add(slot);
-        }
-        var shelf = new StackPanel();
-        shelf.Children.Add(trophies);
-        // Полицата: дърво с по-светъл ръб отгоре и сянка отдолу.
-        shelf.Children.Add(new Border { Height = Math.Max(2, P), Background = WoodLight });
-        shelf.Children.Add(new Border { Height = 5 * U, Background = Wood, BorderBrush = Ink, BorderThickness = new Thickness(0, 0, 0, Math.Max(1, P / 2)) });
-        shelf.Children.Add(new Border { Height = 3 * U, Margin = new Thickness(6 * U, 0, 6 * U, 0), Background = Soft(Ink, 0.15) });
-        _doneProjectsBox.Children.Add(shelf);
-        var all = Chip("Виж всички →", () => CompletedProjectsWindow.Show(_pet, this));
-        all.HorizontalAlignment = HorizontalAlignment.Right;
-        all.Margin = new Thickness(0, 6 * U, 0, 0);
-        _doneProjectsBox.Children.Add(all);
+            Background = Soft(Honey, 0.28), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10 * U, 10 * U, 10 * U, 10 * U), Margin = new Thickness(0, 12, 0, 0), Child = inner,
+            MinHeight = 120 * U, Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Всички завършени проекти – цъкни"),
+        };
+        plaque.MouseEnter += (_, _) => plaque.Background = Soft(Honey, 0.45);
+        plaque.MouseLeave += (_, _) => plaque.Background = Soft(Honey, 0.28);
+        TaskCards.Clickable(plaque, () => CompletedProjectsWindow.Show(_pet, this));
+        _doneProjectsBox.Children.Add(plaque);
     }
 
     /// <summary>
