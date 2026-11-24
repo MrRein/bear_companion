@@ -1828,7 +1828,7 @@ public sealed class MenuWindow : Window
         // закачен в горния десен ъгъл на пластината като печат (не е „броят“).
         var inner = new StackPanel();
         var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 44 * U, 0) };
-        head.Children.Add(new TextBlock { Text = "Завършени", FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center });
+        head.Children.Add(new TextBlock { Text = "Завършени", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
         head.Children.Add(new Border
         {
             Background = Ink, CornerRadius = new CornerRadius(4), Padding = new Thickness(6 * U, 0, 6 * U, 1 * U), Margin = new Thickness(8 * U, 0, 0, 0),
