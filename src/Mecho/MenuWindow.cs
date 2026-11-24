@@ -1361,7 +1361,7 @@ public sealed class MenuWindow : Window
     private UIElement BuildDiaryCard()
     {
         // Проектите на Мечока: активният (или „Няма“) и под него – завършените.
-        _todayBox.Children.Add(new TextBlock { Text = "Активен проект", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
+        _todayBox.Children.Add(new TextBlock { Text = "Активен", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
         _projectBox.Margin = new Thickness(0, 4, 0, 0);
         _todayBox.Children.Add(_projectBox);
         _todayBox.Children.Add(_doneTitle = new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 12, 0, 0) });
@@ -1844,7 +1844,7 @@ public sealed class MenuWindow : Window
         DockPanel.SetDock(totalPill, Dock.Right);
         head.Children.Add(totalPill);
         // Нормален размер; в тясна колона – на два реда (не се смалява).
-        head.Children.Add(new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
+        head.Children.Add(new TextBlock { Text = "Завършени", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
         inner.Children.Add(head);
         inner.Children.Add(new Border { Height = Math.Max(1, P / 2), Background = Soft(Ink, 0.25), Margin = new Thickness(0, 8 * U, 0, 8 * U) });
 
@@ -1855,11 +1855,11 @@ public sealed class MenuWindow : Window
             int n = g.Count();
             // Рамката: 1 – дърво, 2–3 – сребро, 4–5 – злато, 6+ – лилаво.
             var edge = new SolidColorBrush(n >= 6 ? Color.FromRgb(140, 70, 180) : n >= 4 ? Color.FromRgb(214, 160, 30) : n >= 2 ? Color.FromRgb(160, 172, 188) : Color.FromRgb(139, 100, 62));
-            var ic = Icon(def?.Icon ?? "star", 3);
+            var ic = Icon(def?.Icon ?? "star", 2);
             ic.HorizontalAlignment = HorizontalAlignment.Center;
             ic.VerticalAlignment = VerticalAlignment.Center;
             // Пикселна значка: черен контур, цветен ръб, светъл отблясък отгоре.
-            var tile = new Grid { Width = 46 * U, Height = 46 * U };
+            var tile = new Grid { Width = 34 * U, Height = 34 * U };
             tile.Children.Add(new Border
             {
                 BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(3),
@@ -1883,10 +1883,12 @@ public sealed class MenuWindow : Window
         }
         inner.Children.Add(badges);
 
-        var plaque = Frame(inner, new Thickness(10 * U, 8 * U, 10 * U, 6 * U));
-        plaque.Margin = new Thickness(0, 12, 0, 0);
-        plaque.Cursor = System.Windows.Input.Cursors.Hand;
-        plaque.ToolTip = Tip("Всички завършени проекти – цъкни");
+        // Без рамка (вече е в картата „Проекти на Мечока“ – иначе е рамка в рамка).
+        var plaque = new Border
+        {
+            Background = Brushes.Transparent, Padding = new Thickness(2 * U, 4 * U, 2 * U, 0), Margin = new Thickness(0, 12, 0, 0), Child = inner,
+            Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Всички завършени проекти – цъкни"),
+        };
         TaskCards.Clickable(plaque, () => CompletedProjectsWindow.Show(_pet, this));
         _doneProjectsBox.Children.Add(plaque);
     }
