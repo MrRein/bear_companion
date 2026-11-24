@@ -1823,29 +1823,23 @@ public sealed class MenuWindow : Window
             _doneProjectsBox.Children.Add(new TextBlock { Text = "Няма", Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
             return;
         }
-        // Карта в стила на „Активен“ (бежова, с рамка), всичко в средата: медалът (наградата
-        // за проекти) като емблема горе в медено кръгче, под него „Завършени · брой“, под тях –
-        // значка за всеки вид проект („×N“ само от 2 нагоре; рамката расте с броя).
-        var inner = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+        // Карта в стила на „Активен“ (бежова, с рамка), хоризонтално – за да запълва ширината:
+        // вляво голям медал (наградата за проекти, без рамка), вдясно „Завършени · брой“,
+        // значка за всеки вид проект („×N“ от 2 нагоре; рамката расте с броя) и последният проект.
+        var row = new DockPanel { LastChildFill = true };
         if (_pet.RankBadge is { Length: > 0 } rank)
         {
-            var medal = Icon("rank_" + rank, 3);
-            medal.HorizontalAlignment = HorizontalAlignment.Center;
+            var medal = Icon("rank_" + rank, 4);
             medal.VerticalAlignment = VerticalAlignment.Center;
-            inner.Children.Add(new Border
-            {
-                Width = 54 * U, Height = 54 * U, CornerRadius = new CornerRadius(27 * U), Background = Soft(Honey, 0.6),
-                BorderBrush = Ink, BorderThickness = Flat, HorizontalAlignment = HorizontalAlignment.Center, Child = medal,
-                ToolTip = Tip("Награда за проект"),
-            });
+            medal.Margin = new Thickness(4 * U, 0, 14 * U, 0);
+            medal.ToolTip = Tip("Награда за проект");
+            DockPanel.SetDock(medal, Dock.Left);
+            row.Children.Add(medal);
         }
-        inner.Children.Add(new TextBlock
-        {
-            Text = $"Завършени · {list.Count}", FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 6 * U, 0, 0),
-        });
-
-        var badges = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6 * U, 0, 0) };
+        var inner = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        row.Children.Add(inner);
+        inner.Children.Add(new TextBlock { Text = $"Завършени · {list.Count}", FontWeight = FontWeights.Bold, FontSize = Ui.Title });
+        var badges = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6 * U, 0, 0) };
         foreach (var g in list.GroupBy(f => f.Type).OrderByDescending(g => g.Count()))
         {
             var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == g.Key);
@@ -1855,7 +1849,7 @@ public sealed class MenuWindow : Window
             var ic = Icon(def?.Icon ?? "star", 2);
             ic.HorizontalAlignment = HorizontalAlignment.Center;
             ic.VerticalAlignment = VerticalAlignment.Center;
-            var tile = new Grid { Width = 34 * U, Height = 34 * U };
+            var tile = new Grid { Width = 38 * U, Height = 38 * U };
             tile.Children.Add(new Border
             {
                 BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(3), Background = Cream,
@@ -1874,15 +1868,22 @@ public sealed class MenuWindow : Window
                 });
             string last = g.Last().Name;
             tile.ToolTip = Tip($"{def?.Kind ?? g.Key}: {n}" + (last.Length > 0 ? $" – последният „{last}“" : ""));
-            tile.Margin = new Thickness(5 * U, 0, 5 * U, 2 * U);
+            tile.Margin = new Thickness(0, 0, 12 * U, 4 * U);
             badges.Children.Add(tile);
         }
         inner.Children.Add(badges);
+        // Последният завършен проект – име и дата.
+        var lastDone = list[^1];
+        var lastLine = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0) };
+        lastLine.Inlines.Add(new System.Windows.Documents.Run("Последен: "));
+        lastLine.Inlines.Add(new System.Windows.Documents.Run(lastDone.Name.Length > 0 ? $"„{lastDone.Name}“" : lastDone.Kind) { FontWeight = FontWeights.Bold, Foreground = Ink });
+        if (DateTime.TryParse(lastDone.DoneDay, out var ld)) lastLine.Inlines.Add(new System.Windows.Documents.Run($" – {ld:d.MM}"));
+        inner.Children.Add(lastLine);
 
         var plaque = new Border
         {
             Background = PaperDark, BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(10 * U, 8 * U, 10 * U, 9 * U), Margin = new Thickness(0, 4, 0, 0), Child = inner,
+            Padding = new Thickness(10 * U, 8 * U, 10 * U, 9 * U), Margin = new Thickness(0, 4, 0, 0), Child = row,
             Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Всички завършени проекти – цъкни"),
         };
         plaque.MouseEnter += (_, _) => plaque.Background = Soft(Honey, 0.25);
