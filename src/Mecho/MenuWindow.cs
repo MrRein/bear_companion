@@ -1823,65 +1823,73 @@ public sealed class MenuWindow : Window
             _doneProjectsBox.Children.Add(new TextBlock { Text = "Няма", Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
             return;
         }
-        // Витрина: [купа] Завършени проекти … общо; под нея значка за всеки вид проект (×брой),
-        // чиято рамка расте с броя (дърво → сребро → злато → лилаво); най-долу – наградата за
-        // проекти (значката от финалното сандъче). Цъкаш – вътре са всички проекти.
+        // Витрина-пластина (дървена рамка с хартия, като картите): отляво – наградата за проекти
+        // (значката от финалното сандъче), до нея „Завършени проекти“ и броят в медена табелка;
+        // под чертичката – значка за всеки вид проект с „×брой“ в ъгъла (рамката расте с броя).
         var inner = new StackPanel();
         var head = new DockPanel { LastChildFill = true };
-        var total = new TextBlock { Text = list.Count.ToString(), FontWeight = FontWeights.Bold, FontSize = Ui.Title, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6 * U, 0, 0, 0) };
-        DockPanel.SetDock(total, Dock.Right);
-        head.Children.Add(total);
-        var title = new StackPanel { Orientation = Orientation.Horizontal };
-        var cup = Icon("trophy", 2);
-        cup.VerticalAlignment = VerticalAlignment.Center;
-        cup.Margin = new Thickness(0, 0, 6 * U, 0);
-        title.Children.Add(cup);
-        title.Children.Add(new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
-        head.Children.Add(new Viewbox { Child = title, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left });
+        string rank = _pet.RankBadge;
+        var emblem = Icon(rank.Length > 0 ? "rank_" + rank : "trophy", 3);
+        emblem.VerticalAlignment = VerticalAlignment.Center;
+        emblem.Margin = new Thickness(0, 0, 8 * U, 0);
+        emblem.ToolTip = Tip("Награда за проект");
+        DockPanel.SetDock(emblem, Dock.Left);
+        head.Children.Add(emblem);
+        var totalPill = new Border
+        {
+            Background = Honey, BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(7 * U, 1 * U, 7 * U, 2 * U), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6 * U, 0, 0, 0),
+            Child = new TextBlock { Text = list.Count.ToString(), FontWeight = FontWeights.Bold },
+        };
+        DockPanel.SetDock(totalPill, Dock.Right);
+        head.Children.Add(totalPill);
+        head.Children.Add(new Viewbox
+        {
+            Child = new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, FontSize = Ui.Title },
+            StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
+        });
         inner.Children.Add(head);
+        inner.Children.Add(new Border { Height = Math.Max(1, P / 2), Background = Soft(Ink, 0.25), Margin = new Thickness(0, 8 * U, 0, 8 * U) });
 
-        var badges = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10 * U, 0, 0) };
+        var badges = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center };
         foreach (var g in list.GroupBy(f => f.Type).OrderByDescending(g => g.Count()))
         {
             var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == g.Key);
             int n = g.Count();
             // Рамката: 1 – дърво, 2–3 – сребро, 4–5 – злато, 6+ – лилаво.
             var edge = new SolidColorBrush(n >= 6 ? Color.FromRgb(140, 70, 180) : n >= 4 ? Color.FromRgb(214, 160, 30) : n >= 2 ? Color.FromRgb(160, 172, 188) : Color.FromRgb(139, 100, 62));
-            var ic = Icon(def?.Icon ?? "star", 2);
+            var ic = Icon(def?.Icon ?? "star", 3);
             ic.HorizontalAlignment = HorizontalAlignment.Center;
             ic.VerticalAlignment = VerticalAlignment.Center;
-            var frame = new Border
+            // Пикселна значка: черен контур, цветен ръб, светъл отблясък отгоре.
+            var tile = new Grid { Width = 46 * U, Height = 46 * U };
+            tile.Children.Add(new Border
             {
-                Width = 36 * U, Height = 36 * U, Background = Soft(edge, 0.25), BorderBrush = edge,
-                BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(4), Child = ic, HorizontalAlignment = HorizontalAlignment.Center,
-            };
-            var col = new StackPanel { Margin = new Thickness(5 * U, 0, 5 * U, 4 * U) };
-            col.Children.Add(frame);
-            col.Children.Add(new TextBlock { Text = "×" + n, FontWeight = FontWeights.Bold, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2 * U, 0, 0) });
+                BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(3),
+                Child = new Border
+                {
+                    BorderBrush = edge, BorderThickness = new Thickness(Math.Max(2, P)), Background = Soft(edge, 0.22),
+                    Child = new Grid { Children = { new Border { Height = Math.Max(1, P / 2), VerticalAlignment = VerticalAlignment.Top, Background = new SolidColorBrush(Color.FromArgb(90, 255, 255, 255)) }, ic } },
+                },
+            });
+            // „×2“ – малка тъмна табелка в долния десен ъгъл.
+            tile.Children.Add(new Border
+            {
+                Background = Ink, CornerRadius = new CornerRadius(3), Padding = new Thickness(3 * U, 0, 3 * U, 1 * U),
+                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, -5 * U, -5 * U),
+                Child = new TextBlock { Text = "×" + n, Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = Math.Max(9, 11 * U) },
+            });
             string last = g.Last().Name;
-            col.ToolTip = Tip($"{def?.Kind ?? g.Key}: {n}" + (last.Length > 0 ? $" – последният „{last}“" : ""));
-            badges.Children.Add(col);
+            tile.ToolTip = Tip($"{def?.Kind ?? g.Key}: {n}" + (last.Length > 0 ? $" – последният „{last}“" : ""));
+            tile.Margin = new Thickness(6 * U, 2 * U, 10 * U, 8 * U);
+            badges.Children.Add(tile);
         }
         inner.Children.Add(badges);
 
-        // Наградата за проекти – само иконка (засега: „Награда за проект“ при посочване).
-        if (_pet.RankBadge is { Length: > 0 } rank)
-        {
-            var badge = Icon("rank_" + rank, 3);
-            badge.HorizontalAlignment = HorizontalAlignment.Center;
-            badge.Margin = new Thickness(0, 6 * U, 0, 0);
-            badge.ToolTip = Tip("Награда за проект");
-            inner.Children.Add(badge);
-        }
-
-        var plaque = new Border
-        {
-            Background = Soft(Honey, 0.28), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(10 * U, 8 * U, 10 * U, 8 * U), Margin = new Thickness(0, 12, 0, 0), Child = inner,
-            Cursor = System.Windows.Input.Cursors.Hand, ToolTip = Tip("Всички завършени проекти – цъкни"),
-        };
-        plaque.MouseEnter += (_, _) => plaque.Background = Soft(Honey, 0.45);
-        plaque.MouseLeave += (_, _) => plaque.Background = Soft(Honey, 0.28);
+        var plaque = Frame(inner, new Thickness(10 * U, 8 * U, 10 * U, 6 * U));
+        plaque.Margin = new Thickness(0, 12, 0, 0);
+        plaque.Cursor = System.Windows.Input.Cursors.Hand;
+        plaque.ToolTip = Tip("Всички завършени проекти – цъкни");
         TaskCards.Clickable(plaque, () => CompletedProjectsWindow.Show(_pet, this));
         _doneProjectsBox.Children.Add(plaque);
     }
