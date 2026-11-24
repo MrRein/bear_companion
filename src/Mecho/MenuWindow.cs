@@ -1844,31 +1844,17 @@ public sealed class MenuWindow : Window
         {
             var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == g.Key);
             int n = g.Count();
-            // Рамката: 1 – дърво, 2–3 – сребро, 4–5 – злато, 6+ – лилаво.
-            var edge = new SolidColorBrush(n >= 6 ? Color.FromRgb(140, 70, 180) : n >= 4 ? Color.FromRgb(214, 160, 30) : n >= 2 ? Color.FromRgb(160, 172, 188) : Color.FromRgb(139, 100, 62));
-            var ic = Icon(def?.Icon ?? "star", 2);
-            ic.HorizontalAlignment = HorizontalAlignment.Center;
+            // Просто иконката на вида (по-голяма, без рамка) и „×N“ до нея, ако е 2+.
+            var tile = new StackPanel { Orientation = Orientation.Horizontal };
+            var ic = Icon(def?.Icon ?? "star", 3);
             ic.VerticalAlignment = VerticalAlignment.Center;
-            var tile = new Grid { Width = 38 * U, Height = 38 * U };
-            tile.Children.Add(new Border
-            {
-                BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(3), Background = Cream,
-                Child = new Border
-                {
-                    BorderBrush = edge, BorderThickness = new Thickness(Math.Max(2, P)), Background = Soft(edge, 0.18),
-                    Child = new Grid { Children = { new Border { Height = Math.Max(1, P / 2), VerticalAlignment = VerticalAlignment.Top, Background = new SolidColorBrush(Color.FromArgb(110, 255, 255, 255)) }, ic } },
-                },
-            });
+            tile.Children.Add(ic);
             if (n >= 2)
-                tile.Children.Add(new Border
-                {
-                    Background = Ink, CornerRadius = new CornerRadius(3), Padding = new Thickness(3 * U, 0, 3 * U, 1 * U),
-                    HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, -5 * U, -5 * U),
-                    Child = new TextBlock { Text = "×" + n, Foreground = Brushes.White, FontWeight = FontWeights.Bold, FontSize = Math.Max(9, 11 * U) },
-                });
+                tile.Children.Add(new TextBlock { Text = "×" + n, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(3 * U, 0, 0, 0) });
             string last = g.Last().Name;
             tile.ToolTip = Tip($"{def?.Kind ?? g.Key}: {n}" + (last.Length > 0 ? $" – последният „{last}“" : ""));
-            tile.Margin = new Thickness(0, 0, 12 * U, 4 * U);
+            tile.Margin = new Thickness(0, 0, 14 * U, 2 * U);
+            tile.Background = Brushes.Transparent;
             badges.Children.Add(tile);
         }
         inner.Children.Add(badges);
