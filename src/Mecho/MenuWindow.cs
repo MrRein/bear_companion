@@ -1827,14 +1827,15 @@ public sealed class MenuWindow : Window
         // Цъкаш – вътре са всички проекти.
         if (_doneTitle != null) _doneTitle.Visibility = Visibility.Collapsed;
         // [купа] Завършени проекти – на един ред; отдолу – броят.
-        var inner = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var inner = new StackPanel { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Center };
         var head = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
         var cup = Icon("trophy", 2);
         cup.VerticalAlignment = VerticalAlignment.Center;
         cup.Margin = new Thickness(0, 0, 6 * U, 0);
         head.Children.Add(cup);
         head.Children.Add(new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
-        inner.Children.Add(head);
+        // В тясна колона – смалява се, вместо да се реже.
+        inner.Children.Add(new Viewbox { Child = head, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Center });
         inner.Children.Add(new TextBlock { Text = list.Count.ToString(), FontWeight = FontWeights.Bold, FontSize = Ui.Title * 1.6, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4 * U, 0, 0) });
         var plaque = new Border
         {
