@@ -1838,7 +1838,7 @@ public sealed class MenuWindow : Window
         }
         var inner = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         row.Children.Add(inner);
-        inner.Children.Add(new TextBlock { Text = $"Завършени · {list.Count}", FontWeight = FontWeights.Bold, FontSize = Ui.Title });
+        inner.Children.Add(new TextBlock { Text = $"Завършени · {list.Count}", FontWeight = FontWeights.Bold, FontSize = Ui.Title, TextWrapping = TextWrapping.Wrap });
         var badges = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6 * U, 0, 0) };
         foreach (var g in list.GroupBy(f => f.Type).OrderByDescending(g => g.Count()))
         {
