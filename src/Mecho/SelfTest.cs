@@ -270,10 +270,20 @@ public sealed partial class PetWindow
             var bmp = new RenderTargetBitmap((int)Math.Ceiling(v.ActualWidth * dpi.DpiScaleX), (int)Math.Ceiling(v.ActualHeight * dpi.DpiScaleY),
                 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
             // През VisualBrush: част от прозореца се рисува от (0,0), а не на мястото си в прозореца.
-            var dv = new DrawingVisual();
-            using (var dc = dv.RenderOpen())
-                dc.DrawRectangle(new VisualBrush(v), null, new Rect(0, 0, v.ActualWidth, v.ActualHeight));
-            bmp.Render(dv);
+            // Цял прозорец – направо; част – през VisualBrush точно с размера ѝ (без разтягане).
+            if (VisualTreeHelper.GetParent(v) == null || v.Parent is Window) bmp.Render(v);
+            else
+            {
+                var dv = new DrawingVisual();
+                var brush = new VisualBrush(v)
+                {
+                    Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top,
+                    ViewboxUnits = BrushMappingMode.Absolute, Viewbox = new Rect(0, 0, v.ActualWidth, v.ActualHeight),
+                };
+                using (var dc = dv.RenderOpen())
+                    dc.DrawRectangle(brush, null, new Rect(0, 0, v.ActualWidth, v.ActualHeight));
+                bmp.Render(dv);
+            }
             var png = new PngBitmapEncoder();
             png.Frames.Add(BitmapFrame.Create(bmp));
             string dir = Path.Combine(SaveData.Folder, "shots");
