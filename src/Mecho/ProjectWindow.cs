@@ -740,7 +740,7 @@ internal sealed class CompletedProjectsWindow : FloatWindow
     {
         Title = "Завършени проекти";
         var head = new StackPanel { Orientation = Orientation.Horizontal };
-        var ic = Icon("star", 2);
+        var ic = Icon("trophy", 2);
         ic.VerticalAlignment = VerticalAlignment.Center;
         ic.Margin = new Thickness(0, 0, 8 * U, 0);
         head.Children.Add(ic);
