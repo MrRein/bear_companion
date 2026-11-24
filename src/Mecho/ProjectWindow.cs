@@ -768,47 +768,42 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == f.Type);
         var card = new StackPanel();
 
-        // Горе: трофеят, името и видът, датата.
-        var top = new DockPanel { LastChildFill = true };
-        var art = pet.TrophyArt(def, 3);
+        // Плочка: трофеят горе в средата, под него името, видът и датите.
+        var art = pet.TrophyArt(def, 4);
+        art.HorizontalAlignment = HorizontalAlignment.Center;
         art.VerticalAlignment = VerticalAlignment.Center;
-        var slot = new Border
+        card.Children.Add(new Border
         {
-            Background = MenuWindow.Soft(Honey, 0.45), BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(6 * U), Margin = new Thickness(0, 0, 10 * U, 0), Child = art, VerticalAlignment = VerticalAlignment.Top,
-        };
-        DockPanel.SetDock(slot, Dock.Left);
-        top.Children.Add(slot);
-        var title = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        title.Children.Add(new TextBlock { Text = f.Name.Length > 0 ? "„" + f.Name + "“" : f.Kind, FontWeight = FontWeights.Bold, FontSize = Ui.Title, TextWrapping = TextWrapping.Wrap });
-        title.Children.Add(new TextBlock { Text = f.Kind, Foreground = Muted });
+            Background = MenuWindow.Soft(Honey, 0.45), BorderBrush = Ink, BorderThickness = Flat, CornerRadius = new CornerRadius(5),
+            Width = 84 * U, Height = 84 * U, HorizontalAlignment = HorizontalAlignment.Center, Child = art,
+        });
+        card.Children.Add(new TextBlock
+        {
+            Text = f.Name.Length > 0 ? "„" + f.Name + "“" : f.Kind, FontWeight = FontWeights.Bold, FontSize = Ui.Title,
+            TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8 * U, 0, 0),
+        });
+        card.Children.Add(new TextBlock { Text = f.Kind, Foreground = Muted, TextAlignment = TextAlignment.Center });
         string when = f.Started.Length > 0 && f.DoneDay.Length > 0 ? $"{Day(f.Started)} – {Day(f.DoneDay)}" : f.Done;
-        title.Children.Add(new TextBlock { Text = when, Foreground = Muted, FontStyle = FontStyles.Italic });
-        top.Children.Add(title);
-        card.Children.Add(top);
+        if (when.Length > 0) card.Children.Add(new TextBlock { Text = when, Foreground = Muted, FontStyle = FontStyles.Italic, TextAlignment = TextAlignment.Center });
 
-        // Какво реши Тут (тема, герой…).
+        // Чертичка, после какво реши Тут (тема, герой…).
+        card.Children.Add(new Border { Height = Math.Max(1, P / 2), Background = MenuWindow.Soft(Ink, 0.2), Margin = new Thickness(10 * U, 8 * U, 10 * U, 6 * U) });
         var facts = f.Facts.Count > 0 ? f.Facts : new[] { ("Тема", f.Theme), ("Играчите", f.Goal), ("Главен герой", f.Hero) }
             .Where(x => x.Item2.Length > 0).Select(x => x.Item1 + ": " + x.Item2).ToList();
-        if (facts.Count > 0)
+        foreach (var fact in facts)
         {
-            var box = new WrapPanel { Margin = new Thickness(0, 8 * U, 0, 0) };
-            foreach (var fact in facts)
-            {
-                int c = fact.IndexOf(':');
-                var t = new TextBlock { Margin = new Thickness(0, 0, 14 * U, 2 * U) };
-                t.Inlines.Add(new System.Windows.Documents.Run((c > 0 ? fact[..(c + 1)] : "") + " ") { Foreground = Muted });
-                t.Inlines.Add(new System.Windows.Documents.Run(c > 0 ? fact[(c + 1)..].Trim() : fact) { FontWeight = FontWeights.Bold });
-                box.Children.Add(t);
-            }
-            card.Children.Add(box);
+            int c = fact.IndexOf(':');
+            var t = new TextBlock { TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 0, 0, 2 * U) };
+            t.Inlines.Add(new System.Windows.Documents.Run((c > 0 ? fact[..(c + 1)] : "") + " ") { Foreground = Muted });
+            t.Inlines.Add(new System.Windows.Documents.Run(c > 0 ? fact[(c + 1)..].Trim() : fact) { FontWeight = FontWeights.Bold });
+            card.Children.Add(t);
         }
 
-        // Статистиките (по-старите проекти ги нямат).
-        var stats = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(0, 8 * U, 0, 0) };
+        // Статистиките – по две в ред (по-старите проекти ги нямат).
+        var stats = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(0, 6 * U, 0, 0) };
         void Stat(string icon, string text)
         {
-            var row = new DockPanel { Margin = new Thickness(0, 2 * U, 8 * U, 2 * U), LastChildFill = true };
+            var row = new DockPanel { Margin = new Thickness(0, 2 * U, 6 * U, 2 * U), LastChildFill = true };
             var i = Icon(icon, 1);
             i.VerticalAlignment = VerticalAlignment.Center;
             i.Margin = new Thickness(0, 0, 6 * U, 0);
@@ -829,41 +824,16 @@ internal sealed class CompletedProjectsWindow : FloatWindow
         if (f.Nuts > 0) Stat("nut", $"{f.Nuts} лешника");
         if (stats.Children.Count > 0) card.Children.Add(stats);
 
-        // Ревютата (пише ги разработчикът в assets/reviews.txt под кода на проекта).
-        var reviews = Reviews.For(f.Id);
-        var rv = new StackPanel { Margin = new Thickness(0, 10 * U, 0, 0) };
-        rv.Children.Add(new TextBlock { Text = "Ревюта", FontWeight = FontWeights.Bold });
-        if (reviews.Count == 0)
-            rv.Children.Add(new TextBlock { Text = "Ревютата още се пишат…", Foreground = Muted, FontStyle = FontStyles.Italic });
-        foreach (var r in reviews)
-        {
-            var box = new Border
-            {
-                Background = MenuWindow.Soft(Ink, 0.06), CornerRadius = new CornerRadius(4), Padding = new Thickness(8 * U, 5 * U, 8 * U, 5 * U),
-                Margin = new Thickness(0, 4 * U, 0, 0),
-            };
-            var body = new StackPanel();
-            if (r.Author.Length > 0 || r.Stars > 0)
-            {
-                var head = new TextBlock();
-                if (r.Author.Length > 0) head.Inlines.Add(new System.Windows.Documents.Run(r.Author + "  ") { FontWeight = FontWeights.Bold });
-                if (r.Stars > 0) head.Inlines.Add(new System.Windows.Documents.Run(new string('★', r.Stars) + new string('☆', 5 - r.Stars)) { Foreground = Honey });
-                body.Children.Add(head);
-            }
-            body.Children.Add(new TextBlock { Text = r.Text, TextWrapping = TextWrapping.Wrap });
-            box.Child = body;
-            rv.Children.Add(box);
-        }
-        card.Children.Add(rv);
         card.Children.Add(new TextBlock
         {
             Text = $"Направихте го заедно – Мечо и {pet.Save.OwnerName}.",
-            FontStyle = FontStyles.Italic, Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8 * U, 0, 0),
+            FontStyle = FontStyles.Italic, Foreground = Muted, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center,
+            Margin = new Thickness(0, 8 * U, 0, 0),
         });
         return new Border
         {
             Background = MenuWindow.Soft(Honey, 0.15), BorderBrush = Honey, BorderThickness = new Thickness(Math.Max(2, P)), CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(10 * U, 8 * U, 10 * U, 8 * U), Margin = new Thickness(0, 0, 10 * U, 10 * U), Child = card,
+            Padding = new Thickness(12 * U, 10 * U, 12 * U, 10 * U), Margin = new Thickness(0, 0, 10 * U, 10 * U), Child = card,
         };
     }
 }
