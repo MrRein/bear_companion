@@ -990,17 +990,14 @@ public sealed class MenuWindow : Window
             col.Children.Add(text);
             stack = col;
         }
+        // Удивителният – картинката без балонче (assets/ui/no_bubble/emote_exclaim.png).
         t.Badge = new Border
         {
-            Background = Bad,
-            BorderBrush = Ink,
-            BorderThickness = Flat,
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(5 * U, 0, 5 * U, 1 * U),
+            Background = Brushes.Transparent,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
             Visibility = Visibility.Collapsed,
-            Child = new TextBlock { Text = "!", Foreground = Cream, FontWeight = FontWeights.Bold },
+            Child = Icon(ExclaimIcon, 1),
         };
         var grid = new Grid();
         grid.Children.Add(stack);
@@ -1978,7 +1975,7 @@ public sealed class MenuWindow : Window
         // Бутонът: целият проект (награда за вземане – по-видим).
         // Има нещо за правене вътре (сандъче, име, въпрос): медено, с „!“.
         bool todo = _pet.ProjectBlocked;
-        var open = Button("Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: todo, icon: todo ? "emote_exclaim" : "tasks");
+        var open = Button("Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: todo, icon: todo ? ExclaimIcon : "tasks");
         if (todo) open.ToolTip = Tip(claim ? "Чака те сандъче!" : "Мечо чака твоя отговор");
         open.Margin = new Thickness(0, 10 * U, 0, 0);
         open.Padding = new Thickness(8 * U, 5 * U, 8 * U, 6 * U);
@@ -3373,6 +3370,9 @@ public sealed class MenuWindow : Window
     private TextBlock? _wardrobeLockText;
 
     /// <summary>Самопроверка: „Проекти на Мечока“ (с рафта с трофеите) – в кадъра.</summary>
+    /// <summary>Удивителен за бутони (без балонче).</summary>
+    internal static readonly string ExclaimIcon = System.IO.Path.Combine("no_bubble", "emote_exclaim");
+
     internal FrameworkElement DoneProjectsBox => _doneProjectsBox;
 
     internal void SelfTestShowProjects()
