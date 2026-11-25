@@ -749,13 +749,29 @@ internal sealed class CompletedProjectsWindow : FloatWindow
     private CompletedProjectsWindow(PetWindow pet) : base(pet, "completed", 900 * U)
     {
         Title = "Завършени проекти";
+        // Горе: жълъдчето (наградата за проекти) и името му; рамката на прозореца е в неговия цвят.
+        string rank = pet.RankBadge;
         var head = new StackPanel { Orientation = Orientation.Horizontal };
-        var ic = Icon("trophy", 2);
+        var ic = Icon(rank.Length > 0 ? PetWindow.RankIcon(rank) : "trophy", 3);
         ic.VerticalAlignment = VerticalAlignment.Center;
-        ic.Margin = new Thickness(0, 0, 8 * U, 0);
+        ic.Margin = new Thickness(0, 0, 10 * U, 0);
+        if (rank.Length > 0) ic.ToolTip = Tip(PetWindow.RankName(rank) + " – награда за проект");
         head.Children.Add(ic);
-        head.Children.Add(new TextBlock { Text = $"Завършени проекти ({pet.Save.HallOfFame.Count})", FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
+        var titles = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        titles.Children.Add(new TextBlock { Text = $"Завършени проекти ({pet.Save.HallOfFame.Count})", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap });
+        if (rank.Length > 0) titles.Children.Add(new TextBlock { Text = PetWindow.RankName(rank), Foreground = Muted });
+        head.Children.Add(titles);
         Head.Children.Add(head);
+        if (rank.Length > 0 && Content is Border frame && frame.Child is Border card)
+        {
+            var (light, dark) = PetWindow.RankColors(rank);
+            frame.Child = null;
+            Content = new Border
+            {
+                Background = new SolidColorBrush(light), BorderBrush = new SolidColorBrush(dark), BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(8), Padding = new Thickness(5), Child = card,
+            };
+        }
 
         // Стари записи без код (за ревютата) – получават.
         foreach (var f in pet.Save.HallOfFame.Where(f => f.Id.Length == 0)) f.Id = Reviews.NewId(f.Type.Length > 0 ? f.Type : "project", pet.Save.HallOfFame);
