@@ -275,11 +275,7 @@ public sealed partial class PetWindow
             else
             {
                 var dv = new DrawingVisual();
-                var brush = new VisualBrush(v)
-                {
-                    Stretch = Stretch.Fill,
-                    ViewboxUnits = BrushMappingMode.Absolute, Viewbox = new Rect(0, 0, v.ActualWidth, v.ActualHeight),
-                };
+                var brush = new VisualBrush(v);
                 using (var dc = dv.RenderOpen())
                     dc.DrawRectangle(brush, null, new Rect(0, 0, v.ActualWidth, v.ActualHeight));
                 bmp.Render(dv);
