@@ -1828,10 +1828,10 @@ public sealed class MenuWindow : Window
         var row = new DockPanel { LastChildFill = true };
         if (_pet.RankBadge is { Length: > 0 } rank)
         {
-            var medal = Icon("rank_" + rank, 4);
+            var medal = Icon(PetWindow.RankIcon(rank), 4);
             medal.VerticalAlignment = VerticalAlignment.Center;
             medal.Margin = new Thickness(2 * U, 0, 10 * U, 0);
-            medal.ToolTip = Tip("Награда за проект");
+            medal.ToolTip = Tip(PetWindow.RankName(rank) + " – награда за проект");
             DockPanel.SetDock(medal, Dock.Left);
             row.Children.Add(medal);
             var (_, dashDark) = PetWindow.RankColors(rank);

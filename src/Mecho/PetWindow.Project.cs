@@ -192,32 +192,74 @@ public sealed partial class PetWindow
     }
 
     /// <summary>
-    /// Наградата за проекти – значка, която пада от финалното сандъче и сменя предишната.
-    /// Каква е – според броя завършени проекти: камък 1–3, бронз 4–6, сребро 7–10, злато 11–15,
-    /// изумруд 16–20, диамант 21–28, митрил 29+ (assets/ui/rank_*.png).
+    /// Наградата за проекти – жълъдче, което пада от финалното сандъче и сменя предишното.
+    /// 8 материала × 4 стъпки (I, II, III, ★): всеки завършен проект – една стъпка; Рубин е
+    /// по-бавен и Рубин ★ е на 36-ия проект (assets/ui/title_&lt;материал&gt;_&lt;1–4&gt;.png).
     /// </summary>
-    public static readonly (string Id, int From)[] RankTiers =
-        { ("stone", 1), ("bronze", 4), ("silver", 7), ("gold", 11), ("emerald", 16), ("diamond", 21), ("mythril", 29) };
-
-    /// <summary>Цветът на нивото (светлият тон за плочката, тъмният за рамката) – взети от медала.</summary>
-    public static (System.Windows.Media.Color Light, System.Windows.Media.Color Dark) RankColors(string id) => id switch
+    public static readonly (string Mat, string Name)[] RankMaterials =
     {
-        "stone" => (Rgb(176, 168, 160), Rgb(96, 84, 80)),
-        "bronze" => (Rgb(222, 132, 72), Rgb(110, 44, 20)),
-        "silver" => (Rgb(184, 204, 226), Rgb(84, 100, 120)),
-        "gold" => (Rgb(240, 192, 40), Rgb(124, 68, 0)),
-        "emerald" => (Rgb(96, 192, 96), Rgb(28, 76, 24)),
-        "diamond" => (Rgb(60, 200, 236), Rgb(0, 84, 116)),
-        "mythril" => (Rgb(196, 112, 212), Rgb(72, 20, 84)),
-        _ => (Rgb(240, 192, 40), Rgb(124, 68, 0)),
+        ("stone", "Каменно"), ("bronze", "Бронзово"), ("silver", "Сребърно"), ("gold", "Златно"),
+        ("emerald", "Емералдово"), ("diamond", "Диамантено"), ("amethyst", "Аметистово"), ("ruby", "Рубинено"),
+    };
+
+    public static readonly (string Id, int From)[] RankTiers = BuildRankTiers();
+
+    private static (string Id, int From)[] BuildRankTiers()
+    {
+        var list = new List<(string, int)>();
+        int from = 1;
+        foreach (var (mat, _) in RankMaterials)
+            for (int n = 1; n <= 4; n++)
+            {
+                list.Add(($"{mat}_{n}", from));
+                // Рубин: I – 29–30, II – 31–32, III – 33–35, ★ – 36.
+                from += mat == "ruby" ? n switch { 1 or 2 => 2, 3 => 3, _ => 1 } : 1;
+            }
+        return list.ToArray();
+    }
+
+    /// <summary>„Златно жълъдче II“.</summary>
+    public static string RankName(string id)
+    {
+        id = RankNormalize(id);
+        var parts = id.Split('_');
+        string mat = RankMaterials.FirstOrDefault(m => m.Mat == parts[0]).Name ?? "";
+        string step = parts.Length > 1 ? parts[1] switch { "1" => "I", "2" => "II", "3" => "III", _ => "★" } : "";
+        return $"{mat} жълъдче {step}".Trim();
+    }
+
+    /// <summary>Иконката на жълъдчето.</summary>
+    public static string RankIcon(string id) => "title_" + RankNormalize(id);
+
+    /// <summary>Стари значки (stone, bronze… mythril) – най-близкото жълъдче.</summary>
+    public static string RankNormalize(string id) =>
+        RankTiers.Any(t => t.Id == id) ? id : id switch
+        {
+            "stone" => "stone_1", "bronze" => "bronze_1", "silver" => "silver_1", "gold" => "gold_1",
+            "emerald" => "emerald_1", "diamond" => "diamond_1", "mythril" => "amethyst_1", _ => "stone_1",
+        };
+
+    /// <summary>Цветът на нивото (светлият тон за плочката, тъмният за рамката) – взети от жълъдчето.</summary>
+    public static (System.Windows.Media.Color Light, System.Windows.Media.Color Dark) RankColors(string id) => RankNormalize(id).Split('_')[0] switch
+    {
+        "stone" => (Rgb(176, 156, 128), Rgb(79, 66, 50)),
+        "bronze" => (Rgb(240, 150, 100), Rgb(96, 36, 23)),
+        "silver" => (Rgb(160, 192, 214), Rgb(50, 69, 76)),
+        "gold" => (Rgb(236, 176, 40), Rgb(90, 52, 4)),
+        "emerald" => (Rgb(90, 200, 70), Rgb(22, 65, 7)),
+        "diamond" => (Rgb(70, 214, 240), Rgb(4, 64, 73)),
+        "amethyst" => (Rgb(228, 110, 228), Rgb(63, 16, 69)),
+        "ruby" => (Rgb(240, 100, 110), Rgb(70, 14, 24)),
+        _ => (Rgb(236, 176, 40), Rgb(90, 52, 4)),
     };
 
     private static System.Windows.Media.Color Rgb(byte r, byte g, byte b) => System.Windows.Media.Color.FromRgb(r, g, b);
 
     public static string RankFor(int done) => done <= 0 ? "" : RankTiers.Last(t => done >= t.From).Id;
 
-    /// <summary>Сегашната значка (стари записи без нея – по броя завършени).</summary>
-    public string RankBadge => _save.RankBadge == "none" ? "" : _save.RankBadge.Length > 0 ? _save.RankBadge : RankFor(_save.HallOfFame.Count);
+    /// <summary>Сегашното жълъдче (стари записи – по броя завършени; старите значки – по броя).</summary>
+    public string RankBadge => _save.RankBadge == "none" ? "" :
+        RankTiers.Any(t => t.Id == _save.RankBadge) ? _save.RankBadge : RankFor(_save.HallOfFame.Count);
 
     /// <summary>Няма започнат проект (нов мечок или избира следващия).</summary>
     public bool NoProject => string.IsNullOrEmpty(_save.ProjectType);
@@ -657,7 +699,7 @@ public sealed partial class PetWindow
             "pajama" or "bg" or "theme" or "skin" => LootName(item),
             "name" => "Името (ти избираш)",
             "box" => CurrentProject.FinalLabel,
-            "rank" => "Награда за проект",
+            "rank" => RankName(id),
             _ => item,   // стар запис – вече е текст
         };
     }
@@ -676,7 +718,7 @@ public sealed partial class PetWindow
             "cloth" => Clothes.All.FirstOrDefault(g => g.Id == id) is { } g ? g.Slot.Icon : "shirt",
             "up" => "couch",
             "pajama" or "bg" or "theme" or "skin" => LootIcon(item),
-            "rank" => "rank_" + id,
+            "rank" => RankIcon(id),
             "name" => "pencil",
             "box" => "star",
             _ => "gift",
@@ -790,7 +832,7 @@ public sealed partial class PetWindow
                     _gotItems.Add(item);
                     continue;
                 case "rank":
-                    _save.RankBadge = id;
+                    _save.RankBadge = RankNormalize(id);
                     said.Add("награда за проект");
                     _gotItems.Add(item);
                     continue;

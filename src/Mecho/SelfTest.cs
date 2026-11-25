@@ -158,9 +158,14 @@ public static class SelfTest
             if (pet.ProjectTier(5) != 'X' || pet.ProjectTier(0) != 'N') throw new Exception("сандъчетата на зинчето: " + s.ProjectTiers);
             if (!pet.ProjectRewardPlan(0).Contains("up:" + Kitchen.Desk) || !pet.ProjectRewardPlan(1).Contains("up:" + Kitchen.Easel)
                 || !pet.ProjectRewardPlan(5).Contains("up:" + Kitchen.Wardrobe)) throw new Exception("наградите на зинчето");
-            if (!pet.ProjectRewardPlan(5).Contains("rank:stone")) throw new Exception("във финалното сандъче няма награда за проект (каменна значка)");
-            if (PetWindow.RankFor(1) != "stone" || PetWindow.RankFor(4) != "bronze" || PetWindow.RankFor(11) != "gold" || PetWindow.RankFor(40) != "mythril")
+            if (!pet.ProjectRewardPlan(5).Contains("rank:stone_1")) throw new Exception("във финалното сандъче няма награда за проект (каменно жълъдче I)");
+            if (PetWindow.RankFor(1) != "stone_1" || PetWindow.RankFor(4) != "stone_4" || PetWindow.RankFor(5) != "bronze_1" || PetWindow.RankFor(28) != "amethyst_4"
+                || PetWindow.RankFor(30) != "ruby_1" || PetWindow.RankFor(35) != "ruby_3" || PetWindow.RankFor(36) != "ruby_4" || PetWindow.RankFor(80) != "ruby_4")
                 throw new Exception("наградите за проекти по брой");
+            if (PetWindow.RankTiers.Length != 32 || PetWindow.RankName("gold_2") != "Златно жълъдче II" || PetWindow.RankNormalize("mythril") != "amethyst_1")
+                throw new Exception("жълъдчетата: имена/стари значки");
+            foreach (var (tid, _) in PetWindow.RankTiers)
+                if (!File.Exists(Path.Combine(AppContext.BaseDirectory, "assets", "ui", PetWindow.RankIcon(tid) + ".png"))) throw new Exception("липсва картинка " + tid);
             int pages = Enumerable.Range(0, 6).Sum(i => PetWindow.RewardItems(pet.ProjectRewardPlan(i)).Count(x => x == "page"));
             if (pages != 5) throw new Exception("страниците рецепта в зинчето: " + pages);
             // След първия проект – изборът е от всички видове.
@@ -2036,7 +2041,7 @@ public sealed partial class PetWindow
                 _menu!.SelfTestShowProjects();
                 Shot(_menu, "menu_projects");
                 // Плочката във всеки цвят на медала.
-                foreach (var (rid, _) in RankTiers)
+                foreach (var (rid, _) in RankTiers.Where(t => t.Id.EndsWith("_1")))
                 {
                     _save.RankBadge = rid;
                     _menu.SelfTestShowProjects();

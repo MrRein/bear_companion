@@ -140,7 +140,7 @@ public sealed class SaveData
     public string GameName { get; set; } = "";
     public string ProjectFanDay { get; set; } = "";
     public string ProjectNote { get; set; } = "";
-    public string RankBadge { get; set; } = "";                      // наградата за проекти (значка от финалното сандъче): stone…mythril
+    public string RankBadge { get; set; } = "";                      // наградата за проекти (жълъдче от финалното сандъче): stone_1…ruby_4
     public DateTime? ProjectStartedAt { get; set; }                 // кога е почнат сегашният проект
     public double ProjectWorkMinutes { get; set; }                  // работа по сегашния проект
     public int ProjectTasks { get; set; }                           // задачи по време на сегашния проект
