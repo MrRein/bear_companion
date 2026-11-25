@@ -990,15 +990,9 @@ public sealed class MenuWindow : Window
             col.Children.Add(text);
             stack = col;
         }
-        // Удивителният – картинката без балонче (assets/ui/no_bubble/emote_exclaim.png).
-        t.Badge = new Border
-        {
-            Background = Brushes.Transparent,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top,
-            Visibility = Visibility.Collapsed,
-            Child = Icon(ExclaimIcon, 1),
-        };
+        t.Badge = AlertBadge();
+        t.Badge.IsHitTestVisible = true;   // подсказката (защо) се слага по-късно
+        t.Badge.Visibility = Visibility.Collapsed;
         var grid = new Grid();
         grid.Children.Add(stack);
         grid.Children.Add(t.Badge);
@@ -1975,12 +1969,13 @@ public sealed class MenuWindow : Window
         // Бутонът: целият проект (награда за вземане – по-видим).
         // Има нещо за правене вътре (сандъче, име, въпрос): медено, с „!“.
         bool todo = _pet.ProjectBlocked;
-        var open = Button("Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: todo, icon: todo ? ExclaimIcon : "tasks");
-        if (todo) open.ToolTip = Tip(claim ? "Чака те сандъче!" : "Мечо чака твоя отговор");
+        var open = Button("Към проекта", () => ProjectWindow.Toggle(_pet, this), primary: todo, icon: "tasks");
+        string? openWhy = todo ? (claim ? "Чака те сандъче!" : "Мечо чака твоя отговор") : null;
+        if (openWhy != null) open.ToolTip = Tip(openWhy);
         open.Margin = new Thickness(0, 10 * U, 0, 0);
         open.Padding = new Thickness(8 * U, 5 * U, 8 * U, 6 * U);
         open.HorizontalAlignment = HorizontalAlignment.Stretch;
-        inner.Children.Add(open);
+        inner.Children.Add(WithAlert(open, todo, openWhy));
 
         _projectBox.Children.Add(new Border
         {
@@ -3370,8 +3365,36 @@ public sealed class MenuWindow : Window
     private TextBlock? _wardrobeLockText;
 
     /// <summary>Самопроверка: „Проекти на Мечока“ (с рафта с трофеите) – в кадъра.</summary>
-    /// <summary>Удивителен за бутони (без балонче).</summary>
-    internal static readonly string ExclaimIcon = System.IO.Path.Combine("no_bubble", "emote_exclaim");
+    /// <summary>
+    /// Знакът „има нещо за теб“ на бутон – еднакъв навсякъде: червено квадратче с „!“ в горния
+    /// десен ъгъл (бутонът е и меден). why – какво чака (при посочване).
+    /// </summary>
+    internal static Border AlertBadge(string? why = null) => new()
+    {
+        Background = Bad,
+        BorderBrush = Ink,
+        BorderThickness = Flat,
+        CornerRadius = new CornerRadius(3),
+        Padding = new Thickness(5 * U, 0, 5 * U, 1 * U),
+        HorizontalAlignment = HorizontalAlignment.Right,
+        VerticalAlignment = VerticalAlignment.Top,
+        IsHitTestVisible = why != null,
+        ToolTip = why != null ? Tip(why) : null,
+        Child = new TextBlock { Text = "!", Foreground = Cream, FontWeight = FontWeights.Bold },
+    };
+
+    /// <summary>Бутон със знака „!“ в ъгъла (ако need): връща контейнера за слагане в изгледа.</summary>
+    internal static FrameworkElement WithAlert(FrameworkElement button, bool need, string? why = null)
+    {
+        if (!need) return button;
+        var grid = new Grid { Margin = button.Margin, HorizontalAlignment = button.HorizontalAlignment, VerticalAlignment = button.VerticalAlignment };
+        button.Margin = new Thickness(0);
+        grid.Children.Add(button);
+        var badge = AlertBadge(why);
+        badge.Margin = new Thickness(0, -6 * U, -4 * U, 0);
+        grid.Children.Add(badge);
+        return grid;
+    }
 
     internal FrameworkElement DoneProjectsBox => _doneProjectsBox;
 
