@@ -1364,7 +1364,7 @@ public sealed class MenuWindow : Window
         _todayBox.Children.Add(new TextBlock { Text = "Активен", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
         _projectBox.Margin = new Thickness(0, 4, 0, 0);
         _todayBox.Children.Add(_projectBox);
-        _todayBox.Children.Add(_doneTitle = new TextBlock { Text = "Завършени проекти", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 12, 0, 0) });
+        _todayBox.Children.Add(_doneTitle = new TextBlock { Text = "Завършени", FontWeight = FontWeights.Bold, Foreground = Muted, Margin = new Thickness(2, 12, 0, 0) });
         _doneProjectsBox.Margin = new Thickness(0, 4, 0, 0);
         _todayBox.Children.Add(_doneProjectsBox);
         return _todayBox;
@@ -1808,7 +1808,7 @@ public sealed class MenuWindow : Window
         var list = _pet.Save.HallOfFame;
         // Още няма завършени: разделът изобщо го няма (без „Няма“).
         var vis = list.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (_doneTitle != null) _doneTitle.Visibility = Visibility.Collapsed;   // надписът е в самата плочка
+        if (_doneTitle != null) _doneTitle.Visibility = vis;
         _doneProjectsBox.Visibility = vis;
         // Целта (мисията) – отключва се след първия проект (нов мечок).
         var goalVis = _pet.MissionLocked ? Visibility.Collapsed : Visibility.Visible;
@@ -1823,48 +1823,71 @@ public sealed class MenuWindow : Window
             _doneProjectsBox.Children.Add(new TextBlock { Text = "Няма", Foreground = Muted, Margin = new Thickness(2, 0, 0, 0) });
             return;
         }
-        // Карта в стила на „Активен“ (бежова, с рамка), хоризонтално – за да запълва ширината:
-        // вляво голям медал (наградата за проекти, без рамка), вдясно „Завършени · брой“,
-        // значка за всеки вид проект („×N“ от 2 нагоре; рамката расте с броя) и последният проект.
+        // Плочката: вляво медалът, вертикален пунктир, вдясно „Общо: N“, малките иконки на
+        // видовете (с цифра в ъгъла от 2 нагоре) и последният проект („…“ ако е дълъг) – дата.
         var row = new DockPanel { LastChildFill = true };
         if (_pet.RankBadge is { Length: > 0 } rank)
         {
             var medal = Icon("rank_" + rank, 4);
             medal.VerticalAlignment = VerticalAlignment.Center;
-            medal.Margin = new Thickness(4 * U, 0, 14 * U, 0);
+            medal.Margin = new Thickness(2 * U, 0, 10 * U, 0);
             medal.ToolTip = Tip("Награда за проект");
             DockPanel.SetDock(medal, Dock.Left);
             row.Children.Add(medal);
+            var (_, dashDark) = PetWindow.RankColors(rank);
+            var dash = new System.Windows.Shapes.Line
+            {
+                X1 = 0, X2 = 0, Y1 = 0, Y2 = 1, Stretch = Stretch.Fill, Stroke = new SolidColorBrush(dashDark), StrokeThickness = 2,
+                StrokeDashArray = new DoubleCollection { 2, 2 }, VerticalAlignment = VerticalAlignment.Stretch,
+                Margin = new Thickness(0, 2 * U, 10 * U, 2 * U), Opacity = 0.6,
+            };
+            DockPanel.SetDock(dash, Dock.Left);
+            row.Children.Add(dash);
         }
         var inner = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         row.Children.Add(inner);
-        inner.Children.Add(new TextBlock { Text = $"Завършени · {list.Count}", FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap });
-        var badges = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6 * U, 0, 0) };
+        var total = new TextBlock { Foreground = Muted };
+        total.Inlines.Add(new System.Windows.Documents.Run("Общо: "));
+        total.Inlines.Add(new System.Windows.Documents.Run(list.Count.ToString()) { FontWeight = FontWeights.Bold, Foreground = Ink });
+        inner.Children.Add(total);
+        var badges = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4 * U, 0, 0) };
         foreach (var g in list.GroupBy(f => f.Type).OrderByDescending(g => g.Count()))
         {
             var def = PetWindow.ProjectDefs.FirstOrDefault(d => d.Id == g.Key);
             int n = g.Count();
-            // Просто иконката на вида (по-голяма, без рамка) и „×N“ до нея, ако е 2+.
-            var tile = new StackPanel { Orientation = Orientation.Horizontal };
-            var ic = Icon(def?.Icon ?? "star", 3);
-            ic.VerticalAlignment = VerticalAlignment.Center;
+            // Малка иконка на вида; от 2 нагоре – цифра в долния десен ъгъл.
+            var tile = new Grid { Background = Brushes.Transparent, Margin = new Thickness(0, 0, 8 * U, 2 * U) };
+            var ic = Icon(def?.Icon ?? "star", 2);
+            ic.Margin = new Thickness(0, 0, n >= 2 ? 6 * U : 0, n >= 2 ? 5 * U : 0);
             tile.Children.Add(ic);
             if (n >= 2)
-                tile.Children.Add(new TextBlock { Text = "×" + n, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(3 * U, 0, 0, 0) });
+                tile.Children.Add(new Border
+                {
+                    Background = Ink, CornerRadius = new CornerRadius(3), Padding = new Thickness(2 * U, 0, 2 * U, 0),
+                    HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
+                    Child = new TextBlock { Text = n.ToString(), Foreground = Cream, FontWeight = FontWeights.Bold },
+                });
             string last = g.Last().Name;
             tile.ToolTip = Tip($"{def?.Kind ?? g.Key}: {n}" + (last.Length > 0 ? $" – последният „{last}“" : ""));
-            tile.Margin = new Thickness(0, 0, 14 * U, 2 * U);
-            tile.Background = Brushes.Transparent;
             badges.Children.Add(tile);
         }
         inner.Children.Add(badges);
-        // Последният завършен проект – име и дата.
+        // Последният завършен проект: „име…“ – дата (датата винаги се вижда).
         var lastDone = list[^1];
-        var lastLine = new TextBlock { Foreground = Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4 * U, 0, 0) };
-        lastLine.Inlines.Add(new System.Windows.Documents.Run(lastDone.Name.Length > 0 ? $"„{lastDone.Name}“" : lastDone.Kind));
-        lastLine.ToolTip = Tip("Последният завършен проект");
-        if (DateTime.TryParse(lastDone.DoneDay, out var ld)) lastLine.Inlines.Add(new System.Windows.Documents.Run($" – {ld:d.MM}"));
-        inner.Children.Add(lastLine);
+        // Име и дата една до друга; ако не се събират – името се реже с „…“ (датата остава).
+        var lastRow = new Grid { Margin = new Thickness(0, 4 * U, 0, 0), ToolTip = Tip("Последният завършен проект: " + (lastDone.Name.Length > 0 ? lastDone.Name : lastDone.Kind)) };
+        var lastLine = new StackPanel { Orientation = Orientation.Horizontal };
+        var lastName = new TextBlock { Text = lastDone.Name.Length > 0 ? $"„{lastDone.Name}“" : lastDone.Kind, Foreground = Muted, TextTrimming = TextTrimming.CharacterEllipsis };
+        lastLine.Children.Add(lastName);
+        var lastDate = new TextBlock { Text = DateTime.TryParse(lastDone.DoneDay, out var ld) ? $" – {ld:d.MM}" : "", Foreground = Muted };
+        lastLine.Children.Add(lastDate);
+        lastRow.Children.Add(lastLine);
+        lastRow.SizeChanged += (_, e) =>
+        {
+            lastDate.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            lastName.MaxWidth = Math.Max(10, e.NewSize.Width - lastDate.DesiredSize.Width);
+        };
+        inner.Children.Add(lastRow);
 
         // Плочката е в цвета на медала (камък – сиво, бронз – меден… митрил – лилаво).
         var (rankLight, rankDark) = PetWindow.RankColors(_pet.RankBadge);
