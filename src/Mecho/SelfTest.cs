@@ -1741,6 +1741,12 @@ public sealed partial class PetWindow
             p.UpdateLayout();
             if (p.ColumnsShown != p.DayCount) throw new Exception("колоните не отговарят на дните след разширяване");
             if (p.VisibleCards(TaskToday) < 2) throw new Exception($"днес се виждат {p.VisibleCards(TaskToday)} картички");
+            if (p.TestBackShown()) throw new Exception("„Към днес“ се вижда, а сме на днес");
+            var (onDay, back) = p.TestWheelOneDay();
+            if (!onDay) throw new Exception("колелцето спря между дните");
+            if (!back) throw new Exception("един ден от днес, а „Към днес“ го няма");
+            p.TestScrollToDay(TaskToday);
+            p.UpdateLayout();
         }, 600);
         await step("задачи: подробности, стъпки, повторение, копие", () =>
         {

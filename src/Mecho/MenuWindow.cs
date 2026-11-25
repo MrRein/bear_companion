@@ -2089,7 +2089,17 @@ public sealed class MenuWindow : Window
         // Само за подменютата, които се строят веднъж (иначе всяко прерисуване оставя слушател завинаги).
         if (follow)
             System.ComponentModel.DependencyPropertyDescriptor.FromProperty(VisibilityProperty, typeof(UIElement))
-                .AddValueChanged(child, (_, _) => pocket.Visibility = child.Visibility);
+                .AddValueChanged(child, (_, _) =>
+                {
+                    bool opened = pocket.Visibility != Visibility.Visible && child.Visibility == Visibility.Visible;
+                    pocket.Visibility = child.Visibility;
+                    // Току-що отворено (Разходка, Приспи, Тихо…): превърта, за да се види целият избор.
+                    if (opened && IsVisible && !SelfTest.Running)
+                        Dispatcher.BeginInvoke(() =>
+                        {
+                            if (pocket.IsVisible) pocket.BringIntoView(new Rect(0, 0, pocket.ActualWidth, pocket.ActualHeight + 8 * U));
+                        }, System.Windows.Threading.DispatcherPriority.Loaded);
+                });
         return pocket;
     }
 

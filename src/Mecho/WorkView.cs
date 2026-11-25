@@ -475,7 +475,7 @@ public sealed class WorkView : Border
         ScrollTo(Math.Max(0, IndexOf(day) * Step - 26 * U), smooth);
     }
 
-    private void ScrollBy(int days) => ScrollTo((double.IsNaN(_target) ? _dayScroll.HorizontalOffset : _target) + days * Step, smooth: true);
+    private void ScrollBy(int days) => ScrollTo(DayOffset(DayAt(double.IsNaN(_target) ? _dayScroll.HorizontalOffset : _target) + days), smooth: true);
 
     private void ScrollTo(double offset, bool smooth)
     {
@@ -520,15 +520,39 @@ public sealed class WorkView : Border
             for (var d = e.OriginalSource as DependencyObject; d != null && d != _dayScroll; d = d is Visual ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
                 if (d is ScrollViewer inner && inner.ScrollableHeight > 0) return;
         }
-        ScrollTo((double.IsNaN(_target) ? _dayScroll.HorizontalOffset : _target) - e.Delta * 1.1, smooth: true);
+        WheelDays(-e.Delta);
         e.Handled = true;
     }
+
+    // ── Седмица: по цял ден (не застава между дните) ──
+    private int _wheelAcc;
+
+    /// <summary>Къде застава денят с номер i (вчерашният се подава отляво, както при „Към днес“).</summary>
+    private double DayOffset(int i) => Math.Max(0, i * Step - 26 * U);
+
+    /// <summary>Най-близкият ден до това място на лентата.</summary>
+    private int DayAt(double offset) => (int)Math.Round((offset + 26 * U) / Step);
+
+    /// <summary>Колелцето/тъчпадът: събира движението и мести по един ден (едно щракване – един ден).</summary>
+    private void WheelDays(int delta)
+    {
+        if (Math.Sign(delta) != Math.Sign(_wheelAcc)) _wheelAcc = 0;
+        _wheelAcc += delta;
+        int days = _wheelAcc / 90;
+        if (days == 0) return;
+        _wheelAcc -= days * 90;
+        double from = double.IsNaN(_target) ? _dayScroll.HorizontalOffset : _target;
+        ScrollTo(DayOffset(DayAt(from) + days), smooth: true);
+    }
+
+    /// <summary>След влачене – плавно до най-близкия цял ден.</summary>
+    private void SnapToDay() => ScrollTo(DayOffset(DayAt(_dayScroll.HorizontalOffset)), smooth: true);
 
     /// <summary>Тъчпадът и мишките с колелце встрани (WM_MOUSEHWHEEL – менюто го препраща).</summary>
     public void HorizontalWheel(int delta)
     {
         if (_view != View.Week) return;
-        ScrollTo((double.IsNaN(_target) ? _dayScroll.HorizontalOffset : _target) + delta * 1.1, smooth: true);
+        WheelDays(delta);
     }
 
     private bool _ready;              // лентата е на мястото си (след първото показване) – чак тогава расте
@@ -660,7 +684,11 @@ public sealed class WorkView : Border
         _panFrom = null;
         _panning = false;
         _dayScroll.Cursor = null;
-        if (was) _dayScroll.ReleaseMouseCapture();
+        if (was)
+        {
+            _dayScroll.ReleaseMouseCapture();
+            if (_view == View.Week) SnapToDay();
+        }
     }
 
     /// <summary>Може ли оттук да се влачат дните: не по задача, копче, поле за писане.</summary>
@@ -686,8 +714,11 @@ public sealed class WorkView : Border
             ? (a == b ? a.ToString("d MMMM yyyy", Bg) : $"{a.Day} – {b.ToString("d MMMM yyyy", Bg)}")
             : $"{a.ToString("d MMM", Bg)} – {b.ToString("d MMM yyyy", Bg)}";
         bool todayVisible = Today >= a && Today <= b;
+        // „Към днес“ – щом се отместиш от днес (дори с ден), не чак когато днес излезе от екрана.
+        double at = double.IsNaN(_target) ? _dayScroll.HorizontalOffset : _target;
+        bool onToday = Math.Abs(at - DayOffset(IndexOf(Today))) < Step * 0.5;
         _weekNav.Label.Text = _rangeLabel.Text;
-        _weekNav.Back.Visibility = todayVisible ? Visibility.Collapsed : Visibility.Visible;
+        _weekNav.Back.Visibility = onToday ? Visibility.Collapsed : Visibility.Visible;
         if (_backLeft != null && _backRight != null)
         {
             _backLeft.Visibility = !todayVisible && Today < a ? Visibility.Visible : Visibility.Collapsed;
@@ -3077,6 +3108,21 @@ public sealed class WorkView : Border
     internal void TestCalendarMode(int mode) { _calMode = mode; Refresh(true); }
     internal int TodayCards => FindCards(_todayPanel);
     internal void TestScrollToDay(DateTime day) => ScrollToDay(day, smooth: false);
+
+    /// <summary>Самопроверка: колелцето с едно щракване – след плавното движение е точно на цял ден, „Към днес“ се вижда.</summary>
+    internal (bool OnDay, bool BackShown) TestWheelOneDay()
+    {
+        WheelDays(120);
+        double target = _target;
+        ScrollTo(double.IsNaN(target) ? _dayScroll.HorizontalOffset : target, smooth: false);
+        UpdateLayout();
+        UpdateRangeLabel();
+        double at = _dayScroll.HorizontalOffset;
+        bool onDay = Math.Abs(at - DayOffset(DayAt(at))) < 1;
+        return (onDay, _weekNav.Back.Visibility == Visibility.Visible);
+    }
+
+    internal bool TestBackShown() { UpdateRangeLabel(); return _weekNav.Back.Visibility == Visibility.Visible; }
     internal void TestSelect(Guid? id) { if (id is { } x && _pet.Save.Tasks.FirstOrDefault(t => t.Id == x) is { } t) OpenCard(t); }
     internal void TestSide(string side) => OpenSide(side);
     internal void TestUndo() => Undo();
