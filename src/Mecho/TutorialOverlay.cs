@@ -23,6 +23,7 @@ public sealed class TutorialOverlay
     private readonly WrapPanel _buttons = new() { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
     private readonly DispatcherTimer _timer;
     private Func<Rect?> _target = () => null;
+    private Func<Rect?>? _area;
     private string? _place;
     private DateTime _fadeAt;
     private bool _placed;
@@ -85,9 +86,10 @@ public sealed class TutorialOverlay
         Show(text, target, new[] { (button, (Action)Stop, false) });
 
     /// <summary>Стъпка с бутони (напред, избор, „Стига“…). Бутон с Do = null – спира обиколката.</summary>
-    public void Show(string text, Func<Rect?> target, IReadOnlyList<(string Label, Action? Do, bool Primary)> buttons, string? place = null)
+    public void Show(string text, Func<Rect?> target, IReadOnlyList<(string Label, Action? Do, bool Primary)> buttons, string? place = null, Func<Rect?>? area = null)
     {
         _place = place;
+        _area = area;
         // Плавно: новото балонче изплува (не се появява рязко).
         _panel.BeginAnimation(UIElement.OpacityProperty, null);
         _panel.Opacity = 0;
@@ -142,7 +144,9 @@ public sealed class TutorialOverlay
         {
             if (_frame.IsVisible) _frame.Hide();
             _panel.UpdateLayout();
-            Glide(screen.Left + (screen.Width - _panel.ActualWidth) / 2, screen.Top + (screen.Height - _panel.ActualHeight) / 2);
+            // Нищо за ограждане (или е превъртяно навън): в средата на менюто, ако е отворено.
+            var c = _area?.Invoke() is Rect m && !m.IsEmpty ? m : screen;
+            Glide(c.Left + (c.Width - _panel.ActualWidth) / 2, c.Top + (c.Height - _panel.ActualHeight) / 2);
         }
         // Изплуване (за ~250 мс).
         _panel.Opacity = Math.Clamp((DateTime.Now - _fadeAt).TotalMilliseconds / 250, 0, 1);

@@ -133,9 +133,30 @@ public sealed partial class PetWindow
         return false;
     }
 
+    private bool _tutorialTaskJustAdded, _tutorialRewinding;
+
+    /// <summary>
+    /// Прозорчето „Нова задача“ се затвори, без да се добави задача: иначе урокът засяда (само
+    /// прозорчето може да се цъка) – връща се на „Хайде да добавим една задача“.
+    /// </summary>
+    private void TutorialNewTaskClosed()
+    {
+        if (_tutorialTaskJustAdded || _tutorialRewinding || TutorialNow is not { } st || !st.Target.StartsWith("newtask")) return;
+        int add = Array.FindIndex(TutorialSteps, x => x.Until == "newtask");
+        if (add < 0) return;
+        _tutorialRewinding = true;
+        Dispatcher.BeginInvoke(() =>
+        {
+            _tutorialRewinding = false;
+            if (TutorialNow is { } now && now.Target.StartsWith("newtask") && NewTaskWindow.Current == null && !_tutorialTaskJustAdded) StartTutorial(add);
+        });
+    }
+
     /// <summary>Самопроверка/прозорчето за задача: задачата е добавена (с график ли е).</summary>
     internal void TutorialTaskAdded(bool scheduled)
     {
+        _tutorialTaskJustAdded = true;
+        Later(2, () => _tutorialTaskJustAdded = false);
         _tutorialTaskScheduled = scheduled;
         TutorialEvent("taskadded");
     }
@@ -187,7 +208,8 @@ public sealed partial class PetWindow
             buttons.Add(("Стига", null, false));
             if (s.Next) buttons.Add((s.Button ?? "Напред →", () => TutorialEvent("next"), true));
         }
-        _tutorial.Show(step == 0 || s.Last ? text : text + $"  ({step}/{TutorialSteps.Length - 2})", () => TutorialTarget(target), buttons, s.Place);
+        _tutorial.Show(step == 0 || s.Last ? text : text + $"  ({step}/{TutorialSteps.Length - 2})", () => TutorialTarget(target), buttons, s.Place,
+            area: () => MenuIsOpen && target != "bear" ? _menu!.TutorialTarget("menu") : null);
         // Менюто – цялото на екрана, а нещото, за което се говори – превъртяно да се вижда.
         // Два пъти: веднага и след като новата страница се нарисува.
         if (MenuIsOpen && !target.StartsWith("newtask") && target is not ("bear" or "none"))
@@ -228,7 +250,12 @@ public sealed partial class PetWindow
     {
         if (target == "bear") return IsVisible ? _bearRect : null;
         if (target == "none") return null;
-        if (target.StartsWith("newtask")) return NewTaskWindow.Current?.TutorialTarget(target);
+        if (target.StartsWith("newtask"))
+        {
+            if (NewTaskWindow.Current is { } nw) return nw.TutorialTarget(target);
+            TutorialNewTaskClosed();
+            return null;
+        }
         if (!MenuIsOpen) return target == "menu" ? null : IsVisible ? _bearRect : null;   // менюто е затворено: пак към мечока
         return _menu!.TutorialTarget(target);
     }

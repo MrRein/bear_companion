@@ -258,6 +258,19 @@ public sealed partial class PetWindow
         return null;
     }
 
+    /// <summary>Всички елементи от вид T в прозореца (по визуалното дърво).</summary>
+    private static IEnumerable<T> FindAll<T>(DependencyObject root) where T : DependencyObject
+    {
+        var stack = new Stack<DependencyObject>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var d = stack.Pop();
+            if (d is T t) yield return t;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(d); i++) stack.Push(VisualTreeHelper.GetChild(d, i));
+        }
+    }
+
     private static void Shot(Window w, string name)
     {
         w.UpdateLayout();
@@ -2173,6 +2186,16 @@ public sealed partial class PetWindow
         await step("обиколка: край", () =>
         {
             if (_tutorialStep != TutorialSteps.Length - 1) throw new Exception("не стигна до последната стъпка: " + _tutorialStep);
+            // По време на урока менюто се мести и му се мени размерът (дръжката), но бутоните не се натискат.
+            if (_menu is { IsVisible: true } mw)
+            {
+                var grip = FindAll<System.Windows.Controls.Primitives.ResizeGrip>(mw).FirstOrDefault();
+                if (grip == null || !IsWindowChrome(grip, mw)) throw new Exception("урокът спира дръжката за размер на менюто");
+                var anyButton = FindAll<FrameworkElement>(mw).FirstOrDefault(f => f.Cursor == System.Windows.Input.Cursors.Hand && f.IsVisible);
+                if (anyButton != null && IsWindowChrome(anyButton, mw)) throw new Exception("урокът пуска бутоните като „рамка“");
+                var mover = FindAll<FrameworkElement>(mw).FirstOrDefault(f => f.Cursor == System.Windows.Input.Cursors.SizeAll);
+                if (mover == null || !IsWindowChrome(mover, mw)) throw new Exception("урокът спира местенето на менюто");
+            }
             StartTutorial(TutorialSteps.Length);    // „Да!“ на последната
             _menu?.Hide();
             if (!_save.TutorialDone || _tutorial is { IsShown: true }) throw new Exception("обиколката не се затвори");
