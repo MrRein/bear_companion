@@ -107,8 +107,30 @@ public sealed partial class PetWindow
         if (!TutorialRunning) return;
         var src = PresentationSource.FromVisual(w);
         if (src?.CompositionTarget == null) return;
+        // Местене, размер и превъртане – винаги може (не са част от урока).
+        if (!right && IsWindowChrome(e.OriginalSource as DependencyObject, w)) return;
         var dip = src.CompositionTarget.TransformFromDevice.Transform(w.PointToScreen(e.GetPosition(w)));
         if (!TutorialAllowsClick(dip, right, w)) e.Handled = true;
+    }
+
+    /// <summary>
+    /// Цъкането е по „рамката“ на прозореца: дръжката за размер, плъзгачът на превъртането,
+    /// дръжката на лентата вляво или празно място, което мести прозореца (курсор „местене“).
+    /// Бутон или нещо за цъкане по пътя нагоре – не е рамка.
+    /// </summary>
+    private static bool IsWindowChrome(DependencyObject? d, Window w)
+    {
+        for (; d != null && d != w; d = d is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D ? System.Windows.Media.VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
+        {
+            if (d is System.Windows.Controls.Primitives.ResizeGrip or System.Windows.Controls.Primitives.ScrollBar) return true;
+            if (d is System.Windows.Controls.Primitives.ButtonBase or System.Windows.Controls.TextBox) return false;
+            if (d is FrameworkElement fe && fe.Cursor is { } c)
+            {
+                if (c == System.Windows.Input.Cursors.Hand) return false;
+                if (c == System.Windows.Input.Cursors.SizeAll || c == System.Windows.Input.Cursors.SizeWE || c == System.Windows.Input.Cursors.SizeNWSE) return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>Самопроверка/прозорчето за задача: задачата е добавена (с график ли е).</summary>
@@ -166,6 +188,13 @@ public sealed partial class PetWindow
             if (s.Next) buttons.Add((s.Button ?? "Напред →", () => TutorialEvent("next"), true));
         }
         _tutorial.Show(step == 0 || s.Last ? text : text + $"  ({step}/{TutorialSteps.Length - 2})", () => TutorialTarget(target), buttons, s.Place);
+        // Менюто – цялото на екрана, а нещото, за което се говори – превъртяно да се вижда.
+        // Два пъти: веднага и след като новата страница се нарисува.
+        if (MenuIsOpen && !target.StartsWith("newtask") && target is not ("bear" or "none"))
+        {
+            _menu!.TutorialReveal(target);
+            Later(0.4, () => { if (_tutorialStep == step && MenuIsOpen) _menu!.TutorialReveal(target); });
+        }
         if (step > 0 && prev != step) Emote(s.Last ? "heart" : "idea", 2);
     }
 

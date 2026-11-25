@@ -201,6 +201,22 @@ public sealed class TutorialOverlay
         return new Rect(wa.Left / k, wa.Top / k, wa.Width / k, wa.Height / k);
     }
 
+    /// <summary>
+    /// Видимата част на елемента на екрана: отрязано по всички превъртания над него и по
+    /// прозореца (иначе квадратчето „виси във въздуха“ под края). null – не се вижда.
+    /// </summary>
+    public static Rect? VisibleRect(FrameworkElement? e)
+    {
+        if (ScreenRect(e) is not Rect r) return null;
+        for (DependencyObject? d = VisualTreeHelper.GetParent(e!); d != null; d = VisualTreeHelper.GetParent(d))
+        {
+            if (d is ScrollViewer sv && sv.ActualHeight > 0 && ScreenRect(sv) is Rect vp) r.Intersect(vp);
+            if (d is Window w && ScreenRect(w.Content as FrameworkElement) is Rect wr) r.Intersect(wr);
+            if (r.IsEmpty || r.Width < 2 || r.Height < 2) return null;
+        }
+        return r;
+    }
+
     /// <summary>Мястото на елемент от менюто на екрана (в DIP), или null, ако не се вижда.</summary>
     public static Rect? ScreenRect(FrameworkElement? e)
     {

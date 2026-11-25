@@ -67,16 +67,22 @@ public sealed class MenuWindow : Window
     private Border[] _fullBar = null!, _energyBar = null!;
     private FrameworkElement? _fullRow, _energyRow;
 
-    /// <summary>За обиколката: къде на екрана е нещото (лентите, таб, цялото меню).</summary>
+    /// <summary>За обиколката: къде на екрана е нещото (лентите, таб, цялото меню) – само видимата му част.</summary>
     internal Rect? TutorialTarget(string what)
     {
         if (what == "menu") return new Rect(Left, Top, ActualWidth, ActualHeight);
         if (what == "bars")
-            return TutorialOverlay.ScreenRect(_fullRow) is Rect a && TutorialOverlay.ScreenRect(_energyRow) is Rect b ? Rect.Union(a, b) : null;
-        if (what.StartsWith("tab:") && int.TryParse(what[4..], out int i) && i >= 0 && i < _tabButtons.Length)
-            return TutorialOverlay.ScreenRect(_tabButtons[i]);
-        if (what.StartsWith("nav:") && _navItems.TryGetValue(what[4..], out var nav)) return TutorialOverlay.ScreenRect(nav.Item);
-        FrameworkElement? e = what switch
+            return TutorialOverlay.VisibleRect(_fullRow) is Rect a && TutorialOverlay.VisibleRect(_energyRow) is Rect b ? Rect.Union(a, b) : null;
+        return TutorialOverlay.VisibleRect(TutorialElement(what));
+    }
+
+    /// <summary>Елементът за стъпката на обиколката (или null).</summary>
+    private FrameworkElement? TutorialElement(string what)
+    {
+        if (what == "bars") return _fullRow;
+        if (what.StartsWith("tab:") && int.TryParse(what[4..], out int i) && i >= 0 && i < _tabButtons.Length) return _tabButtons[i];
+        if (what.StartsWith("nav:")) return _navItems.TryGetValue(what[4..], out var nav) ? nav.Item : null;
+        return what switch
         {
             "nuts" => _nuts.Parent as FrameworkElement ?? _nuts,
             "diary" => _nowCard,
@@ -90,7 +96,34 @@ public sealed class MenuWindow : Window
             "timeline" => Work?.TodayTimeline,
             _ => null,
         };
-        return TutorialOverlay.ScreenRect(e);
+    }
+
+    /// <summary>
+    /// Обиколката: менюто изцяло на екрана, а нещото – превъртяно да се вижда (цялата страница –
+    /// от горе). Вика се в началото на стъпката (после може да превърташ сам).
+    /// </summary>
+    internal void TutorialReveal(string what)
+    {
+        var wa = SystemParameters.WorkArea;
+        double w = Math.Min(ActualWidth, wa.Width), h = Math.Min(ActualHeight, wa.Height);
+        if (ActualWidth > wa.Width) Width = w;
+        if (ActualHeight > wa.Height) Height = h;
+        double left = Math.Clamp(Left, wa.Left, Math.Max(wa.Left, wa.Right - w)), top = Math.Clamp(Top, wa.Top, Math.Max(wa.Top, wa.Bottom - h));
+        if (Math.Abs(left - Left) > 0.5) Left = left;
+        if (Math.Abs(top - Top) > 0.5) Top = top;
+        if (what == "menu") return;
+        var e = what == "bars" ? (FrameworkElement?)_fullRow?.Parent as FrameworkElement ?? _fullRow : TutorialElement(what);
+        if (e == null || !e.IsVisible) return;
+        UpdateLayout();
+        if (what == "page")
+        {
+            // Цялата страница: превърта най-горе (откъдето започва разглеждането).
+            for (DependencyObject? d = e; d != null; d = VisualTreeHelper.GetParent(d))
+                if (d is ScrollViewer sv) { sv.ScrollToTop(); break; }
+            return;
+        }
+        // Малко въздух около нещото (квадратчето и балончето да се събират).
+        e.BringIntoView(new Rect(-12 * U, -24 * U, e.ActualWidth + 24 * U, e.ActualHeight + 48 * U));
     }
     private TextBlock _fullText = null!, _energyText = null!, _mood = null!, _weather = null!;
     private StackPanel _weatherRow = null!;
