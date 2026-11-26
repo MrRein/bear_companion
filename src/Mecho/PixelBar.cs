@@ -81,8 +81,9 @@ public static class PixelBar
             }
             cx += cw + 1;
         }
-        // Заоблени ъгли: ъгловите пиксели – прозрачни.
-        px[0, 0] = px[w - 1, 0] = px[0, h - 1] = px[w - 1, h - 1] = null;
+        // Заоблени ъгли: ъгловите пиксели – прозрачни (малката на храната – само отдясно).
+        px[w - 1, 0] = px[w - 1, h - 1] = null;
+        if (!small) px[0, 0] = px[0, h - 1] = null;
 
         var bytes = new byte[w * h * 4];
         for (int y = 0; y < h; y++)
@@ -97,15 +98,16 @@ public static class PixelBar
         return Cache[key] = bmp;
     }
 
-    /// <summary>Пикселен „+“ (зелен) или „−“ (червен) с черен контур.</summary>
+    /// <summary>Мъничък пикселен „+“ (зелен) или „−“ (червен).</summary>
     public static BitmapSource Sign(bool minus)
     {
         string key = "sign|" + minus;
         if (Cache.TryGetValue(key, out var hit)) return hit;
+        // Мъничък: 3×3 „+“ и 3×1 „−“, без контур (тъмният тон – да се вижда).
         string[] rows = minus
-            ? new[] { "#####", "#ggg#", "#####" }
-            : new[] { ".###.", "##g##", "#ggg#", "##g##", ".###." };
-        var tone = minus ? Bad.Mid : Good.Mid;
+            ? new[] { "ggg" }
+            : new[] { ".g.", "ggg", ".g." };
+        var tone = minus ? Bad.Dark : Good.Dark;
         int w = rows[0].Length, h = rows.Length;
         var bytes = new byte[w * h * 4];
         for (int y = 0; y < h; y++)
