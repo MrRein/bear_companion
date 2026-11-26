@@ -2557,14 +2557,15 @@ public sealed class MenuWindow : Window
         i0.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(i0);
         // „+“ и зелени звена – колкото дава; „−“ и червени – колкото отнема (звено – 10, половинка – 5).
-        var sign = BarImage(PixelBar.Sign(minus));
-        sign.VerticalAlignment = VerticalAlignment.Center;
-        sign.Margin = new Thickness(0, 0, P, 0);
-        row.Children.Add(sign);
         int halves = Math.Clamp((int)Math.Round(Math.Abs(gain) / 5), 1, 20);
         var strip = BarImage(PixelBar.Small(halves, minus ? PixelBar.Bad : PixelBar.Good));
         strip.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(strip);
+        // „+“/„−“ – след звената.
+        var sign = BarImage(PixelBar.Sign(minus));
+        sign.VerticalAlignment = VerticalAlignment.Center;
+        sign.Margin = new Thickness(P, 0, 0, 0);
+        row.Children.Add(sign);
         double after = Math.Clamp(now + gain, 0, 100);
         row.ToolTip = Tip($"{(minus ? "−" : "+")}{Math.Round(Math.Abs(gain))} {what}: сега {Math.Round(now)}/100 → {Math.Round(after)}/100");
         return row;
