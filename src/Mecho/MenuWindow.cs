@@ -946,7 +946,7 @@ public sealed class MenuWindow : Window
         _weatherRow.Children.Add(_weatherIcon);
         _weatherRow.Children.Add(_weather);
         stats.Children.Add(_weatherRow);
-        _fullRow = (FrameworkElement)Bar("honey", "Ситост", out _fullBar, out _fullText);
+        _fullRow = (FrameworkElement)Bar("food", "Ситост", out _fullBar, out _fullText);
         _energyRow = (FrameworkElement)Bar("energy", "Енергия", out _energyBar, out _energyText);
         foreach (var row in new[] { _fullRow, _energyRow })
         {
@@ -2428,7 +2428,7 @@ public sealed class MenuWindow : Window
             // Какво дава: барчета – сегашното и (в мед) колко ще добави.
             var effects = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
             double full = Kitchen.FullnessOf(f, s);
-            if (f.Fullness >= 5) effects.Children.Add(GainOnly("honey", full, s.Fullness, "ситост"));
+            if (f.Fullness >= 5) effects.Children.Add(GainOnly("food", full, s.Fullness, "ситост"));
             if (f.Energy > 0) effects.Children.Add(GainOnly("energy", f.Energy, s.Energy, "енергия"));
 
             // Колко се готви: часовниче и общото време на всички уреди; ако са няколко –
