@@ -2496,17 +2496,10 @@ public sealed class MenuWindow : Window
             FontWeight = FontWeights.Bold,
             VerticalAlignment = VerticalAlignment.Center,
         });
-        for (int i = 0; i < need; i++)
-            row.Children.Add(new Border
-            {
-                Width = 3 * P,
-                Height = 4 * P,
-                Margin = new Thickness(0, 0, P, 0),
-                Background = i < s.RecipePages ? Honey : Empty,
-                BorderBrush = Ink,
-                BorderThickness = Flat,
-                VerticalAlignment = VerticalAlignment.Center,
-            }.Skinned(i < s.RecipePages ? "cell_honey" : "cell_empty"));
+        // Страниците – пикселни звена в мед (като лентите горе).
+        var pages = BarImage(PixelBar.Big(Math.Min(s.RecipePages, need) * 2, need, PixelBar.Honey));
+        pages.VerticalAlignment = VerticalAlignment.Center;
+        row.Children.Add(pages);
         row.Children.Add(new TextBlock { Text = $"  {s.RecipePages}/{need} страници", VerticalAlignment = VerticalAlignment.Center });
         // Обяснението е само на (?): трябва да задържиш мишката върху него.
         var help = new TextBlock { Text = "  (?)", Foreground = Muted, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Help, Background = Brushes.Transparent };
