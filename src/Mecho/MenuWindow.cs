@@ -2282,10 +2282,15 @@ public sealed class MenuWindow : Window
     private static UIElement Bar(string icon, string label, out Border[] segments, out TextBlock value)
     {
         var grid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130 * U) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.Children.Add(IconText(icon, label, bold: true));
+        // Само иконката (думата „Ситост“/„Енергия“ – при посочване).
+        var ic = Icon(icon);
+        ic.VerticalAlignment = VerticalAlignment.Center;
+        ic.Margin = new Thickness(0, 0, 6 * U, 0);
+        ic.ToolTip = Tip(label);
+        grid.Children.Add(ic);
 
         var track = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         segments = new Border[Segments];
@@ -2569,7 +2574,7 @@ public sealed class MenuWindow : Window
     }
 
     /// <summary>
-    /// Какво дава храната: иконка, толкова звена, колкото добавя (едно звено – 10), и „+N“.
+    /// Какво дава храната: иконка и толкова звена, колкото добавя (едно звено – 10).
     /// Посочиш ли – сега колко е и колко ще стане.
     /// </summary>
     private static UIElement GainOnly(string icon, double gain, double now, string what)
@@ -2588,7 +2593,6 @@ public sealed class MenuWindow : Window
                 BorderBrush = Ink, BorderThickness = Flat, Background = MakeGainHatch(),
             });
         row.Children.Add(strip);
-        row.Children.Add(new TextBlock { Text = "+" + Math.Round(gain), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(5, 0, 0, 0) });
         double after = Math.Min(100, now + gain);
         row.ToolTip = Tip($"+{Math.Round(gain)} {what}: сега {Math.Round(now)}/100 → {Math.Round(after)}/100");
         return row;
