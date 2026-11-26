@@ -64,7 +64,7 @@ public sealed class MenuWindow : Window
         box.MouseLeftButtonUp += (_, _) => _pet.NextBackdrop();
         return box;
     }
-    private Border[] _fullBar = null!, _energyBar = null!;
+    private Image _fullBar = null!, _energyBar = null!;
     private FrameworkElement? _fullRow, _energyRow;
 
     /// <summary>За обиколката: къде на екрана е нещото (лентите, таб, цялото меню) – само видимата му част.</summary>
@@ -2279,7 +2279,7 @@ public sealed class MenuWindow : Window
         return b;
     }
 
-    private static UIElement Bar(string icon, string label, out Border[] segments, out TextBlock value)
+    private static UIElement Bar(string icon, string label, out Image segments, out TextBlock value)
     {
         var grid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -2292,28 +2292,10 @@ public sealed class MenuWindow : Window
         ic.ToolTip = Tip(label);
         grid.Children.Add(ic);
 
-        var track = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        segments = new Border[Segments];
-        for (int i = 0; i < Segments; i++)
-        {
-            // Деленце от пиксели на храната; съседните делят един контур (отрицателно поле).
-            segments[i] = new Border
-            {
-                Width = 5 * P,
-                Height = 6 * P,
-                Margin = new Thickness(0, 0, i < Segments - 1 ? -P : 0, 0),
-                BorderBrush = Ink,
-                BorderThickness = Flat,
-                Background = Empty,
-                Child = Shine(),      // горният пиксел – по-светъл (като на храната)
-            };
-            if (UiSkin.Has("cell_empty"))
-            {
-                segments[i].Child = null;
-                UiSkin.Set(segments[i], "cell_empty");
-            }
-            track.Children.Add(segments[i]);
-        }
+        // Лентата – пикселна картинка (PixelBar): обща рамка със заоблени ъгли, звена с половинки.
+        var track = BarImage(PixelBar.Big(0, Segments, PixelBar.Empty));
+        track.VerticalAlignment = VerticalAlignment.Center;
+        segments = track;
         Grid.SetColumn(track, 1);
         grid.Children.Add(track);
 
@@ -2325,33 +2307,24 @@ public sealed class MenuWindow : Window
         return grid;
     }
 
-    /// <summary>Цветът на ниво 1–10: червено → жълто → зелено (без спрайтовете).</summary>
-    private static Brush LevelColour(int level)
+    /// <summary>Пикселна картинка в мащаба на иконките (рязка).</summary>
+    private static Image BarImage(BitmapSource bmp)
     {
-        var bad = (Bad as SolidColorBrush)?.Color ?? Colors.IndianRed;
-        var okay = (Okay as SolidColorBrush)?.Color ?? Colors.Goldenrod;
-        var good = (Good as SolidColorBrush)?.Color ?? Colors.ForestGreen;
-        double t = (level - 1) / 9.0;
-        var (a, b, k) = t < 0.5 ? (bad, okay, t * 2) : (okay, good, (t - 0.5) * 2);
-        byte L(byte x, byte y) => (byte)Math.Round(x + (y - x) * k);
-        return new SolidColorBrush(Color.FromRgb(L(a.R, b.R), L(a.G, b.G), L(a.B, b.B)));
+        var img = new Image { Source = bmp, Width = bmp.PixelWidth * P, Height = bmp.PixelHeight * P, Stretch = Stretch.Fill, SnapsToDevicePixels = true };
+        RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.NearestNeighbor);
+        return img;
     }
 
-    private static void SetBar(Border[] segments, TextBlock text, double value, string word)
+    /// <summary>Лентата: колко половинки са пълни (закръглено до половин звено), цветът – по нивото.</summary>
+    private static void SetBar(Image bar, TextBlock text, double value, string word)
     {
-        int filled = (int)Math.Ceiling(Math.Clamp(value, 0, 100) / 100 * segments.Length - 0.01);
-        // Всяко ниво – свой цвят: 1 звено – червено … 10 – зелено (cell_l1…cell_l10).
-        int level = Math.Clamp(filled, 1, 10);
-        var colour = LevelColour(level);
-        string cell = UiSkin.Has("cell_l" + level) ? "cell_l" + level : value >= 50 ? "cell_good" : value >= 25 ? "cell_okay" : "cell_bad";
-        for (int i = 0; i < segments.Length; i++)
-        {
-            if (UiSkin.Get(segments[i]) != null) UiSkin.Set(segments[i], i < filled ? cell : "cell_empty");
-            else segments[i].Background = i < filled ? colour : Empty;
-        }
+        int halves = (int)Math.Round(Math.Clamp(value, 0, 100) / 100 * Segments * 2);
+        if (value > 0 && halves == 0) halves = 1;   // нещичко има – поне половинка
+        var bmp = PixelBar.Big(halves, Segments, PixelBar.Level((halves + 1) / 2));
+        if (!ReferenceEquals(bar.Source, bmp)) bar.Source = bmp;
         if (text.Text == word) return;
         text.Text = word;
-        if (text.Parent is FrameworkElement bar) bar.ToolTip = Tip(char.ToUpper(word[0]) + word[1..]);
+        if (text.Parent is FrameworkElement row) row.ToolTip = Tip(char.ToUpper(word[0]) + word[1..]);
     }
 
     // ───────────────────────── Храна ─────────────────────────
@@ -2570,22 +2543,6 @@ public sealed class MenuWindow : Window
 
     private static Brush? GainHatch;
 
-    /// <summary>
-    /// „Толкова ще добави“: ясно синьо с по-светло петънце горе (различно от зеленото,
-    /// жълтото и червеното на сегашното ниво и от празното).
-    /// </summary>
-    private static Brush MakeGainHatch()
-    {
-        if (GainHatch != null) return GainHatch;
-        var g = new DrawingGroup();
-        g.Children.Add(new GeometryDrawing(new SolidColorBrush(Color.FromRgb(0x3E, 0x8E, 0xDE)), null, new RectangleGeometry(new Rect(0, 0, 4, 4))));
-        g.Children.Add(new GeometryDrawing(new SolidColorBrush(Color.FromRgb(0x9C, 0xD2, 0xFF)), null, new RectangleGeometry(new Rect(0, 0, 4, 1))));
-        var brush = new DrawingBrush(g) { Stretch = Stretch.Fill };
-        RenderOptions.SetBitmapScalingMode(brush, BitmapScalingMode.NearestNeighbor);
-        RenderOptions.SetEdgeMode(brush, EdgeMode.Aliased);
-        brush.Freeze();
-        return GainHatch = brush;
-    }
 
     /// <summary>
     /// Какво дава храната: иконка, „+“ и зелени звена (или „−“ и червени – колко отнема); едно звено – 10.
@@ -2599,26 +2556,14 @@ public sealed class MenuWindow : Window
         i0.Margin = new Thickness(0, 0, 4, 0);
         i0.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(i0);
-        // „+“ и зелени звена – колкото дава; „−“ и червени – колкото отнема (едно звено – 10).
-        row.Children.Add(new TextBlock
-        {
-            Text = minus ? "−" : "+", FontWeight = FontWeights.Bold, Foreground = minus ? Bad : Good,
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 3, 0),
-        });
-        int cells = Math.Clamp((int)Math.Ceiling(Math.Abs(gain) / 10 - 0.01), 1, 10);
-        var strip = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        for (int i = 0; i < cells; i++)
-        {
-            var c = new Border
-            {
-                Width = 5 * P, Height = 6 * P, Margin = new Thickness(0, 0, i < cells - 1 ? -P : 0, 0),
-                BorderBrush = Ink, BorderThickness = Flat, Background = minus ? Bad : Good,
-            };
-            string sprite = minus ? "cell_bad" : "cell_good";
-            if (UiSkin.Has(sprite)) UiSkin.Set(c, sprite);
-            else c.Child = Shine();
-            strip.Children.Add(c);
-        }
+        // „+“ и зелени звена – колкото дава; „−“ и червени – колкото отнема (звено – 10, половинка – 5).
+        var sign = BarImage(PixelBar.Sign(minus));
+        sign.VerticalAlignment = VerticalAlignment.Center;
+        sign.Margin = new Thickness(0, 0, P, 0);
+        row.Children.Add(sign);
+        int halves = Math.Clamp((int)Math.Round(Math.Abs(gain) / 5), 1, 20);
+        var strip = BarImage(PixelBar.Small(halves, minus ? PixelBar.Bad : PixelBar.Good));
+        strip.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(strip);
         double after = Math.Clamp(now + gain, 0, 100);
         row.ToolTip = Tip($"{(minus ? "−" : "+")}{Math.Round(Math.Abs(gain))} {what}: сега {Math.Round(now)}/100 → {Math.Round(after)}/100");
