@@ -266,12 +266,19 @@ public sealed partial class PetWindow
         Persist();
     }
 
+    /// <summary>Колко пъти по-бързо пада енергията късно вечер (23–5 ч), докато е буден.</summary>
+    internal const double LateNightDrain = 3;
+
+    internal static bool IsLateNight(DateTime t) => t.Hour >= 23 || t.Hour < 5;
+
     /// <summary>Вика се от UpdateCare: мени енергията и следи ситуациите през деня.</summary>
     private void UpdateEnergy(double dt, double now)
     {
         double rate = EnergyRate();
         // Събитията (болен ден…) може да ускорят умората: Mods.EnergyDrain в ядрото.
         if (rate < 0) rate *= CoreEngine.Modifiers.Get(Mecho.Core.Mods.EnergyDrain);
+        // Късно е (23–5 ч) и е буден: уморява се много по-бързо – кафето не замества съня.
+        if (rate < 0 && IsLateNight(DateTime.Now)) rate *= LateNightDrain;
         double e = _save.Energy;
         if (rate > 0) e = Math.Max(e, Math.Min(EnergyCap, e + rate * dt / 3600));
         else e += rate * dt / 3600;
