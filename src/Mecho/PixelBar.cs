@@ -19,7 +19,7 @@ public static class PixelBar
     private static Color C(byte r, byte g, byte b) => Color.FromRgb(r, g, b);
 
     public static readonly Color Outline = C(13, 18, 28);
-    public static readonly Tone Empty = new(C(190, 181, 165), C(174, 158, 132), C(142, 130, 110));
+    public static readonly Tone Empty = new(C(230, 216, 192), C(214, 190, 150), C(174, 156, 126));   // като старите празни звена
     public static readonly Tone Good = new(C(178, 215, 155), C(126, 188, 89), C(103, 154, 77));
     public static readonly Tone Okay = new(C(246, 210, 144), C(240, 180, 70), C(195, 148, 62));
     public static readonly Tone Honey = new(C(255, 227, 163), C(255, 209, 102), C(207, 171, 87));
