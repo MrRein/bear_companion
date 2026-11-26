@@ -2396,6 +2396,12 @@ public sealed class MenuWindow : Window
         UniformGrid? grid = null;
         string? section = null;
         bool sections = _foodCat == "Всичко";
+        if (sections)
+        {
+            var order = Kitchen.Categories.ToList();
+            shown = shown.Select((f, i) => (f, i)).OrderBy(x => order.IndexOf(Kitchen.CategoryOf(x.f)) is var k && k < 0 ? int.MaxValue : k)
+                .ThenBy(x => x.i).Select(x => x.f).ToList();
+        }
         foreach (var food in shown)
         {
             var f = food;
