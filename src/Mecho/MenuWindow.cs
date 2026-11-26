@@ -130,7 +130,22 @@ public sealed class MenuWindow : Window
     private readonly Border _weatherIcon = new() { VerticalAlignment = VerticalAlignment.Center };
     private string? _weatherIconName;
     // Мрежа по 3: всички плочки в един ред са еднакво високи, бутоните са на една линия.
-    private readonly UniformGrid _foodTiles = new() { Columns = 3 };
+    /// <summary>Храните: раздели (в „Всичко“ – по вид, всеки от нов ред), всеки с мрежа от плочки.</summary>
+    private readonly StackPanel _foodTiles = new();
+    private int _foodCols = 3;
+
+    /// <summary>Колко колони храни се събират: широко меню – още колони, не разтеглени плочки.</summary>
+    private void UpdateFoodColumns()
+    {
+        double w = _foodTiles.ActualWidth;
+        if (w <= 0) return;
+        int cols = Math.Clamp((int)(w / (175 * U)), 3, 8);
+        if (cols == _foodCols) return;
+        _foodCols = cols;
+        foreach (var g in _foodTiles.Children.OfType<UniformGrid>()) g.Columns = cols;
+    }
+
+    private UniformGrid NewFoodGrid() => new() { Columns = _foodCols };
     private readonly StackPanel _shopTiles = new();   // раздели: кухня, за почивка, подобрения
     private TextBlock _foodInfo = null!, _shopInfo = null!;
     private readonly StackPanel _wardrobeShelves = new();
@@ -2334,6 +2349,7 @@ public sealed class MenuWindow : Window
         _foodCats.Margin = new Thickness(0, 0, 0, 8 * U);
         p.Children.Add(_foodCats);
         p.Children.Add(_foodTiles);
+        _foodTiles.SizeChanged += (_, _) => UpdateFoodColumns();
         return TabScroll(p, 560 * U);
     }
 
@@ -2376,18 +2392,33 @@ public sealed class MenuWindow : Window
         // Само научените рецепти (боровинките винаги); новите идват от страници.
         var shown = _foodCat == Wish ? wishes.ToList()
             : known.Where(f => _foodCat == "Всичко" || Kitchen.CategoryOf(f) == _foodCat).ToList();
+        // „Всичко“: по раздели (Манджи, Закуски…), всеки от нов ред със заглавие – по-лесно се следи.
+        UniformGrid? grid = null;
+        string? section = null;
+        bool sections = _foodCat == "Всичко";
         foreach (var food in shown)
         {
             var f = food;
             int cost = Kitchen.CostOf(f, s);
+            string cat = sections ? Kitchen.CategoryOf(f) : "";
+            if (grid == null || cat != section)
+            {
+                if (sections)
+                    _foodTiles.Children.Add(new TextBlock
+                    {
+                        Text = cat, FontWeight = FontWeights.Bold, Foreground = Muted,
+                        Margin = new Thickness(2 * U, _foodTiles.Children.Count == 0 ? 0 : 8 * U, 0, 4 * U),
+                    });
+                grid = NewFoodGrid();
+                _foodTiles.Children.Add(grid);
+                section = cat;
+            }
 
             // Какво дава: барчета – сегашното и (в мед) колко ще добави.
             var effects = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
             double full = Kitchen.FullnessOf(f, s);
-            if (f.Fullness >= 5) effects.Children.Add(GainBar("honey", s.Fullness, Math.Min(100, s.Fullness + full), "ситост"));
-            if (f.Energy > 0)
-                effects.Children.Add(GainBar("energy", s.Energy, Kitchen.EnergyAfter(s.Energy, f.Energy), "енергия",
-                    s.Energy >= Kitchen.FoodEnergyCap ? "Догоре – само със сън." : "Догоре – само със сън."));
+            if (f.Fullness >= 5) effects.Children.Add(GainOnly("honey", full, s.Fullness, "ситост"));
+            if (f.Energy > 0) effects.Children.Add(GainOnly("energy", f.Energy, s.Energy, "енергия"));
 
             // Колко се готви: часовниче и общото време на всички уреди; ако са няколко –
             // при посочване пише всеки уред с неговото време.
@@ -2439,7 +2470,7 @@ public sealed class MenuWindow : Window
                 }
             }
             // Сърчице горе вдясно в картинката: това му се яде.
-            _foodTiles.Children.Add(MakeTile(WithShadow(_pet.FoodMenuImage(f)), f.Name, effects, action, locked, why, heart: wishes.Contains(f)));
+            grid.Children.Add(MakeTile(WithShadow(_pet.FoodMenuImage(f)), f.Name, effects, action, locked, why, heart: wishes.Contains(f), artWidth: 120 * U));
         }
         BuildRecipeProgress();
     }
@@ -2531,43 +2562,29 @@ public sealed class MenuWindow : Window
         return GainHatch = brush;
     }
 
-    private static UIElement GainBar(string icon, double now, double after, string what, string? note = null)
+    /// <summary>
+    /// Какво дава храната: иконка, толкова звена, колкото добавя (едно звено – 10), и „+N“.
+    /// Посочиш ли – сега колко е и колко ще стане.
+    /// </summary>
+    private static UIElement GainOnly(string icon, double gain, double now, string what)
     {
-        const int segments = 10;
-        int have = (int)Math.Ceiling(Math.Clamp(now, 0, 100) / 100 * segments - 0.01);
-        int will = (int)Math.Ceiling(Math.Clamp(after, 0, 100) / 100 * segments - 0.01);
-        var colour = now >= 50 ? Good : now >= 25 ? Okay : Bad;
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 1) };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 1), HorizontalAlignment = HorizontalAlignment.Center, Background = Brushes.Transparent };
         var i0 = Icon(icon);
         i0.Margin = new Thickness(0, 0, 4, 0);
         i0.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(i0);
-        // Звена (като лентите за ситост/енергия): сегашното в цвят, колкото ще добави
-        // храната – в синьо, останалото – празно. (Без анимация: тя кара
-        // прозореца да се рисува постоянно.)
-        string dot = now >= 50 ? "dot_good" : now >= 25 ? "dot_okay" : "dot_bad";
-        var cells = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        for (int i = 0; i < segments; i++)
-        {
-            bool gainCell = i >= have && i < will;
-            var link = new Border
+        int cells = Math.Clamp((int)Math.Ceiling(gain / 10 - 0.01), 1, 10);
+        var strip = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        for (int i = 0; i < cells; i++)
+            strip.Children.Add(new Border
             {
-                Width = 5 * P,
-                Height = 5 * P,
-                Margin = new Thickness(0, 0, i < segments - 1 ? -P : 0, 0),
-                BorderBrush = Ink,
-                BorderThickness = Flat,
-                Background = i < have ? colour : gainCell ? Honey : Empty,
-            };
-            if (UiSkin.Has("dot_empty") && !gainCell) UiSkin.Set(link, i < have ? dot : "dot_empty");
-            if (gainCell)
-                link.Background = MakeGainHatch();   // синьо – ясно различно от нивото и от празното
-            cells.Children.Add(link);
-        }
-        row.Children.Add(cells);
-        int gain = (int)Math.Round(Math.Min(100, after) - now);
-        row.ToolTip = Tip(gain > 0 ? $"Сега {Math.Round(now)}/100 → {Math.Round(Math.Min(100, after))}/100 {what}" + (note != null ? "\n" + note : "") : (note ?? what));
-        row.Background = Brushes.Transparent;
+                Width = 5 * P, Height = 5 * P, Margin = new Thickness(0, 0, i < cells - 1 ? -P : 0, 0),
+                BorderBrush = Ink, BorderThickness = Flat, Background = MakeGainHatch(),
+            });
+        row.Children.Add(strip);
+        row.Children.Add(new TextBlock { Text = "+" + Math.Round(gain), FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(5, 0, 0, 0) });
+        double after = Math.Min(100, now + gain);
+        row.ToolTip = Tip($"+{Math.Round(gain)} {what}: сега {Math.Round(now)}/100 → {Math.Round(after)}/100");
         return row;
     }
 
@@ -3065,7 +3082,7 @@ public sealed class MenuWindow : Window
     /// в мрежата всички бутони стоят на една линия, колкото и дълги да са имената.
     /// why = подсказка при посочване (защо е заключено и т.н.).
     /// </summary>
-    private static Border MakeTile(BitmapSource art, string name, UIElement details, Button action, bool dim, string? why, bool owned = false, int artScale = 4, bool heart = false, Rarity? rarity = null)
+    private static Border MakeTile(BitmapSource art, string name, UIElement details, Button action, bool dim, string? why, bool owned = false, int artScale = 4, bool heart = false, Rarity? rarity = null, double artWidth = double.NaN)
     {
         var image = Pixel(art, ArtScale(artScale));
         image.HorizontalAlignment = HorizontalAlignment.Center;
@@ -3110,6 +3127,12 @@ public sealed class MenuWindow : Window
             MinHeight = 96 * U,
             Child = artGrid,
         };
+        // По-тясна (храната): не стои празна встрани.
+        if (!double.IsNaN(artWidth))
+        {
+            artBox.Width = artWidth;
+            artBox.HorizontalAlignment = HorizontalAlignment.Center;
+        }
 
         var dock = new DockPanel { LastChildFill = true };
         DockPanel.SetDock(artBox, Dock.Top);

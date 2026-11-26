@@ -334,8 +334,8 @@ public static class Kitchen
     public static int CostOf(Food food, SaveData save) =>
         food.Cost == 0 ? 0 : Math.Max(1, food.Cost - (Owns(save, Fridge) ? 1 : 0));
 
-    /// <summary>Храната (кафе, чай) вдига енергията най-много до половината; догоре само със сън.</summary>
-    public const double FoodEnergyCap = 50;
+    /// <summary>Докъде храната (кафе, чай) вдига енергията – вече догоре (лимитът „до половината без сън“ е махнат).</summary>
+    public const double FoodEnergyCap = 100;
 
     /// <summary>Енергията след храна с толкова енергия.</summary>
     public static double EnergyAfter(double energy, double gain, double cap = FoodEnergyCap) =>
