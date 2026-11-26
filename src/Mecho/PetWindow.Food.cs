@@ -349,7 +349,7 @@ public sealed partial class PetWindow
             return false;
         }
 
-        _save.Fullness = Math.Min(100, _save.Fullness + food.Fullness);
+        _save.Fullness = Math.Clamp(_save.Fullness + food.Fullness, 0, 100);
         FavoriteEaten(food.Food);
         bool coffee = food.Food.Energy >= 30;
         _save.Energy = Kitchen.EnergyAfter(_save.Energy, food.Energy);

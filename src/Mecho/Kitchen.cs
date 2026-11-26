@@ -339,9 +339,10 @@ public static class Kitchen
 
     /// <summary>Енергията след храна с толкова енергия.</summary>
     public static double EnergyAfter(double energy, double gain, double cap = FoodEnergyCap) =>
-        gain <= 0 || energy >= cap ? energy : Math.Min(cap, energy + gain);
+        gain < 0 ? Math.Max(0, energy + gain) : gain == 0 || energy >= cap ? energy : Math.Min(cap, energy + gain);
 
-    public static double FullnessOf(Food food, SaveData save) => food.Fullness * (Owns(save, Cookbook) ? 1.25 : 1);
+    /// <summary>Колко засища (готварската книга – с 25% повече). Отрицателно – отнема (кафето огладнява).</summary>
+    public static double FullnessOf(Food food, SaveData save) => food.Fullness > 0 ? food.Fullness * (Owns(save, Cookbook) ? 1.25 : 1) : food.Fullness;
 
     /// <summary>След колко минути пак може да набере боровинки (0 = сега).</summary>
     public static int BerriesIn(SaveData save) =>

@@ -2325,11 +2325,25 @@ public sealed class MenuWindow : Window
         return grid;
     }
 
+    /// <summary>Цветът на ниво 1–10: червено → жълто → зелено (без спрайтовете).</summary>
+    private static Brush LevelColour(int level)
+    {
+        var bad = (Bad as SolidColorBrush)?.Color ?? Colors.IndianRed;
+        var okay = (Okay as SolidColorBrush)?.Color ?? Colors.Goldenrod;
+        var good = (Good as SolidColorBrush)?.Color ?? Colors.ForestGreen;
+        double t = (level - 1) / 9.0;
+        var (a, b, k) = t < 0.5 ? (bad, okay, t * 2) : (okay, good, (t - 0.5) * 2);
+        byte L(byte x, byte y) => (byte)Math.Round(x + (y - x) * k);
+        return new SolidColorBrush(Color.FromRgb(L(a.R, b.R), L(a.G, b.G), L(a.B, b.B)));
+    }
+
     private static void SetBar(Border[] segments, TextBlock text, double value, string word)
     {
         int filled = (int)Math.Ceiling(Math.Clamp(value, 0, 100) / 100 * segments.Length - 0.01);
-        var colour = value >= 50 ? Good : value >= 25 ? Okay : Bad;
-        string cell = value >= 50 ? "cell_good" : value >= 25 ? "cell_okay" : "cell_bad";
+        // Всяко ниво – свой цвят: 1 звено – червено … 10 – зелено (cell_l1…cell_l10).
+        int level = Math.Clamp(filled, 1, 10);
+        var colour = LevelColour(level);
+        string cell = UiSkin.Has("cell_l" + level) ? "cell_l" + level : value >= 50 ? "cell_good" : value >= 25 ? "cell_okay" : "cell_bad";
         for (int i = 0; i < segments.Length; i++)
         {
             if (UiSkin.Get(segments[i]) != null) UiSkin.Set(segments[i], i < filled ? cell : "cell_empty");
@@ -2428,8 +2442,8 @@ public sealed class MenuWindow : Window
             // Какво дава: барчета – сегашното и (в мед) колко ще добави.
             var effects = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
             double full = Kitchen.FullnessOf(f, s);
-            if (f.Fullness >= 5) effects.Children.Add(GainOnly("food", full, s.Fullness, "ситост"));
-            if (f.Energy > 0) effects.Children.Add(GainOnly("energy", f.Energy, s.Energy, "енергия"));
+            if (f.Fullness >= 5 || f.Fullness < 0) effects.Children.Add(GainOnly("food", full, s.Fullness, "ситост"));
+            if (f.Energy != 0) effects.Children.Add(GainOnly("energy", f.Energy, s.Energy, "енергия"));
 
             // Колко се готви: часовниче и общото време на всички уреди; ако са няколко –
             // при посочване пише всеки уред с неговото време.
@@ -2574,27 +2588,40 @@ public sealed class MenuWindow : Window
     }
 
     /// <summary>
-    /// Какво дава храната: иконка и толкова звена, колкото добавя (едно звено – 10).
+    /// Какво дава храната: иконка, „+“ и зелени звена (или „−“ и червени – колко отнема); едно звено – 10.
     /// Посочиш ли – сега колко е и колко ще стане.
     /// </summary>
     private static UIElement GainOnly(string icon, double gain, double now, string what)
     {
+        bool minus = gain < 0;
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 1), HorizontalAlignment = HorizontalAlignment.Center, Background = Brushes.Transparent };
         var i0 = Icon(icon);
         i0.Margin = new Thickness(0, 0, 4, 0);
         i0.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(i0);
-        int cells = Math.Clamp((int)Math.Ceiling(gain / 10 - 0.01), 1, 10);
+        // „+“ и зелени звена – колкото дава; „−“ и червени – колкото отнема (едно звено – 10).
+        row.Children.Add(new TextBlock
+        {
+            Text = minus ? "−" : "+", FontWeight = FontWeights.Bold, Foreground = minus ? Bad : Good,
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 3, 0),
+        });
+        int cells = Math.Clamp((int)Math.Ceiling(Math.Abs(gain) / 10 - 0.01), 1, 10);
         var strip = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         for (int i = 0; i < cells; i++)
-            strip.Children.Add(new Border
+        {
+            var c = new Border
             {
-                Width = 5 * P, Height = 5 * P, Margin = new Thickness(0, 0, i < cells - 1 ? -P : 0, 0),
-                BorderBrush = Ink, BorderThickness = Flat, Background = MakeGainHatch(),
-            });
+                Width = 5 * P, Height = 6 * P, Margin = new Thickness(0, 0, i < cells - 1 ? -P : 0, 0),
+                BorderBrush = Ink, BorderThickness = Flat, Background = minus ? Bad : Good,
+            };
+            string sprite = minus ? "cell_bad" : "cell_good";
+            if (UiSkin.Has(sprite)) UiSkin.Set(c, sprite);
+            else c.Child = Shine();
+            strip.Children.Add(c);
+        }
         row.Children.Add(strip);
-        double after = Math.Min(100, now + gain);
-        row.ToolTip = Tip($"+{Math.Round(gain)} {what}: сега {Math.Round(now)}/100 → {Math.Round(after)}/100");
+        double after = Math.Clamp(now + gain, 0, 100);
+        row.ToolTip = Tip($"{(minus ? "−" : "+")}{Math.Round(Math.Abs(gain))} {what}: сега {Math.Round(now)}/100 → {Math.Round(after)}/100");
         return row;
     }
 
