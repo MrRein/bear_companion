@@ -64,7 +64,7 @@ public sealed class MenuWindow : Window
         box.MouseLeftButtonUp += (_, _) => _pet.NextBackdrop();
         return box;
     }
-    private IconBar _fullBar = null!, _energyBar = null!;
+    private Image _fullBar = null!, _energyBar = null!;
     private FrameworkElement? _fullRow, _energyRow;
 
     /// <summary>За обиколката: къде на екрана е нещото (лентите, таб, цялото меню) – само видимата му част.</summary>
@@ -946,8 +946,8 @@ public sealed class MenuWindow : Window
         _weatherRow.Children.Add(_weatherIcon);
         _weatherRow.Children.Add(_weather);
         stats.Children.Add(_weatherRow);
-        _fullRow = (FrameworkElement)Bar("apple", "Ситост", out _fullBar, out _fullText);
-        _energyRow = (FrameworkElement)Bar("bolt", "Енергия", out _energyBar, out _energyText);
+        _fullRow = (FrameworkElement)Bar("food", "Ситост", out _fullBar, out _fullText);
+        _energyRow = (FrameworkElement)Bar("energy", "Енергия", out _energyBar, out _energyText);
         foreach (var row in new[] { _fullRow, _energyRow })
         {
             row.MouseEnter += (_, _) => _pet.TutorialEvent("bars");   // обиколката: „посочи лентите“
@@ -2279,56 +2279,30 @@ public sealed class MenuWindow : Window
         return b;
     }
 
-    /// <summary>
-    /// Лента от 10 иконки (ябълки за ситост, светкавички за енергия): цели, половинка, празни
-    /// (сиви). Винаги в лека рамка; когато е много ниско – рамката леко мига в червено.
-    /// </summary>
-    private sealed class IconBar
+    private static UIElement Bar(string icon, string label, out Image segments, out TextBlock value)
     {
-        public string Kind = "";
-        public Border Frame = null!;
-        public Image[] Slots = null!;
-        public int Halves = -1;
-        public bool Low;
-    }
-
-    /// <summary>Под толкова (2 ябълки/светкавици) рамката почва да мига.</summary>
-    private const double BarLowAt = 20;
-
-    private static readonly Color BarFrameBg = Color.FromRgb(251, 241, 220), BarFrameEdge = Color.FromRgb(214, 190, 150);
-    private static readonly Color BarLowBg = Color.FromRgb(255, 214, 200), BarLowEdge = Color.FromRgb(214, 72, 56);
-
-    private static UIElement Bar(string kind, string label, out IconBar bar, out TextBlock value)
-    {
-        var grid = new Grid { Margin = new Thickness(0, 3, 0, 3) };
+        var grid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition());
-        bar = new IconBar { Kind = kind, Slots = new Image[Segments] };
-        var row = new StackPanel { Orientation = Orientation.Horizontal };
-        for (int i = 0; i < Segments; i++)
-        {
-            var img = new Image { Width = 9 * P, Height = 9 * P, Stretch = Stretch.Fill, Margin = new Thickness(0, 0, i < Segments - 1 ? P : 0, 0), SnapsToDevicePixels = true };
-            RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.NearestNeighbor);
-            bar.Slots[i] = img;
-            row.Children.Add(img);
-        }
-        bar.Frame = new Border
-        {
-            Background = new SolidColorBrush(BarFrameBg),
-            BorderBrush = new SolidColorBrush(BarFrameEdge),
-            BorderThickness = new Thickness(Math.Max(1, P / 2)),
-            CornerRadius = new CornerRadius(3 * U),
-            Padding = new Thickness(2 * P, P, 2 * P, P),
-            Child = row,
-            VerticalAlignment = VerticalAlignment.Center,
-            ToolTip = Tip(label),
-        };
-        grid.Children.Add(bar.Frame);
+        // Само иконката (думата „Ситост“/„Енергия“ – при посочване).
+        var ic = Icon(icon);
+        ic.VerticalAlignment = VerticalAlignment.Center;
+        ic.Margin = new Thickness(0, 0, 6 * U, 0);
+        ic.ToolTip = Tip(label);
+        grid.Children.Add(ic);
+
+        // Лентата – пикселна картинка (PixelBar): обща рамка със заоблени ъгли, звена с половинки.
+        var track = BarImage(PixelBar.Big(0, Segments, PixelBar.Empty));
+        track.VerticalAlignment = VerticalAlignment.Center;
+        segments = track;
+        Grid.SetColumn(track, 1);
+        grid.Children.Add(track);
 
         // Думата (сит, гладен, бодър…) излиза като подсказка, когато мишката е върху лентата.
         value = new TextBlock { Foreground = Muted, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
         grid.Background = Brushes.Transparent;
-        Grid.SetColumn(value, 1);
+        Grid.SetColumn(value, 2);
         grid.Children.Add(value);
         return grid;
     }
@@ -2341,51 +2315,16 @@ public sealed class MenuWindow : Window
         return img;
     }
 
-    /// <summary>Лентата: колко половинки са пълни (закръглено до половинка); много ниско – рамката мига в червено.</summary>
-    private static void SetBar(IconBar bar, TextBlock text, double value, string word)
+    /// <summary>Лентата: колко половинки са пълни (закръглено до половин звено), цветът – по нивото.</summary>
+    private static void SetBar(Image bar, TextBlock text, double value, string word)
     {
         int halves = (int)Math.Round(Math.Clamp(value, 0, 100) / 100 * Segments * 2);
         if (value > 0 && halves == 0) halves = 1;   // нещичко има – поне половинка
-        if (halves != bar.Halves)
-        {
-            bar.Halves = halves;
-            var full = Ui.LoadIcon("bar_" + bar.Kind);
-            var half = Ui.LoadIcon("bar_" + bar.Kind + "_half");
-            var empty = Ui.LoadIcon("bar_" + bar.Kind + "_empty");
-            for (int i = 0; i < bar.Slots.Length; i++)
-            {
-                var img = bar.Slots[i];
-                bool isHalf = halves == i * 2 + 1;
-                img.Source = halves >= (i + 1) * 2 ? full : isHalf ? half : empty;
-                // Половинката е по-тясна рисунка: стои отляво на мястото си.
-                if (isHalf && img.Source is BitmapSource hs) { img.Width = hs.PixelWidth * P; img.Margin = new Thickness(0, 0, (9 - hs.PixelWidth) * P + (i < bar.Slots.Length - 1 ? P : 0), 0); }
-                else { img.Width = 9 * P; img.Margin = new Thickness(0, 0, i < bar.Slots.Length - 1 ? P : 0, 0); }
-            }
-        }
-        bool low = value <= BarLowAt;
-        if (low != bar.Low)
-        {
-            bar.Low = low;
-            var bg = (SolidColorBrush)bar.Frame.Background;
-            var edge = (SolidColorBrush)bar.Frame.BorderBrush;
-            if (low && !SelfTest.Running)
-            {
-                // Съвсем леко: бавно отива към червеникаво и обратно.
-                var d = new Duration(TimeSpan.FromSeconds(1.4));
-                bg.BeginAnimation(SolidColorBrush.ColorProperty, new System.Windows.Media.Animation.ColorAnimation(BarFrameBg, BarLowBg, d) { AutoReverse = true, RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
-                edge.BeginAnimation(SolidColorBrush.ColorProperty, new System.Windows.Media.Animation.ColorAnimation(BarFrameEdge, BarLowEdge, d) { AutoReverse = true, RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
-            }
-            else
-            {
-                bg.BeginAnimation(SolidColorBrush.ColorProperty, null);
-                edge.BeginAnimation(SolidColorBrush.ColorProperty, null);
-                bg.Color = low ? BarLowBg : BarFrameBg;
-                edge.Color = low ? BarLowEdge : BarFrameEdge;
-            }
-        }
+        var bmp = PixelBar.Big(halves, Segments, PixelBar.Level((halves + 1) / 2));
+        if (!ReferenceEquals(bar.Source, bmp)) bar.Source = bmp;
         if (text.Text == word) return;
         text.Text = word;
-        bar.Frame.ToolTip = Tip(char.ToUpper(word[0]) + word[1..]);
+        if (text.Parent is FrameworkElement row) row.ToolTip = Tip(char.ToUpper(word[0]) + word[1..]);
     }
 
     // ───────────────────────── Храна ─────────────────────────

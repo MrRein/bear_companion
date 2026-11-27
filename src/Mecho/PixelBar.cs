@@ -58,7 +58,9 @@ public static class PixelBar
         for (int i = 0; i < cells; i++) widths[i] = small && halves == i * 2 + 1 ? 1 : inner;
         int w = 1;
         foreach (int cw in widths) w += cw + 1;
-        var px = new Color?[w, h];
+        // Голямата има отдолу мека сянка (ред с полупрозрачно тъмно).
+        int shadow = small ? 0 : 1;
+        var px = new Color?[w, h + shadow];
         // Рамка и прегради.
         for (int x = 0; x < w; x++) { px[x, 0] = Outline; px[x, h - 1] = Outline; }
         int cx = 0;
@@ -67,24 +69,41 @@ public static class PixelBar
             for (int y = 0; y < h; y++) px[cx, y] = Outline;
             if (i < cells) cx += widths[i] + 1;
         }
+        // Бледият тон (започнато звено – половинка на голямата лента).
+        static Color Mix(Color a, Color b, double k) => Color.FromRgb((byte)(a.R + (b.R - a.R) * k), (byte)(a.G + (b.G - a.G) * k), (byte)(a.B + (b.B - a.B) * k));
+        var pale = new Tone(Mix(fill.Light, Empty.Light, 0.5), Mix(fill.Mid, Empty.Mid, 0.5), Mix(fill.Dark, Empty.Dark, 0.5));
+        var shine = Mix(fill.Light, Colors.White, 0.6);
         // Звената.
         cx = 1;
+        int rows = h - 2;
         for (int i = 0; i < cells; i++)
         {
             int cw = widths[i];
-            // Колко колони от звеното са пълни.
-            int full = halves >= (i + 1) * 2 ? cw : halves == i * 2 + 1 ? (small ? cw : cw / 2) : 0;
+            bool whole = halves >= (i + 1) * 2, half = halves == i * 2 + 1;
             for (int dx = 0; dx < cw; dx++)
-            {
-                var t = dx < full ? fill : Empty;
-                for (int dy = 0; dy < h - 2; dy++)
-                    px[cx + dx, 1 + dy] = dy == 0 ? t.Light : small || dy < h - 3 ? t.Mid : t.Dark;
-            }
+                for (int dy = 0; dy < rows; dy++)
+                {
+                    Color c;
+                    if (whole || (half && small))
+                    {
+                        c = dy == 0 ? fill.Light : small || dy < rows - 1 ? fill.Mid : fill.Dark;
+                        if (!small && dy == 0 && dx == 0) c = shine;   // отблясък в горния ляв ъгъл
+                    }
+                    else if (half)
+                        c = dy == 0 ? pale.Light : dy < rows - 1 ? pale.Mid : pale.Dark;
+                    else
+                        // Празно – „хлътнало“: тъмно горе, светло долу.
+                        c = dy == 0 ? Empty.Dark : dy < rows - 1 ? Empty.Mid : Empty.Light;
+                    px[cx + dx, 1 + dy] = c;
+                }
             cx += cw + 1;
         }
         // Заоблени ъгли: ъгловите пиксели – прозрачни (малката на храната – само отдясно).
         px[w - 1, 0] = px[w - 1, h - 1] = null;
         if (!small) px[0, 0] = px[0, h - 1] = null;
+        var shadowColor = Color.FromArgb(70, 40, 25, 15);
+        if (shadow > 0) for (int x = 2; x < w - 1; x++) px[x, h] = shadowColor;
+        h += shadow;
 
         var bytes = new byte[w * h * 4];
         for (int y = 0; y < h; y++)
@@ -92,7 +111,7 @@ public static class PixelBar
             {
                 if (px[x, y] is not { } c) continue;
                 int o = (y * w + x) * 4;
-                bytes[o] = c.B; bytes[o + 1] = c.G; bytes[o + 2] = c.R; bytes[o + 3] = 255;
+                bytes[o] = c.B; bytes[o + 1] = c.G; bytes[o + 2] = c.R; bytes[o + 3] = c.A;
             }
         var bmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, bytes, w * 4);
         bmp.Freeze();
