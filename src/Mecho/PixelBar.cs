@@ -40,7 +40,73 @@ public static class PixelBar
     /// Голяма лента: cells звена, halves – колко половинки са пълни (0…2·cells). Пълните – в тона fill,
     /// останалите – празни.
     /// </summary>
-    public static BitmapSource Big(int halves, int cells, Tone fill) => Render(halves, cells, fill, small: false);
+    public static BitmapSource Big(int halves, int cells, Tone fill) => RenderFramed(halves, cells, fill.Mid);
+
+    /// <summary>Кафявата рамка и преградите (стилът от рисунката на Тут).</summary>
+    public static readonly Color Wood = C(110, 45, 2);
+
+    /// <summary>Тонът на звено от основен цвят (както на рисунката: светла ивица, основа, сянка, по-светъл ръб отдолу).</summary>
+    private static (Color Base, Color Hi, Color Shade, Color Rim) Shades(Color c) =>
+        (c, Hsl(c, 14, 0.22, -0.09), Hsl(c, -9, -0.07, 0), Hsl(c, -7, 0.02, 0));
+
+    /// <summary>Отмества цвета в HSL: оттенък (градуси), светлина и наситеност (−1…1).</summary>
+    private static Color Hsl(Color c, double dh, double dl, double ds)
+    {
+        double r = c.R / 255.0, g = c.G / 255.0, b = c.B / 255.0;
+        double max = Math.Max(r, Math.Max(g, b)), min = Math.Min(r, Math.Min(g, b)), l = (max + min) / 2, h = 0, sat = 0;
+        if (max != min)
+        {
+            double d = max - min;
+            sat = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            h = max == r ? (g - b) / d + (g < b ? 6 : 0) : max == g ? (b - r) / d + 2 : (r - g) / d + 4;
+            h /= 6;
+        }
+        h = ((h + dh / 360) % 1 + 1) % 1;
+        l = Math.Clamp(l + dl, 0, 1);
+        sat = Math.Clamp(sat + ds, 0, 1);
+        double Hue(double p, double q, double t)
+        {
+            t = (t % 1 + 1) % 1;
+            return t < 1 / 6.0 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3.0 ? p + (q - p) * (2 / 3.0 - t) * 6 : p;
+        }
+        double q2 = l < 0.5 ? l * (1 + sat) : l + sat - l * sat, p2 = 2 * l - q2;
+        return sat == 0 ? Color.FromRgb((byte)(l * 255), (byte)(l * 255), (byte)(l * 255))
+            : Color.FromRgb((byte)Math.Round(Hue(p2, q2, h + 1 / 3.0) * 255), (byte)Math.Round(Hue(p2, q2, h) * 255), (byte)Math.Round(Hue(p2, q2, h - 1 / 3.0) * 255));
+    }
+
+    /// <summary>
+    /// Голямата лента в рамка: кафява рамка и прегради, звено 4×7 вътре – ред 1 основа, ред 2 светла
+    /// ивица, редове 3–4 основа, 5–6 сянка, 7 по-светъл ръб. Празните – бежови в същия ред.
+    /// Половинка – лявата половина на звеното.
+    /// </summary>
+    private static BitmapSource RenderFramed(int halves, int cells, Color baseColor)
+    {
+        cells = Math.Max(1, cells);
+        halves = Math.Clamp(halves, 0, cells * 2);
+        string key = $"framed|{halves}|{cells}|{baseColor}";
+        if (Cache.TryGetValue(key, out var hit)) return hit;
+        const int inner = 4, rows = 7;
+        int w = 1 + cells * (inner + 1), h = rows + 2;
+        var full = Shades(baseColor);
+        var empty = (Base: C(214, 190, 150), Hi: C(232, 218, 194), Shade: C(194, 168, 128), Rim: C(205, 182, 142));
+        var bytes = new byte[w * h * 4];
+        void Put(int x, int y, Color c) { int o = (y * w + x) * 4; bytes[o] = c.B; bytes[o + 1] = c.G; bytes[o + 2] = c.R; bytes[o + 3] = 255; }
+        for (int x = 0; x < w; x++) for (int y = 0; y < h; y++) Put(x, y, Wood);
+        for (int i = 0; i < cells; i++)
+        {
+            int filledCols = halves >= (i + 1) * 2 ? inner : halves == i * 2 + 1 ? inner / 2 : 0;
+            for (int dx = 0; dx < inner; dx++)
+            {
+                var t = dx < filledCols ? full : empty;
+                for (int dy = 0; dy < rows; dy++)
+                    Put(1 + i * (inner + 1) + dx, 1 + dy, dy == 1 ? t.Hi : dy <= 3 ? t.Base : dy <= 5 ? t.Shade : t.Rim);
+            }
+        }
+        var bmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, bytes, w * 4);
+        bmp.Freeze();
+        return Cache[key] = bmp;
+    }
+
 
     /// <summary>Малка лента (на храната): само пълните звена; половинката – тясно звено (1 пиксел).</summary>
     public static BitmapSource Small(int halves, Tone fill) => Render(halves, (halves + 1) / 2, fill, small: true);
